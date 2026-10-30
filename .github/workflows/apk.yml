@@ -1,0 +1,99 @@
+# Strela APK (lot 5) : à chaque push sur main touchant l'appli, tests, page embarquée, compilation de la coquille
+# Android et publication en release « apk-vX.Y.Z » (fichier strela.apk), sur le modèle de Grafit.
+# Version : package.json (une seule source). Signature : clé chiffrée dans le dépôt (android/signing.p12.enc, AES-256,
+# PBKDF2 600 000 tours), générée au premier passage ; seule la phrase de passe, choisie par le propriétaire, est un
+# secret GitHub (STRELA_SIGNING_PASSPHRASE). Sans elle : APK de test, non publié (artefact), et un avertissement.
+name: apk
+on:
+  push:
+    branches: [main]
+    paths: ['index.html', 'manifest.webmanifest', 'assets/**', 'src/**', 'package.json', 'android/**', 'tools/build-site.mjs', 'tools/apk-page.sh', '.github/workflows/apk.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: apk
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: SDK Android
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" > /dev/null
+      - name: Playwright (tests de chevauchement et de parcours)
+        run: |
+          npm install --no-save --no-package-lock playwright@1.63.0
+          npx playwright install --with-deps chromium
+      - name: Tests et page embarquée
+        run: |
+          node tools/build-site.mjs
+          node -e "const t=require('./_site/tests.json'); console.log('tests', t.pass + '/' + t.total); if (t.total === null || t.fail) process.exit(1)"
+          sh tools/apk-page.sh
+          VER=$(node -p "require('./package.json').version")
+          echo "VER=$VER" >> "$GITHUB_ENV"
+      - name: Clé de signature
+        id: ks
+        env:
+          P: ${{ secrets.STRELA_SIGNING_PASSPHRASE }}
+        run: |
+          if [ -z "$P" ]; then
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Secret STRELA_SIGNING_PASSPHRASE absent : APK de test seulement, non publié (artefact strela-test-apk)"
+            echo "### APK de test seulement : le secret STRELA_SIGNING_PASSPHRASE manque, rien n'est publié." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [ ! -f android/signing.p12.enc ]; then
+            keytool -genkeypair -keystore "$RUNNER_TEMP/release.jks" -storetype PKCS12 -alias strela -keyalg RSA -keysize 3072 \
+              -validity 12000 -storepass "$P" -keypass "$P" -dname "CN=Strela, O=Orbital VKL, C=FR"
+            openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt -in "$RUNNER_TEMP/release.jks" -out android/signing.p12.enc -pass env:P
+            git config user.name "strela-bot"; git config user.email "strela-bot@users.noreply.github.com"
+            git add android/signing.p12.enc
+            git commit -m "Clé de signature APK chiffrée [skip ci]"
+            git pull --rebase origin main && git push origin HEAD:main
+          else
+            openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -in android/signing.p12.enc -out "$RUNNER_TEMP/release.jks" -pass env:P
+          fi
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+      - name: Compilation (signée)
+        if: steps.ks.outputs.signed == 'true'
+        working-directory: android
+        env:
+          KS_FILE: ${{ runner.temp }}/release.jks
+          KS_PASS: ${{ secrets.STRELA_SIGNING_PASSPHRASE }}
+          KEY_ALIAS: strela
+          KEY_PASS: ${{ secrets.STRELA_SIGNING_PASSPHRASE }}
+        run: gradle --no-daemon -PstrelaVersion="$VER" assembleRelease && rm -f "$RUNNER_TEMP/release.jks"
+      - name: Compilation (test, non publiée)
+        if: steps.ks.outputs.signed != 'true'
+        working-directory: android
+        run: gradle --no-daemon -PstrelaVersion="$VER" assembleDebug
+      - name: APK de test (artefact)
+        if: steps.ks.outputs.signed != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: strela-test-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Release
+        if: steps.ks.outputs.signed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk strela.apk
+          TAG="apk-v$VER"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" strela.apk --clobber
+          else
+            gh release create "$TAG" strela.apk --title "Strela $VER" --notes "Strela $VER pour Android. Installer strela.apk sur le téléphone ; les versions suivantes s'installent par-dessus depuis l'appli (Réglages › RECHERCHER UNE MISE À JOUR), données gardées."
+          fi
+          echo "### Publié : release $TAG (strela.apk)" >> "$GITHUB_STEP_SUMMARY"

@@ -16,6 +16,8 @@ import { cropScreen, mountCrop, onPhotoFile, actions as photoActions } from './s
 import { animateRolls, rollScope } from './roll.js';
 import { fitAll } from './fit.js';
 import { sayLog, soundLog } from './feedback.js';
+import { handleBack } from './back.js';
+import { isApk } from './native.js';
 
 const ROUTES = [
   [/^\/?$/, home],
@@ -178,6 +180,8 @@ app.addEventListener('change', ev => {
   if (bf) bf.value = '';
 });
 window.addEventListener('hashchange', render);
+// Bouton retour d'Android (lot 5, APK) : la coquille appelle strelaBack() ; false = à l'accueil, l'appli peut sortir.
+window.strelaBack = () => handleBack(ACTIONS, go);
 // Rotation : l'écran de jeu change de mise en page (pavé en portrait, cible en paysage), l'état reste.
 try { matchMedia('(orientation: landscape)').addEventListener('change', () => { if (location.hash === '#/jeu') render(); }); } catch (e) { /* vieux navigateur */ }
 // Taille de la fenêtre (barres de Chrome, clavier, police) : l'écran de jeu se redessine, les autres se réajustent.
@@ -233,6 +237,7 @@ document.body.dataset.ready = '1';
 
 // Service worker « réseau d'abord » : appli installable, toujours la dernière version quand le réseau répond.
 // Il ne touche qu'à ses copies de fichiers (caches « strela-… ») : jamais à la base du téléphone.
-if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+// Pas dans l'APK (lot 5) : la page y est embarquée (WebViewAssetLoader), toujours à jour et hors ligne.
+if ('serviceWorker' in navigator && !isApk() && (location.protocol === 'https:' || location.hostname === 'localhost')) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }

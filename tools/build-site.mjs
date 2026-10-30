@@ -4,6 +4,8 @@
 //      l'adresse du manifeste (?v=version-commit) ;
 //   3. recopie assets/, src/, le manifeste et le service worker (cache nommé par build), écrit _site/tests.json.
 // Le site est construit même si des tests échouent : la page affiche alors les échecs en rouge.
+// STRELA_SANS_TESTS=1 : sans lancer les tests (compilation de l'APK de test d'une demande de fusion, où ci.yml les lance
+// déjà ; la page affiche alors « TESTS NON LANCÉS »). La page de l'APK publié, elle, est construite avec les tests.
 // Le blocage d'une fusion sur test rouge est le rôle de .github/workflows/ci.yml.
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, rmSync, mkdirSync, cpSync } from 'node:fs';
@@ -46,7 +48,9 @@ export function render(html, values) {
 
 function build() {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
-  const tests = runTests();
+  const tests = process.env.STRELA_SANS_TESTS
+    ? { total: null, pass: null, fail: null, durationMs: 0, fails: [], exitCode: 0 }
+    : runTests();
   const commit = (process.env.GITHUB_SHA
     || spawnSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).stdout || 'local').trim().slice(0, 7);
   const now = new Date();
@@ -86,7 +90,7 @@ function build() {
     total: tests.total, pass: tests.pass, fail: tests.fail, fails: tests.fails,
   }, null, 2) + '\n');
 
-  console.log(`Site construit dans _site/ — v${pkg.version}, tests ${values.pass}/${values.total}${ok ? '' : ' (ÉCHECS)'}, ${date}`);
+  console.log(`Site construit dans _site/ — v${pkg.version}, tests ${values.pass}/${values.total}${ok ? '' : tests.total === null ? ' (non lancés)' : ' (ÉCHECS)'}, ${date}`);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) build();

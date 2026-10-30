@@ -9,3 +9,5 @@ Application de comptage et de suivi pour les parties de fléchettes (X01 : 301, 
 
 Police Martian Mono © The Martian Mono Project Authors, sous licence SIL Open Font License 1.1
 (`assets/fonts/OFL.txt`).
+
+Appli Android : release `apk-vX.Y.Z` du dépôt, fichier `strela.apk` (détail : [docs/android.md](docs/android.md)).

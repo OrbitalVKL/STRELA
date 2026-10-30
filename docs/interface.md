@@ -388,6 +388,13 @@ avatars photo en jeu. Les états paysage s'affichent en paysage : tourner le té
   par l'import, RECHARGER reprend la partie ; module en erreur → écran de secours ; stockage plein simulé → alerte,
   RÉESSAYER ; base inaccessible → alerte).
 
+## Lot 5 : APK Android
+
+Détail de la coquille, de la passerelle et de la chaîne de publication : [android.md](android.md). Côté page :
+`src/ui/native.js` (passerelle, repli web), `src/ui/back.js` (retour d'Android), `buzz()` / `keepAwake()` de nav.js,
+`say()` / `voiceInfo()` de feedback.js, EXPORTER et section « Appli Android » de settings.js, premier lancement de
+l'APK dans home.js (scène `premier-lancement-apk`). Pas de service worker dans l'APK. Tests : `tests/passerelle.test.js`.
+
 ## Pour le lot 4
 
 - Les écrans Historique et Stats lisent `store.games` (parties closes) ; la partie en cours est à part (`store.current`).

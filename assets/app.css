@@ -3,8 +3,9 @@
 
 /* Marge basse du jeu : au moins la zone des gestes système d'Android (remonter du bas de l'écran). La page web ne
    peut pas la mesurer (env(safe-area-inset-bottom) vaut souvent 0 en plein écran avec la navigation par gestes) :
-   16 px au moins ; l'APK (lot 5) pourra lire les vrais encarts (getMandatorySystemGestureInsets). */
-:root { --gesture-bottom: max(env(safe-area-inset-bottom, 0px), 16px); }
+   16 px au moins. Dans l'APK (lot 5), la coquille mesure la zone (getMandatorySystemGestureInsets, au-delà de la marge
+   déjà laissée aux barres) et la pose dans --gesture-native. */
+:root { --gesture-bottom: max(env(safe-area-inset-bottom, 0px), 16px, var(--gesture-native, 0px)); }
 
 html, body { min-height: 100%; }
 body {
@@ -73,6 +74,7 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 }
 .btn.primary { background: var(--inv-bg); color: var(--inv-fg); border-color: var(--inv-bg); }
 .btn.big { min-height: 84px; font-size: 20px; letter-spacing: 0.1em; }
+.btn.big.wrap { font-size: 16px; line-height: 1.35; overflow-wrap: anywhere; }
 .btn.ghost { border-color: var(--faint); }
 .btn.danger { color: var(--red-text); border-color: var(--red); }
 .btn.alert { color: var(--red-ink); background: var(--red); border-color: var(--red); }
@@ -179,6 +181,8 @@ label.btn { cursor: pointer; }
 .issue > b { color: var(--red-text); font-size: 13px; letter-spacing: 0.08em; }
 .issue .btns { margin-top: 6px; }
 .issue .btn { min-height: 48px; }
+.issue.warn { border-color: var(--fg); margin-top: 16px; }
+.issue.warn > b { color: var(--fg); }
 .rescue .home-head { background: var(--red); color: var(--red-ink); }
 .rescue .home-title { font-size: min(58px, 13vw); }
 .rescue .pad { display: grid; gap: 12px; padding-top: 22px; padding-bottom: 24px; font-size: 13px; line-height: 1.55; }

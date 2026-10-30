@@ -207,6 +207,9 @@ export const SCENES = {
   'accueil-bande': () => { setHomeVariant('bande'); return '#/'; },
   'accueil-filet': () => { setHomeVariant('filet'); return '#/'; },
   'accueil-filet-reprendre': () => { setHomeVariant('filet'); setGame(cfg(['p1', 'p2']), 'T20 S20 S5 S20 T19 S1 T20'); return '#/'; },
+  // Lot 5 : premier lancement de l'APK (import de la sauvegarde de la version web, ou à zéro)
+  'premier-lancement-apk': () => { store.players = []; store.games = []; store.current = null; store.lastSetup = null; store.mockApk = true; return '#/'; },
+  'reglages-apk': () => { store.mockApk = true; return '#/reglages'; },
   'premier-lancement': () => { store.players = []; store.games = []; store.current = null; store.lastSetup = null; return '#/'; },
   'reprendre-manche': () => { setGame(cfg(['p1', 'p2'], 301, 'double', 2), 'T20 T20 T20 20 1 5 T20 T11 D14'); store.current.validated = 6; return '#/'; },
   'reprendre-fin': () => { setGame(cfg(['p1', 'p2', 'p3'], 301), 'T20 T20 T20 20 1 5 T19 S7 S3 T20 T11 D14'); return '#/'; },
@@ -260,6 +263,7 @@ export function sommaire() {
       ${L('accueil-filet', '1 · Accueil, variante B « filet »')}
       ${L('accueil-filet-reprendre', '1 · Variante B avec REPRENDRE')}
       ${L('premier-lancement', '1 · Accueil au premier lancement', 'aucun joueur')}
+      ${L('premier-lancement-apk', '1 · Premier lancement de l\'appli Android', 'importer la version web')}
       ${L('reprendre', '1 · Accueil avec REPRENDRE', 'partie en cours')}
       ${L('reprendre-manche', '1 · REPRENDRE une fin de manche', 'pas encore validée')}
       ${L('reprendre-fin', '1 · REPRENDRE une fin de partie', 'pas encore rangée')}
@@ -293,6 +297,7 @@ export function sommaire() {
       ${H('#/face/p1/p2', '9 · Face-à-face', 'Guillaume contre Mathilde')}
       ${H('#/face/p3/p1', '9 · Face-à-face', 'à 3 et 4 joueurs')}
       ${H('#/reglages', '10 · Réglages')}
+      ${L('reglages-apk', '10 · Réglages de l\'appli Android', 'mise à jour, désinstallation')}
       ${L('sauvegarde-apercu', '10 · Importer : aperçu', 'REMPLACER / FUSIONNER')}
       ${L('sauvegarde-remplacer', '10 · Importer : tout remplacer ?', 'confirmation')}
       ${L('sauvegarde-fusionner', '10 · Importer : fusionner ?', 'confirmation')}

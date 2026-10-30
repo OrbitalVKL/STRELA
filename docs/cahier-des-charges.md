@@ -210,6 +210,14 @@ Détail : [direction-artistique.md](direction-artistique.md).
 - Puis la même page embarquée dans une coquille Android Java WebView (paquet `fr.orbitalvkl.strela`,
   minSdk 30), APK signé publié en release par GitHub Actions, mise à jour depuis l'appli, comme Grafit.
 
+## 8 bis. Appli Android (lot 5)
+
+Coquille Java WebView (`fr.orbitalvkl.strela`, minSdk 30, targetSdk 35, « Strela ») : page embarquée, hors ligne ;
+passerelle native (vibreur, voix d'Android, export dans Téléchargements/Strela et partage, import et photo par les
+sélecteurs d'Android) ; bouton retour (jamais de sortie en pleine partie) ; plein écran et écran allumé en partie ;
+premier lancement : import de la sauvegarde de la version web ; APK signé publié en release `apk-vX.Y.Z`, mise à jour
+depuis l'appli. La version web reste sur GitHub Pages (aperçu, tests). Détail : [android.md](android.md).
+
 ## 9. Lots
 
 | Lot | Contenu | Validation |

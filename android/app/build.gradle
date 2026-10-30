@@ -1,0 +1,49 @@
+// Strela : coquille Android de la page Strela (WebView sur les fichiers embarqués, voir apk.yml) et passerelle
+// « strelaNative » vers ce qu'une WebView ne donne pas bien (vibreur, voix, fichiers, mise à jour).
+// Version : une seule source, package.json (champ « version ») ; la tâche GitHub peut la forcer (-PstrelaVersion).
+// Signature de la release : variables d'environnement fournies par apk.yml (clé chiffrée dans le dépôt).
+plugins { id 'com.android.application' }
+
+def pkg = new groovy.json.JsonSlurper().parse(rootProject.file('../package.json'))
+def ver = (project.findProperty('strelaVersion') ?: pkg.version).toString()
+def code = ver.tokenize('.').collect { it as int }.inject(0) { a, b -> a * 100 + b }
+
+android {
+    namespace 'fr.orbitalvkl.strela'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'fr.orbitalvkl.strela'
+        minSdk 30
+        targetSdk 35
+        versionCode code
+        versionName ver
+    }
+    signingConfigs {
+        release {
+            storeFile file(System.getenv('KS_FILE') ?: 'release.jks')
+            storePassword System.getenv('KS_PASS')
+            keyAlias System.getenv('KEY_ALIAS')
+            keyPassword System.getenv('KEY_PASS')
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+        textReport true      // ci.yml : une API trop récente pour Android 11 (NewApi) fait échouer la CI
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.12.1'
+    implementation 'androidx.core:core:1.13.1'
+}

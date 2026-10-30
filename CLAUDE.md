@@ -37,6 +37,8 @@ assets/theme.css          thème (jetons CSS sombre / clair, fonds d'avatar --av
 assets/app.css            styles des écrans (jetons uniquement)
 assets/fonts/             Martian Mono woff2 (latin, latin-ext, cyrillique) + OFL.txt
 assets/icon.svg           icône (+ icon-192/512/maskable-512.png générés par tools/make-icons.mjs)
+android/                  coquille Android (lot 5, docs/android.md) : MainActivity, Bridge (passerelle strelaNative),
+                          Speech (voix), Updater (mise à jour) ; page copiée dans app/src/main/assets/www/ par apk-page.sh
 src/data/db.js            base du téléphone (IndexedDB) : migrations, relecture, écritures en une transaction ; sans DOM
 src/data/backup.js        sauvegarde JSON (lot 3) : format, vérification, REMPLACER TOUT / FUSIONNER ; sans DOM
 src/engine/               moteur de règles, JS pur sans dépendance ni DOM (docs/moteur-x01.md)
@@ -54,6 +56,7 @@ src/ui/                   interface (docs/interface.md) : app.js, nav.js, store.
                           table.js (historique en tableau), fit.js (compaction des blocs trop chargés),
                           feedback.js (sons Web Audio et annonces vocales, lot 3),
                           rescue.js (écran de secours, script classique chargé avant l'appli, lot 4),
+                          native.js (passerelle de l'APK, lot 5), back.js (bouton retour d'Android, lot 5),
                           mock.js + maquette.js (données fictives : sommaire ?maquette et tests seulement)
 src/ui/theme.js           palette (source de vérité des couleurs), contraste
 tests/                    tests node:test (*.test.js) ; helpers.js = aides (notation ds('T20 D16'))
@@ -61,13 +64,16 @@ tests/                    tests node:test (*.test.js) ; helpers.js = aides (nota
                           parcours (vraie appli, rechargements), photo, miseajour (service worker + base v2) ;
                           lot 3 : saisie (touches au relâcher), suppression, panneau (+ correction), annonces,
                           sauvegarde (aller-retour), chiffres (stats contre un calcul à la main) ;
-                          lot 4 : finition (double préféré en vraie appli), secours (écran de secours, stockage plein)
-tools/build-site.mjs      construit _site/ : lance les tests, remplit la page, copie assets/ et src/
+                          lot 4 : finition (double préféré en vraie appli), secours (écran de secours, stockage plein) ;
+                          lot 5 : passerelle (APK simulé, et navigateur)
+tools/build-site.mjs      construit _site/ : lance les tests (sauf STRELA_SANS_TESTS=1), remplit la page, copie assets/ et src/
+tools/apk-page.sh         copie le site construit dans l'APK ; tools/android-check.mjs : essai de l'APK sur émulateur (adb)
 tools/check-layout.mjs    test de chevauchement en ligne de commande ; tools/captures.mjs : captures ; tools/geste.mjs :
                           saisie au doigt en paysage ; tools/lib/ : serveur, contrôle de mise en page, geste,
                           app.mjs (pilotage de la vraie appli : saisie, lecture de la base, instantané de l'écran)
 .github/workflows/ci.yml     tests sur chaque demande de fusion et sur main
 .github/workflows/pages.yml  build + déploiement GitHub Pages à chaque push sur main
+.github/workflows/apk.yml    tests, page embarquée, APK signé publié en release apk-vX.Y.Z (strela.apk) à chaque push sur main
 docs/                     cahier des charges, DA, moteur, interface, statistiques (définitions exactes)
 package.json              version de l'appli (champ "version"), scripts ; aucune dépendance
 ```
@@ -89,7 +95,10 @@ Les tests sont dans `tests/` (et non `test/`) : avec `node --test`, tout fichier
   (les modules ES et les polices ne marchent pas en `file://`).
 - Node 22 en CI ; le projet n'a aucune dépendance. La CI (et le build de Pages) installe seulement Playwright et
   Chromium (`npm install --no-save playwright@1.63.0`) pour les tests de chevauchement et de geste.
-- Version : `package.json` → affichée sur la page. Au lot 5, l'APK lira cette même version.
+- Version : `package.json` → affichée sur la page et lue par l'APK (`android/app/build.gradle`).
+- APK : `STRELA_SANS_TESTS=1 node tools/build-site.mjs && sh tools/apk-page.sh && (cd android && gradle assembleDebug)`
+  (SDK Android 35, Java 17+, Gradle 8.11+ ; présents dans les sessions). Pas d'émulateur dans les sessions (pas de KVM) :
+  la CI l'essaie sur un émulateur (job `emulateur`). Détail : docs/android.md.
 
 ## Page publiée
 
@@ -111,10 +120,32 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 2 | Partie jouable et enregistrée (IndexedDB, reprise), vrais joueurs et photo d'avatar, VALIDER sans le suivant — **fait** |
 | 3 | Corrections de jeu, historique, stats et sauvegarde (touches au relâcher, suppression de parties, face-à-face, panneau cible + historique, finition dans les cases, voix, célébrations, sons, correction d'une fléchette, export / import, chiffres vérifiés) — **fait** |
 | 4 | Finitions : titre STRELA + rouge d'accent (accueil), finition au double préféré (base v2), écrans vides et erreurs, écran de secours — **fait** |
-| 5 | APK (coquille Java WebView `fr.orbitalvkl.strela`, minSdk 30, release signée, mise à jour dans l'appli) |
+| 5 | APK (coquille Java WebView `fr.orbitalvkl.strela`, minSdk 30, passerelle native, release signée, mise à jour dans l'appli) — **fait, en attente de validation sur le Pixel** |
 | 6 | Recette |
 
-## État (fin du lot 4)
+## État (fin du lot 5)
+
+- Version 0.5.0. Base en version 2 (inchangée au lot 5). APK : docs/android.md.
+- Lot 5 : coquille `android/` (WebView, page embarquée sur appassets.androidplatform.net, rotation sans rechargement,
+  retour = page, plein écran et écran allumé en partie, zone des gestes) ; passerelle `strelaNative` (vibreur, voix
+  d'Android, export Téléchargements/Strela + partage, import et photo par les sélecteurs d'Android, mise à jour) ;
+  premier lancement : IMPORTER UNE SAUVEGARDE DE LA VERSION WEB ; Réglages › Appli Android (mise à jour, désinstaller
+  efface les données) ; `apk.yml` (release `apk-vX.Y.Z`, `strela.apk`) ; CI : APK de test + essai sur émulateur.
+- Secret `STRELA_SIGNING_PASSPHRASE` (créé par Guillaume) : sans lui, `apk.yml` ne publie rien (APK de test en artefact).
+  Au premier passage avec le secret, la clé est générée et `android/signing.p12.enc` est poussé sur `main` par le bot.
+- Vérifié sur émulateur Android 14 en CI (`tools/android-check.mjs`) : page servie sur appassets, passerelle, voix
+  et vibreur répondent, retour (Réglages → accueil ; en partie → menu pause, pas de sortie), partie enregistrée,
+  rotation sans rechargement, export dans Téléchargements/Strela, fermeture brutale puis reprise. Import par le
+  sélecteur de documents : non piloté jusqu'au bout par l'automatisation (vérifié dans le navigateur et avec la
+  passerelle simulée). Corrigé grâce à l'émulateur : WebView qui gardait la touche retour, plantage quand Android
+  arrête le moteur de rendu en arrière-plan, API trop récentes pour Android 11 (lint en CI).
+- À vérifier sur le Pixel (impossible sur l'émulateur) : vibrations ressenties, voix française, sons, appareil photo,
+  geste depuis le bas pendant la saisie, import depuis Téléchargements, mise à jour depuis l'appli (à partir de la
+  version suivante).
+- Pour le lot 6 (recette) : tout nouvel écran ou état va dans `SCENES` ; une fonction native nouvelle va dans
+  `Bridge.java`, `src/ui/native.js` (repli web) et la passerelle simulée de `tests/passerelle.test.js`.
+
+## État (fin du lot 4, pour mémoire)
 
 - Version 0.4.0. Base en **version 2** (migration : préférences de finition `checkout: { double, avoidBull }` ajoutées à
   chaque joueur ; rien d'autre ne change). Sauvegarde toujours au format 1 (une sauvegarde sans préférences prend les
