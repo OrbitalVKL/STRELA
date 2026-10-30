@@ -6,6 +6,8 @@ import { store, newId, inCurrentGame, deletionPreview, deletePlayer, savePlayer,
 import { esc, ico, topBar, avg, plural } from '../dom.js';
 import { avatarHtml, iconSvg, ICONS, ICON_KEYS, AVATAR_COLOR_NAMES } from '../avatars.js';
 import { playerStats } from '../../engine/stats.js';
+import { checkoutPrefs, suggestCheckout } from '../../engine/checkout.js';
+import { formatDart } from '../../engine/darts.js';
 import { go, goBackTo, refresh } from '../nav.js';
 
 export const NAME_MAX = 40;
@@ -52,6 +54,7 @@ export function openDraft(id) {
     name: p ? p.name : '',
     avatar: p ? { ...p.avatar } : { kind: 'initials', color: freeColor },
     archived: p ? !!p.archived : false,
+    checkout: checkoutPrefs(p && p.checkout), // finition conseillée en jeu (lot 4)
     confirm: false,
     del: null, // null | 'ask' (confirmation) | 'refused' (joueur de la partie en cours)
     photoError: '', // photo trop lourde ou illisible
@@ -107,10 +110,30 @@ export function playerForm(id) {
       <div style="margin-top:10px">${source}</div>
       <div class="sec">Fond</div>
       <div class="swatches">${AVATAR_COLOR_NAMES.map((n, i) => `<button type="button" class="swatch" style="background:var(--av-${i})" data-act="avcolor" data-arg="${i}" aria-pressed="${d.avatar.color === i}" aria-label="${n}">${n}</button>`).join('')}</div>
+      <div class="sec">Finition</div>
+      ${finishHtml(d)}
       ${archiveBlock || deleteBlock ? `<div class="sec">Archiver ou supprimer</div><div class="btns">${archiveBlock}${deleteBlock}</div>` : ''}
     </div>
     <div class="dock" data-layer><button type="button" class="btn primary" data-act="save-player">${isNew ? 'CRÉER LE JOUEUR' : 'ENREGISTRER'}</button></div>
   </div>`;
+}
+
+// Doubles proposés (les plus joués d'abord) ; les autres restent possibles par la sauvegarde, sans intérêt ici.
+export const FINISH_DOUBLES = [20, 16, 8, 18, 12, 10, 14, 6, 4, 2];
+
+/** Préférences de finition (lot 4) : double préféré, éviter le bull, et des exemples de ce que le jeu conseillera. */
+function finishHtml(d) {
+  const c = d.checkout;
+  const ex = [41, 50, 76, 110].map(r => {
+    const route = suggestCheckout(r, 'double', 3, c);
+    return `<span class="ex"><b>${r}</b> ${route ? route.map(formatDart).join(' ') : '—'}</span>`;
+  }).join('');
+  return `<p class="small dim" style="margin:0 0 8px">Double préféré pour finir</p>
+    <div class="dgrid" role="group" aria-label="Double préféré">${FINISH_DOUBLES.map(n => `<button type="button" data-act="fin-double" data-arg="${n}" aria-pressed="${c.double === n}">D${n}</button>`).join('')}</div>
+    <div class="row"><div class="lbl"><b>Éviter le bull</b><small>Pas de 25 ni de 50 quand une autre finition tient dans la volée.</small></div>
+      <div class="toggle"><button type="button" data-act="fin-bull" data-arg="1" aria-pressed="${c.avoidBull}">OUI</button><button type="button" data-act="fin-bull" data-arg="0" aria-pressed="${!c.avoidBull}">NON</button></div></div>
+    <p class="note">En jeu, la finition conseillée en tient compte. Exemples (sortie double) :</p>
+    <div class="fin-ex">${ex}</div>`;
 }
 
 /** SUPPRIMER, sa confirmation (conséquences chiffrées) ou le refus pendant une partie. */
@@ -164,6 +187,8 @@ export const actions = {
     refresh();
   },
   avcolor(i) { store.draft.avatar.color = Number(i); refresh(); },
+  'fin-double'(n) { store.draft.checkout = checkoutPrefs({ ...store.draft.checkout, double: Number(n) }); refresh(); },
+  'fin-bull'(v) { store.draft.checkout = checkoutPrefs({ ...store.draft.checkout, avoidBull: v === '1' }); refresh(); },
   'open-bank'() { go('#/avatars'); },
   'pick-icon'(key) {
     const d = store.draft;
@@ -204,7 +229,8 @@ export const actions = {
     if (avatar.kind === 'photo' && !avatar.photo) avatar.kind = 'initials'; // pas encore de photo : les initiales
     if (avatar.kind !== 'photo') delete avatar.photo;
     const old = d.id && store.players.find(p => p.id === d.id);
-    savePlayer(old ? { ...old, name, avatar } : { id: newId('p'), name, avatar, archived: false });
+    const checkout = checkoutPrefs(d.checkout);
+    savePlayer(old ? { ...old, name, avatar, checkout } : { id: newId('p'), name, avatar, archived: false, checkout });
     store.draft = null;
     go('#/joueurs');
   },

@@ -51,7 +51,7 @@ test('base : écriture et relecture, partie en cours après rechargement', { ski
       { store: 'settings', key: 'lastSetup', put: { players: ['a', 'b'], startScore: 501, outMode: 'double', legsToWin: 2 } },
     ]);
     db.close();
-    return { players, done, current };
+    return { players: players.map(m.playerRecord), done, current };
   }, DB);
   assert.equal(written.current.ui, undefined, 'l’état d’affichage n’est pas enregistré');
   assert.equal(written.current.endedAt, null);
@@ -64,7 +64,7 @@ test('base : écriture et relecture, partie en cours après rechargement', { ski
     db.close();
     return { ...all, version: db.version };
   }, DB);
-  assert.equal(back.version, 1);
+  assert.equal(back.version, 2);
   assert.deepEqual(back.players.sort((x, y) => x.id.localeCompare(y.id)), written.players);
   assert.deepEqual(back.games, [written.done]);
   assert.deepEqual(back.current, written.current, 'partie en cours relue à l’identique (pos, validated)');
@@ -77,14 +77,14 @@ test('base : migrations jouées dans l’ordre, données gardées, base plus ré
   const r = await page.evaluate(async DB => {
     const m = await import(DB);
     await m.deleteDb('t-mig');
-    // Version 1 (celle de l'appli) avec des données…
+    // Version de l'appli avec des données…
     const v1 = await m.openDb({ name: 't-mig' });
     await v1.write([
       { store: 'players', put: { id: 'a', name: 'Alpha', avatar: { kind: 'initials', color: 1 }, archived: false } },
       { store: 'games', put: { id: 'g', startedAt: 5, endedAt: 9, config: { startScore: 301, outMode: 'single', legsToWin: 1, players: ['a'] }, darts: [], validated: 0, abandoned: false } },
     ]);
     v1.close();
-    // … puis une version 2 imaginaire : un index et une transformation des joueurs.
+    // … puis une version suivante imaginaire : un index et une transformation des joueurs.
     const migrations = [...m.MIGRATIONS, (db, tx) => {
       tx.objectStore('games').createIndex('startedAt', 'startedAt');
       const cur = tx.objectStore('players').openCursor();
@@ -94,7 +94,7 @@ test('base : migrations jouées dans l’ordre, données gardées, base plus ré
     const all = await v2.loadAll();
     const idx = [...v2.db.transaction('games').objectStore('games').indexNames];
     v2.close();
-    // L'appli d'avant (version 1) face à la base en version 2 : erreur claire, rien d'effacé.
+    // L'appli d'avant face à la base plus récente : erreur claire, rien d'effacé.
     let newer = null;
     try { (await m.openDb({ name: 't-mig' })).close(); } catch (e) { newer = e.code; }
     const again = await m.openDb({ name: 't-mig', migrations });
@@ -105,15 +105,46 @@ test('base : migrations jouées dans l’ordre, données gardées, base plus ré
     const fresh = await m.openDb({ name: 't-new', migrations });
     const stores = [...fresh.db.objectStoreNames];
     fresh.close();
-    return { version: v2.version, all, idx, newer, still, stores };
+    return { version: v2.version, expected: migrations.length, all, idx, newer, still, stores };
   }, DB);
-  assert.equal(r.version, 2);
-  assert.deepEqual(r.all.players.map(p => p.name), ['ALPHA'], 'transformation de la version 2 appliquée');
+  assert.equal(r.version, r.expected);
+  assert.deepEqual(r.all.players.map(p => p.name), ['ALPHA'], 'transformation de la version suivante appliquée');
   assert.equal(r.all.games.length, 1, 'parties gardées');
   assert.deepEqual(r.idx, ['startedAt']);
   assert.equal(r.newer, 'NEWER');
   assert.equal(r.still.games.length, 1);
   assert.deepEqual(r.stores.sort(), ['games', 'players', 'settings']);
+}));
+
+test('base : migration réelle v1 → v2 (lot 4), préférences de finition ajoutées aux joueurs, rien d’autre ne change', { skip, timeout: 60e3 }, () => withPages(async open => {
+  const page = await open();
+  const r = await page.evaluate(async DB => {
+    const m = await import(DB);
+    await m.deleteDb('t-v2');
+    const v1 = await m.openDb({ name: 't-v2', migrations: m.MIGRATIONS.slice(0, 1) });
+    const photo = 'data:image/jpeg;base64,AAAA';
+    await v1.write([
+      { store: 'players', put: { id: 'a', name: 'Alpha', avatar: { kind: 'photo', photo, color: 1 }, archived: false } },
+      { store: 'players', put: { id: 'b', name: 'Bravo', avatar: { kind: 'icon', icon: 'ours', color: 3 }, archived: true } },
+      { store: 'games', put: { id: 'g', startedAt: 5, endedAt: null, config: { startScore: 301, outMode: 'double', legsToWin: 1, players: ['a', 'b'] }, darts: [{ segment: 20, multiplier: 3 }], validated: 1, abandoned: false } },
+      { store: 'settings', key: 'display', put: { theme: 'light' } },
+    ]);
+    const before = await v1.loadAll();
+    v1.close();
+    const v2 = await m.openDb({ name: 't-v2' });
+    const after = await v2.loadAll();
+    v2.close();
+    return { version: v2.version, before, after };
+  }, DB);
+  assert.equal(r.version, 2);
+  const byId = Object.fromEntries(r.after.players.map(p => [p.id, p]));
+  assert.deepEqual(byId.a.checkout, { double: 20, avoidBull: false });
+  assert.deepEqual(byId.b.checkout, { double: 20, avoidBull: false });
+  assert.equal(byId.a.avatar.photo, 'data:image/jpeg;base64,AAAA', 'photo gardée');
+  assert.equal(byId.b.archived, true);
+  for (const p of r.after.players) { const { checkout, ...rest } = p; assert.deepEqual(rest, r.before.players.find(q => q.id === p.id)); }
+  assert.deepEqual(r.after.current, r.before.current, 'partie en cours intacte');
+  assert.deepEqual(r.after.settings, r.before.settings);
 }));
 
 test('base : suppression d’un joueur en une seule transaction (tout ou rien)', { skip, timeout: 60e3 }, () => withPages(async open => {
@@ -167,6 +198,6 @@ test('base : une nouvelle version ouverte ailleurs ferme la connexion de l’anc
     db.close();
     return { version: db.version, players: all.players.length };
   }, DB);
-  assert.deepEqual(v, { version: 2, players: 1 });
+  assert.deepEqual(v, { version: 3, players: 1 });
   assert.equal(await oldPage.evaluate(() => window.__vc), 1, 'l’ancienne page a été prévenue (elle se recharge)');
 }));

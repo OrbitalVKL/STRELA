@@ -64,6 +64,8 @@ function mockBackup() {
   const g = { id: 'gx-import', startedAt: Date.now() - 86400e3 * 40, endedAt: Date.now() - 86400e3 * 40 + 1800e3, config: cfg(['p1', 'px'], 301), darts: ds('T20 T20 T20 20 20 20 T20 T11 D14'), validated: 9, abandoned: false };
   return parseBackup(JSON.stringify(makeBackup({ players: [...store.players, extra], games: [...store.games, g], current: null, display: { ...store.settings }, lastSetup: null }, { app: '0.3.0', now: new Date(2026, 9, 30, 21, 18) })));
 }
+/** Préférences de finition d'un joueur fictif : D16 et bull évité. */
+const prefer = id => { const p = store.players.find(q => q.id === id); if (p) p.checkout = { double: 16, avoidBull: true }; };
 const visitIndex = (config, darts, pick) => computeState(config, darts).visits.findIndex(pick);
 
 export const SCENES = {
@@ -211,6 +213,9 @@ export const SCENES = {
   },
   // Guillaume (photo) dans la bande des autres : en gris ; Mathilde (photo) au bandeau : en couleur.
   'photo-jeu': () => { givePhoto('p1'); givePhoto('p2'); setGame(cfg(['p1', 'p2', 'p3']), 'T20 S20 S5'); return '#/jeu'; },
+  // Lot 4 : préférences de finition (Mathilde : D16, bull évité) dans la fiche et en jeu (41 → S9 D16)
+  'fiche-finition': () => { prefer('p2'); store.draft = null; return '#/joueur/p2'; },
+  'finition-preferee': () => { prefer('p2'); setGame(cfg(['p2', 'p1'], 301), 'T20 T20 T20 20 20 20 T20 S20 0 20 20 20'); return '#/jeu'; },
   reinit: () => { resetMock(); return '#/sommaire'; },
 };
 
@@ -237,6 +242,7 @@ export function sommaire() {
       ${L('fiche-edit', '2 · Fiche : modification', 'archiver')}
       ${L('fiche-photo', '2 · Fiche : avatar photo')}
       ${L('photo-erreur', '2 · Fiche : photo refusée', 'trop lourde')}
+      ${L('fiche-finition', '2 · Fiche : finition', 'D16, bull évité')}
       ${L('recadrage', '2 · Recadrage de la photo', 'glisser, pincer')}
       ${L('recadrage-zoom', '2 · Recadrage : zoom ×2,5')}
       ${L('suppression', '2 · Supprimer un joueur', 'confirmation')}
@@ -290,6 +296,7 @@ export function sommaire() {
       ${L('histo-huit', 'Historique en cours : 8 joueurs', 'défile de côté')}
       ${L('histo-huit-detail', 'Historique terminé : 8 joueurs', 'finition ouverte')}
       ${L('finition', 'Finition proposée', 'reste 100')}
+      ${L('finition-preferee', 'Finition au double préféré', '41 : S9 D16')}
       ${L('fete-100', 'Célébration 100+', 'discrète')}
       ${L('fete-140', 'Célébration 140+', 'couleur du joueur')}
       ${L('fete-180', 'Célébration 180', 'moitié de l\'écran')}

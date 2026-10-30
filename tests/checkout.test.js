@@ -1,12 +1,12 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { suggestCheckout, isCheckoutRoute, maxCheckout } from '../src/engine/checkout.js';
+import { suggestCheckout, isCheckoutRoute, maxCheckout, checkoutPrefs, DEFAULT_PREFS } from '../src/engine/checkout.js';
 import { formatDart, dartValue, isDouble } from '../src/engine/darts.js';
 import { computeState, OUT_SINGLE, OUT_DOUBLE } from '../src/engine/x01.js';
 import { ds } from './helpers.js';
 
-const fmt = (r, out = OUT_DOUBLE, n = 3) => {
-  const route = suggestCheckout(r, out, n);
+const fmt = (r, out = OUT_DOUBLE, n = 3, prefs) => {
+  const route = suggestCheckout(r, out, n, prefs);
   return route ? route.map(formatDart).join(' ') : null;
 };
 
@@ -108,5 +108,80 @@ describe('table de finitions', () => {
     assert.equal(isCheckoutRoute(21, ds('S20 D1'), OUT_DOUBLE), false); // reste 1 = bust
     assert.equal(isCheckoutRoute(10, [], OUT_DOUBLE), false);
     assert.equal(isCheckoutRoute(10, ds('S1 S1 S1 D2'), OUT_SINGLE), false); // 4 fléchettes
+  });
+
+  // Lot 4 : préférences du joueur (fiche joueur) et raté le plus courant de la première fléchette.
+  test('double préféré : 41 = S1 D20 (D20, défaut) ou S9 D16 (D16)', () => {
+    assert.equal(fmt(41), 'S1 D20');
+    assert.equal(fmt(41, OUT_DOUBLE, 3, { double: 20 }), 'S1 D20');
+    assert.equal(fmt(41, OUT_DOUBLE, 3, { double: 16 }), 'S9 D16');
+    assert.equal(fmt(52, OUT_DOUBLE, 3, { double: 16 }), 'S20 D16');
+    assert.equal(fmt(56, OUT_DOUBLE, 3, { double: 18 }), 'S20 D18');
+    assert.equal(fmt(48, OUT_DOUBLE, 3, { double: 10 }), 'S8 D20', 'le moins de fléchettes d\'abord : 28 n\'est pas un simple');
+    assert.equal(fmt(33, OUT_DOUBLE, 3, { double: 10 }), 'S13 D10');
+    assert.equal(fmt(33), 'S1 D16');
+    assert.equal(fmt(40, OUT_DOUBLE, 3, { double: 16 }), 'D20', 'une fléchette vaut mieux que deux');
+    assert.equal(fmt(100, OUT_DOUBLE, 3, { double: 16 }), 'T20 D20');
+  });
+
+  test('170, avec ou sans « éviter le bull » : T20 T20 50 (seule route)', () => {
+    assert.equal(fmt(170), 'T20 T20 50');
+    assert.equal(fmt(170, OUT_DOUBLE, 3, { avoidBull: true }), 'T20 T20 50');
+    assert.equal(fmt(167, OUT_DOUBLE, 3, { avoidBull: true }), 'T20 T19 50');
+  });
+
+  test('50 avec et sans le bull ; le bull évité tant qu\'une autre route tient dans la volée', () => {
+    assert.equal(fmt(50), '50');
+    assert.equal(fmt(50, OUT_DOUBLE, 3, { avoidBull: true }), 'S10 D20');
+    assert.equal(fmt(50, OUT_DOUBLE, 1, { avoidBull: true }), '50', 'une seule fléchette : le bull reste la seule finition');
+    assert.equal(fmt(110), 'T20 50');
+    assert.equal(fmt(110, OUT_DOUBLE, 3, { avoidBull: true }), 'T20 S10 D20');
+    assert.equal(fmt(110, OUT_DOUBLE, 2, { avoidBull: true }), 'T20 50');
+    assert.equal(fmt(25, OUT_SINGLE, 3, { avoidBull: true }), 'S5 S20');
+    assert.equal(fmt(25, OUT_SINGLE), '25');
+    for (let r = 2; r <= 170; r++) {
+      const route = suggestCheckout(r, OUT_DOUBLE, 3, { avoidBull: true });
+      if (route && route.some(d => d.segment === 25)) {
+        const any = suggestCheckout(r, OUT_DOUBLE, 3);
+        assert.ok(any.some(d => d.segment === 25), `${r} : bull proposé alors qu'on pouvait l'éviter`);
+      }
+    }
+  });
+
+  test('à valeur égale, la première fléchette laisse un double si elle ne fait que le simple', () => {
+    // 67 : T17 D8 (S17 raté → 50, encore jouable) plutôt que T9 D20 (S9 → 58, plus rien en une fléchette)
+    assert.equal(fmt(67, OUT_DOUBLE, 2), 'T17 D8');
+    assert.equal(fmt(63, OUT_DOUBLE, 2), 'T13 D12');
+    // 128 : T18 T14 D16 (S18 → 110 : T20 50) plutôt que T20 T12 D16 (S20 → 108 : plus de finition en 2)
+    assert.equal(fmt(128), 'T18 T14 D16');
+    // une première fléchette simple ne se « rate » pas : 60 = S20 D20, inchangé
+    assert.equal(fmt(60), 'S20 D20');
+  });
+
+  test('les préférences changent la route, jamais l\'existence d\'une finition', () => {
+    const variants = [{ double: 16 }, { double: 8, avoidBull: true }, { double: 1 }, { avoidBull: true }];
+    for (const out of [OUT_SINGLE, OUT_DOUBLE]) {
+      for (let n = 1; n <= 3; n++) {
+        for (let r = 1; r <= 181; r++) {
+          const base = suggestCheckout(r, out, n);
+          for (const p of variants) {
+            const route = suggestCheckout(r, out, n, p);
+            assert.equal(!!route, !!base, `${out} ${r} en ${n} ${JSON.stringify(p)}`);
+            if (route) {
+              assert.ok(isCheckoutRoute(r, route, out));
+              if (p.avoidBull) assert.ok(route.length >= base.length);
+              else assert.equal(route.length, base.length, 'toujours le moins de fléchettes');
+            }
+          }
+        }
+      }
+    }
+  });
+
+  test('préférences lues avec des valeurs par défaut', () => {
+    assert.deepEqual(checkoutPrefs(undefined), DEFAULT_PREFS);
+    assert.deepEqual(checkoutPrefs({ double: 16, avoidBull: true }), { double: 16, avoidBull: true });
+    assert.deepEqual(checkoutPrefs({ double: 25, avoidBull: 'oui' }), { double: 20, avoidBull: false });
+    assert.deepEqual(checkoutPrefs({ double: '8' }), { double: 8, avoidBull: false });
   });
 });

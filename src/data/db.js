@@ -6,7 +6,7 @@
 // enregistrements. Ajouter une version = ajouter une fonction à la fin de la liste, sans toucher aux précédentes.
 //
 // Magasins (forme des données : docs/interface.md, « Enregistrement ») :
-//   players   { id, name, avatar: { kind, icon?, color, photo? }, archived }
+//   players   { id, name, avatar: { kind, icon?, color, photo? }, archived, checkout: { double, avoidBull } (v2, lot 4) }
 //   games     { id, startedAt, endedAt, config, darts[], validated, abandoned }
 //             darts[] : { segment, multiplier, pos? } ; la partie en cours est celle dont endedAt vaut null
 //   settings  clés « display » { theme, night, vibrate, anim, sound, voice (lot 3, OUI si absents) }, « lastSetup » { players, startScore, outMode,
@@ -15,6 +15,8 @@
 // Toutes les écritures passent par write(ops) : une seule transaction pour la liste d'opérations, durabilité
 // « strict » (écrite sur le disque avant d'être annoncée faite). Les transactions sont exécutées dans l'ordre où
 // elles sont créées : enregistrer la partie à chaque fléchette garde donc l'ordre des fléchettes.
+
+import { checkoutPrefs } from '../engine/checkout.js';
 
 export const DB_NAME = 'strela';
 export const STORES = Object.freeze(['players', 'games', 'settings']);
@@ -25,6 +27,16 @@ export const MIGRATIONS = Object.freeze([
     db.createObjectStore('players', { keyPath: 'id' });
     db.createObjectStore('games', { keyPath: 'id' });
     db.createObjectStore('settings');
+  },
+  // version 2 (lot 4) : préférences de finition de chaque joueur (double préféré D20, bull non évité par défaut)
+  (db, tx) => {
+    const players = tx.objectStore('players');
+    players.openCursor().onsuccess = ev => {
+      const c = ev.target.result;
+      if (!c) return;
+      c.update(playerRecord(c.value));
+      c.continue();
+    };
   },
 ]);
 
@@ -151,11 +163,14 @@ export const closedRecord = (g, abandoned, endedAt) => ({
   id: g.id, startedAt: g.startedAt, endedAt, config: g.config, darts: g.darts, validated: g.validated ?? g.darts.length, abandoned: !!abandoned,
 });
 
-/** Joueur tel qu'enregistré : rien d'autre que { id, name, avatar, archived } (la photo seulement si l'avatar en est une). */
+/**
+ * Joueur tel qu'enregistré : rien d'autre que { id, name, avatar, archived, checkout } (la photo seulement si
+ * l'avatar en est une ; préférences de finition complétées par leurs valeurs par défaut).
+ */
 export function playerRecord(p) {
   const av = { ...(p.avatar || {}) };
   if (av.kind !== 'photo') delete av.photo;
-  return { id: p.id, name: p.name, avatar: av, archived: !!p.archived };
+  return { id: p.id, name: p.name, avatar: av, archived: !!p.archived, checkout: checkoutPrefs(p.checkout) };
 }
 
 /**

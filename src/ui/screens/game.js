@@ -117,7 +117,8 @@ export const DART_ICON = '<svg class="dico" viewBox="0 0 24 24" aria-hidden="tru
 // restent, le segment conseillé pour cette fléchette (ex. T20 · T20 · D20 pour 140), recalculé après chaque fléchette.
 function visitBoxes(v) {
   const { darts, pend, bust, cfg, remaining } = v;
-  const route = pend ? null : suggestCheckout(remaining, cfg.outMode, 3 - darts.length);
+  // Préférences du joueur qui lance (fiche joueur : double préféré, éviter le bull)
+  const route = pend ? null : suggestCheckout(remaining, cfg.outMode, 3 - darts.length, v.player.checkout);
   const boxes = [0, 1, 2].map(i => {
     const d = darts[i];
     if (d) return `<div class="dart ${bust && i === darts.length - 1 ? 'bust' : 'done'}"><span class="sv" data-shrink>${dartLabel(d)}</span></div>`;

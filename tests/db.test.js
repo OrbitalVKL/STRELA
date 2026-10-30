@@ -27,9 +27,11 @@ describe('base : formes des enregistrements', () => {
     assert.equal(splitGames([]).current, null);
   });
 
-  test('joueur : seulement { id, name, avatar, archived } ; la photo seulement pour un avatar photo', () => {
+  test('joueur : seulement { id, name, avatar, archived, checkout } ; la photo seulement pour un avatar photo', () => {
     assert.deepEqual(playerRecord({ id: 'a', name: 'A', avatar: { kind: 'icon', icon: 'ours', color: 2, photo: 'data:x' }, skill: 0.3 }),
-      { id: 'a', name: 'A', avatar: { kind: 'icon', icon: 'ours', color: 2 }, archived: false });
+      { id: 'a', name: 'A', avatar: { kind: 'icon', icon: 'ours', color: 2 }, archived: false, checkout: { double: 20, avoidBull: false } });
+    assert.deepEqual(playerRecord({ id: 'a', name: 'A', avatar: { kind: 'initials', color: 2 }, checkout: { double: 16, avoidBull: true, x: 1 } }).checkout,
+      { double: 16, avoidBull: true });
     assert.equal(playerRecord({ id: 'a', name: 'A', avatar: { kind: 'photo', photo: 'data:x', color: 1 }, archived: true }).avatar.photo, 'data:x');
   });
 
@@ -53,7 +55,7 @@ describe('base : formes des enregistrements', () => {
     assert.deepEqual(seen, [2, 3]);
     assert.equal(DB_VERSION, MIGRATIONS.length);
     const created = [];
-    runMigrations({ createObjectStore: (n, o) => created.push([n, o]) }, {}, 0);
+    runMigrations({ createObjectStore: (n, o) => created.push([n, o]) }, {}, 0, MIGRATIONS.slice(0, 1));
     assert.deepEqual(created, [['players', { keyPath: 'id' }], ['games', { keyPath: 'id' }], ['settings', undefined]]);
   });
 });
