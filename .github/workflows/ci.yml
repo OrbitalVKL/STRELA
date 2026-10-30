@@ -1,6 +1,7 @@
-# Strela : tests (node --test) sur chaque demande de fusion et sur main.
-# Le projet n'a aucune dépendance ; seul le test de chevauchement (tests/chevauchement.test.js) a besoin de Playwright
-# et de Chromium, installés ici sans toucher à package.json (grille complète : CI=true).
+# Strela : tests (node --test) sur chaque demande de fusion et sur main ; APK de test compilé et essayé sur un
+# émulateur Android (lot 5).
+# Le projet n'a aucune dépendance ; seuls les tests de chevauchement et de parcours ont besoin de Playwright et de
+# Chromium, installés ici sans toucher à package.json (grille complète : CI=true).
 name: ci
 on:
   pull_request:
@@ -26,3 +27,69 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Tests
         run: node --test --test-reporter=spec
+
+  # APK de test (non signé pour la publication, non publié) : la coquille compile avec la page du commit.
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: SDK Android
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" > /dev/null
+      - name: Page embarquée (tests lancés par le job « tests »)
+        run: STRELA_SANS_TESTS=1 node tools/build-site.mjs && sh tools/apk-page.sh
+      - name: Compilation (APK de test)
+        working-directory: android
+        run: gradle --no-daemon assembleDebug
+      - run: cp android/app/build/outputs/apk/debug/app-debug.apk strela-test.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: strela-test-apk
+          path: strela-test.apk
+          retention-days: 14
+
+  # Essai de l'APK de test sur un émulateur (tools/android-check.mjs) : premier lancement, partie, rotation, retour,
+  # export, import, reprise.
+  emulateur:
+    needs: apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - run: npm install --no-save --no-package-lock playwright@1.63.0
+      - uses: actions/download-artifact@v4
+        with:
+          name: strela-test-apk
+      - name: KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Émulateur et vérification
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          script: node tools/android-check.mjs strela-test.apk
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: captures-emulateur
+          path: captures/android/
+          retention-days: 14

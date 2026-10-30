@@ -27,6 +27,7 @@ export function resetMock() {
   store.crop = null;
   // Lot 4 : problème d'enregistrement simulé et variante de l'accueil remis à zéro
   store.mockIssue = false;
+  store.mockApk = false;
   Object.assign(store.db, { openCode: null, writeFail: null, error: null });
   setHomeVariant('bande');
   // Derniers réglages : ceux de la partie la plus récente.

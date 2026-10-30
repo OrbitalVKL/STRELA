@@ -9,6 +9,7 @@ import { store, activePlayers, currentState, playerById, resumeRoute } from '../
 import { esc, ico, plural, OUT_SHORT, maquetteButtons } from '../dom.js';
 import { BUILD } from '../build.js';
 import { storageBanner } from './settings.js';
+import { isApk } from '../native.js';
 
 function resumeButton() {
   const s = currentState();
@@ -39,7 +40,15 @@ export function home() {
   const n = activePlayers().length;
   const g = store.games.length;
   // Premier lancement : aucun joueur. L'accueil invite à les créer (une fois pour toutes).
-  const welcome = !store.players.length && !resume
+  const first = !store.players.length && !store.games.length && !resume;
+  // Lot 5 : premier lancement de l'APK. Les données de la version web (autre origine) ne passent pas d'elles-mêmes :
+  // on propose d'importer la sauvegarde exportée depuis la page web (import du lot 3), ou de commencer à zéro.
+  const welcome = first && (isApk() || store.mockApk)
+    ? `<section class="welcome" aria-label="Premier lancement de l'appli"><b>BIENVENUE DANS L'APPLI</b>
+        <p>Les joueurs et les parties de la version web ne passent pas d'eux-mêmes dans l'appli. Dans la version web : Réglages › Sauvegarde › EXPORTER ; puis ici :</p>
+        <label class="btn accent big wrap">IMPORTER UNE SAUVEGARDE DE LA VERSION WEB<input type="file" accept="application/json,.json" data-backup hidden></label>
+        <a class="btn" href="#/joueur/nouveau">${ico('plus')} COMMENCER À ZÉRO</a></section>`
+    : !store.players.length && !resume
     ? `<section class="welcome" aria-label="Premier lancement"><b>BIENVENUE</b>
         <p>Crée d'abord les joueurs : un pseudo et un avatar (initiales, icône ou photo). Ils restent sur ce téléphone, d'une partie à l'autre.</p>
         <a class="btn accent big" href="#/joueur/nouveau">${ico('plus')} CRÉER LES JOUEURS</a></section>`

@@ -5,10 +5,11 @@
 // clic aigu pour un triple, sourd pour un 0), son distinct pour le bust, la validation, la finition. Réglage « Sons ».
 // En attendant l'APK (lot 5 : vibreur natif), ils remplacent les vibrations, qui ne marchent pas en web sur le Pixel.
 //
-// Voix : speechSynthesis, voix française du téléphone. Une nouvelle annonce coupe la précédente. Réglage « Annonces
+// Voix : speechSynthesis, voix française du téléphone ; dans l'APK (lot 5), TextToSpeech d'Android par la passerelle. Une nouvelle annonce coupe la précédente. Réglage « Annonces
 // vocales ». Les pseudos sont lus tels qu'écrits ; les nombres sont donnés en chiffres, la voix française les lit
 // en toutes lettres (« 140 » → « cent quarante »).
 import { store } from './store.js';
+import { isApk, call, callJson } from './native.js';
 
 // ------------------------------------------------------------------ sons (Web Audio)
 let ctx = null;
@@ -91,6 +92,7 @@ try {
  * donnée par le téléphone), 'none' (aucune voix française installée), 'ok' (avec son nom).
  */
 export function voiceInfo() {
+  if (isApk()) return callJson('voice') || { state: 'absent' }; // lot 5 : synthèse vocale d'Android (TextToSpeech)
   if (!synth()) return { state: 'absent' };
   if (!voice) pickVoice();
   if (voice) return { state: 'ok', name: voice.name };
@@ -106,6 +108,12 @@ export const sayLog = [];
  */
 export function say(text, { strong = false, force = false } = {}) {
   if (!force && !store.settings.voice) return false;
+  // Lot 5 : dans l'APK, la voix d'Android (la Web Speech API n'est pas fiable dans une WebView).
+  if (isApk()) {
+    const ok = call('speak', text, strong) === true;
+    if (ok) { sayLog.push(text); if (sayLog.length > 50) sayLog.shift(); }
+    return ok;
+  }
   const s = synth();
   if (!s || typeof globalThis.SpeechSynthesisUtterance !== 'function') return false;
   try {

@@ -97,8 +97,10 @@
   function deliver(name, text) {
     var n = window.strelaNative;
     if (n && typeof n.saveBackup === 'function') {
-      var r = n.saveBackup(name, text, false); // lot 5 : Téléchargements/Strela, sans menu de partage
-      return r ? String(r) : 'Téléchargements/Strela/' + name;
+      var r = {};
+      try { r = JSON.parse(n.saveBackup(name, text, true)); } catch (e) { r = {}; } // lot 5 : Téléchargements/Strela + partage
+      if (!r.ok) throw new Error(r.error || 'passerelle muette');
+      return r.path;
     }
     var url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
     var a = document.createElement('a');

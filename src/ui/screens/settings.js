@@ -7,6 +7,7 @@ import { esc, topBar, plural } from '../dom.js';
 import { BUILD } from '../build.js';
 import { refresh, buzz, BUZZ, go } from '../nav.js';
 import { say, sound, voiceInfo } from '../feedback.js';
+import { isApk, call, callJson, onNative, nativeTheme } from '../native.js';
 
 const prefersLight = () => { try { return matchMedia('(prefers-color-scheme: light)').matches; } catch (e) { return false; } };
 export const isDark = () => store.settings.theme === 'dark' || (store.settings.theme === 'auto' && !prefersLight());
@@ -19,6 +20,7 @@ export function applyTheme() {
   root.classList.toggle('still', !(store.settings.anim && !reducedMotion()));
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.content = getComputedStyle(root).getPropertyValue('--bg').trim() || '#0A0C0E';
+  nativeTheme(isDark()); // APK : fond de la fenêtre et icônes des barres système
 }
 
 const toggle = (act, on, disabled = false) => `<div class="toggle">
@@ -47,10 +49,12 @@ let vibeResult = null; // dernier résultat de TESTER LA VIBRATION
 const VIBE_TEXT = {
   absent: ['FONCTION ABSENTE', 'Ce navigateur ne sait pas faire vibrer le téléphone. L\'appli Android (lot 5) utilisera le vibreur natif.'],
   refused: ['REFUSÉE', 'Chrome a refusé la demande (navigator.vibrate a répondu « non ») : page pas encore touchée, ou onglet en arrière-plan.'],
+  native: ['VIBREUR D\'ANDROID', 'Trois impulsions envoyées au vibreur du téléphone. Rien senti ? Réglages Android › Son et vibreur › Vibreur et retour haptique : vérifier « Vibreur pour les contenus multimédias ».'],
   sent: ['ENVOYÉE', 'La demande est partie vers le téléphone (3 impulsions). Rien senti ? Chrome ne vibre pas en mode silencieux, et Android coupe les vibrations des pages quand le retour haptique est désactivé : Réglages Android › Son et vibreur › Vibreur et retour haptique. Certains téléphones (Pixel) ne vibrent pas du tout pour une page web : l\'appli Android (lot 5) passera par le vibreur natif.'],
 };
 
 function displayMode() {
+  if (isApk()) { const i = callJson('info'); return `appli Android${i ? ` ${i.version} · Android SDK ${i.sdk} · ${i.model}` : ''}`; }
   const m = ['fullscreen', 'standalone', 'minimal-ui'].find(d => { try { return matchMedia(`(display-mode: ${d})`).matches; } catch (e) { return false; } });
   return m ? `appli installée (${m === 'fullscreen' ? 'plein écran' : m})` : 'onglet du navigateur';
 }
@@ -70,10 +74,18 @@ function fontScale() {
 export function storageLine() {
   if (store.maquette) return 'maquette (en mémoire, base non ouverte)';
   const d = store.db;
+  if (isApk()) {
+    // Lot 5 : la base est dans le dossier privé de l'appli (WebView) : Android ne l'efface qu'à la désinstallation.
+    const s = callJson('storage');
+    const base = d.error ? `base : ${d.error}` : `base v${d.version} · ${store.players.length} j. · ${store.games.length + (store.current ? 1 : 0)} p.`;
+    return `${base}${d.unreadable ? ` · ${d.unreadable} illisible(s)` : ''} · données dans l'appli${s ? ` (${s.dir}, ${mo(s.bytes)})` : ''} · stockage ${d.persisted === 'yes' ? 'persistant' : 'privé de l\'appli'}`;
+  }
   const persist = { yes: 'persistant', no: 'non persistant (refusé par Chrome)', absent: 'persistant : fonction absente', error: 'persistant : erreur' }[d.persisted] || 'persistant : en attente';
   const base = d.error ? `base : ${d.error}` : `base v${d.version} · ${store.players.length} j. · ${store.games.length + (store.current ? 1 : 0)} p.`;
   return `${base}${d.unreadable ? ` · ${d.unreadable} illisible(s)` : ''} · stockage ${persist}`;
 }
+
+const mo = b => `${(Math.round((b || 0) / 104857.6) / 10).toString().replace('.', ',')} Mo`;
 
 /** Ligne de diagnostic : orientation, taille de l'écran en px CSS, police, mode d'affichage, base, version. */
 export function diagnostic() {
@@ -96,6 +108,32 @@ function voiceBlock() {
     none: ['AUCUNE VOIX FRANÇAISE', 'Aucune voix française n\'est installée sur ce téléphone. Réglages Android › Système › Langues › Synthèse vocale : moteur Google, puis installer les données vocales en français.'],
   }[v.state];
   return `<div class="vibe bad" role="status"><b>${text[0]}</b><span>${text[1]}</span></div>`;
+}
+
+// ------------------------------------------------------------------ appli Android (lot 5)
+// État de la mise à jour, envoyé par la coquille (Updater.java) : { current, latest, available, state, progress, msg }.
+let upd = null;
+onNative(d => { if (d.update) { upd = d.update; if (location.hash === '#/reglages') refresh(); } });
+
+/** Données de l'APK (désinstallation) et mise à jour depuis l'appli ; rien dans le navigateur. */
+function apkBlock() {
+  if (!isApk()) return '';
+  const u = upd || callJson('updateState') || {};
+  const busy = u.state === 'checking' || u.state === 'downloading' || u.state === 'installing';
+  const status = u.state === 'checking' ? 'Recherche en cours…'
+    : u.state === 'downloading' ? `Téléchargement : ${u.progress || 0} %`
+    : u.state === 'installing' ? 'Installation : confirme dans la fenêtre d\'Android.'
+    : u.msg || '';
+  const btn = u.available && !busy
+    ? `<button type="button" class="btn primary" data-act="update-install">INSTALLER LA VERSION ${esc(u.latest || '')}</button>`
+    : `<button type="button" class="btn" data-act="update-check" ${busy ? 'disabled' : ''}>RECHERCHER UNE MISE À JOUR</button>`;
+  return `<div class="sec">Appli Android</div>
+    <div class="kv"><span>Version installée</span><b>${esc(u.current || BUILD.version)}</b></div>
+    ${btn}
+    ${status ? `<p class="note${u.state === 'error' ? ' red' : ''}" role="status">${esc(status)}</p>` : ''}
+    <p class="note">Dernière version publiée sur GitHub (OrbitalVKL/STRELA), installée par-dessus : joueurs, parties et réglages sont gardés.</p>
+    <div class="issue warn"><b>DÉSINSTALLER EFFACE LES DONNÉES</b><span>Joueurs, parties et réglages sont dans l'appli : désinstaller Strela les efface. Exporte une sauvegarde avant (elle va dans Téléchargements/Strela).</span>
+      <div class="btns"><button type="button" class="btn ghost" data-act="backup-export">EXPORTER LA SAUVEGARDE</button></div></div>`;
 }
 
 // ------------------------------------------------------------------ problème d'enregistrement (lot 4)
@@ -172,7 +210,8 @@ export async function onBackupFile(file) {
   } catch (e) {
     bk.error = e instanceof BackupError ? e.message : `Lecture impossible (${(e && e.message) || e}).`;
   }
-  refresh();
+  // Choisi depuis l'accueil (premier lancement de l'APK) : l'aperçu est dans les Réglages.
+  if (location.hash !== '#/reglages') go('#/reglages'); else refresh();
 }
 
 /** Téléchargement du fichier (repli quand le partage d'Android n'est pas proposé). */
@@ -203,6 +242,7 @@ export function settingsScreen() {
       ${vr ? `<div class="vibe ${vibeResult === 'sent' ? '' : 'bad'}" role="status"><b>${vr[0]}</b><span>${vr[1]}</span>${store.settings.vibrate ? '' : '<span>Le réglage « Vibrations » est sur NON : en partie, rien ne vibrera.</span>'}</div>` : ''}
       <div class="sec">Sauvegarde</div>
       ${backupBlock()}
+      ${apkBlock()}
       <div class="sec">À propos</div>
       <div class="kv"><span>Version</span><b>${esc(BUILD.version)}</b></div>
       <div class="kv"><span>Tests du moteur</span><b>${esc(BUILD.pass)} / ${esc(BUILD.total)}</b></div>
@@ -238,6 +278,13 @@ export const actions = {
     const blob = new Blob([text], { type: 'application/json' });
     const sm = `${plural(data.players.length, 'joueur', 'joueurs')} et ${plural(data.games.length, 'partie', 'parties')}`;
     Object.assign(bk, { preview: null, ask: null, error: '' });
+    // Lot 5 : dans l'APK, Téléchargements/Strela/<nom> puis menu de partage d'Android (Drive, mail…).
+    if (isApk()) {
+      const r = callJson('saveBackup', name, text, true);
+      bk.done = r && r.ok ? `${r.path} enregistré (${sm}). Menu de partage ouvert.` : `Export impossible : ${(r && r.error) || 'passerelle muette'}.`;
+      if (location.hash !== '#/reglages') go('#/reglages'); else refresh();
+      return;
+    }
     try {
       const file = new File([blob], name, { type: 'application/json' });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -256,6 +303,8 @@ export const actions = {
   async 'issue-retry'() { await resaveAll(); refresh(); },
   'issue-reload'() { location.reload(); },
   async 'issue-export'() { await actions['backup-export'](); go('#/reglages'); },
+  'update-check'() { call('checkUpdate'); upd = { ...(upd || {}), state: 'checking', msg: '' }; refresh(); },
+  'update-install'() { call('installUpdate'); },
   'backup-mode'(m) { bk.ask = m === 'replace' ? 'replace' : 'merge'; refresh(); },
   'backup-no'() { bk.ask = null; refresh(); },
   'backup-cancel'() { Object.assign(bk, { preview: null, ask: null }); refresh(); },
