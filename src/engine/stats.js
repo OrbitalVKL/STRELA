@@ -3,10 +3,12 @@
 //
 // Une partie enregistrée = { id, startedAt (ms), config (X01), darts[], abandoned? }.
 // Les joueurs de `config.players` sont des identifiants ; les statistiques se demandent par identifiant.
+// Un joueur supprimé y figure sous un identifiant anonyme « ~<rang> » (players.js).
 
 import { computeState, STATUS } from './x01.js';
 import { dartValue } from './darts.js';
 import { suggestCheckout } from './checkout.js';
+import { isDeletedId } from './players.js';
 
 export const PERIODS = Object.freeze({ '7j': 7, '30j': 30, tout: null });
 const DAY = 86400000;
@@ -78,7 +80,8 @@ export function playerStats(games, playerId) {
     if (winner === playerId) out.won += 1;
     if (winner !== null) {
       for (const other of game.config.players) {
-        if (other === playerId) continue;
+        // un joueur supprimé n'est plus un adversaire (ses parties restent, la victoire ou la défaite aussi)
+        if (other === playerId || isDeletedId(other)) continue;
         const h = out.headToHead[other] || (out.headToHead[other] = { played: 0, won: 0, lost: 0 });
         h.played += 1;
         if (winner === playerId) h.won += 1;

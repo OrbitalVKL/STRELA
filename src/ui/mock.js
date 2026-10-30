@@ -6,9 +6,10 @@
 import { computeState } from '../engine/x01.js';
 import { suggestCheckout } from '../engine/checkout.js';
 import { makeDart } from '../engine/darts.js';
+import { SECTORS } from '../engine/board.js';
 
 // Ordre des secteurs sur la cible (voisins pour les fléchettes ratées).
-export const BOARD = Object.freeze([20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5]);
+export const BOARD = SECTORS;
 
 export const MOCK_PLAYERS = Object.freeze([
   { id: 'p1', name: 'Guillaume', avatar: { kind: 'icon', icon: 'flechette', color: 0 }, skill: 0.42 },
