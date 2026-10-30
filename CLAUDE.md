@@ -133,8 +133,15 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
   efface les données) ; `apk.yml` (release `apk-vX.Y.Z`, `strela.apk`) ; CI : APK de test + essai sur émulateur.
 - Secret `STRELA_SIGNING_PASSPHRASE` (créé par Guillaume) : sans lui, `apk.yml` ne publie rien (APK de test en artefact).
   Au premier passage avec le secret, la clé est générée et `android/signing.p12.enc` est poussé sur `main` par le bot.
+- Vérifié sur émulateur Android 14 en CI (`tools/android-check.mjs`) : page servie sur appassets, passerelle, voix
+  et vibreur répondent, retour (Réglages → accueil ; en partie → menu pause, pas de sortie), partie enregistrée,
+  rotation sans rechargement, export dans Téléchargements/Strela, fermeture brutale puis reprise. Import par le
+  sélecteur de documents : non piloté jusqu'au bout par l'automatisation (vérifié dans le navigateur et avec la
+  passerelle simulée). Corrigé grâce à l'émulateur : WebView qui gardait la touche retour, plantage quand Android
+  arrête le moteur de rendu en arrière-plan, API trop récentes pour Android 11 (lint en CI).
 - À vérifier sur le Pixel (impossible sur l'émulateur) : vibrations ressenties, voix française, sons, appareil photo,
-  geste depuis le bas pendant la saisie, mise à jour depuis l'appli (à partir de la version suivante).
+  geste depuis le bas pendant la saisie, import depuis Téléchargements, mise à jour depuis l'appli (à partir de la
+  version suivante).
 - Pour le lot 6 (recette) : tout nouvel écran ou état va dans `SCENES` ; une fonction native nouvelle va dans
   `Bridge.java`, `src/ui/native.js` (repli web) et la passerelle simulée de `tests/passerelle.test.js`.
 
