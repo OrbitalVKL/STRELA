@@ -158,7 +158,11 @@ export const selectLogCell = key => { openRow = key; };
 export const selectedLogCell = () => openRow;
 
 export const actions = {
-  'log-visit'(key) { openRow = openRow === key ? null : key; refresh(); },
+  'log-visit'(key) {
+    openRow = openRow === key ? null : key;
+    if (store.current) store.current.ui.fix = null; // une autre case : la correction en cours est abandonnée
+    refresh();
+  },
   // Suppression depuis le détail
   'del-game'(id) { askDetail = id; refresh(); },
   'del-game-no'() { askDetail = null; refresh(); },

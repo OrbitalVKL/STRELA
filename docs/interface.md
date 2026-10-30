@@ -1,12 +1,17 @@
-# Interface — lots 1 à 1.3 (maquette) et lot 2 (partie jouable et enregistrée)
+# Interface — lots 1 à 1.3 (maquette), lot 2 (partie jouable et enregistrée), lot 3 (corrections, historique, stats, sauvegarde)
 
 Page unique (`index.html`) + modules ES dans `src/ui/`, sans framework ni dépendance. Chaque écran est une
 fonction qui rend du HTML en chaîne ; les actions passent par des attributs `data-act` (délégation d'événements
-dans `app.js`), le pavé de jeu par `data-key` (agit au `pointerdown`, sans attendre le relâchement).
+dans `app.js`), le pavé de jeu par `data-key`.
 
-Un clic `data-act` ne compte que si le doigt s'est posé sur la même commande (`app.js`) : une touche du pavé agit
-dès l'appui et redessine l'écran, et le clic qui suit tomberait sinon sur ce qui vient d'apparaître dessous (VALIDER
-après la 3e fléchette). Les clics clavier ou programmés (`detail === 0`) passent toujours.
+**Touches du jeu au relâcher** (lot 3) : le pavé (`data-key`), VALIDER, pause et petite cible (`data-press`) montrent
+l'appui aussitôt (classe `hit`) mais n'agissent qu'au **relâcher**, et seulement si le doigt n'a pas glissé de plus de
+10 px (`PRESS_SLOP`) et qu'aucun `pointercancel` n'est arrivé : Android en envoie un quand il prend le geste
+« remonter du bas de l'écran » (applis récentes), et rien n'est alors saisi (avant le lot 3, le pavé agissait dès
+l'appui : un 0 ou un ANNULER partait au début du geste). La saisie reste immédiate au relâcher. Un clic `data-act`
+ne compte que si le doigt s'est posé sur la même commande (le clic qui suit une touche tomberait sinon sur ce qui
+vient d'apparaître dessous). Les clics clavier ou programmés (`detail === 0`) passent toujours. Appui long
+(`data-long`, 500 ms sans glisser) : sélection dans l'historique, le clic qui suit est avalé.
 
 ## Fichiers
 
@@ -19,6 +24,8 @@ après la 3e fléchette). Les clics clavier ou programmés (`detail === 0`) pass
 | `src/ui/maquette.js` | données fictives du sommaire (`resetMock`, joueurs d'appoint, photo d'exemple) ; chargé seulement avec `?maquette` |
 | `src/ui/crop.js` | recadrage carré d'une photo (pur, testé) : glisser, zoomer autour d'un point, rectangle gardé |
 | `src/ui/screens/photo.js` | photo d'avatar : contrôle du fichier (poids, type, lisibilité), image de travail, écran de recadrage, photo 256 × 256 |
+| `src/ui/feedback.js` | **lot 3** : sons (Web Audio, générés, aucun fichier) et annonces vocales (`speechSynthesis`, voix française) ; textes des annonces (`SPEECH`) |
+| `src/data/backup.js` | **lot 3** : sauvegarde JSON (format, vérification complète, REMPLACER TOUT / FUSIONNER), sans DOM, testé |
 | `src/ui/turn.js` | validation de chaque volée (pur, testé) : `pendingVisit()`, `validatedAfterUndo()` |
 | `src/ui/roll.js` | chiffres en rouleau : `rollHtml()` au rendu, `animateRolls()` après ; `rollStrip()` pur, testé |
 | `src/ui/board.js` | dessin SVG de la cible aux couleurs réglementaires (marques rondes, carte des stats), `impactsFor()`, `markIcon()` ; géométrie et couleur des zones dans `src/engine/board.js` |
@@ -40,6 +47,7 @@ après la 3e fléchette). Les clics clavier ou programmés (`detail === 0`) pass
 
 `#/` accueil · `#/joueurs` · `#/joueur/<id|nouveau>` fiche · `#/avatars` banque · `#/nouvelle` · `#/jeu` ·
 `#/manche` fin de manche · `#/fin` fin de partie · `#/historique` · `#/partie/<id>` détail · `#/stats/<id>` ·
+`#/face/<joueur>/<adversaire>` face-à-face (lot 3) ·
 `#/reglages` · `#/recadrage` (photo d'avatar) · `#/sommaire` (maquette seulement). `?maquette` dans l'adresse ouvre le
 sommaire et ajoute, en haut à droite de chaque écran, la bascule de thème et le retour au sommaire (dans le menu pause
 pendant une partie). Sans `?maquette` : la vraie appli, sur la base du téléphone ; l'appli installée s'ouvre sur
@@ -270,11 +278,82 @@ avatars photo en jeu. Les états paysage s'affichent en paysage : tourner le té
 | `tests/photo.test.js` | image test chargée par le sélecteur, pincer, zoom, glisser, VALIDER : JPEG 256 × 256 du bon carré, en couleur hors jeu, en gris en jeu ; trop lourde, pas une image, abîmée |
 | `tests/miseajour.test.js` | version A installée (service worker, `localhost`) avec une partie en cours, puis version B avec une base en version 2 : rien de perdu, l'ancienne page se recharge, le nouveau service worker n'efface que l'ancien cache |
 
-## Pour le lot 3
+## Lot 3 : corrections de jeu, historique, stats, sauvegarde
+
+- **A. Saisies parasites** : touches du jeu au relâcher (voir en tête). Marge basse du jeu `--gesture-bottom` =
+  `max(env(safe-area-inset-bottom), 16px)` en portrait et en paysage : la page web ne peut pas mesurer la zone des
+  gestes d'Android (en plein écran avec la navigation par gestes, l'encart du bas vaut souvent 0) ; l'APK (lot 5)
+  pourra lire `getMandatorySystemGestureInsets()`. Saisie sur la cible (paysage) : un `pointercancel` retire la loupe
+  et ne compte rien (c'était déjà le cas, maintenant testé). Tests : `tests/saisie.test.js` (vrais événements tactiles :
+  appui puis pointercancel, appui puis glissé vers le haut, appui-relâcher normal, VALIDER, cible).
+- **B. Supprimer une partie** : détail d'une partie (SUPPRIMER CETTE PARTIE), liste de l'historique (appui long →
+  sélection, cases à cocher, TOUTES / AUCUNE, SUPPRIMER (n)), menu pause (SUPPRIMER LA PARTIE, pour les essais,
+  distinct d'ABANDONNER) ; chaque fois une confirmation. Une seule transaction (`deleteGames()` / `deleteCurrent()`
+  de `store.js`, `gameDeletionOps()` de `db.js`) ; les joueurs (et leurs photos) ne sont jamais touchés ; les stats se
+  recalculent d'elles-mêmes. Test : `tests/suppression.test.js`.
+- **C. Face-à-face** (`#/face/<joueur>/<adversaire>`, depuis les stats) : du point de vue du joueur dont on regarde les
+  stats, les deux avatars et pseudos face à face, le bilan en toutes lettres (« 7 VICTOIRES · 3 DÉFAITES ») et en
+  manches, puis les parties communes (date, GAGNÉ / PERDU / GAGNÉE PAR …, manches, moyenne de chacun), les abandonnées
+  à part. Rien ne repose sur la couleur. Calcul : `faceToFace()` de `src/engine/stats.js` ; définitions :
+  [statistiques.md](statistiques.md).
+- **D. Panneau cible + historique** (`ui.panel = 'board'`) : un seul panneau, ouvert par la petite cible comme par
+  HISTORIQUE DE LA PARTIE. En haut, la cible en grand (VOLÉE / MANCHE), collée pendant que le tableau défile dessous ;
+  le tableau de la partie, manche en cours d'abord. Un appui sur une case montre ses fléchettes sur la cible
+  au-dessus. En paysage : cible à gauche, tableau à droite. Dans ce panneau, les avatars du tableau sont neutres (une
+  seule couleur de joueur en jeu).
+- **E. Cases de la volée** : chaque case vide montre une fléchette dessinée (`DART_ICON` de `game.js`, trait, angles
+  droits), remplacée par le score une fois tirée. Finition jouable : chaque case vide porte en plus, en atténué, le
+  segment conseillé pour cette fléchette (T20 · T20 · D20 pour 140), recalculé après chaque fléchette. L'ancienne ligne
+  FINITION faisait double emploi : retirée (décidé sur captures) ; la ligne sous les cases ne sert plus qu'à
+  « SUIVANT PSEUDO » quand une volée attend VALIDER (gardé, décision du lot 2). Pareil en paysage.
+- **F. Annonces vocales** (`feedback.js`, réglage « Annonces vocales », OUI par défaut) : total de chaque volée
+  (« 140 », lu « cent quarante » par la voix française), « Bust », « PSEUDO, il reste 40 » quand un joueur commence son
+  tour (à VALIDER) avec une finition jouable, « Manche, PSEUDO ! », « Partie, PSEUDO ! », « Cent quatre-vingts ! »
+  appuyé (plus lent, plus aigu). Une annonce part après le rendu et coupe la précédente (`cancel()`). Réglages : la voix
+  trouvée, ou un encadré si aucune voix française n'est installée (avec le chemin dans les réglages d'Android) ;
+  TESTER LA VOIX.
+- **G. Célébrations** (`celebrate()` de `game.js`, `ui.cele`) : bandeau en haut de l'écran, gradué : 100+ discret
+  (vidéo inverse, 1,2 s), 140+ plus haut à la couleur du joueur (1,4 s), 180 sur la moitié haute de l'écran, chiffres
+  géants et filets obliques (1,6 s) ; chaque finition (vidéo inverse, ou couleur du joueur si 100 ou plus), sur l'écran
+  de fin de manche ou de partie. Jamais le rouge (bust). `pointer-events: none` : la saisie continue dessous, et le
+  premier appui le ferme. Sans animation si Animations = NON ou si le téléphone demande moins d'animations.
+- **H. Sons** (`feedback.js`, réglage « Sons », OUI par défaut) : clic court à chaque fléchette (plus aigu pour un
+  double, double clic pour un triple, sourd pour un 0), sons distincts pour bust, VALIDER, finition, 180, ANNULER.
+  Générés par Web Audio sur l'horloge audio : rien n'attend. TESTER LES SONS. Ils remplacent les vibrations (sans effet
+  en web sur le Pixel) jusqu'à l'APK.
+- **I. Corriger une fléchette** (panneau D, partie en cours) : sous la cible, les 3 fléchettes de la volée montrée ;
+  un appui ouvre le sélecteur (S / D / T, 1 à 20, 25, 50, 0, ou un appui sur la zone de la cible au-dessus). Le moteur
+  (`src/engine/correct.js`, `correctDart()`) remplace la fléchette et recalcule toute la partie ; la correction n'est
+  acceptée que si chaque fléchette suivante reste au même joueur, dans la même volée et la même manche, et que la
+  partie en est au même point. Sinon : « cette correction change le déroulé de la partie : utilise ANNULER », rien
+  n'est modifié. Avant d'appliquer : « T20 → T19 · Volée : 180 → 177 · Reste de PSEUDO : 221 → 224 » (ou le reste à la
+  fin d'une manche précédente), CORRIGER / NON. Enregistrée comme une fléchette normale. Tests : `tests/correct.test.js`
+  (simple, refusée car bust, volée en cours, manche précédente) et `tests/panneau.test.js` (vraie appli).
+- **J. Sauvegarde** (Réglages › Sauvegarde, `src/data/backup.js`) : EXPORTER = `strela-AAAAMMJJ-HHMM.json` (joueurs avec
+  photos, parties dont celle en cours, réglages `display` et `lastSetup`, version du format), proposé au menu de
+  partage d'Android quand le téléphone accepte ce type de fichier (`navigator.canShare`), téléchargé sinon. IMPORTER :
+  fichier lu et vérifié en entier (format, version, chaque joueur, chaque partie rejouée par le moteur) ; refusé avec
+  un message clair sinon (version future : « mets l'appli à jour »), sans rien toucher. Aperçu (date, joueurs, parties),
+  puis REMPLACER TOUT ou FUSIONNER (par identifiant, sans doublon ; ce qui existe ici est gardé ; une partie en cours
+  de la sauvegarde va dans l'historique, abandonnée, si une partie est déjà en cours ici), avec confirmation. Une
+  seule transaction (`{ store, clear: true }` ajouté à `write()`, pas de changement de schéma : base toujours v1).
+  Tests : `tests/backup.test.js` (format, refus, fusion) et `tests/sauvegarde.test.js` (export téléchargé, base
+  effacée, import, base identique ; fusion sans doublon ; version future refusée).
+- **K.** « SUIVANT PSEUDO » sous les cases en portrait : gardé. LANCER pendant une partie en cours : vraie confirmation
+  « ABANDONNER LA PARTIE EN COURS ? » dans la barre du bas (NON / ABANDONNER), et un rappel discret en haut avec
+  REPRENDRE.
+- **L. Chiffres vérifiés** : `tests/chiffres.test.js` joue trois parties scriptées (bust, abandon, joueur supprimé) dans
+  la vraie appli et compare l'historique et chaque statistique à un calcul à la main ; aucun écart trouvé.
+  Définitions : [statistiques.md](statistiques.md). Correction au passage : la légende de la cible des fins de manche
+  et de partie (les pastilles prenaient la taille de la cible).
+
+## Pour le lot 4
 
 - Les écrans Historique et Stats lisent `store.games` (parties closes) ; la partie en cours est à part (`store.current`).
   Une partie abandonnée a `abandoned: true` et un `endedAt`.
-- Pour un index (par date, par joueur) : ajouter une migration (version 2) à `MIGRATIONS` de `src/data/db.js`.
-- Export / import (lot 4) : la forme des enregistrements est stable ; les photos sont des `data:` URL (JSON direct).
+- Base toujours en **version 1** ; pour un index (par date, par joueur) : ajouter une migration (version 2) à
+  `MIGRATIONS` de `src/data/db.js`.
+- Le format de sauvegarde (`src/data/backup.js`, version 1) servira au passage vers l'APK (lot 5) : exporter dans la
+  page web, importer dans l'appli Android.
 - Tout nouvel écran ou état : l'ajouter au sommaire (`SCENES`) pour le test de chevauchement ; tout état de jeu : aussi à
   `SCENES` de `tests/couleurs.test.js` ; un texte qui peut s'allonger prend `.ell`, `data-shrink` ou un palier `data-fit`.

@@ -124,9 +124,6 @@ export function say(text, { strong = false, force = false } = {}) {
   } catch (e) { return false; }
 }
 
-/** Coupe l'annonce en cours (partie quittée). */
-export function hush() { try { synth()?.cancel(); } catch (e) { /* rien */ } }
-
 // ------------------------------------------------------------------ textes des annonces (purs, testés)
 export const SPEECH = Object.freeze({
   total: n => (n === 180 ? 'Cent quatre-vingts !' : String(n)),
