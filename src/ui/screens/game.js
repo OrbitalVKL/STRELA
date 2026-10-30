@@ -1,6 +1,7 @@
 // Jeu : branché sur le vrai moteur X01, en mémoire. Deux mises en page, même état (la rotation ne perd rien) :
-// - portrait : bandeau du joueur actif (aplat de la couleur de son avatar), reste en très grand, 3 cases + total
-//   et finition à côté d'une petite cible (impacts), autres joueurs (le suivant repéré), pavé S / D / T, 1 à 20,
+// - portrait : bandeau du joueur actif (aplat de la couleur de son avatar, seule couleur de joueur à l'écran), reste
+//   en très grand, 3 cases + total et finition à côté d'une petite cible (impacts), autres joueurs (neutres, le
+//   suivant repéré), pavé S / D / T, 1 à 20,
 //   25 · 50 · 0 · ANNULER ;
 // - paysage : à gauche le même tableau de bord et RATÉ · ANNULER · VALIDER, à droite la cible, où l'on saisit au
 //   doigt (loupe ×2,5 décalée, nom de la zone en gros, on glisse pour ajuster, on lâche pour compter ; un lâcher
@@ -128,6 +129,8 @@ function checkoutLine(v) {
   return '<div class="co"></div>';
 }
 
+// Autres joueurs : tous neutres (avatar sans sa couleur), la seule couleur de joueur à l'écran étant celle du joueur
+// en cours (lot 1.3). Le suivant, toujours en tête de la bande, est repéré par un filet en haut et « SUIVANT ».
 function others(v) {
   const { n, cfg, s, shown, next } = v;
   if (n < 2) return '';
@@ -137,16 +140,21 @@ function others(v) {
   return `<section class="others${many ? ' many' : ''}" aria-label="Autres joueurs">${order.map(i => {
     const p = playerById(cfg.players[i]);
     const isNext = i === next;
-    return `<div class="op${isNext ? ' next' : ''}" style="--pc:${colorOf(p)}">${avatarHtml(p, many ? 20 : 34)}
-      <div class="col"><span class="l1"><span class="nm ell">${esc(p.name)}</span>${isNext ? '<span class="tag-next">SUIVANT</span>' : ''}</span><span class="r">${rollHtml(`o:${s.legNumber}:${i}`, s.remaining[i])}</span></div></div>`;
+    return `<div class="op${isNext ? ' next' : ''}"${isNext ? ' aria-label="Joueur suivant"' : ''}>${avatarHtml(p, many ? 20 : 34, 'mono')}
+      <div class="col"><span class="l1"><span class="nm ell"${isNext ? ' data-fit="1"' : ''}>${esc(p.name)}</span>${isNext ? `<span class="tag-next"><span class="lg">SUIVANT</span><span class="sh">${ico('chev')}</span></span>` : ''}</span><span class="r" data-shrink>${rollHtml(`o:${s.legNumber}:${i}`, s.remaining[i])}</span></div></div>`;
   }).join('')}</section>`;
 }
 
-// VALIDER : le joueur suivant y est nommé en gros, avec le carré de sa couleur (c'est lui qui s'avance).
+// VALIDER (lot 1.3) : aplat de la couleur du joueur qui vient de lancer (le joueur en cours, encore au bandeau), encre
+// --av-ink (contraste vérifié sur les 8 couleurs) ; « VALIDER » en gros, « suivant : PSEUDO » en dessous, sans la
+// couleur du suivant (il ne la prend qu'à l'annonce). En solo, « VALIDER » seul. Place trop juste (paysage bas, grande
+// police) : « suivant : » s'efface, le pseudo reste (palier fit1).
 function validateButton(v, cls = '') {
-  const np = playerById(v.cfg.players[v.next]);
-  const label = v.n > 1 ? `<span class="vnext" style="--pc:${colorOf(np)}"><i></i>À <span class="nm">${esc(np.name)}</span></span>` : '<span class="vnext">VOLÉE SUIVANTE</span>';
-  return `<button type="button" class="validate ${cls}" data-act="validate"${cls.includes('over') ? ' data-layer' : ' data-shrink'} ${v.pend ? '' : 'disabled'}>VALIDER${v.pend ? label : '<small>après 3 fléchettes</small>'}</button>`;
+  const over = cls.includes('over');
+  if (!v.pend) return `<button type="button" class="validate ${cls}" data-act="validate"${over ? ' data-layer' : ' data-shrink'} disabled>VALIDER<small>après 3 fléchettes</small></button>`;
+  const name = playerById(v.cfg.players[v.next]).name;
+  const next = v.n > 1 ? `<span class="vnext" data-fit="1"><span class="lg">suivant&nbsp;: </span><span class="nm" style="--nl:${[...name].length}">${esc(name)}</span></span>` : '';
+  return `<button type="button" class="validate go ${cls}" data-act="validate"${over ? ' data-layer' : ' data-shrink'} style="--pc:${colorOf(v.player)}"><span class="vl">VALIDER</span>${next}</button>`;
 }
 
 function announce(v) {

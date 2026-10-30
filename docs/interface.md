@@ -1,4 +1,4 @@
-# Interface — maquette des lots 1, 1.1 et 1.2
+# Interface — maquette des lots 1, 1.1, 1.2 et 1.3
 
 Page unique (`index.html`) + modules ES dans `src/ui/`, sans framework ni dépendance. Chaque écran est une
 fonction qui rend du HTML en chaîne ; les actions passent par des attributs `data-act` (délégation d'événements
@@ -18,8 +18,8 @@ après la 3e fléchette). Les clics clavier ou programmés (`detail === 0`) pass
 | `src/ui/turn.js` | validation de chaque volée (pur, testé) : `pendingVisit()`, `validatedAfterUndo()` |
 | `src/ui/roll.js` | chiffres en rouleau : `rollHtml()` au rendu, `animateRolls()` après ; `rollStrip()` pur, testé |
 | `src/ui/board.js` | dessin SVG de la cible aux couleurs réglementaires (marques rondes, carte des stats), `impactsFor()`, `markIcon()` ; géométrie et couleur des zones dans `src/engine/board.js` |
-| `src/ui/table.js` | historique en tableau (pur, testé) : `legTable()` = colonnes par joueur, lignes par tour |
-| `src/ui/fit.js` | après chaque rendu : `data-fit` (compaction par paliers `fit1…n`), `data-shrink` (texte qui rapetisse pour tenir) |
+| `src/ui/table.js` | historique en tableau (pur, testé) : `legTable()` = colonnes par joueur, lignes par tour ; `cellView()` / `cellHtml()` = contenu d'une case (fléchettes, total, reste) |
+| `src/ui/fit.js` | après chaque rendu : `data-fit` (compaction par paliers `fit1…n`), `data-shrink` (texte qui rapetisse pour tenir), `data-fit-same` (même palier pour tout un groupe) |
 | `src/ui/mock.js` | données fictives : 5 joueurs (+1 archivé), 15 parties **jouées par le vrai moteur** (lanceur simulé, tirage reproductible) |
 | `src/ui/avatars.js` | banque de 24 pictogrammes SVG (grille 48, trait 3, `currentColor`), initiales, avatar neutre du joueur supprimé, `avatarHtml()` |
 | `src/ui/dom.js` | échappement, nombres et dates en français, pictogrammes d'interface, barre du haut |
@@ -63,8 +63,10 @@ rotation, l'état (`store.current`) ne bouge pas.
   puis « … ». Sous le pseudo : 3 carrés de 14 px (pleins = fléchettes lancées, encadré épais = la prochaine),
   « FLÉCHETTE n/3 » (ou « VOLÉE TERMINÉE », « BUST »), manche, manches gagnées. Si la ligne ne tient pas (`data-fit`),
   elle se compacte par paliers : manches gagnées en « 1/2 » encadré, « MANCHE 2 » en « M2 », carrés de fléchettes
-  retirés, « FLÉCHETTE 2/3 » en « FL. 2/3 ». Le joueur suivant, dans la bande des autres : sa case en aplat de sa
-  couleur + « SUIVANT » sur la ligne du pseudo (plus de superposition). 5 à 8 joueurs : avatar au-dessus du reste.
+  retirés, « FLÉCHETTE 2/3 » en « FL. 2/3 ». **Bande des autres joueurs neutre** (lot 1.3) : avatars sans fond
+  (`avatarHtml(p, n, 'mono')`), aucune couleur de joueur ; le suivant, toujours en tête de bande, a un filet de 3 px en
+  haut de sa case et « SUIVANT » sur la ligne du pseudo (une flèche si le pseudo serait coupé : palier `fit1` du
+  pseudo). 5 à 8 joueurs : avatar au-dessus du reste, sans pseudo (le filet seul repère le suivant).
 - **Accents** : une coupe « … » (`overflow: hidden`) coupe aussi en hauteur ; tout texte coupé a un interligne
   ≥ 1,24 (`.ell` : 1,3) pour garder les accents des capitales (É, È).
 - Relecture par un second agent (point « à qui c'est de jouer ») : corrigé — accents coupés, compteur de fléchettes
@@ -75,8 +77,11 @@ rotation, l'état (`store.current`) ne bouge pas.
 - **Volée en attente** (`turn.js`) : la partie en cours garde `validated` = nombre de fléchettes à la dernière
   validation. La volée close attend si `lastEvent` vaut `visit_end` ou `bust` et `validated ≠ dartCount`. ANNULER
   ramène `validated` à `min(validated, longueur)`, pour qu'une fléchette rejouée remette la volée en attente.
-  En portrait, VALIDER (vidéo inverse) couvre la moitié haute du pavé, avec « À PSEUDO » du joueur suivant en 24 px
-  et le carré de sa couleur ; le reste du pavé est éteint et hachuré, ANNULER reste actif. En paysage, VALIDER est le 3e bouton du bas et la cible s'estompe.
+  En portrait, VALIDER couvre la moitié haute du pavé ; le reste du pavé est éteint et hachuré, ANNULER reste actif.
+  En paysage, VALIDER est le 3e bouton du bas et la cible s'estompe. **VALIDER** (lot 1.3) : aplat de la couleur du
+  joueur qui vient de lancer (`.validate.go`, `--pc`, encre `--av-ink`), « VALIDER » (30 px) puis « suivant : PSEUDO »
+  (17 px), sans la couleur du suivant ; le pseudo garde au moins 5 caractères, sinon « suivant : » s'efface (palier
+  `fit1`) ; en solo, « VALIDER » seul. Contraste et couleurs : `tests/couleurs.test.js`.
 - **Annonce** « À TOI, PSEUDO » : aplat de la couleur du joueur sur le haut de l'écran (bandeau + reste), avatar
   72 px au-dessus du pseudo (jusqu'à 92 px, ajusté au mot le plus long, 2 lignes au plus), 800 ms
   (`ANNOUNCE_MS`), puis le bandeau glisse depuis la gauche (280 ms). Aussi au début d'une manche (MANCHE SUIVANTE).
@@ -104,11 +109,15 @@ rotation, l'état (`store.current`) ne bouge pas.
 - **Historique en tableau** (lot 1.2), dans la feuille « Partie en cours » (`ui.panel = 'history'`) comme dans le
   détail d'une partie terminée (`gameLog()` dans `screens/history.js`, données par `legTable()`) : pour chaque
   manche, une colonne par joueur dans l'ordre où ils lancent dans cette manche (avatar et pseudo en tête), une ligne
-  par tour (numéro en tête de ligne). Case : total de la volée en gros, reste après la volée en petit ; bust : texte
-  rouge, filet rouge à gauche, « BUST » et le reste inchangé ; finition : vidéo inverse, « GAGNÉ ». En cours : la
+  par tour (numéro en tête de ligne). **Case** (lot 1.3, `cellHtml()` de `table.js`) : les fléchettes du tour en
+  premier (« T20 · 5 · 1 », « 0 » pour un raté), puis le total de la volée en gros, puis le reste après la volée en
+  petit ; bust : texte rouge, filet rouge à gauche, fléchette fautive barrée, « BUST » et le reste inchangé ;
+  finition : vidéo inverse, « GAGNÉ ». Les fléchettes ne sont jamais coupées : si la ligne déborde, elle passe par les
+  paliers de `.ds` (séparateurs resserrés, puis deux lignes sans séparateur, puis plus petit), le même pour toutes les
+  cases d'un tableau (`data-fit-same`) ; la case grandit en hauteur (66 px au moins). En cours : la
   volée commencée a une case en pointillés (« 2/3 », « À JOUER ») et le numéro du tour en cours est en vidéo
   inverse. Toucher une case l'entoure et montre sous le tableau ses 3 fléchettes et leur place sur la cible. Colonnes
-  de 74 px au moins : à 5 joueurs et plus, le tableau défile de côté, la colonne des tours reste fixe. Fermer remet
+  de 74 px au moins (pseudos d'en-tête coupés en « … » à 8 joueurs : accepté, l'avatar identifie le joueur) : à 5 joueurs et plus, le tableau défile de côté, la colonne des tours reste fixe. Fermer remet
   l'écran tel quel.
 - Bust : toute la zone du reste passe en aplat rouge (`.alert`) avec « BUST / RESTE n » ; les fléchettes
   restent visibles dessous (la fautive barrée).
@@ -155,6 +164,14 @@ du bas) : ce qu'ils couvrent n'est pas comparé. La police agrandie est simulée
 chaque élément qui fixe la sienne, puis `fit.js` repasse. En CI (`CI=true`) : grille complète ; sur un poste : grille
 réduite (`STRELA_GRILLE=complete` pour tout).
 
+## Test des couleurs (lot 1.3)
+
+`tests/couleurs.test.js` ouvre les états de jeu du sommaire (portrait 410 × 914 et paysage 914 × 410, sombre et
+clair) et relève les couleurs calculées de chaque élément visible (fond, texte, filets, ombres, contour, remplissage
+SVG) : aucune ne doit être la couleur d'avatar d'un autre joueur que celui du bandeau. Puis VALIDER, pour une volée en
+attente lancée tour à tour par 8 joueurs aux 8 couleurs : fond = couleur du lanceur, contraste du texte ≥ 4,5:1,
+« VALIDER » suivi de « suivant : … » ; en solo, « VALIDER » seul.
+
 ## Joueurs : archiver ou supprimer
 
 Fiche joueur, section « Archiver ou supprimer ». SUPPRIMER LE JOUEUR ouvre une confirmation (bandeau rouge `.alert`)
@@ -165,9 +182,10 @@ cours : « SUPPRESSION IMPOSSIBLE », avec un lien vers la partie. Effet : `dele
 ## Sommaire de maquette (`?maquette`)
 
 États fabriqués avec le vrai moteur (`src/ui/screens/sommaire.js`, objet `SCENES`) : D armé, T armé, volée en
-attente de validation (3 fléchettes, bust), annonce « À TOI » (figée), petite cible au 1er et au 2e tour, cible
+attente de validation (3 fléchettes à 2, 4 et 8 joueurs — `volee-8` prend en option le rang de la volée, donc du
+lanceur : `__strela.scene('volee-8', k)` —, bust, solo), annonce « À TOI » (figée), petite cible au 1er et au 2e tour, cible
 agrandie (VOLÉE, MANCHE), cible seule, manches gagnées (premier à 3), historique de la partie en cours, historique à
-2 joueurs (bust ouvert, finition), à 8 joueurs (en cours ; terminé, finition ouverte), finition proposée, fin de manche, fin de partie, 8 joueurs, pseudo très long,
+2 joueurs (ratés, bust ouvert, finition), à 8 joueurs (en cours ; terminé, finition ouverte), finition proposée, fin de manche, fin de partie, 8 joueurs, pseudo très long,
 joueur seul, pause, confirmation d'abandon, suppression d'un joueur (confirmation, refus pendant une partie, partie
 avec un joueur supprimé), paysage (saisie sur la cible, loupe figée sur T20, volée en attente), aucun joueur,
 historique vide, données rétablies. Les états paysage s'affichent en paysage : tourner le téléphone.

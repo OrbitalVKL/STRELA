@@ -3,7 +3,9 @@
 //   [data-fit="n"]  bloc qui se compacte par paliers : les classes fit1 … fitn s'ajoutent une à une tant que son
 //                   contenu déborde (le CSS dit ce que chaque palier retire ou abrège) ;
 //   [data-shrink]   texte qui rapetisse (taille de police) jusqu'à tenir dans son parent (reste à faire, BUST,
-//                   touches du pavé…), sans descendre sous --fs-min s'il est donné (pseudo du bandeau : « … » ensuite).
+//                   touches du pavé…), sans descendre sous --fs-min s'il est donné (pseudo du bandeau : « … » ensuite) ;
+//   [data-fit-same] groupe (tableau d'historique) : ses blocs data-fit prennent tous le palier du plus compacté,
+//                   pour un aspect homogène (lot 1.3).
 // Le CSS garde une coupe « … » en dernier recours.
 
 const overflows = el => el.scrollWidth > el.clientWidth + 0.5 || el.scrollHeight > el.clientHeight + 0.5;
@@ -41,8 +43,20 @@ function shrink(el) {
   }
 }
 
+const level = el => { let i = 0; while (el.classList.contains(`fit${i + 1}`)) i++; return i; };
+
+function align(group) {
+  const items = [...group.querySelectorAll('[data-fit]')];
+  const max = Math.max(0, ...items.map(level));
+  items.forEach(el => { for (let i = 1; i <= Math.min(max, Number(el.dataset.fit) || 1); i++) el.classList.add(`fit${i}`); });
+}
+
 /** Ajuste tous les blocs de `root` (appelé après chaque rendu, à la rotation et une fois la police chargée). */
 export function fitAll(root = document) {
+  // Paliers d'abord (une étiquette abrégée libère de la place : le texte voisin n'a pas à rapetisser pour elle), puis
+  // les textes qui rapetissent, puis les paliers de nouveau avec les tailles finales.
+  root.querySelectorAll('[data-fit]').forEach(compact);
   root.querySelectorAll('[data-shrink]').forEach(shrink);
   root.querySelectorAll('[data-fit]').forEach(compact);
+  root.querySelectorAll('[data-fit-same]').forEach(align);
 }

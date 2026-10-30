@@ -35,8 +35,9 @@ const LIVE = () => withPos('T20 S20 T5 T19 S19 S3 T20 S20', [
   at(20, MID_T, -3), at(20, 0.3, 4), at(5, MID_T + 0.03, 2), at(19, MID_T - 0.02, -2), at(19, 0.75), at(3, 0.32, 3), at(20, MID_T + 0.02, 1.5), at(20, 0.72, -4),
 ]);
 
-export // Partie à 2 terminée (301, sortie double) avec un bust (Guillaume : 20 puis 19, il reste 1) et une finition D20.
-const TWO = 'T20 T20 T20 20 20 20 T20 S20 S1 T20 T20 S1 S20 S19 T20 S20 S20 D20';
+// Partie à 2 terminée (301, sortie double) avec des ratés (0), un bust (Guillaume : 20 puis 19, il reste 1) et une
+// finition D20.
+const TWO = 'T20 T20 T20 20 0 20 T20 S20 S1 T20 T20 S1 S20 S19 T20 0 0 D20';
 // 8 joueurs, 2 manches à gagner : la première jouée par le lanceur simulé (tirage 14 : 3 bust), puis 2 tours.
 const EIGHT = ['p1', 'p2', 'p3', 'p4', 'p5', 'p7', 'p8', 'p9'];
 const eightGame = () => {
@@ -59,6 +60,14 @@ export const SCENES = {
   'arme-t': () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S5 S20 T19 S1 T20', { mult: 3 }); return '#/jeu'; },
   bust: () => { setGame(cfg(['p1', 'p2'], 301), 'T20 T20 T20 20 20 20 T19 S20 S12 20 20 20 S20 S16', {}, true); return '#/jeu'; },
   volee: () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S1 S20 S20 S20 T20 T20 S20', {}, true); return '#/jeu'; },
+  // Volée en attente à 4 et à 8 joueurs ; `k` (8 joueurs) = rang de la volée en attente, donc du joueur qui vient de
+  // lancer (k % 8) : le test des couleurs fait passer VALIDER par les 8 couleurs d'avatar.
+  'volee-4': () => { setGame(cfg(['p1', 'p2', 'p3', 'p4']), 'T20 S20 S1  S20 S5 S20  T19 S7 S3  S20 S1 S20  T20 T20 S5', {}, true); return '#/jeu'; },
+  'volee-8': (k = 3) => {
+    const visits = ['T20 S20 S1', 'S20 S5 S20', 'T19 S7 0', 'S20 S1 S20', 'S5 S5 S1', 'T20 S20 S5', 'S1 0 S1', 'S20 S5 S20'];
+    setGame(cfg(EIGHT), Array.from({ length: k + 1 }, (_, i) => visits[i % 8]).join(' '), {}, true);
+    return '#/jeu';
+  },
   annonce: () => { setGame(cfg(['p1', 'p2', 'p3']), 'T20 S20 S1 S20 S20 S20 T20 T20 S20', { announce: 0, frozen: true }); return '#/jeu'; },
   cible: () => { setGame(cfg(['p1', 'p2']), LIVE()); return '#/jeu'; },
   'cible-tour1': () => { setGame(cfg(['p1', 'p2']), LIVE().slice(0, 2)); return '#/jeu'; },
@@ -110,6 +119,7 @@ export const SCENES = {
   pause: () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S5 S20 T19 S1 T20', { pause: true }); return '#/jeu'; },
   abandon: () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S5 S20 T19 S1 T20', { pause: true, confirm: true }); return '#/jeu'; },
   solo: () => { setGame(cfg(['p2'], 301), 'T20 T20 S20 S19 S7 S3'); return '#/jeu'; },
+  'solo-attente': () => { setGame(cfg(['p2'], 301), 'T20 T20 S20 S19 S7 S3', {}, true); return '#/jeu'; },
   'aucun-joueur': () => { store.players = []; store.current = null; store.setupDraft = null; return '#/joueurs'; },
   'nouvelle-vide': () => { store.players = []; store.current = null; store.setupDraft = null; return '#/nouvelle'; },
   'historique-vide': () => { store.games = []; return '#/historique'; },
@@ -163,6 +173,8 @@ export function sommaire() {
       ${L('arme-d', 'D armé', 'double')}
       ${L('arme-t', 'T armé', 'triple · 25 grisé')}
       ${L('volee', 'Volée en attente de validation', '3 fléchettes')}
+      ${L('volee-4', 'Volée en attente : 4 joueurs', 'VALIDER')}
+      ${L('volee-8', 'Volée en attente : 8 joueurs', 'VALIDER')}
       ${L('bust', 'Bust en attente de validation', 'ANNULER possible')}
       ${L('annonce', 'Annonce « À TOI »', 'figée')}
       ${L('cible-tour1', 'Petite cible au 1er tour', 'volée en cours seule')}
@@ -172,7 +184,7 @@ export function sommaire() {
       ${L('cible-seule', 'Cible seule', 'couleurs réglementaires')}
       ${L('manches', 'Manches gagnées', 'premier à 3')}
       ${L('histo-cours', 'Historique de la partie en cours', 'panneau')}
-      ${L('histo-deux', 'Historique : 2 joueurs', 'bust ouvert, finition')}
+      ${L('histo-deux', 'Historique : 2 joueurs', 'ratés, bust ouvert, finition')}
       ${L('histo-huit', 'Historique en cours : 8 joueurs', 'défile de côté')}
       ${L('histo-huit-detail', 'Historique terminé : 8 joueurs', 'finition ouverte')}
       ${L('finition', 'Finition proposée', 'reste 100')}
@@ -180,6 +192,7 @@ export function sommaire() {
       ${L('long', 'Pseudo très long', 'en jeu')}
       ${L('long-fiche', 'Pseudo très long', 'fiche')}
       ${L('solo', 'Un seul joueur', 'entraînement')}
+      ${L('solo-attente', 'Un seul joueur : volée en attente', 'VALIDER seul')}
     </nav>
     <div class="pad"><div class="sec">Paysage</div><p class="note" style="margin-top:0">Tourne le téléphone : l'écran de jeu passe en paysage, saisie sur la cible.</p></div>
     <nav class="toc">

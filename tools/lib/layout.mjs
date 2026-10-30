@@ -172,7 +172,7 @@ export async function statesOf(page) {
 export async function show(page, st) {
   await page.evaluate(st => {
     window.__strela.reset();
-    if (st.scene) window.__strela.scene(st.scene);
+    if (st.scene) window.__strela.scene(st.scene, st.arg);
     else { history.replaceState(null, '', st.route); window.__strela.render(); }
   }, st);
   await page.evaluate(() => document.fonts.ready);

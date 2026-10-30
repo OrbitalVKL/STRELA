@@ -49,7 +49,7 @@ src/ui/                   interface (docs/interface.md) : app.js, nav.js, store.
                           table.js (historique en tableau), fit.js (compaction des blocs trop chargés)
 src/ui/theme.js           palette (source de vérité des couleurs), contraste
 tests/                    tests node:test (*.test.js) ; helpers.js = aides (notation ds('T20 D16'))
-                          chevauchement.test.js et geste.test.js : Playwright (sautés s'il est absent)
+                          chevauchement.test.js, couleurs.test.js et geste.test.js : Playwright (sautés s'il est absent)
 tools/build-site.mjs      construit _site/ : lance les tests, remplit la page, copie assets/ et src/
 tools/check-layout.mjs    test de chevauchement en ligne de commande ; tools/captures.mjs : captures ; tools/geste.mjs :
                           saisie au doigt en paysage ; tools/lib/ : serveur, contrôle de mise en page, geste
@@ -93,43 +93,44 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 0 | Fondations : cahier des charges, CLAUDE.md, moteur X01 + tests, CI, page d'attente Pages — **fait** |
 | 1 | Maquette de tous les écrans, sombre et clair (validation du design) — **fait** |
 | 1.1 | Corrections de la maquette après essai sur le Pixel (suppression, VALIDER, rouleaux, cible, paysage) — **fait** |
-| 1.2 | Corrections : rotation de l'appli installée, vibrations, mini-cible, historique en tableau, vraie cible, superpositions — **fait, en attente de validation** |
+| 1.2 | Corrections : rotation de l'appli installée, vibrations, mini-cible, historique en tableau, vraie cible, superpositions — **fait** |
+| 1.3 | Corrections : 3 fléchettes par case d'historique, une seule couleur de joueur en jeu, VALIDER à la couleur du lanceur — **fait, en attente de validation** |
 | 2 | Partie jouable + joueurs et avatars |
 | 3 | Historique et stats |
 | 4 | Finitions : propositions de finition, mode nuit, vibrations, export / import (validation des fonctions) |
 | 5 | APK (coquille Java WebView `fr.orbitalvkl.strela`, minSdk 30, release signée, mise à jour dans l'appli) |
 | 6 | Recette |
 
-## État (fin du lot 1.2)
+## État (fin du lot 1.3)
 
-- Maquette corrigée publiée (version 0.1.2), sommaire : `https://orbitalvkl.github.io/STRELA/?maquette`.
+- Maquette corrigée publiée (version 0.1.3), sommaire : `https://orbitalvkl.github.io/STRELA/?maquette`.
   Détail : docs/interface.md ; décisions : docs/cahier-des-charges.md (§ 4) et docs/direction-artistique.md.
-- Lot 1.2 :
-  - **Superpositions** (cause : la ligne sous le pseudo — carrés de fléchettes, FLÉCHETTE n/3, MANCHE n, carrés de
-    manches gagnées — fait 295 px pour 259 à 410 px de large dès qu'on joue en plusieurs manches ; cet état n'avait
-    jamais été capturé ; même défaut avec une police agrandie). Correctif général : `src/ui/fit.js` après chaque
-    rendu (`data-fit` = compaction par paliers, `data-shrink` = texte qui rapetisse pour tenir), hauteurs minimales au
-    lieu de hauteurs fixes, reste à faire qui absorbe. Test `tests/chevauchement.test.js` (tools/lib/layout.mjs) :
-    tous les écrans et états du sommaire, portrait 360–430 × 640–930, paysage 640×360 à 930×430, police 100/115/130 %
-    (simulée en multipliant les tailles calculées), sombre et clair : aucun chevauchement, rien hors de l'écran,
-    aucun texte coupé sans « … ». Grille complète en CI (~3 min).
-  - **Vibrations** : rien à corriger côté appel (geste de l'utilisateur déjà là, réglage par défaut OUI), mais Chrome
-    ne vibre pas en mode silencieux et Android coupe les vibrations des pages quand le retour haptique est désactivé ;
-    `buzz()` renvoie maintenant 'absent' | 'off' | 'refused' | 'sent', impulsion par fléchette portée à 25 ms.
-    Réglages : TESTER LA VIBRATION (dit ce qui s'est passé). L'APK utilisera le vibreur natif.
-  - **Rotation** : manifeste `orientation: any` (depuis 1.1), aucun verrouillage dans le code ; l'appli installée avec
-    l'ancien manifeste « portrait » doit être désinstallée puis réinstallée depuis Chrome. Le build date l'adresse du
-    manifeste (`?v=version-commit`). Diagnostic en bas des Réglages (orientation, taille en px, police, mode, version).
-  - Mini-cible : volée en cours seule, marques rondes 1-2-3, vidée à chaque volée (aussi la cible de saisie en
-    paysage) ; cible agrandie avec bascule VOLÉE / MANCHE. Cible aux couleurs réglementaires (`zoneTone()`,
-    `--board-*`), partout. Historique en tableau (`src/ui/table.js`, `legTable()`), case → fléchettes et cible.
-  - Palette d'avatar retouchée (écart CIEDE2000 ≥ 20 entre deux fonds, `deltaE()` dans theme.js, testé).
-  - 8 joueurs à 410 × 712 : 122 px (bande des autres compactée). Mesures du reste : 152 px (914, 866), 146 (760),
-    122 (712) ; paysage 133 (914 × 410), 120 (860 × 410).
+- Lot 1.3 :
+  - **Historique** : chaque case montre les fléchettes du tour (« T20 · 5 · 1 », « 0 » = raté), puis le total en gros,
+    puis le reste en petit ; bust (fautive barrée) et finition comme avant. Contenu pur et testé : `cellView()` /
+    `cellHtml()` de `src/ui/table.js`. Fléchettes jamais coupées : paliers `fit1…3` de `.ds` (séparateurs resserrés,
+    deux lignes, plus petit), même palier pour tout un tableau (`data-fit-same`, nouveau dans `fit.js`).
+  - **Une seule couleur de joueur en jeu** : celle du joueur en cours. Bande des autres neutre (avatars `mono`, sans
+    fond) ; le suivant, en tête de bande : filet de 3 px en haut + « SUIVANT » (flèche si le pseudo serait coupé).
+    `tests/couleurs.test.js` scanne les écrans de jeu (portrait / paysage, sombre / clair) : aucune couleur d'avatar
+    hors de celle du joueur en cours.
+  - **VALIDER** : aplat de la couleur du lanceur, encre `--av-ink` (≥ 4,5:1 sur les 8 fonds, testé dans le navigateur
+    sur les 8 couleurs via `__strela.scene('volee-8', k)`), « VALIDER » puis « suivant : PSEUDO » ; solo : VALIDER seul.
+  - `fit.js` : ordre paliers → rapetissement → paliers (une étiquette abrégée libère la place avant qu'un voisin
+    rapetisse).
+  - Nouvelles scènes : `volee-4`, `volee-8`, `solo-attente` ; `histo-deux` a des ratés.
+  - Points tranchés par l'architecte : grille du test de chevauchement à 360 px minimum (sauf si la ligne de diagnostic
+    de Guillaume montre plus étroit) ; pseudos coupés en « … » dans le tableau à 8 joueurs acceptés.
+- Lot 1.2 (rappel) : test de chevauchement (`tests/chevauchement.test.js`, grille complète en CI), `buzz()` qui dit ce
+  qui s'est passé + TESTER LA VIBRATION, diagnostic en bas des Réglages, manifeste `orientation: any` (réinstaller
+  l'appli installée avant 1.1), cible réglementaire, historique en tableau, palette d'avatar (CIEDE2000 ≥ 20).
 - Toujours en mémoire : rien n'est enregistré sauf les réglages d'affichage (`strela.theme`, `strela.night`,
   `strela.vibrate`, `strela.anim`) ; données fictives recréées à chaque chargement.
-- Tests : 96 (dont cible, tableau, palette, chevauchement, geste). Captures et geste : `tools/` (voir Commandes).
+- Tests : 99 (dont cible, tableau, cases, palette, couleurs, chevauchement, geste). Captures et geste : `tools/`.
+- Toujours en attente de Guillaume : la ligne de diagnostic des Réglages et le résultat de TESTER LA VIBRATION.
 - À faire au lot 2 (une fois le design validé) : IndexedDB avec la même forme de données que `store.js`
   (y compris `pos` des fléchettes et `validated`), enregistrement à chaque fléchette et à chaque VALIDER,
-  suppression d'un joueur en une transaction, photo d'avatar, retrait des données fictives hors sommaire.
-  Tout nouvel écran ou état : l'ajouter au sommaire (`SCENES`) pour qu'il passe dans le test de chevauchement.
+  suppression d'un joueur en une transaction, photo d'avatar (en jeu, la bande des autres la montre en gris),
+  retrait des données fictives hors sommaire.
+  Tout nouvel écran ou état : l'ajouter au sommaire (`SCENES`) pour qu'il passe dans le test de chevauchement ; tout
+  état de jeu : l'ajouter aussi à `SCENES` de `tests/couleurs.test.js`.

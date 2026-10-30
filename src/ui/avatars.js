@@ -60,14 +60,15 @@ export function iconSvg(key) {
 
 /**
  * Avatar d'un joueur : carré, fond sourd, pictogramme ou initiales.
- * `size` en px (le CSS .av gère le reste), `extra` = classes supplémentaires.
+ * `size` en px (le CSS .av gère le reste), `extra` = classes supplémentaires (« mono » : sans couleur).
  */
 export function avatarHtml(player, size = 40, extra = '') {
   const av = (player && player.avatar) || {};
   // Joueur supprimé : avatar neutre (filet et barre oblique, sans couleur).
   if (av.kind === 'deleted') return `<span class="av gone ${extra}" style="--s:${size}px" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 36L36 12"/></svg></span>`;
   const color = Number.isInteger(av.color) ? ((av.color % 8) + 8) % 8 : 7;
-  const style = `--s:${size}px;background:var(--av-${color})`;
+  // « mono » : avatar sans sa couleur (bande des autres joueurs en jeu, où seule la couleur du joueur en cours se voit).
+  const style = /\bmono\b/.test(extra) ? `--s:${size}px` : `--s:${size}px;background:var(--av-${color})`;
   let inner;
   if (av.kind === 'photo' && av.photo) inner = `<img src="${esc(av.photo)}" alt="">`;
   else if (av.kind === 'icon' && ICONS[av.icon]) inner = iconSvg(av.icon);
