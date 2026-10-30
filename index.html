@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="fr" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>СТРЕЛА · Strela</title>
+<meta name="description" content="Strela (СТРЕЛА) — compteur de fléchettes X01 hors ligne. Lot 0 : fondations.">
+<meta name="theme-color" content="#0A0C0E">
+<link rel="icon" type="image/svg+xml" href="assets/icon.svg">
+<link rel="preload" href="assets/fonts/martian-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/martian-mono-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/theme.css">
+<script>
+  // Thème choisi (Auto / Sombre / Clair), appliqué avant l'affichage pour éviter un éclair.
+  try { const t = localStorage.getItem('strela.theme'); if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
+<style>
+  /* Page d'attente du lot 0 : remplacée par l'appli au lot 1. */
+  body { padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); }
+  main { max-width: 520px; margin: 0 auto; padding: 0 16px 32px; }
+  .band { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 14px 16px 12px; margin: 0 -16px; }
+  .title { font-size: 52px; line-height: 1; font-weight: 700; letter-spacing: 0.08em; margin: 0; font-stretch: 112.5%; }
+  .ver { font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .sub { margin: 8px 0 0; font-size: 12px; }
+  .lot { margin: 28px 0 4px; font-size: 20px; font-weight: 700; letter-spacing: 0.04em; }
+  .lot + p { margin: 0; }
+  h2 { display: flex; align-items: center; gap: 10px; margin: 32px 0 12px; font-size: 12px; font-weight: 600; color: var(--dim); }
+  h2::after { content: ''; flex: 1; border-top: var(--rule); }
+  .score { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  .big { font-size: 64px; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .big .slash { color: var(--dim); font-weight: 300; }
+  .verdict { font-size: 14px; font-weight: 700; padding: 3px 8px; }
+  .bar { display: flex; height: 8px; margin: 14px 0 10px; border: var(--rule); }
+  .bar i { display: block; background: var(--fg); }
+  .bar i.ko { background: var(--red); }
+  .meta { margin: 0; font-size: 12px; }
+  .fails { margin: 10px 0 0; padding: 0; list-style: none; font-size: 12px; }
+  dl { margin: 0; }
+  .row { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: var(--rule); }
+  .row:first-child { border-top: var(--rule); }
+  dt { margin: 0; }
+  dd { margin: 0; font-weight: 700; white-space: nowrap; }
+  .seg { display: grid; grid-template-columns: repeat(3, 1fr); border: var(--rule); }
+  .seg button { border: 0; border-left: var(--rule); min-height: 48px; font-weight: 600; letter-spacing: 0.06em; }
+  .seg button:first-child { border-left: 0; }
+  .seg button[aria-pressed="true"] { color: var(--inv-fg); background: var(--inv-bg); }
+  .swatches { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0 0; }
+  .sw { border: var(--rule); font-size: 11px; }
+  .sw b { display: block; height: 28px; border-bottom: var(--rule); }
+  .sw span { display: block; padding: 4px 6px; }
+  .bust { margin: 14px 0 0; padding: 10px 12px; font-weight: 700; letter-spacing: 0.1em; text-align: center; }
+  footer { margin-top: 36px; padding-top: 10px; border-top: var(--rule); font-size: 11px; display: flex; justify-content: space-between; gap: 12px; }
+  @media (max-width: 360px) { .title { font-size: 42px; } .big { font-size: 52px; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="band inv">
+      <h1 class="title">СТРЕЛА</h1>
+      <span class="ver">v<!--@version-->dev<!--/@--></span>
+    </div>
+    <p class="sub dim caps">Strela · compteur de fléchettes X01</p>
+  </header>
+
+  <p class="lot caps">Lot 0 — fondations</p>
+  <p class="dim">Le moteur de règles est prêt et testé. Les écrans arrivent au lot 1.</p>
+
+  <section aria-labelledby="t-tests">
+    <h2 id="t-tests" class="caps">Tests du moteur</h2>
+    <div class="score">
+      <span class="big"><!--@pass-->—<!--/@--><span class="slash">/</span><!--@total-->—<!--/@--></span>
+      <!--@verdict--><span class="verdict dim">NON GÉNÉRÉ</span><!--/@-->
+    </div>
+    <!--@bar--><div class="bar" aria-hidden="true"></div><!--/@-->
+    <p class="meta dim">Généré le <!--@date-->—<!--/@--></p>
+    <p class="meta dim">Commit <!--@commit-->local<!--/@--> · durée <!--@duration-->—<!--/@--></p>
+    <!--@fails--><!--/@-->
+  </section>
+
+  <section aria-labelledby="t-etat">
+    <h2 id="t-etat" class="caps">État du projet</h2>
+    <dl>
+      <div class="row"><dt>Moteur X01 · 301 / 501 / 701</dt><dd>PRÊT</dd></div>
+      <div class="row"><dt>Sortie simple / double, manches</dt><dd>PRÊT</dd></div>
+      <div class="row"><dt>Annuler à travers bust et manches</dt><dd>PRÊT</dd></div>
+      <div class="row"><dt>Tests automatiques sur GitHub</dt><dd>PRÊT</dd></div>
+      <div class="row"><dt class="dim">Maquette des écrans</dt><dd class="dim">LOT 1</dd></div>
+      <div class="row"><dt class="dim">Partie jouable, joueurs</dt><dd class="dim">LOT 2</dd></div>
+      <div class="row"><dt class="dim">Application Android</dt><dd class="dim">LOT 5</dd></div>
+    </dl>
+  </section>
+
+  <section aria-labelledby="t-theme">
+    <h2 id="t-theme" class="caps">Thème</h2>
+    <div class="seg" role="group" aria-label="Thème">
+      <button type="button" data-choice="auto">AUTO</button>
+      <button type="button" data-choice="dark">SOMBRE</button>
+      <button type="button" data-choice="light">CLAIR</button>
+    </div>
+    <div class="swatches" aria-hidden="true">
+      <div class="sw"><b style="background:var(--bg)"></b><span>FOND</span></div>
+      <div class="sw"><b style="background:var(--fg)"></b><span>TEXTE</span></div>
+      <div class="sw"><b style="background:var(--dim)"></b><span>ATTÉNUÉ</span></div>
+      <div class="sw"><b style="background:var(--faint)"></b><span>DISCRET</span></div>
+      <div class="sw"><b style="background:var(--red)"></b><span class="red">ROUGE</span></div>
+      <div class="sw"><b style="background:var(--inv-bg)"></b><span>INVERSE</span></div>
+    </div>
+    <p class="bust alert">BUST · AUCUN POINT</p>
+  </section>
+
+  <footer class="faint caps"><span>Orbital VKL</span><span>СТРЕЛА <!--@version-->dev<!--/@--></span></footer>
+</main>
+<script>
+  (() => {
+    const root = document.documentElement;
+    const meta = document.querySelector('meta[name="theme-color"]');
+    const buttons = [...document.querySelectorAll('[data-choice]')];
+    const show = () => {
+      const choice = root.dataset.theme || 'auto';
+      buttons.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.choice === choice)));
+      meta.content = getComputedStyle(root).getPropertyValue('--bg').trim() || '#0A0C0E';
+    };
+    buttons.forEach(b => b.addEventListener('click', () => {
+      root.dataset.theme = b.dataset.choice;
+      try { localStorage.setItem('strela.theme', b.dataset.choice); } catch (e) {}
+      show();
+    }));
+    try { matchMedia('(prefers-color-scheme: light)').addEventListener('change', show); } catch (e) {}
+    show();
+  })();
+</script>
+</body>
+</html>

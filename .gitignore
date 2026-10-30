@@ -1,0 +1,8 @@
+_site/
+node_modules/
+android/*.jks
+android/.gradle/
+android/app/build/
+android/app/src/main/assets/
+android/build/
+android/local.properties
