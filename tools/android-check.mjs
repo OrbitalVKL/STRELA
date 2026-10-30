@@ -59,6 +59,23 @@ for (let i = 0; i < tries; i++) {
 };
 
 const focusLine = async () => (await sh('dumpsys window | grep -m1 -E "mCurrentFocus"')).replace(/\s+/g, ' ').replace(/Failed to write.*$/, '');
+/**
+ * Rend le focus des touches à Strela : ferme ce qui le lui prend sur l'émulateur (dialogue « ne répond pas », bulle
+ * « plein écran » d'Android), puis touche `sel` (sans effet). Renvoie la ligne de focus, avant → après.
+ */
+const ensureFocus = async sel => {
+  let before = await focusLine();
+  for (let i = 0; i < 3 && !before.includes(PKG); i++) {
+    const texts = await screenTexts();
+    if (texts.some(t => /isn.t responding|ne répond pas/i.test(t))) await tapText(/^(Wait|Attendre)$/i, 2);
+    else if (/Immersive/i.test(before)) await tapText(/^(Got it|OK|J'ai compris|Compris)$/i, 2);
+    await touch(sel);
+    before = `${before} → ${await focusLine()}`;
+    if (before.includes(`${PKG}/`)) break;
+  }
+  if (!before.includes(PKG)) await touch(sel);
+  return before;
+};
 const topActivity = () => sh('dumpsys activity activities | grep -m1 -E "topResumedActivity|mResumedActivity"');
 const shot = name => device.screenshot({ path: join(OUT, `${name}.png`) }).catch(() => {});
 
@@ -73,6 +90,8 @@ async function step(name, fn) {
 }
 
 console.log(`Appareil : ${device.model()} · Android ${await sh('getprop ro.build.version.release')}`);
+// Émulateur lent : pas de dialogue « … ne répond pas » (du lanceur d'Android, par exemple) qui volerait le focus.
+await sh('settings put global hide_error_dialogs 1');
 await sh('settings put system accelerometer_rotation 0');
 await sh('settings put system user_rotation 0');
 if (APK) { await device.installApk(APK); console.log(`installé : ${APK}`); }
@@ -119,8 +138,7 @@ await step('voix et vibreur natifs (état rapporté par Android)', async () => {
 await step('bouton retour hors partie : Réglages → accueil', async () => {
   await page.evaluate(() => { location.hash = '#/reglages'; });
   await page.waitForSelector('#diag');
-  await touch('header.top h1');
-  const focus = await focusLine();
+  const focus = await ensureFocus('header.top h1');
   const before = await page.evaluate(() => window.strelaNative.backCount());
   await sh('input keyevent KEYCODE_BACK');
   const ok = await page.waitForSelector('.home-main', { timeout: 6e3 }).then(() => true, () => false);
@@ -182,11 +200,9 @@ await step('bouton retour en partie : menu pause, pas de sortie', async () => {
   if (!(await page.evaluate(() => location.hash)).includes('jeu')) { await page.evaluate(() => { location.hash = '#/jeu'; }); await page.waitForSelector('.game'); }
   await page.evaluate(() => { const f = window.strelaBack; window.__backs = 0; window.strelaBack = () => { window.__backs++; return f(); }; });
   const ime = await sh('dumpsys input_method | grep -m1 -oE "mInputShown=[a-z]+"');
-  await touch('#remaining');
-  let focus = await focusLine();
   // Première partie en plein écran : Android peut montrer sa bulle « plein écran » (ImmersiveModeConfirmation), qui
   // prend le focus ; on la ferme comme le ferait Guillaume.
-  if (/Immersive/i.test(focus)) { await tapText(/^(Got it|OK|J'ai compris|Compris)$/i, 3); await touch('#remaining'); focus = `${focus} → ${await focusLine()}`; }
+  const focus = await ensureFocus('#remaining');
   console.log(`focus avant retour : ${focus}`);
   const before = Number(await page.evaluate(() => window.strelaNative.backCount ? window.strelaNative.backCount() : -1));
   // Retour par adb (input keyevent), après un toucher sur le reste (sans action) pour le focus.
