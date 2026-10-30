@@ -86,14 +86,14 @@ export function statsScreen(id) {
     <div class="pad">
       <div class="sec"><span class="nm">${esc(p.name)}</span> <span class="n">${plural(st.played, 'partie', 'parties')}</span></div>
       <div class="kpis">
-        <div class="kpi hero wide"><small>Moyenne sur 3 fléchettes</small><b>${avg(st.average)}</b></div>
-        <div class="kpi"><small>9 premières</small><b>${avg(st.first9)}</b></div>
-        <div class="kpi"><small>Victoires</small><b>${st.won}<small> / ${st.played}</small></b></div>
-        <div class="kpi"><small>Taux de finition</small><b>${pct(st.checkoutRate)}</b></div>
-        <div class="kpi"><small>Taux de doubles</small><b>${pct(st.doubleRate)}</b></div>
-        <div class="kpi"><small>Meilleure finition</small><b>${int(st.bestFinish)}</b></div>
-        <div class="kpi"><small>Manche la + courte</small><b>${st.shortestLeg ?? '—'}${st.shortestLeg ? '<small> fl.</small>' : ''}</b></div>
-        <div class="kpi wide tons"><div><small>100+</small><b>${st.ton}</b></div><div><small>140+</small><b>${st.ton40}</b></div><div><small>180</small><b>${st.max}</b></div></div>
+        <div class="kpi hero wide" data-k="average"><small>Moyenne sur 3 fléchettes</small><b>${avg(st.average)}</b></div>
+        <div class="kpi" data-k="first9"><small>9 premières</small><b>${avg(st.first9)}</b></div>
+        <div class="kpi" data-k="won"><small>Victoires</small><b>${st.won}<small> / ${st.played}</small></b></div>
+        <div class="kpi" data-k="checkout"><small>Taux de finition</small><b>${pct(st.checkoutRate)}</b></div>
+        <div class="kpi" data-k="double"><small>Taux de doubles</small><b>${pct(st.doubleRate)}</b></div>
+        <div class="kpi" data-k="bestFinish"><small>Meilleure finition</small><b>${int(st.bestFinish)}</b></div>
+        <div class="kpi" data-k="shortest"><small>Manche la + courte</small><b>${st.shortestLeg ?? '—'}${st.shortestLeg ? '<small> fl.</small>' : ''}</b></div>
+        <div class="kpi wide tons"><div data-k="ton"><small>100+</small><b>${st.ton}</b></div><div data-k="ton40"><small>140+</small><b>${st.ton40}</b></div><div data-k="max"><small>180</small><b>${st.max}</b></div></div>
       </div>
       <p class="note">Finition : volées gagnées quand la finition était jouable. Doubles : fléchettes qui ont fini quand une seule pouvait finir.</p>
       ${h2h ? `<div class="sec">Face-à-face</div><ul class="h2h">${h2h}</ul><p class="note">Touchez un adversaire pour le détail partie par partie.</p>` : ''}
