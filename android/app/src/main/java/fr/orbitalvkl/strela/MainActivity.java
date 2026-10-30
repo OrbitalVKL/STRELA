@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.graphics.Insets;
 import android.net.Uri;
@@ -22,6 +21,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 
+import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 import androidx.webkit.WebSettingsCompat;
 import androidx.webkit.WebViewAssetLoader;
@@ -130,8 +130,7 @@ public class MainActivity extends Activity {
             getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::goBack);
         }
         IntentFilter f = new IntentFilter(Updater.ACTION);
-        if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(updater.receiver, f, Context.RECEIVER_NOT_EXPORTED);
-        else registerReceiver(updater.receiver, f);
+        ContextCompat.registerReceiver(this, updater.receiver, f, ContextCompat.RECEIVER_NOT_EXPORTED);
         // Activité recréée (thème du téléphone changé) : la page revient où elle était ; sinon, l'accueil.
         if (state == null || web.restoreState(state) == null) web.loadUrl(START);
     }

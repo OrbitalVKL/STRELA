@@ -53,8 +53,7 @@ public class Bridge {
     @JavascriptInterface
     public String vibrate(String pattern) {
         try {
-            VibratorManager vm = (VibratorManager) act.getSystemService(MainActivity.VIBRATOR_MANAGER_SERVICE);
-            Vibrator v = vm == null ? null : vm.getDefaultVibrator();
+            Vibrator v = vibrator();
             if (v == null || !v.hasVibrator()) return "absent";
             VibrationEffect effect;
             String p = pattern.trim();
@@ -72,6 +71,16 @@ public class Bridge {
             else v.vibrate(effect);
             return "sent";
         } catch (Exception e) { return "error"; }
+    }
+
+    /** Vibreur du téléphone : VibratorManager (Android 12 et plus), Vibrator avant. */
+    @SuppressWarnings("deprecation")
+    Vibrator vibrator() {
+        if (Build.VERSION.SDK_INT >= 31) {
+            VibratorManager vm = (VibratorManager) act.getSystemService(MainActivity.VIBRATOR_MANAGER_SERVICE);
+            return vm == null ? null : vm.getDefaultVibrator();
+        }
+        return (Vibrator) act.getSystemService(MainActivity.VIBRATOR_SERVICE);
     }
 
     // ------------------------------------------------------------------ voix
