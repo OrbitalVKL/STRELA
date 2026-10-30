@@ -54,6 +54,13 @@ La page cherche `window.strelaNative` ; sans elle (navigateur), elle garde les A
 - **Thème** : thème Android DayNight (la WebView suit le téléphone en Auto) ; un changement de thème du téléphone
   recrée l'activité (la page se recharge, la partie est enregistrée à chaque fléchette).
 
+- **Moteur de rendu arrêté** : quand Android arrête le moteur de rendu de la WebView (appli en arrière-plan derrière
+  l'appareil photo ou le sélecteur de fichiers, mémoire), `onRenderProcessGone` crée une nouvelle WebView et recharge
+  la page (sans cela, toute l'appli s'arrêtait : vu sur l'émulateur). La partie est enregistrée à chaque fléchette.
+  Une sauvegarde choisie pendant ce temps n'est pas perdue : la coquille la relit et la remet à la page (événement
+  `importFile`, aperçu dans les Réglages). Une photo, elle, est à reprendre.
+- **Police** : la WebView applique la taille de police d'Android (comme Chrome) ; la page est vérifiée jusqu'à 130 %.
+
 ## Premier lancement et données
 
 Les données de la version web (autre origine) ne passent pas d'elles-mêmes. Accueil de l'APK sans joueur ni partie :
@@ -63,6 +70,9 @@ sont les données et leur taille.
 
 ## Compilation et publication
 
+- Émulateur : après un lancement par adb, le focus des touches reste parfois au lanceur d'Android ; le script touche
+  la page (sans effet) avant d'envoyer la touche retour. La bulle « plein écran » d'Android, montrée la première fois,
+  est fermée comme le ferait l'utilisateur.
 - `ci.yml`, à chaque demande de fusion : job `apk` (page sans relancer les tests, `assembleDebug`, artefact
   `strela-test-apk`, non publié) puis job `emulateur` (émulateur Android 14, `tools/android-check.mjs` : premier
   lancement, passerelle, partie, zone des gestes, rotation sans rechargement, retour = menu pause, export dans
