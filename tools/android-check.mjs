@@ -34,6 +34,17 @@ const screenTexts = async () => {
 };
 /** Reste affiché (le nombre exact, pas les chiffres du rouleau en cours d'animation). */
 const remaining = () => page.evaluate(() => { const el = document.querySelector('#remaining'); return el ? (el.getAttribute('aria-label') || el.textContent).trim() : null; });
+/**
+ * Touche un élément de la page par l'écran (adb input tap) : la fenêtre de Strela prend le focus. Sur l'émulateur,
+ * après un lancement par adb, le focus des touches reste parfois au lanceur d'Android (mCurrentFocus) : sans ce
+ * toucher, la touche retour ne parvient pas à l'appli.
+ */
+const touch = async sel => {
+  const p = await page.evaluate(s => { const r = document.querySelector(s).getBoundingClientRect(); const v = JSON.parse(window.strelaNative.viewport()); return [v.x + (r.left + r.width / 2) * v.density, v.y + (r.top + r.height / 2) * v.density]; }, sel);
+  await sh(`input tap ${Math.round(p[0])} ${Math.round(p[1])}`);
+  await sleep(400);
+};
+const focusLine = async () => (await sh('dumpsys window | grep -m1 -E "mCurrentFocus"')).replace(/\s+/g, ' ').replace(/Failed to write.*$/, '');
 const topActivity = () => sh('dumpsys activity activities | grep -m1 -E "topResumedActivity|mResumedActivity"');
 const shot = name => device.screenshot({ path: join(OUT, `${name}.png`) }).catch(() => {});
 
@@ -94,7 +105,8 @@ await step('voix et vibreur natifs (état rapporté par Android)', async () => {
 await step('bouton retour hors partie : Réglages → accueil', async () => {
   await page.evaluate(() => { location.hash = '#/reglages'; });
   await page.waitForSelector('#diag');
-  const focus = (await sh('dumpsys window | grep -m1 -E "mCurrentFocus"')).replace(/\s+/g, ' ');
+  await touch('header.top h1');
+  const focus = await focusLine();
   const before = await page.evaluate(() => window.strelaNative.backCount());
   await sh('input keyevent KEYCODE_BACK');
   const ok = await page.waitForSelector('.home-main', { timeout: 6e3 }).then(() => true, () => false);
@@ -156,14 +168,15 @@ await step('bouton retour en partie : menu pause, pas de sortie', async () => {
   if (!(await page.evaluate(() => location.hash)).includes('jeu')) { await page.evaluate(() => { location.hash = '#/jeu'; }); await page.waitForSelector('.game'); }
   await page.evaluate(() => { const f = window.strelaBack; window.__backs = 0; window.strelaBack = () => { window.__backs++; return f(); }; });
   const ime = await sh('dumpsys input_method | grep -m1 -oE "mInputShown=[a-z]+"');
-  const focus = (await sh('dumpsys window | grep -m1 -E "mCurrentFocus"')).replace(/\s+/g, ' ');
+  await touch('#remaining');
+  const focus = await focusLine();
   const before = Number(await page.evaluate(() => window.strelaNative.backCount ? window.strelaNative.backCount() : -1));
-  // Deux façons d'appuyer sur retour : adb (input keyevent), puis le pilote de Playwright (injection d'événement).
+  // Retour par adb (input keyevent), après un toucher sur le reste (sans action) pour le focus.
   await sh('input keyevent KEYCODE_BACK');
   let ok = await page.waitForSelector('.sheet [data-act="resume"]', { timeout: 5e3 }).then(() => true, () => false);
   let presses = 1;
   const how = ['adb'];
-  if (!ok) { await device.input.press('Back').catch(e => how.push(`pilote : ${e.message.split('\n')[0]}`)); presses++; how.push('pilote'); ok = await page.waitForSelector('.sheet [data-act="resume"]', { timeout: 5e3 }).then(() => true, () => false); }
+  if (!ok) { await touch('#remaining'); await sh('input keyevent KEYCODE_BACK'); presses++; how.push('adb après un toucher'); ok = await page.waitForSelector('.sheet [data-act="resume"]', { timeout: 5e3 }).then(() => true, () => false); }
   const native = Number(await page.evaluate(() => window.strelaNative.backCount ? window.strelaNative.backCount() : -1)) - before;
   const info = { backs: await page.evaluate(() => window.__backs).catch(() => '?'), top: await topActivity(), ime, native, presses, focus, how: how.join(', ') };  if (!ok) throw new Error(`menu pause absent (${info.how} ; strelaBack appelé ${info.backs} fois, retour reçu par la coquille ${info.native} fois, ${info.ime}, ${info.focus}, ${info.top})`);
   await shot('4-retour-pause');

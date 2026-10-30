@@ -71,9 +71,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
-      - run: |
-          npm install --no-save --no-package-lock playwright@1.63.0
-          npx playwright install android
+      - run: npm install --no-save --no-package-lock playwright@1.63.0
       - uses: actions/download-artifact@v4
         with:
           name: strela-test-apk

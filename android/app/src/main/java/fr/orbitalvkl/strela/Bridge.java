@@ -171,6 +171,14 @@ public class Bridge {
     @JavascriptInterface
     public int gestureInset() { return act.gestureCss; }
 
+    /** Position de la page à l'écran, en px physiques, et densité (vérification sur émulateur : toucher un élément). */
+    @JavascriptInterface
+    public String viewport() {
+        int[] at = new int[2];
+        act.web.getLocationOnScreen(at);
+        return json("x", at[0], "y", at[1], "density", act.getResources().getDisplayMetrics().density);
+    }
+
     /** Nombre de retours d'Android reçus par la coquille (diagnostic). */
     @JavascriptInterface
     public int backCount() { return act.backs; }
