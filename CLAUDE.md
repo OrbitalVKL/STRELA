@@ -61,6 +61,9 @@ Les tests sont dans `tests/` (et non `test/`) : avec `node --test`, tout fichier
 
 GitHub Pages, source « GitHub Actions » : https://orbitalvkl.github.io/STRELA/
 Le build affiche version, tests réussis / total, date (heure de Paris), commit ; `_site/tests.json` donne le même résumé.
+Pages s'active **à la main** (Settings → Pages → Source : GitHub Actions) : le jeton des Actions n'a pas le droit
+de le faire (`configure-pages` avec `enablement` échoue en « Resource not accessible by integration »), et
+la session n'a pas d'accès à l'API Pages. Après activation : Actions → pages → Run workflow.
 
 ## Plan des lots
 
