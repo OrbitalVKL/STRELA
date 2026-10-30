@@ -24,10 +24,10 @@ export function home() {
       <a class="btn primary big" href="#/nouvelle">NOUVELLE PARTIE</a>
       ${resume}
       <nav class="tiles" aria-label="Menu">
-        <a class="tile" href="#/joueurs">${ico('players')}<div><b data-shrink>Joueurs</b><br><span>${n ? plural(n, 'joueur', 'joueurs') : 'aucun joueur'}</span></div></a>
-        <a class="tile" href="#/historique">${ico('history')}<div><b data-shrink>Historique</b><br><span>${g ? plural(g, 'partie', 'parties') : 'aucune partie'}</span></div></a>
-        <a class="tile" href="#/stats">${ico('stats')}<div><b data-shrink>Stats</b><br><span>par joueur</span></div></a>
-        <a class="tile" href="#/reglages">${ico('settings')}<div><b data-shrink>Réglages</b><br><span>thème · nuit</span></div></a>
+        <a class="tile" href="#/joueurs">${ico('players')}<div><b data-shrink>Joueurs</b><br><span data-shrink="2">${n ? plural(n, 'joueur', 'joueurs') : 'aucun joueur'}</span></div></a>
+        <a class="tile" href="#/historique">${ico('history')}<div><b data-shrink>Historique</b><br><span data-shrink="2">${g ? plural(g, 'partie', 'parties') : 'aucune partie'}</span></div></a>
+        <a class="tile" href="#/stats">${ico('stats')}<div><b data-shrink>Stats</b><br><span data-shrink="2">par joueur</span></div></a>
+        <a class="tile" href="#/reglages">${ico('settings')}<div><b data-shrink>Réglages</b><br><span data-shrink="2">thème · nuit</span></div></a>
       </nav>
     </main>
     <footer class="home-foot"><span>Maquette · rien n'est enregistré</span><span>Orbital VKL</span></footer>
