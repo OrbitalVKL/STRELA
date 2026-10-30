@@ -23,7 +23,8 @@
         android:roundIcon="@mipmap/ic_launcher"
         android:allowBackup="false"
         android:usesCleartextTraffic="false"
-        android:theme="@style/Strela">
+        android:theme="@style/Strela"
+        android:enableOnBackInvokedCallback="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"

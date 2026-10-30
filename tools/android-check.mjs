@@ -5,6 +5,7 @@
 // retour (menu pause), export dans Téléchargements/Strela, import par le sélecteur de fichiers d'Android. Chaque étape
 // est notée OK / ÉCHEC / NON VÉRIFIÉ ; captures dans captures/android/. Code de sortie 1 si une étape échoue.
 import { mkdirSync, writeFileSync, appendFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { ROOT } from './lib/serve.mjs';
@@ -23,6 +24,15 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const [device] = await _android.devices();
 if (!device) { console.error('aucun appareil Android (adb devices)'); process.exit(2); }
 const sh = async cmd => String(await device.shell(cmd)).trim();
+/** Commande de la console de l'émulateur (adb emu …), côté poste. */
+const emu = (...args) => { try { return execFileSync('adb', ['-s', device.serial(), 'emu', ...args], { encoding: 'utf8' }).trim(); } catch (e) { return `échec : ${e.message}`; } };
+/** Textes visibles à l'écran (uiautomator), pour comprendre un écran d'Android. */
+const screenTexts = async () => {
+  await sh('uiautomator dump /sdcard/ui.xml >/dev/null 2>&1');
+  const xml = await sh('cat /sdcard/ui.xml');
+  return [...xml.matchAll(/text="([^"]+)"/g)].map(m => m[1]).filter(Boolean).slice(0, 40);
+};
+const topActivity = () => sh('dumpsys activity activities | grep -m1 -E "topResumedActivity|mResumedActivity"');
 const shot = name => device.screenshot({ path: join(OUT, `${name}.png`) }).catch(() => {});
 
 async function step(name, fn) {
@@ -47,6 +57,11 @@ const ready = async () => {
   const web = await device.webView({ pkg: PKG }, { timeout: 60e3 });
   page = await web.page();
   await page.waitForSelector('body[data-ready]', { timeout: 60e3 });
+};
+/** Strela au premier plan et page joignable (après un écran d'Android, une sortie, une fermeture). */
+const front = async () => {
+  if (!(await topActivity()).includes(PKG)) await sh(`am start -W -n ${PKG}/.MainActivity`);
+  try { await page.evaluate(() => 1); } catch (e) { await ready(); }
 };
 
 await step('premier lancement : page embarquée servie sur appassets.androidplatform.net', async () => {
@@ -96,30 +111,51 @@ await step('zone des gestes transmise à la page (--gesture-native)', async () =
 
 await step('rotation en pleine partie : paysage sans recharger la page, état gardé', async () => {
   await page.evaluate(() => { window.__marque = 'avant-rotation'; });
-  await sh('settings put system user_rotation 1');
-  await page.waitForFunction(() => matchMedia('(orientation: landscape)').matches, null, { timeout: 15e3 });
+  // Rotation automatique permise, puis l'émulateur tourné (capteur simulé) ; sinon rotation imposée par réglage.
+  await sh('settings put system accelerometer_rotation 1');
+  const how = [];
+  how.push(`emu rotate : ${emu('rotate')}`);
+  let land = await page.waitForFunction(() => matchMedia('(orientation: landscape)').matches, null, { timeout: 8e3 }).then(() => true, () => false);
+  if (!land) {
+    await sh('settings put system accelerometer_rotation 0');
+    await sh('settings put system user_rotation 1');
+    how.push('user_rotation 1');
+    land = await page.waitForFunction(() => matchMedia('(orientation: landscape)').matches, null, { timeout: 8e3 }).then(() => true, () => false);
+  }
   await sleep(800);
   await shot('3-paysage');
-  const r = await page.evaluate(() => ({ m: window.__marque, rest: document.querySelector('#remaining')?.textContent.trim(), w: innerWidth, h: innerHeight }));
+  const r = await page.evaluate(() => ({ m: window.__marque, rest: document.querySelector('#remaining')?.textContent.trim(), w: innerWidth, h: innerHeight, land: !!document.querySelector('.game.land, .land') }));
+  const rot = await sh('dumpsys window displays | grep -m1 -oE "mCurrentRotation=[^ ]+"');
+  // Retour en portrait
+  if (how.length > 1) await sh('settings put system user_rotation 0'); else emu('rotate'), emu('rotate'), emu('rotate');
+  await sh('settings put system accelerometer_rotation 0');
   await sh('settings put system user_rotation 0');
-  await page.waitForFunction(() => !matchMedia('(orientation: landscape)').matches, null, { timeout: 15e3 });
+  await page.waitForFunction(() => !matchMedia('(orientation: landscape)').matches, null, { timeout: 15e3 }).catch(() => {});
+  if (!land) throw new Error(`pas de paysage (${how.join(' ; ')} ; ${rot} ; fenêtre ${r.w}×${r.h})`);
   if (r.m !== 'avant-rotation') throw new Error('page rechargée');
   if (r.rest !== '276') throw new Error(`reste ${r.rest}`);
-  return `${r.w}×${r.h}, reste ${r.rest}`;
+  return `${r.w}×${r.h}, reste ${r.rest}, ${rot} (${how.join(' ; ')})`;
 });
 
 await step('bouton retour en partie : menu pause, pas de sortie', async () => {
-  await sh('input keyevent 4');
-  await page.waitForSelector('.sheet [data-act="resume"]', { timeout: 10e3 });
+  await front();
+  if (!(await page.evaluate(() => location.hash)).includes('jeu')) { await page.evaluate(() => { location.hash = '#/jeu'; }); await page.waitForSelector('.game'); }
+  await page.evaluate(() => { const f = window.strelaBack; window.__backs = 0; window.strelaBack = () => { window.__backs++; return f(); }; });
+  await sh('input keyevent KEYCODE_BACK');
+  const ok = await page.waitForSelector('.sheet [data-act="resume"]', { timeout: 10e3 }).then(() => true, () => false);
+  const info = { backs: await page.evaluate(() => window.__backs).catch(() => '?'), top: await topActivity() };
+  if (!ok) throw new Error(`menu pause absent (strelaBack appelé ${info.backs} fois ; ${info.top})`);
   await shot('4-retour-pause');
-  await sh('input keyevent 4');
+  await sh('input keyevent KEYCODE_BACK');
   await page.waitForFunction(() => !document.querySelector('.sheet-bg'), null, { timeout: 10e3 });
-  const top = await sh('dumpsys activity activities | grep -m1 -E "topResumedActivity|mResumedActivity"');
+  const top = await topActivity();
   if (!top.includes(PKG)) throw new Error(`appli plus au premier plan : ${top}`);
+  return `strelaBack appelé ${await page.evaluate(() => window.__backs)} fois`;
 });
 
 let exported = null;
 await step('EXPORTER : Téléchargements/Strela/strela-AAAAMMJJ-HHMM.json, menu de partage', async () => {
+  await front();
   await page.evaluate(() => { location.hash = '#/reglages'; });
   await page.waitForSelector('[data-act="backup-export"]');
   await page.click('[data-act="backup-export"] >> nth=0');
@@ -136,6 +172,7 @@ await step('EXPORTER : Téléchargements/Strela/strela-AAAAMMJJ-HHMM.json, menu 
 
 await step('IMPORTER : sélecteur de fichiers d\'Android, aperçu de la sauvegarde', async () => {
   if (!exported) return ['skip', 'pas de fichier exporté'];
+  await front();
   await sleep(500);
   await page.waitForSelector('label.btn:has(input[data-backup])');
   await page.click('label.btn:has(input[data-backup])');
@@ -157,7 +194,12 @@ await step('IMPORTER : sélecteur de fichiers d\'Android, aperçu de la sauvegar
     await shot('6-selecteur');
     if (await tapText(/^(Downloads|Téléchargements|Download)$/)) { await sleep(800); await tapText(/^Strela$/); found = await tapText(new RegExp(base)); }
   }
-  if (!found) { await shot('6-selecteur-introuvable'); await sh('input keyevent 4'); return ['skip', 'fichier introuvable dans le sélecteur (automatisation)']; }
+  if (!found) {
+    await shot('6-selecteur-introuvable');
+    const seen = await screenTexts();
+    await sh('input keyevent KEYCODE_BACK');
+    return ['skip', `fichier introuvable dans le sélecteur (automatisation) ; à l'écran : ${seen.join(' / ')}`];
+  }
   await page.waitForSelector('[data-act="backup-mode"][data-arg="merge"]', { timeout: 15e3 });
   await shot('6-apercu-import');
   await page.click('[data-act="backup-mode"][data-arg="merge"]');
@@ -167,6 +209,7 @@ await step('IMPORTER : sélecteur de fichiers d\'Android, aperçu de la sauvegar
 });
 
 await step('fermeture brutale puis réouverture : REPRENDRE, rien de perdu', async () => {
+  await front();
   await settle(page);
   await sh(`am force-stop ${PKG}`);
   await sh(`am start -W -n ${PKG}/.MainActivity`);
@@ -183,6 +226,7 @@ await step('fermeture brutale puis réouverture : REPRENDRE, rien de perdu', asy
 finish();
 
 function finish() {
+  try { console.log(execFileSync('adb', ['-s', device.serial(), 'logcat', '-d', '-t', '300', 'AndroidRuntime:E', 'chromium:W', '*:S'], { encoding: 'utf8' }).split('\n').slice(-40).join('\n')); } catch (e) { /* rien */ }
   const lines = ['## Strela sur émulateur Android', '', '| Étape | Résultat | Détail |', '|---|---|---|',
     ...results.map(r => `| ${r.step} | ${r.status} | ${String(r.detail).replace(/\|/g, '/')} |`)];
   writeFileSync(join(OUT, 'rapport.md'), lines.join('\n') + '\n');

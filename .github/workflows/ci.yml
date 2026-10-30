@@ -47,9 +47,12 @@ jobs:
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" > /dev/null
       - name: Page embarquée (tests lancés par le job « tests »)
         run: STRELA_SANS_TESTS=1 node tools/build-site.mjs && sh tools/apk-page.sh
-      - name: Compilation (APK de test)
+      - name: Compilation (APK de test) et lint (API d'Android 11 au moins : minSdk 30)
         working-directory: android
-        run: gradle --no-daemon assembleDebug
+        run: |
+          gradle --no-daemon assembleDebug lintDebug
+          grep -E "Error: " app/build/reports/lint-results-debug.txt && exit 1 || echo "lint : aucune erreur"
+          grep -E "^[0-9]+ errors?, [0-9]+ warnings?" app/build/reports/lint-results-debug.txt || true
       - run: cp android/app/build/outputs/apk/debug/app-debug.apk strela-test.apk
       - uses: actions/upload-artifact@v4
         with:

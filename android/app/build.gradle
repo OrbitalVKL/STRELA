@@ -35,6 +35,7 @@ android {
     lint {
         checkReleaseBuilds false
         abortOnError false
+        textReport true      // ci.yml : une API trop récente pour Android 11 (NewApi) fait échouer la CI
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17

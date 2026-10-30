@@ -125,10 +125,15 @@ public class MainActivity extends Activity {
             }
         });
         web.addJavascriptInterface(bridge, "strelaNative");
+        // Retour d'Android 13 et plus (OnBackInvokedDispatcher, déclaré dans le manifeste) ; avant : onBackPressed().
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::goBack);
+        }
         IntentFilter f = new IntentFilter(Updater.ACTION);
-        registerReceiver(updater.receiver, f, Context.RECEIVER_NOT_EXPORTED);
-        if (state != null) web.restoreState(state);
-        else web.loadUrl(START);
+        if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(updater.receiver, f, Context.RECEIVER_NOT_EXPORTED);
+        else registerReceiver(updater.receiver, f);
+        // Activité recréée (thème du téléphone changé) : la page revient où elle était ; sinon, l'accueil.
+        if (state == null || web.restoreState(state) == null) web.loadUrl(START);
     }
 
     @Override
@@ -263,7 +268,9 @@ public class MainActivity extends Activity {
      */
     @Override
     @SuppressWarnings("deprecation")
-    public void onBackPressed() {
+    public void onBackPressed() { goBack(); }
+
+    void goBack() {
         if (!pageReady) { moveTaskToBack(true); return; }
         web.evaluateJavascript("window.strelaBack ? window.strelaBack() : false", v -> {
             if (!"true".equals(v)) moveTaskToBack(true);

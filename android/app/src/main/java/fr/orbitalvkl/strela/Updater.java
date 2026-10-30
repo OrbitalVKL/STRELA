@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageInstaller;
 import android.net.Uri;
+import android.os.Build;
 import android.provider.Settings;
 
 import org.json.JSONArray;
@@ -146,7 +147,7 @@ class Updater {
                 PackageInstaller pi = act.getPackageManager().getPackageInstaller();
                 PackageInstaller.SessionParams p = new PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL);
                 p.setAppPackageName(act.getPackageName());
-                p.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED);
+                if (Build.VERSION.SDK_INT >= 31) p.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED);
                 int id = pi.createSession(p);
                 try (PackageInstaller.Session s = pi.openSession(id)) {
                     try (InputStream in = new FileInputStream(f); OutputStream out = s.openWrite("strela.apk", 0, f.length())) {
@@ -165,12 +166,15 @@ class Updater {
         }).start();
     }
 
+    @SuppressWarnings("deprecation")
+    static Intent legacyIntent(Intent i) { return (Intent) i.getParcelableExtra(Intent.EXTRA_INTENT); }
+
     /** Retour de PackageInstaller : confirmation à demander, échec, ou succès (l'appli redémarre). */
     final BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override public void onReceive(Context ctx, Intent i) {
             int st = i.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE);
             if (st == PackageInstaller.STATUS_PENDING_USER_ACTION) {
-                Intent confirm = i.getParcelableExtra(Intent.EXTRA_INTENT, Intent.class);
+                Intent confirm = Build.VERSION.SDK_INT >= 33 ? i.getParcelableExtra(Intent.EXTRA_INTENT, Intent.class) : legacyIntent(i);
                 if (confirm != null) { confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); act.startActivity(confirm); }
                 return;
             }
