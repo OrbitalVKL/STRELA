@@ -11,6 +11,7 @@ JavaScript pur (modules ES), sans dépendance ni affichage. Utilisable tel quel 
 | `stats.js` | statistiques d'un joueur recalculées depuis les fléchettes ; résumé d'un joueur dans une partie |
 | `board.js` | géométrie de la cible : position → segment (saisie au doigt), centre d'un segment (impacts), couleur de chaque zone |
 | `players.js` | suppression d'un joueur : anonymisation de ses parties |
+| `correct.js` | corriger une fléchette déjà jouée sans changer le déroulé de la partie (lot 3) |
 | `index.js` | point d'entrée ; `GAMES` liste les jeux (X01 seul pour l'instant) |
 
 ## Fléchette
@@ -74,6 +75,20 @@ moyenne 3 fléchettes (bust = 0), 9 premières, taux de finition (volées gagné
 finition jouable), taux de doubles (fléchettes qui finissent / fléchettes lancées quand une seule pouvait
 finir), meilleure finition, manche la plus courte, 100+ / 140+ / 180, victoires, face-à-face (parties finies
 seulement), carte des segments, évolution (moyenne par partie). `inPeriod(parties, '7j'|'30j'|'tout')`.
+`faceToFace(parties, joueur, adversaire)` (lot 3) : bilan (gagnées, perdues, gagnées par un autre), bilan des manches,
+parties communes de la plus récente à la plus ancienne, abandonnées à part. Définitions exactes :
+[statistiques.md](statistiques.md).
+
+## Corriger une fléchette (`correct.js`, lot 3)
+
+`correctDart(config, fléchettes, rang, fléchette)` → `{ ok: true, darts, before, after, effects }` ou
+`{ ok: false, error }` (`INVALID`, `OUT_OF_RANGE`, `SAME`, `CHANGES_FLOW`) ; la liste d'origine n'est jamais modifiée.
+La fléchette n° `rang` est remplacée et toute la partie recalculée ; acceptée seulement si chaque fléchette suivante
+reste au même joueur, dans la même volée de la même manche (`dartOwners()`), et si la partie en est au même point
+(joueur à qui c'est le tour, manche, volée commencée, vainqueur). Un bust qui couperait une volée, une finition
+avancée ou perdue sont donc refusés : on passe par ANNULER. `effects` : total de la volée avant / après (null = bust)
+et reste du joueur avant / après (maintenant, ou à la fin de la manche si elle est finie). `locateDart()` et
+`visitStart()` passent d'un rang dans la liste à une volée et inversement.
 
 ## Cible (`board.js`)
 

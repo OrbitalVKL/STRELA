@@ -63,8 +63,8 @@ ordonnée de ses fléchettes. Détail du moteur : [moteur-x01.md](moteur-x01.md)
 | Nouvelle partie | joueurs touchés dans l'ordre de jeu ; 301 / 501 / 701 ; sortie ; manches. Les derniers réglages sont repris ; REVANCHE en une touche |
 | Jeu | voir ci-dessous |
 | Fin de manche / de partie | résultat, enchaînement |
-| Historique | parties passées, détail volée par volée et fléchette par fléchette, impacts de chaque volée sur la cible |
-| Stats joueur | sur 7 jours, 30 jours, depuis toujours |
+| Historique | parties passées, détail volée par volée et fléchette par fléchette, impacts de chaque volée sur la cible ; supprimer une partie (détail, ou appui long puis sélection de plusieurs), avec confirmation (lot 3) |
+| Stats joueur | sur 7 jours, 30 jours, depuis toujours ; face-à-face contre chaque adversaire (lot 3 : bilan en toutes lettres, parties communes) |
 
 ### Écran de jeu (portrait et paysage)
 
@@ -78,7 +78,21 @@ L'appli accepte les deux orientations ; l'écran de jeu suit la rotation du tél
   manche. Le joueur suivant est repéré dans la bande des autres, sans sa couleur (filet en haut, « SUIVANT ») : en
   jeu, la seule couleur de joueur à l'écran est celle du joueur en cours (lot 1.3).
 - Reste à faire en très grand : **120 px de haut au minimum** (chiffres), lisible à 2-3 m.
-- 3 cases de fléchettes + total de la volée ; finition proposée quand elle est jouable ; autres joueurs (avatar, reste).
+- 3 cases de fléchettes + total de la volée ; autres joueurs (avatar, reste). Lot 3 : chaque case vide montre une
+  fléchette dessinée (combien il en reste d'un coup d'œil) et, quand une finition est jouable, le segment conseillé
+  pour cette fléchette (T20 · T20 · D20 pour 140), mis à jour après chaque fléchette.
+- **Touches au relâcher** (lot 3) : retour visuel dès l'appui, action au relâcher, seulement si le doigt n'a pas
+  glissé (10 px) et si Android n'a pas pris le geste (remonter du bas de l'écran ne saisit rien). Marge basse au moins
+  égale à la zone des gestes système.
+- **Annonces vocales** (lot 3, voix française du téléphone, réglage OUI par défaut) : total de chaque volée, « bust »,
+  « PSEUDO, il reste 40 » quand un joueur commence son tour avec une finition jouable, « manche, PSEUDO ! »,
+  « partie, PSEUDO ! », « cent quatre-vingts ! » appuyé. Jamais de retard de saisie ; une annonce coupe la précédente.
+- **Sons** (lot 3, Web Audio, réglage OUI par défaut) : clic à chaque fléchette (différent pour double et triple),
+  sons du bust, de la validation, de la finition.
+- **Célébrations** (lot 3) : bandeau gradué pour 100+, 140+, 180 et chaque finition, dans la couleur du joueur ou en
+  vidéo inverse (jamais le rouge du bust) ; il ne bloque pas la saisie, un appui le ferme.
+- **Corriger une fléchette validée** (lot 3) : depuis le panneau cible + historique ; acceptée seulement si le déroulé
+  de la partie ne change pas (sinon : ANNULER), avec confirmation qui chiffre l'effet.
 - **Validation de chaque volée** : plus de passage automatique. Après la 3e fléchette ou un bust, la volée reste
   affichée (joueur, fléchettes, total ou BUST) et un grand bouton **VALIDER** passe au joueur suivant ; il est à la
   couleur du joueur qui vient de lancer et ne dit que « VALIDER », sur une ligne, en grand (lot 2 : le suivant n'est
@@ -118,7 +132,9 @@ L'appli accepte les deux orientations ; l'écran de jeu suit la rotation du tél
 
 **Portrait : saisie au pavé**
 
-- Petite cible à côté des 3 cases (sans réduire le reste ni le pavé) ; un appui l'agrandit.
+- Petite cible à côté des 3 cases (sans réduire le reste ni le pavé) ; un appui ouvre le panneau cible + historique
+  (lot 3 : la cible en grand en haut, le tableau de la partie dessous, dans le même panneau ; une case touchée montre
+  ses fléchettes sur la cible ; une fléchette touchée se corrige).
 - Pavé de saisie :
   - **S / D / T** : D et T valent pour une seule fléchette, puis le pavé revient à S ;
   - grille **1 à 20** ;
@@ -150,7 +166,9 @@ L'appli accepte les deux orientations ; l'écran de jeu suit la rotation du tél
   l'appli rouverte propose REPRENDRE à l'état exact. Stockage persistant demandé à Chrome (sinon il peut effacer les
   données d'un site quand la place manque). Une mise à jour de l'appli ne touche jamais aux données. Détail :
   [interface.md](interface.md), « Enregistrement ».
-- Export / import JSON : sauvegarde, et passage de la maquette web à l'APK.
+- Export / import JSON (lot 3) : sauvegarde (Réglages › Sauvegarde), et passage de la page web à l'APK. Fichier
+  `strela-AAAAMMJJ-HHMM.json` ; import avec aperçu, REMPLACER TOUT ou FUSIONNER ; fichier invalide ou d'une version
+  future refusé sans rien toucher. Détail : [interface.md](interface.md), « Lot 3 ».
 
 ## 6. Statistiques par joueur
 
@@ -160,12 +178,15 @@ L'appli accepte les deux orientations ; l'écran de jeu suit la rotation du tél
 - Meilleure finition, manche la plus courte (en fléchettes).
 - Volées 100+, 140+, 180.
 - Victoires et face-à-face.
+- Définitions exactes et vérification (lot 3) : [statistiques.md](statistiques.md).
 - Carte des segments touchés.
 
 ## 6 bis. Réglages
 
-Thème Auto / Sombre / Clair, mode nuit (option du sombre), vibrations, **animations** oui / non (chiffres en
-rouleau, glissement du bandeau) ; les animations sont coupées d'office si le téléphone demande moins d'animations.
+Thème Auto / Sombre / Clair, mode nuit (option du sombre), **sons** et **annonces vocales** oui / non (lot 3, avec
+TESTER LA VOIX et l'état de la voix française), vibrations, **animations** oui / non (chiffres en rouleau, glissement
+du bandeau, célébrations) ; les animations sont coupées d'office si le téléphone demande moins d'animations.
+Sauvegarde : EXPORTER / IMPORTER (lot 3).
 
 ## 7. Direction artistique
 
@@ -189,7 +210,7 @@ Détail : [direction-artistique.md](direction-artistique.md).
 | 1.2 | Corrections : rotation de l'appli installée, vibrations (test et diagnostic), mini-cible de la volée en cours, historique en tableau, cible aux vraies couleurs, superpositions (test automatique), palette d'avatar | validation du design |
 | 1.3 | Corrections : 3 fléchettes dans chaque case de l'historique, une seule couleur de joueur à l'écran (le joueur en cours), VALIDER à la couleur du lanceur avec le nom du suivant (retiré au lot 2) | design validé (v0.1.3) |
 | 2 | Partie jouable et enregistrée (IndexedDB, reprise), vrais joueurs (photo recadrée), VALIDER sans le nom du suivant | validation des fonctions de la partie |
-| 3 | Historique et statistiques | |
-| 4 | Finitions : propositions de finition, mode nuit, vibrations, export / import | validation des fonctions |
+| 3 | Corrections de jeu (touches au relâcher, fléchettes et finition dans les cases, correction d'une fléchette, panneau cible + historique), suppression de parties, face-à-face, annonces vocales, sons, célébrations, export / import, chiffres vérifiés | validation des fonctions |
+| 4 | Finitions : propositions de finition (affinées), mode nuit, vibrations | validation des fonctions |
 | 5 | APK Android | |
 | 6 | Recette | |

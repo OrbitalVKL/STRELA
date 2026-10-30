@@ -10,7 +10,7 @@ function draft() {
   if (store.setupDraft) return store.setupDraft;
   const last = store.lastSetup || { players: [], startScore: 501, outMode: 'double', legsToWin: 1 };
   const active = new Set(activePlayers().map(p => p.id));
-  store.setupDraft = { ...last, players: last.players.filter(id => active.has(id)) };
+  store.setupDraft = { ...last, players: last.players.filter(id => active.has(id)), confirm: false };
   return store.setupDraft;
 }
 
@@ -38,14 +38,22 @@ export function newGame() {
 
   const legs = d.legsToWin;
   const ok = d.players.length > 0;
-  // Partie en cours : LANCER l'abandonne (elle reste dans l'historique) ; on le dit avant.
+  // Partie en cours : LANCER l'abandonne (elle reste dans l'historique), après une vraie confirmation (lot 3).
   const cur = currentState();
-  const busy = cur && cur.status === 'playing' && store.current.darts.length
-    ? `<div class="confirm warn" role="note"><p><b>Une partie est en cours.</b></p><p class="small">LANCER l'abandonnera : elle restera dans l'historique, marquée « abandonnée ».</p><a class="btn ghost" href="#/jeu">REPRENDRE LA PARTIE</a></div>`
+  const busy = !!(cur && cur.status === 'playing' && store.current.darts.length);
+  if (!busy) d.confirm = false;
+  const busyNote = busy
+    ? `<div class="busy" role="note"><span class="small">Une partie est en cours.</span><a class="btn ghost" href="#/jeu">REPRENDRE</a></div>`
     : '';
+  const launch = d.confirm
+    ? `<div class="confirm" role="alertdialog" aria-label="Abandonner la partie en cours ?"><p class="alert-h">ABANDONNER LA PARTIE EN COURS ?</p>
+        <p class="small">Elle restera dans l'historique, marquée « abandonnée », et la nouvelle partie commencera.</p>
+        <div class="btns two"><button type="button" class="btn" data-act="launch-no">NON</button><button type="button" class="btn alert" data-act="launch-yes">ABANDONNER</button></div></div>`
+    : `<button type="button" class="btn primary big" data-act="launch" ${ok ? '' : 'disabled'}>
+      ${ok ? `LANCER <small>${d.startScore} · ${d.players.length === 1 ? 'SOLO' : `${d.players.length} JOUEURS`}</small>` : 'CHOISIR LES JOUEURS'}</button>`;
   return `<div class="screen has-dock">${topBar('Nouvelle partie', '#/')}
     <div class="pad">
-      ${busy ? `<div style="margin-top:16px">${busy}</div>` : ''}
+      ${busyNote}
       <div class="sec">Ordre de passage <span class="n">${d.players.length}/${MAX_PLAYERS}</span></div>
       ${order}
       ${pool.length || !store.players.length ? `<div class="sec">${chosen.length ? 'Ajouter' : 'Joueurs'}</div>${poolHtml}` : ''}
@@ -60,8 +68,7 @@ export function newGame() {
         <button type="button" data-act="legs" data-arg="1" ${legs >= 9 ? 'disabled' : ''} aria-label="Plus">+</button></div>
       <p class="note">Le premier à lancer change à chaque manche.</p>
     </div>
-    <div class="dock" data-layer><button type="button" class="btn primary big" data-act="launch" ${ok ? '' : 'disabled'}>
-      ${ok ? `LANCER <small>${d.startScore} · ${d.players.length === 1 ? 'SOLO' : `${d.players.length} JOUEURS`}</small>` : 'CHOISIR LES JOUEURS'}</button></div>
+    <div class="dock" data-layer>${launch}</div>
   </div>`;
 }
 
@@ -76,9 +83,16 @@ export const actions = {
   launch() {
     const d = draft();
     if (!d.players.length) return;
-    startGame(d); // une partie en cours non finie est d'abord rangée, abandonnée
-
-    store.setupDraft = null;
-    go('#/jeu');
+    const cur = currentState();
+    if (cur && cur.status === 'playing' && store.current.darts.length) { d.confirm = true; refresh(); return; }
+    launch(d);
   },
+  'launch-no'() { draft().confirm = false; refresh(); },
+  'launch-yes'() { const d = draft(); if (d.players.length) launch(d); },
 };
+
+function launch(d) {
+  startGame(d); // une partie en cours non finie est d'abord rangée, abandonnée
+  store.setupDraft = null;
+  go('#/jeu');
+}

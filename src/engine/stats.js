@@ -148,3 +148,34 @@ function addSegment(map, d) {
   if (d.segment === 0) map.miss += 1;
   else map[d.segment][d.multiplier - 1] += 1;
 }
+
+/**
+ * Face-à-face (lot 3) : `playerId` contre `opponentId`, sur leurs parties communes, de la plus récente à la plus
+ * ancienne. Partie terminée : `result` = 'won' (gagnée par le joueur), 'lost' (par l'adversaire) ou 'other' (par un
+ * troisième joueur) ; elle compte dans le bilan (won, lost, other) et dans le bilan des manches (manches gagnées par
+ * l'un et par l'autre dans ces parties). Partie abandonnée : listée à part (`abandoned`), elle ne compte pas.
+ * Chaque ligne : { id, at, config, legs: [joueur, adversaire], average: [joueur, adversaire], winner (identifiant), result }.
+ */
+export function faceToFace(games, playerId, opponentId) {
+  const out = { won: 0, lost: 0, other: 0, legsWon: 0, legsLost: 0, games: [], abandoned: [] };
+  for (const g of [...games].sort((x, y) => y.startedAt - x.startedAt)) {
+    const ids = g.config.players;
+    const a = ids.indexOf(playerId), b = ids.indexOf(opponentId);
+    if (a < 0 || b < 0 || a === b) continue;
+    const s = gameState(g);
+    const row = {
+      id: g.id, at: g.startedAt, config: g.config,
+      legs: [s.legsWon[a], s.legsWon[b]],
+      average: [playerSummary(s, a).average, playerSummary(s, b).average],
+      winner: null, result: null,
+    };
+    if (g.abandoned || s.status !== STATUS.FINISHED) { out.abandoned.push(row); continue; }
+    row.winner = ids[s.winner];
+    row.result = s.winner === a ? 'won' : s.winner === b ? 'lost' : 'other';
+    out[row.result] += 1;
+    out.legsWon += row.legs[0];
+    out.legsLost += row.legs[1];
+    out.games.push(row);
+  }
+  return out;
+}

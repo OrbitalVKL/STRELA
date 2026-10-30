@@ -9,7 +9,7 @@
 //   players   { id, name, avatar: { kind, icon?, color, photo? }, archived }
 //   games     { id, startedAt, endedAt, config, darts[], validated, abandoned }
 //             darts[] : { segment, multiplier, pos? } ; la partie en cours est celle dont endedAt vaut null
-//   settings  clés « display » { theme, night, vibrate, anim }, « lastSetup » { players, startScore, outMode,
+//   settings  clés « display » { theme, night, vibrate, anim, sound, voice (lot 3, OUI si absents) }, « lastSetup » { players, startScore, outMode,
 //             legsToWin }, « storage » { asked, persisted } (demande de stockage persistant)
 //
 // Toutes les écritures passent par write(ops) : une seule transaction pour la liste d'opérations, durabilité
@@ -107,7 +107,7 @@ export class Database {
   }
 
   /**
-   * Une transaction pour toute la liste : [{ store, put: valeur, key? } | { store, del: clé }].
+   * Une transaction pour toute la liste : [{ store, put: valeur, key? } | { store, del: clé } | { store, clear: true }].
    * Tout est écrit, ou rien (une erreur annule la transaction entière).
    */
   write(ops) {
@@ -119,7 +119,8 @@ export class Database {
     try {
       for (const o of ops) {
         const st = tx.objectStore(o.store);
-        if ('del' in o) st.delete(o.del);
+        if (o.clear) st.clear();
+        else if ('del' in o) st.delete(o.del);
         else if (o.key !== undefined) st.put(o.put, o.key);
         else st.put(o.put);
       }
@@ -169,3 +170,6 @@ export function deletionOps(playerId, result, lastSetup) {
   if (lastSetup) ops.push({ store: 'settings', key: 'lastSetup', put: lastSetup });
   return ops;
 }
+
+/** Opérations de la suppression de parties (lot 3) : une seule transaction ; joueurs (et leurs photos) jamais touchés. */
+export const gameDeletionOps = ids => [...new Set(ids)].map(id => ({ store: 'games', del: id }));

@@ -59,6 +59,20 @@ les réglages de l'appli). La balise `theme-color` suit le fond.
 - Cible (lot 1.2) : voir ci-dessous. Seule exception au « rien d'arrondi » : la cible elle-même et ses marques
   d'impact, rondes pour être lues comme des fléchettes plantées. La loupe de saisie reste carrée.
 
+## Lot 3
+
+- **Fléchette dessinée** des cases vides de la volée : pictogramme au trait (2 px, angles droits), pointe en bas à
+  gauche, fût épais, empennage plein en haut à droite ; en atténué (`--dim`), en couleur de texte pour la prochaine
+  fléchette. Segment conseillé de la finition dessous, en atténué.
+- **Célébrations** : bandeau en haut de l'écran, jamais arrondi, jamais rouge (réservé au bust). 100+ : vidéo inverse,
+  64 px de haut ; 140+ et finition de 100 ou plus : aplat de la couleur du joueur, 120 px, filet épais à l'encre en
+  bas ; 180 : moitié haute de l'écran, aplat de la couleur du joueur barré de filets obliques à 16 % de l'encre, « 180 »
+  géant ; autre finition : vidéo inverse. Entrée en glissant du haut (240 ms), « 180 » qui grossit ; rien si les
+  animations sont coupées.
+- **Face-à-face** : GAGNÉ en vidéo inverse, PERDU encadré, GAGNÉE PAR … et ABANDONNÉE encadrés en discret ; tout est
+  écrit, la couleur n'est qu'un appui.
+- **Sélection** (historique) : case à cocher carrée, filet épais à gauche de la ligne cochée.
+
 ## Cible (lot 1.2)
 
 Couleurs d'une cible réglementaire, légèrement désaturées pour rester dans la DA mais franchement rouge et vert.

@@ -9,7 +9,7 @@
 //   hors de la cible ne compte rien).
 // Après la 3e fléchette ou un bust, la volée reste affichée jusqu'à VALIDER (turn.js) ; ANNULER reste possible.
 // À la validation, « À TOI, PSEUDO » occupe le haut de l'écran ~0,8 s, puis le bandeau du joueur glisse en place.
-import { store, currentState, playerById, archiveCurrent, animationsOn, saveCurrent, legEndPending } from '../store.js';
+import { store, currentState, playerById, archiveCurrent, deleteCurrent, animationsOn, saveCurrent, legEndPending } from '../store.js';
 import { esc, ico, avg, OUT_SHORT, maquetteButtons } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
 import { throwDart, undoDart } from '../../engine/x01.js';
@@ -22,7 +22,9 @@ import { rollHtml } from '../roll.js';
 import { pendingVisit, validatedAfterUndo } from '../turn.js';
 import { go, refresh, buzz, BUZZ } from '../nav.js';
 import { themeControls } from './settings.js';
-import { gameLog } from './history.js';
+import { gameLog, selectLogCell, selectedLogCell } from './history.js';
+import { sound, dartSound, say, SPEECH } from '../feedback.js';
+import { correctDart, locateDart, visitStart, CORRECT_ERRORS } from '../../engine/correct.js';
 
 export const ANNOUNCE_MS = 800;
 const LENS = { size: 150, zoom: 2.5, gap: 26 };
@@ -88,7 +90,7 @@ function band(v, slide) {
       ${avatarHtml(player, 56)}
       <div class="who"><span class="nm" data-shrink>${esc(player.name)}</span>
         <span class="legs" data-fit="4">${state}<span class="mn"><span class="lg">MANCHE </span><span class="sh">M</span>${s.legNumber}</span>${legs}</span></div>
-      <button type="button" class="pause" data-act="pause" aria-label="Pause">${ico('pause')}</button>
+      <button type="button" class="pause" data-act="pause" data-press aria-label="Pause">${ico('pause')}</button>
     </header>`;
 }
 
@@ -107,26 +109,36 @@ function rest(v) {
     </section>`;
 }
 
+// Fléchette dessinée (lot 3) : chaque case vide en montre une, qui laisse place au score une fois tirée ; on voit
+// d'un coup d'œil combien il en reste. Pointe en bas à gauche, empennage en haut à droite (trait, angles droits).
+export const DART_ICON = '<svg class="dico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21L7.5 16.5"/><path d="M7.5 16.5L13.5 10.5" stroke-width="4"/><path d="M13.5 10.5L17 7"/><path d="M15.5 8.5V2.5L21.5 8.5Z" fill="currentColor" stroke-width="1.5"/></svg>';
+
+// 3 cases + total. Case vide : la fléchette dessinée et, quand une finition est jouable avec les fléchettes qui
+// restent, le segment conseillé pour cette fléchette (ex. T20 · T20 · D20 pour 140), recalculé après chaque fléchette.
 function visitBoxes(v) {
-  const { darts, pend, bust } = v;
+  const { darts, pend, bust, cfg, remaining } = v;
+  const route = pend ? null : suggestCheckout(remaining, cfg.outMode, 3 - darts.length);
   const boxes = [0, 1, 2].map(i => {
     const d = darts[i];
-    if (d) return `<div class="dart ${bust && i === darts.length - 1 ? 'bust' : 'done'}"><span data-shrink>${dartLabel(d)}</span></div>`;
-    if (!pend && i === darts.length) return '<div class="dart todo" aria-label="Fléchette à jouer"></div>';
-    return '<div class="dart"></div>';
+    if (d) return `<div class="dart ${bust && i === darts.length - 1 ? 'bust' : 'done'}"><span class="sv" data-shrink>${dartLabel(d)}</span></div>`;
+    if (pend) return '<div class="dart"></div>';
+    const seg = route && route[i - darts.length];
+    const todo = i === darts.length;
+    const label = `${todo ? 'Fléchette à jouer' : 'Fléchette restante'}${seg ? `, finition : ${dartLabel(seg)}` : ''}`;
+    return `<div class="dart left${todo ? ' todo' : ''}${seg ? ' hint' : ''}" aria-label="${label}">${DART_ICON}${seg ? `<small class="cs" data-shrink>${dartLabel(seg)}</small>` : ''}</div>`;
   }).join('');
   return `<div class="visit">${boxes}<div class="total ${darts.length ? 'inv' : 'zero'}"><small>${pend && !bust ? 'VOLÉE' : 'TOTAL'}</small><span class="tv" data-shrink>${rollHtml(`t:${v.totalKey}`, v.total)}</span></div></div>`;
 }
 
+// Sous les cases : « SUIVANT PSEUDO » quand la volée attend VALIDER (repère voulu en portrait). La finition, elle,
+// est dans les cases vides (lot 3) : l'ancienne ligne FINITION aurait répété la même chose.
 function checkoutLine(v) {
-  const { pend, n, cfg, s, remaining } = v;
+  const { pend, n, cfg } = v;
   if (pend) {
     return n > 1
       ? `<div class="co turn"><small>SUIVANT</small><span class="nm ell">${esc(playerById(cfg.players[v.next]).name)}</span></div>`
       : '<div class="co turn"><small>VOLÉE SUIVANTE</small></div>';
   }
-  const route = suggestCheckout(remaining, cfg.outMode, 4 - s.dartNumber);
-  if (route) return `<div class="co" data-shrink><small>FINITION</small><span class="route">${route.map(d => `<span>${dartLabel(d)}</span>`).join('')}</span></div>`;
   return '<div class="co"></div>';
 }
 
@@ -151,8 +163,8 @@ function others(v) {
 // permet. Le joueur suivant n'est indiqué qu'une fois : dans la bande des autres (« SUIVANT »).
 function validateButton(v, cls = '') {
   const over = cls.includes('over');
-  if (!v.pend) return `<button type="button" class="validate ${cls}" data-act="validate"${over ? ' data-layer' : ' data-shrink'} disabled>VALIDER<small>après 3 fléchettes</small></button>`;
-  return `<button type="button" class="validate go ${cls}" data-act="validate"${over ? ' data-layer' : ''} style="--pc:${colorOf(v.player)}"><span class="vl" data-shrink>VALIDER</span></button>`;
+  if (!v.pend) return `<button type="button" class="validate ${cls}" data-act="validate" data-press${over ? ' data-layer' : ' data-shrink'} disabled>VALIDER<small>après 3 fléchettes</small></button>`;
+  return `<button type="button" class="validate go ${cls}" data-act="validate" data-press${over ? ' data-layer' : ''} style="--pc:${colorOf(v.player)}"><span class="vl" data-shrink>VALIDER</span></button>`;
 }
 
 function announce(v) {
@@ -167,7 +179,7 @@ function announce(v) {
 // Petite cible : seulement la volée en cours (marques rondes 1, 2, 3) ; elle se vide à chaque nouvelle volée.
 function smallBoard(v) {
   const impacts = impactsFor(v.g, v.s, v.visitIdx, { previous: false });
-  return `<button type="button" class="mini-board" data-act="open-board" aria-label="Agrandir la cible">${boardSvg({ size: 104, impacts, label: 'Impacts de la volée' })}</button>`;
+  return `<button type="button" class="mini-board" data-act="open-board" data-press aria-label="Agrandir la cible">${boardSvg({ size: 104, impacts, label: 'Impacts de la volée' })}</button>`;
 }
 
 // ------------------------------------------------------------------ écran
@@ -181,7 +193,7 @@ export function game() {
   const slide = v.ui.slide;
   v.ui.slide = false; // le glissement ne se joue qu'une fois
   const land = isLandscape();
-  const overlays = `${v.ui.panel === 'board' ? boardSheet(v) : ''}${v.ui.panel === 'history' ? historySheet(v) : ''}${v.ui.pause ? pauseSheet() : ''}`;
+  const overlays = `${v.ui.panel ? livePanel(v) : ''}${v.ui.pause ? pauseSheet() : ''}`;
   if (land) return landscape(v, slide, overlays);
 
   // Pavé (portrait)
@@ -213,7 +225,7 @@ export function game() {
     <div class="toparea">${band(v, slide)}${rest(v)}${announce(v)}</div>
     <div class="vblock"><div class="vcol">${visitBoxes(v)}${checkoutLine(v)}</div>${smallBoard(v)}</div>
     ${others(v)}${pad}
-    ${overlays}
+    ${overlays}${celebrationHtml()}
   </div>`;
 }
 
@@ -238,40 +250,122 @@ function landscape(v, slide, overlays) {
       <p class="bhint alert" id="bhint" role="status" data-layer hidden></p>
     </div>
     <div class="loupe" id="loupe" data-layer hidden><b class="lz"></b><div class="lens">${plainBoard()}<i class="cross"></i></div></div>
-    ${overlays}
+    ${overlays}${celebrationHtml()}
   </div>`;
 }
 
-// Cible agrandie : bascule VOLÉE (volée en cours seule) / MANCHE (avec ses volées précédentes de la manche).
-function boardSheet(v) {
-  const leg = v.ui.boardView === 'leg';
-  const impacts = impactsFor(v.g, v.s, v.visitIdx, { previous: leg });
-  const b = (val, label) => `<button type="button" data-act="board-view" data-arg="${val}" aria-pressed="${(val === 'leg') === leg}">${label}</button>`;
-  const empty = !v.darts.length ? '<br>Aucune fléchette dans cette volée pour l\'instant.' : '';
-  return `<div class="sheet-bg" role="dialog" aria-label="Cible" data-layer><div class="sheet">
-    <header class="top" data-layer><h1><span>Cible · <span class="nm">${esc(v.player.name)}</span></span></h1>${store.maquette ? maquetteButtons() : ''}<button type="button" class="act" data-act="close-panel" aria-label="Fermer">${ico('close')}</button></header>
-    <div class="body" style="padding-top:12px">
-      <div class="seg" role="group" aria-label="Impacts montrés">${b('visit', 'Volée')}${b('leg', 'Manche')}</div>
-      <button type="button" class="big-board" data-act="close-panel" aria-label="Fermer la cible">${boardSvg({ size: 380, impacts, label: 'Impacts' })}</button>
-      <p class="note legend-marks">${markIcon(true)}volée ${v.pend ? 'jouée' : 'en cours'}, numérotée${leg ? `<br>${markIcon(false)}volées précédentes de la manche` : ''}${empty}<br>Une fléchette saisie au pavé est placée au centre de son segment ; le 0 n'est pas marqué.</p>
-      <button type="button" class="btn ghost" data-act="open-history">${ico('history')} HISTORIQUE DE LA PARTIE</button>
-    </div></div></div>`;
+// ------------------------------------------------------------------ panneau « cible + historique » (lot 3)
+// Un seul panneau, ouvert par la petite cible ou par HISTORIQUE DE LA PARTIE : la cible en grand en haut (bascule
+// VOLÉE / MANCHE ; collée en haut pendant que le tableau défile), puis le tableau de la partie, manche en cours
+// d'abord. Une case touchée montre ses fléchettes sur la cible ; une fléchette touchée sous la cible s'ouvre au
+// sélecteur de correction (correct.js : acceptée seulement si le déroulé de la partie ne change pas).
+const cellKey = (g, idx) => `${g.id}|${idx}`;
+
+/** Volée montrée sur la cible du panneau : la case touchée, sinon la volée en cours (ou en attente). */
+function panelVisit(v) {
+  const sel = selectedLogCell();
+  const [gid, raw] = sel ? sel.split('|') : [];
+  let idx = v.visitIdx;
+  if (gid === v.g.id) idx = raw === 'open' ? 'open' : Number(raw);
+  const visit = idx === 'open' ? v.s.visit : v.s.visits[idx];
+  if (!visit) return { idx: v.visitIdx, visit: v.visitIdx === 'open' ? v.s.visit : v.s.visits[v.visitIdx], selected: false };
+  return { idx, visit, selected: !!sel && gid === v.g.id };
 }
 
-function historySheet(v) {
-  return `<div class="sheet-bg" role="dialog" aria-label="Historique de la partie en cours" data-layer><div class="sheet">
+/** Tour (numéro de ligne du tableau) d'une volée : nombre de volées du joueur dans la manche, celle-ci comprise. */
+function roundOf(s, idx) {
+  const visit = idx === 'open' ? s.visit : s.visits[idx];
+  const leg = idx === 'open' ? s.legNumber : visit.leg;
+  const upto = idx === 'open' ? s.visits.length : idx + 1;
+  return s.visits.slice(0, upto).filter(x => x.player === visit.player && x.leg === leg).length + (idx === 'open' ? 1 : 0);
+}
+
+function livePanel(v) {
+  const { g, s, ui } = v;
+  const leg = ui.boardView === 'leg';
+  const pv = panelVisit(v);
+  const who = playerById(g.config.players[pv.visit.player]);
+  const vleg = pv.idx === 'open' ? s.legNumber : pv.visit.leg;
+  const caption = pv.idx === 'open' && !pv.visit.darts.length ? 'VOLÉE À JOUER'
+    : `TOUR ${roundOf(s, pv.idx)}${vleg !== s.legNumber ? ` · MANCHE ${vleg}` : ''}`;
+  const impacts = impactsFor(g, s, pv.idx, { previous: leg });
+  const b = (val, label) => `<button type="button" data-act="board-view" data-arg="${val}" aria-pressed="${(val === 'leg') === leg}">${label}</button>`;
+  const start = visitStart(s, pv.idx);
+  const fix = ui.fix;
+  const darts = [0, 1, 2].map(n => {
+    const d = pv.visit.darts[n];
+    if (!d) return '<span class="fd none">–</span>';
+    const i = start + n;
+    return `<button type="button" class="fd${fix && fix.index === i ? ' on' : ''}" data-act="fix-dart" data-arg="${i}" aria-label="Corriger la fléchette ${n + 1} : ${dartLabel(d)}">${dartLabel(d)}</button>`;
+  }).join('');
+  const boardBox = `<div class="lb-svg${fix ? ' pick' : ''}"${fix ? ' data-act="fix-board"' : ''}>${boardSvg({ size: 380, impacts, label: fix ? 'Cible : touchez la zone de la fléchette corrigée' : 'Impacts' })}</div>`;
+  return `<div class="sheet-bg" role="dialog" aria-label="Cible et historique de la partie" data-layer><div class="sheet live${fix ? ' fixing' : ''}">
     <header class="top" data-layer><h1><span>Partie en cours</span></h1>${store.maquette ? maquetteButtons() : ''}<button type="button" class="act" data-act="close-panel" aria-label="Fermer">${ico('close')}</button></header>
-    ${gameLog(v.g, v.s, { live: true })}
-    <div class="pad" style="margin-top:18px"><button type="button" class="btn primary" data-act="close-panel">${ico('play')} RETOUR À LA PARTIE</button></div>
+    <div class="live-grid">
+      <section class="live-board" aria-label="Cible">
+        <div class="seg" role="group" aria-label="Impacts montrés">${b('visit', 'Volée')}${b('leg', 'Manche')}</div>
+        <div class="lb-cap"><span class="nm ell">${esc(who.name)}</span><span>${caption}</span></div>
+        ${boardBox}
+        <div class="lb-darts">${darts}</div>
+        <p class="note lb-note">${fix ? 'Choisissez la bonne fléchette ci-dessous, ou touchez sa zone sur la cible.'
+          : pv.visit.darts.length ? 'Touchez une fléchette pour la corriger.' : `${markIcon(true)}volée numérotée${leg ? ` · ${markIcon(false)}volées précédentes` : ''}`}</p>
+      </section>
+      <section class="live-log">
+        ${gameLog(g, s, { live: true, reverse: true, details: false })}
+        <div class="pad" style="margin-top:18px"><button type="button" class="btn primary" data-act="close-panel">${ico('play')} RETOUR À LA PARTIE</button></div>
+      </section>
+    </div>
+    ${fix ? fixer(v, fix) : ''}
   </div></div>`;
+}
+
+// Sélecteur de correction : S / D / T, 1 à 20, 25, 50, 0 (ou la cible au-dessus) ; puis l'effet, à confirmer.
+function fixer(v, fix) {
+  const { g, s } = v;
+  const where = locateDart(s, fix.index);
+  const who = playerById(g.config.players[where.player]);
+  const old = g.darts[fix.index];
+  const head = `<div class="fx-h"><b>CORRIGER ${dartLabel(old)}</b><span class="small"><span class="nm">${esc(who.name)}</span> · fléchette ${where.n + 1}</span></div>`;
+  let body;
+  if (fix.result && !fix.result.ok) {
+    const msg = fix.result.error === CORRECT_ERRORS.SAME ? 'c\'est déjà cette fléchette, rien à corriger.'
+      : 'cette correction change le déroulé de la partie : utilise ANNULER.';
+    body = `<div class="confirm" role="alert"><p class="alert-h">CORRECTION IMPOSSIBLE</p><p><b>${dartLabel(old)} → ${dartLabel(fix.pick)}</b> : ${msg}</p><p class="small dim">Rien n'a été modifié.</p>
+      <div class="btns two"><button type="button" class="btn" data-act="fix-cancel">FERMER</button><button type="button" class="btn" data-act="fix-again">AUTRE CHOIX</button></div></div>`;
+  } else if (fix.result) {
+    const e = fix.result.effects;
+    const vt = x => (x === null ? 'BUST' : String(x));
+    const restLine = e.leg === s.legNumber
+      ? `Reste de <span class="nm">${esc(who.name)}</span> : <b>${e.remaining[0]} → ${e.remaining[1]}</b>`
+      : `Manche ${e.leg}, reste de <span class="nm">${esc(who.name)}</span> à la fin : <b>${e.remaining[0]} → ${e.remaining[1]}</b>`;
+    body = `<div class="confirm warn" role="alertdialog" aria-label="Confirmer la correction"><p class="fx-swap"><b>${dartLabel(old)}</b> → <b>${dartLabel(fix.pick)}</b></p>
+      <p>Volée : <b>${vt(e.visit[0])} → ${vt(e.visit[1])}</b><br>${restLine}</p>
+      <div class="btns two"><button type="button" class="btn" data-act="fix-again">NON</button><button type="button" class="btn primary" data-act="fix-yes">CORRIGER</button></div></div>`;
+  } else {
+    const m = fix.mult;
+    const k = (val, label, dis = false) => `<button type="button" class="key" data-act="fix-key" data-arg="${val}"${dis ? ' disabled' : ''}><span class="kl" data-shrink>${label}</span></button>`;
+    const mk = (val, label) => `<button type="button" class="key m" data-act="fix-mult" data-arg="${val}" aria-pressed="${m === val}"><span class="kl" data-shrink>${label}</span></button>`;
+    const pre = m === 2 ? 'D' : m === 3 ? 'T' : '';
+    const nums = [];
+    for (let r = 0; r < 4; r++) nums.push(`<div class="krow nums">${[1, 2, 3, 4, 5].map(c => k(r * 5 + c, `${pre}${r * 5 + c}`)).join('')}</div>`);
+    body = `<div class="fx-pad${m > 1 ? ' armed' : ''}">
+      <div class="krow mult">${mk(1, 'S')}${mk(2, 'D')}${mk(3, 'T')}</div>${nums.join('')}
+      <div class="krow last">${k(25, m === 2 ? 'D25' : '25', m === 3)}${k(50, '50')}${k(0, '0')}<button type="button" class="key undo" data-act="fix-cancel"><span class="kl" data-shrink>FERMER</span></button></div></div>`;
+  }
+  return `<div class="fixer" data-layer role="dialog" aria-label="Corriger une fléchette">${head}${body}</div>`;
 }
 
 function pauseSheet() {
   const ui = store.current.ui;
-  const abandon = ui.confirm
-    ? `<div class="confirm"><p><b>Abandonner la partie ?</b></p><p class="small dim">Elle restera dans l'historique, marquée « abandonnée ».</p>
+  // ABANDONNER (la partie reste dans l'historique) et SUPPRIMER (partie d'essai : effacée), chacun avec sa confirmation.
+  const abandon = ui.confirm === 'abandon'
+    ? `<div class="confirm" data-reveal><p><b>Abandonner la partie ?</b></p><p class="small dim">Elle restera dans l'historique, marquée « abandonnée ».</p>
         <div class="btns two"><button type="button" class="btn" data-act="abandon-no">NON</button><button type="button" class="btn alert" data-act="abandon-yes">ABANDONNER</button></div></div>`
     : '<button type="button" class="btn danger" data-act="abandon">ABANDONNER LA PARTIE</button>';
+  const del = ui.confirm === 'delete'
+    ? `<div class="confirm" role="alert" data-reveal><p class="alert-h">SUPPRIMER LA PARTIE ?</p><p class="small">Elle disparaît complètement : ni historique, ni stats. Les joueurs et leurs photos restent.</p>
+        <div class="btns two"><button type="button" class="btn" data-act="abandon-no">NON</button><button type="button" class="btn alert" data-act="delete-current-yes">SUPPRIMER</button></div></div>`
+    : '<button type="button" class="btn danger" data-act="delete-current">SUPPRIMER LA PARTIE</button>';
   return `<div class="sheet-bg" role="dialog" aria-label="Pause" data-layer><div class="sheet">
     <header class="top" data-layer><h1><span>Pause</span></h1>${store.maquette ? '<a class="act mq" href="#/sommaire" aria-label="Sommaire de maquette">' + ico('menu') + '</a>' : ''}<button type="button" class="act" data-act="resume" aria-label="Fermer">${ico('close')}</button></header>
     <div class="body" style="padding-top:16px">
@@ -282,6 +376,8 @@ function pauseSheet() {
       <div class="sec" style="margin-bottom:0">Partie</div>
       <a class="btn ghost" href="#/">ACCUEIL <small>la partie reste en cours</small></a>
       ${abandon}
+      ${del}
+      <p class="note" style="margin:0">Abandonner : la partie reste dans l'historique et compte dans les moyennes. Supprimer (partie d'essai) : elle disparaît complètement.</p>
     </div></div></div>`;
 }
 
@@ -416,15 +512,71 @@ function play(dart, key, pos = null) {
   if (pos) g.darts[g.darts.length - 1] = { segment: dart.segment, multiplier: dart.multiplier, pos: pos.map(c => Math.round(c * 1000) / 1000) };
   g.ui.mult = 1;
   saveCurrent();
-  switch (r.state.lastEvent) {
-    case 'visit_end': buzz(BUZZ.dart); break;
-    case 'bust': buzz(BUZZ.bust); break;
-    case 'leg_won': buzz(BUZZ.leg); go('#/manche'); return;
-    case 'match_won': buzz(BUZZ.leg); go('#/fin'); return;
-    default: buzz(BUZZ.dart);
+  // Retours (lot 3) : son, annonce vocale et célébration ; jamais d'attente (l'annonce part après le rendu).
+  const st = r.state;
+  const v = st.lastVisit;
+  const name = i => playerById(g.config.players[i]).name;
+  switch (st.lastEvent) {
+    case 'visit_end':
+      buzz(BUZZ.dart);
+      sound(v.total === 180 ? 'max' : dartSound(dart));
+      later(() => say(SPEECH.total(v.total), { strong: v.total === 180 }));
+      if (v.total >= 100) celebrate(v.total === 180 ? 'max' : v.total >= 140 ? 'ton40' : 'ton', v.total, v.player);
+      break;
+    case 'bust': buzz(BUZZ.bust); sound('bust'); later(() => say(SPEECH.bust())); break;
+    case 'leg_won':
+    case 'match_won':
+      buzz(BUZZ.leg);
+      sound('finish');
+      celebrate(v.startRemaining >= 100 ? 'finish-big' : 'finish', v.startRemaining, v.player);
+      later(() => say(st.lastEvent === 'leg_won' ? SPEECH.leg(name(v.player)) : SPEECH.match(name(v.player))));
+      go(st.lastEvent === 'leg_won' ? '#/manche' : '#/fin');
+      return;
+    default: buzz(BUZZ.dart); sound(dartSound(dart));
   }
   refresh();
   flash(key);
+}
+
+/** Après le rendu : l'annonce vocale ne passe jamais avant l'écran. */
+const later = fn => setTimeout(fn, 0);
+
+// ------------------------------------------------------------------ célébration 100+ / 140+ / 180 / finition (lot 3)
+// Bandeau en haut de l'écran, gradué : discret en vidéo inverse pour 100+, plus haut à la couleur du joueur pour 140+,
+// la moitié haute de l'écran pour 180 ; un bandeau pour chaque finition (à la couleur du joueur si elle fait 100 ou
+// plus). Jamais le rouge (réservé au bust). Il ne capte aucun appui (la saisie continue dessous) et le premier appui le
+// ferme. Sans animation si le réglage Animations est sur NON ou si le téléphone demande moins d'animations.
+export const CELE_MS = Object.freeze({ ton: 1200, ton40: 1400, max: 1600, finish: 1500, 'finish-big': 1700 });
+const CELE_TEXT = { ton: '100 +', ton40: '140 +', max: 'CENT QUATRE-VINGTS', finish: 'FINITION', 'finish-big': 'GROSSE FINITION' };
+let celeTimer = null;
+
+export function celebrate(kind, value, player, { frozen = false } = {}) {
+  const g = store.current;
+  if (!g) return;
+  g.ui.cele = { kind, value, player, fresh: true, frozen };
+  clearTimeout(celeTimer);
+  if (!frozen) celeTimer = setTimeout(endCele, CELE_MS[kind]);
+}
+
+function endCele() {
+  celeTimer = null;
+  const g = store.current;
+  if (g) g.ui.cele = null;
+  document.querySelector('.cele')?.remove();
+}
+// Un appui n'importe où ferme le bandeau (sans rien bloquer : l'appui fait aussi ce qu'il devait faire).
+window.addEventListener('pointerdown', () => { if (store.current && store.current.ui.cele) { clearTimeout(celeTimer); endCele(); } }, true);
+
+/** Bandeau en cours (jeu, fin de manche, fin de partie), ou ''. */
+export function celebrationHtml() {
+  const g = store.current;
+  const c = g && g.ui.cele;
+  if (!c) return '';
+  const p = playerById(g.config.players[c.player]);
+  const enter = c.fresh && animationsOn() ? ' enter' : '';
+  c.fresh = false;
+  return `<div class="cele ${c.kind}${enter}" role="status" aria-live="polite" data-layer style="--pc:${colorOf(p)}">
+    <small>${CELE_TEXT[c.kind]}</small><b data-shrink>${c.value}</b><span class="nm ell">${esc(p.name)}</span></div>`;
 }
 
 /** ANNULER : retire la dernière fléchette (aussi depuis une volée en attente, une fin de manche ou de partie). */
@@ -435,8 +587,10 @@ export function undo() {
   g.darts = undoDart(g.config, g.darts).darts;
   g.validated = validatedAfterUndo(g.validated, g.darts.length);
   g.ui.mult = 1;
+  g.ui.cele = null;
   saveCurrent();
   buzz(BUZZ.undo);
+  sound('undo');
 }
 
 /** VALIDER : la volée en attente est acquise, au joueur suivant (annonce « À TOI »). */
@@ -450,10 +604,30 @@ export function validate() {
   saveCurrent();
   if (g.config.players.length > 1) { g.ui.announce = s.currentPlayer; g.ui.frozen = false; }
   buzz(BUZZ.dart);
+  sound('validate');
+  // Le joueur qui commence son tour avec une finition jouable : « PSEUDO, il reste quarante ».
+  const rest = s.remaining[s.currentPlayer];
+  if (suggestCheckout(rest, g.config.outMode, 3)) later(() => say(SPEECH.checkout(playerById(g.config.players[s.currentPlayer]).name, rest)));
   refresh();
 }
 
-/** Touche du pavé (appelée au pointerdown, pour une saisie sans délai). */
+/** Ouvre le panneau cible + historique sur la volée en cours. */
+function openPanel() {
+  stopAnnounce();
+  selectLogCell(null);
+  Object.assign(store.current.ui, { panel: 'board', pause: false, confirm: false, fix: null });
+  refresh();
+}
+
+/** Fléchette choisie dans le sélecteur : correction calculée (rien n'est modifié avant CORRIGER). */
+function proposeFix(f, dart) {
+  const g = store.current;
+  f.pick = dart;
+  f.result = correctDart(g.config, g.darts, f.index, dart);
+  refresh();
+}
+
+/** Touche du pavé (appelée au relâcher, si le doigt n'a pas glissé : app.js). */
 export function key(k) {
   const g = store.current;
   if (!g || g.ui.pause || g.ui.panel) return;
@@ -477,11 +651,45 @@ export const actions = {
   validate() { validate(); },
   pause() { stopAnnounce(); store.current.ui.pause = true; store.current.ui.confirm = false; refresh(); },
   resume() { store.current.ui.pause = false; store.current.ui.confirm = false; refresh(); },
-  'open-board'() { stopAnnounce(); store.current.ui.panel = 'board'; refresh(); },
-  'open-history'() { stopAnnounce(); Object.assign(store.current.ui, { panel: 'history', pause: false, confirm: false }); refresh(); },
-  'close-panel'() { store.current.ui.panel = null; refresh(); },
+  'open-board'() { openPanel(); },
+  'open-history'() { openPanel(); },
+  'close-panel'() { Object.assign(store.current.ui, { panel: null, fix: null }); refresh(); },
   'board-view'(val) { store.current.ui.boardView = val === 'leg' ? 'leg' : 'visit'; refresh(); },
-  abandon() { store.current.ui.confirm = true; refresh(); },
+  // Correction d'une fléchette (lot 3, I)
+  'fix-dart'(i) { store.current.ui.fix = { index: Number(i), mult: 1, pick: null, result: null }; refresh(); },
+  'fix-mult'(m) { const f = store.current.ui.fix; if (f) { f.mult = f.mult === Number(m) ? 1 : Number(m); refresh(); } },
+  'fix-key'(k) {
+    const f = store.current.ui.fix;
+    if (!f) return;
+    const n = Number(k);
+    const dart = n === 50 ? makeDart(25, 2) : n === 0 ? makeDart(0, 1) : n === 25 ? (f.mult === 3 ? null : makeDart(25, f.mult === 2 ? 2 : 1)) : makeDart(n, f.mult);
+    if (dart) proposeFix(f, dart);
+  },
+  'fix-board'(arg, el, ev) {
+    const f = store.current.ui.fix;
+    const svg = el && el.querySelector('svg');
+    if (!f || !svg || !ev) return;
+    const r = svg.getBoundingClientRect();
+    const scale = r.width / 2 / RINGS.edge;
+    const x = (ev.clientX - r.left - r.width / 2) / scale, y = (ev.clientY - r.top - r.height / 2) / scale;
+    const dart = segmentAt(x, y);
+    if (dart) proposeFix(f, { segment: dart.segment, multiplier: dart.multiplier, pos: [x, y].map(c => Math.round(c * 1000) / 1000) });
+  },
+  'fix-again'() { const f = store.current.ui.fix; if (f) { Object.assign(f, { pick: null, result: null, mult: 1 }); refresh(); } },
+  'fix-cancel'() { store.current.ui.fix = null; refresh(); },
+  'fix-yes'() {
+    const g = store.current;
+    const f = g.ui.fix;
+    if (!f || !f.result || !f.result.ok) return;
+    g.darts = f.result.darts;
+    g.ui.fix = null;
+    saveCurrent();
+    buzz(BUZZ.dart);
+    refresh();
+  },
+  abandon() { store.current.ui.confirm = 'abandon'; refresh(); },
+  'delete-current'() { store.current.ui.confirm = 'delete'; refresh(); },
+  'delete-current-yes'() { stopAnnounce(); deleteCurrent(); go('#/'); },
   'abandon-no'() { store.current.ui.confirm = false; refresh(); },
   'abandon-yes'() { stopAnnounce(); archiveCurrent(true); go('#/'); },
 };

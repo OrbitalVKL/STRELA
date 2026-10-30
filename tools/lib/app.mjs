@@ -74,7 +74,7 @@ export const snapshot = page => page.evaluate(() => {
     player: txt(q('.gband .nm')),
     state: txt(q('.gband .legs')),
     remaining: roll(q('#remaining')),
-    darts: [...document.querySelectorAll('.visit .dart')].map(txt),
+    darts: [...document.querySelectorAll('.visit .dart')].map(d => txt(d.querySelector('.sv')) || ''),
     total: roll(q('.visit .total')),
     bust: !!q('.rest.alert'),
     validate: !!q('.validate.go'),

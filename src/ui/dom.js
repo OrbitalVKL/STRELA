@@ -53,6 +53,8 @@ const I = {
   image: '<path d="M3 4H21V20H3Z"/><path d="M3 16L9 11L14 16L17 13L21 17"/><path d="M15 8H17V10H15Z"/>',
   target: '<path d="M12 3A9 9 0 1 0 12.01 3M12 8A4 4 0 1 0 12.01 8"/>',
   play: '<path d="M7 4L19 12L7 20Z"/>',
+  check: '<path d="M4 12L10 18L20 6" stroke-width="3"/>',
+  trash: '<path d="M4 6H20M9 6V3H15V6M6 6L7 21H17L18 6"/><path d="M10 10V17M14 10V17"/>',
 };
 export const ico = (name, cls = 'ico') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${I[name] || ''}</svg>`;
 

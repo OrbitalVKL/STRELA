@@ -14,11 +14,14 @@ const flag = k => process.argv.includes(`--${k}`);
 // Jeu de captures par défaut (vérification de fin de lot) : [état, taille, page entière ?]
 const P = '410x914', L = '914x410';
 const DEFAULT = [
-  // lot 1.3 : VALIDER à 2, 4 et 8 joueurs ; tableau d'historique à 2 et 8 joueurs (ratés, bust, finition)
-  ['volee', P], ['volee', L], ['volee-4', P], ['volee-4', L], ['volee-8', '410x712'], ['volee-8', L], ['solo-attente', P],
-  ['bust', P], ['annonce', P], ['huit', '410x712'], ['jeu', '360x640'],
-  ['histo-deux', P], ['histo-deux', L], ['histo-huit', P], ['histo-huit', L], ['histo-huit-detail', P], ['histo-cours', P],
-  ['paysage', L], ['paysage-attente', L], ['manches', P],
+  // lot 3 : cases (fléchettes dessinées, finition), panneau cible + historique, correction, célébrations, face-à-face,
+  // suppression, sauvegarde ; et les états de jeu des lots précédents
+  ['finition', P], ['finition', L], ['jeu', '360x640'], ['volee', P], ['bust', P], ['volee-8', '410x712'],
+  ['panneau-case', P], ['panneau-case', L], ['correction', P], ['correction-confirmer', L], ['correction-refus', P],
+  ['fete-100', P], ['fete-140', P], ['fete-180', P], ['fete-180-paysage', L], ['fete-finition-100', P],
+  ['#/face/p1/p2', P, true], ['histo-selection-confirmer', P], ['partie-supprimer', P], ['supprimer-en-cours', P],
+  ['nouvelle-confirmer', P], ['sauvegarde-apercu', P], ['sauvegarde-remplacer', P], ['#/reglages', P, true],
+  ['histo-deux', P], ['paysage', L], ['paysage-attente', L],
 ];
 
 const pw = await loadPlaywright();

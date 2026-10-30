@@ -8,13 +8,16 @@ import { openCrop, PHOTO_ERRORS } from './photo.js';
 import { polar, sectorAngle, RINGS } from '../../engine/board.js';
 import { isDeletedId } from '../../engine/players.js';
 import { openDraft } from './players.js';
-import { selectLogCell } from './history.js';
+import { selectLogCell, presetHistory } from './history.js';
+import { celebrate } from './game.js';
 import { computeState } from '../../engine/x01.js';
+import { correctDart } from '../../engine/correct.js';
 import { topBar, ico } from '../dom.js';
 import { parseDart } from '../../engine/darts.js';
 import { simulateGame } from '../mock.js';
 import { go } from '../nav.js';
-import { isDark, applyTheme } from './settings.js';
+import { isDark, applyTheme, presetBackup } from './settings.js';
+import { makeBackup, parseBackup } from '../../data/backup.js';
 import { saveSetting } from '../store.js';
 
 const ds = text => text.trim().split(/\s+/).filter(Boolean).map(parseDart);
@@ -55,6 +58,12 @@ function storeGame(id, config, darts) {
   store.games = [{ id, startedAt: Date.now() - 3600e3, config, darts, abandoned: false }, ...store.games.filter(g => g.id !== id)];
   return id;
 }
+/** Sauvegarde fictive (les données de la maquette, plus un joueur et une partie absents d'ici). */
+function mockBackup() {
+  const extra = { id: 'px', name: 'Nadia', avatar: { kind: 'initials', color: 5 }, archived: false };
+  const g = { id: 'gx-import', startedAt: Date.now() - 86400e3 * 40, endedAt: Date.now() - 86400e3 * 40 + 1800e3, config: cfg(['p1', 'px'], 301), darts: ds('T20 T20 T20 20 20 20 T20 T11 D14'), validated: 9, abandoned: false };
+  return parseBackup(JSON.stringify(makeBackup({ players: [...store.players, extra], games: [...store.games, g], current: null, display: { ...store.settings }, lastSetup: null }, { app: '0.3.0', now: new Date(2026, 9, 30, 21, 18) })));
+}
 const visitIndex = (config, darts, pick) => computeState(config, darts).visits.findIndex(pick);
 
 export const SCENES = {
@@ -88,17 +97,51 @@ export const SCENES = {
     selectLogCell(`gx2|${visitIndex(config, darts, v => v.bust)}`);
     return `#/partie/${storeGame('gx2', config, darts)}`;
   },
-  'histo-huit': () => { const { config, darts } = eightGame(); setGame(config, darts, { panel: 'history' }); selectLogCell(null); return '#/jeu'; },
+  'histo-huit': () => { const { config, darts } = eightGame(); setGame(config, darts, { panel: 'board' }); selectLogCell(null); return '#/jeu'; },
   'histo-huit-detail': () => {
     const config = cfg(EIGHT, 301, 'double', 2);
     const full = simulateGame(config, EIGHT.map(() => 0.35), 14);
     selectLogCell(`gx8|${visitIndex(config, full, v => v.finish)}`);
     return `#/partie/${storeGame('gx8', config, full)}`;
   },
+  // Lot 3 : panneau cible + historique, correction d'une fléchette (sélecteur, confirmation, refus)
+  'panneau-case': () => {
+    const config = cfg(['p1', 'p2'], 301, 'double', 2);
+    const darts = [...simulateGame({ ...config, legsToWin: 1 }, [0.45, 0.45], 12), ...ds('T20 S20 S5 T19 S7')];
+    setGame(config, darts, { panel: 'board' });
+    selectLogCell(`${store.current.id}|2`);
+    return '#/jeu';
+  },
+  correction: () => { setGame(cfg(['p1', 'p2']), LIVE(), { panel: 'board', fix: { index: 1, mult: 1, pick: null, result: null } }); selectLogCell(`${store.current.id}|0`); return '#/jeu'; },
+  'correction-confirmer': () => {
+    setGame(cfg(['p1', 'p2']), LIVE(), { panel: 'board' });
+    const pick = parseDart('T20');
+    store.current.ui.fix = { index: 1, mult: 1, pick, result: correctDart(store.current.config, store.current.darts, 1, pick) };
+    selectLogCell(`${store.current.id}|0`);
+    return '#/jeu';
+  },
+  'correction-refus': () => {
+    setGame(cfg(['p1', 'p2'], 301), 'T20 T20 T20  20 20 20  T20 S20 S1  20', { panel: 'board' });
+    const pick = parseDart('T20'); // 2e fléchette S20 → T20 : reste 1, bust, la volée serait coupée
+    store.current.ui.fix = { index: 7, mult: 1, pick, result: correctDart(store.current.config, store.current.darts, 7, pick) };
+    selectLogCell(`${store.current.id}|2`);
+    return '#/jeu';
+  },
+  // Lot 3 : célébrations (figées jusqu'au prochain appui)
+  'fete-100': () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S20', {}, true); celebrate('ton', 100, 0, { frozen: true }); return '#/jeu'; },
+  'fete-140': () => { setGame(cfg(['p1', 'p2']), 'T20 T20 S20', {}, true); celebrate('ton40', 140, 0, { frozen: true }); return '#/jeu'; },
+  'fete-180': () => { setGame(cfg(['p1', 'p2', 'p3']), 'T20 T20 T20', {}, true); celebrate('max', 180, 0, { frozen: true }); return '#/jeu'; },
+  'fete-180-paysage': () => { setGame(cfg(['p1', 'p2']), 'T20 T20 T20', {}, true); celebrate('max', 180, 0, { frozen: true }); return '#/jeu'; },
+  'fete-finition': () => {
+    setGame(cfg(['p1', 'p2'], 301, 'double', 2), 'T20 T20 T20  20 1 5  T20 S20 0  1 1 1  S1 D20');
+    celebrate('finish', 41, 0, { frozen: true });
+    return '#/manche';
+  },
+  'fete-finition-100': () => { setGame(cfg(['p1', 'p2'], 301, 'double', 2), 'T20 T20 T20 20 1 5 T20 T11 D14'); celebrate('finish-big', 121, 0, { frozen: true }); return '#/manche'; },
   'cible-grande': () => { setGame(cfg(['p1', 'p2']), LIVE(), { panel: 'board' }); return '#/jeu'; },
   'histo-cours': () => {
     const config = cfg(['p1', 'p2'], 301, 'double', 2);
-    setGame(config, [...simulateGame({ ...config, legsToWin: 1 }, [0.45, 0.45], 12), ...ds('T20 S20 S5 T19 S7')], { panel: 'history' });
+    setGame(config, [...simulateGame({ ...config, legsToWin: 1 }, [0.45, 0.45], 12), ...ds('T20 S20 S5 T19 S7')], { panel: 'board' });
     return '#/jeu';
   },
   paysage: () => { setGame(cfg(['p1', 'p2', 'p3']), LIVE()); return '#/jeu'; },
@@ -121,12 +164,22 @@ export const SCENES = {
   },
   'long-fiche': () => { ensureExtraPlayers(['p10']); store.draft = null; return '#/joueur/p10'; },
   pause: () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S5 S20 T19 S1 T20', { pause: true }); return '#/jeu'; },
-  abandon: () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S5 S20 T19 S1 T20', { pause: true, confirm: true }); return '#/jeu'; },
+  abandon: () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S5 S20 T19 S1 T20', { pause: true, confirm: 'abandon' }); return '#/jeu'; },
+  'supprimer-en-cours': () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S5 S20 T19 S1 T20', { pause: true, confirm: 'delete' }); return '#/jeu'; },
   solo: () => { setGame(cfg(['p2'], 301), 'T20 T20 S20 S19 S7 S3'); return '#/jeu'; },
   'solo-attente': () => { setGame(cfg(['p2'], 301), 'T20 T20 S20 S19 S7 S3', {}, true); return '#/jeu'; },
   'aucun-joueur': () => { store.players = []; store.current = null; store.setupDraft = null; return '#/joueurs'; },
   'nouvelle-vide': () => { store.players = []; store.current = null; store.setupDraft = null; return '#/nouvelle'; },
   'historique-vide': () => { store.games = []; return '#/historique'; },
+  // Lot 3 : sauvegarde (aperçu d'un fichier, confirmations, fichier refusé)
+  'sauvegarde-apercu': () => { presetBackup({ preview: mockBackup(), file: 'strela-20261030-2118.json' }); return '#/reglages'; },
+  'sauvegarde-remplacer': () => { presetBackup({ preview: mockBackup(), file: 'strela-20261030-2118.json', ask: 'replace' }); return '#/reglages'; },
+  'sauvegarde-fusionner': () => { presetBackup({ preview: mockBackup(), file: 'strela-20261030-2118.json', ask: 'merge' }); return '#/reglages'; },
+  'sauvegarde-refus': () => { presetBackup({ error: 'Sauvegarde faite par une version plus récente de Strela (9.0.0) : mets l\'appli à jour avant de l\'importer.' }); return '#/reglages'; },
+  // Lot 3 : suppression de parties (sélection par appui long, confirmation ; détail d'une partie)
+  'histo-selection': () => { presetHistory({ ids: store.games.slice(0, 3).map(g => g.id) }); return '#/historique'; },
+  'histo-selection-confirmer': () => { presetHistory({ ids: store.games.slice(0, 3).map(g => g.id), ask: true }); return '#/historique'; },
+  'partie-supprimer': () => { presetHistory({ detail: 'g1' }); return '#/partie/g1'; },
   'fiche-new': () => { store.draft = null; return '#/joueur/nouveau'; },
   'fiche-edit': () => { store.draft = null; return '#/joueur/p2'; },
   suppression: () => { store.current = null; store.draft = null; Object.assign(openDraft('p4'), { del: 'ask', reveal: true }); return '#/joueur/p4'; },
@@ -142,6 +195,7 @@ export const SCENES = {
   'reprendre-manche': () => { setGame(cfg(['p1', 'p2'], 301, 'double', 2), 'T20 T20 T20 20 1 5 T20 T11 D14'); store.current.validated = 6; return '#/'; },
   'reprendre-fin': () => { setGame(cfg(['p1', 'p2', 'p3'], 301), 'T20 T20 T20 20 1 5 T19 S7 S3 T20 T11 D14'); return '#/'; },
   'nouvelle-en-cours': () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S5 S20 T19 S1 T20'); store.setupDraft = null; return '#/nouvelle'; },
+  'nouvelle-confirmer': () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S5 S20 T19 S1 T20'); store.setupDraft = { ...store.lastSetup, confirm: true }; return '#/nouvelle'; },
   recadrage: () => { store.draft = null; openDraft('p2'); openCrop(SAMPLE_PHOTO, SAMPLE_SIZE.w, SAMPLE_SIZE.h, 'p2'); return '#/recadrage'; },
   'recadrage-zoom': () => {
     store.draft = null; openDraft('p2'); openCrop(SAMPLE_PHOTO, SAMPLE_SIZE.w, SAMPLE_SIZE.h, 'p2');
@@ -191,15 +245,26 @@ export function sommaire() {
       ${H('#/avatars', '3 · Banque d\'avatars', '24 icônes')}
       ${H('#/nouvelle', '4 · Nouvelle partie', 'derniers réglages')}
       ${L('nouvelle-en-cours', '4 · Nouvelle partie', 'une partie en cours')}
+      ${L('nouvelle-confirmer', '4 · LANCER pendant une partie', 'confirmation')}
       ${L('jeu', '5 · Jeu : début de partie', '501 · 2 joueurs')}
       ${L('pause', '5 · Jeu : menu pause')}
       ${L('abandon', '5 · Jeu : abandonner ?', 'confirmation')}
+      ${L('supprimer-en-cours', '5 · Jeu : supprimer la partie ?', 'partie d\'essai')}
       ${L('fin-manche', '6 · Fin de manche')}
       ${L('fin-partie', '7 · Fin de partie', 'revanche')}
       ${H('#/historique', '8 · Historique')}
       ${H('#/partie/g1', '8 · Détail d\'une partie', 'volée par volée')}
+      ${L('partie-supprimer', '8 · Supprimer une partie', 'confirmation')}
+      ${L('histo-selection', '8 · Historique : sélection', 'appui long')}
+      ${L('histo-selection-confirmer', '8 · Supprimer 3 parties', 'confirmation')}
       ${H('#/stats/p1', '9 · Stats joueur')}
+      ${H('#/face/p1/p2', '9 · Face-à-face', 'Guillaume contre Mathilde')}
+      ${H('#/face/p3/p1', '9 · Face-à-face', 'à 3 et 4 joueurs')}
       ${H('#/reglages', '10 · Réglages')}
+      ${L('sauvegarde-apercu', '10 · Importer : aperçu', 'REMPLACER / FUSIONNER')}
+      ${L('sauvegarde-remplacer', '10 · Importer : tout remplacer ?', 'confirmation')}
+      ${L('sauvegarde-fusionner', '10 · Importer : fusionner ?', 'confirmation')}
+      ${L('sauvegarde-refus', '10 · Importer : fichier refusé', 'version future')}
     </nav>
     <div class="pad"><div class="sec">États de jeu</div></div>
     <nav class="toc">
@@ -217,10 +282,19 @@ export function sommaire() {
       ${L('cible-seule', 'Cible seule', 'couleurs réglementaires')}
       ${L('manches', 'Manches gagnées', 'premier à 3')}
       ${L('histo-cours', 'Historique de la partie en cours', 'panneau')}
+      ${L('panneau-case', 'Panneau : case d\'une manche précédente', 'sur la cible')}
+      ${L('correction', 'Corriger une fléchette', 'sélecteur')}
+      ${L('correction-confirmer', 'Corriger une fléchette', 'confirmation')}
+      ${L('correction-refus', 'Corriger une fléchette', 'refusée')}
       ${L('histo-deux', 'Historique : 2 joueurs', 'ratés, bust ouvert, finition')}
       ${L('histo-huit', 'Historique en cours : 8 joueurs', 'défile de côté')}
       ${L('histo-huit-detail', 'Historique terminé : 8 joueurs', 'finition ouverte')}
       ${L('finition', 'Finition proposée', 'reste 100')}
+      ${L('fete-100', 'Célébration 100+', 'discrète')}
+      ${L('fete-140', 'Célébration 140+', 'couleur du joueur')}
+      ${L('fete-180', 'Célébration 180', 'moitié de l\'écran')}
+      ${L('fete-finition', 'Célébration d\'une finition', 'fin de manche')}
+      ${L('fete-finition-100', 'Célébration d\'une finition de 100+', 'fin de manche')}
       ${L('huit', '8 joueurs')}
       ${L('long', 'Pseudo très long', 'en jeu')}
       ${L('long-fiche', 'Pseudo très long', 'fiche')}
@@ -233,6 +307,7 @@ export function sommaire() {
       ${L('paysage', 'Paysage', 'saisie sur la cible')}
       ${L('loupe', 'Loupe active sur T20', 'figée')}
       ${L('paysage-attente', 'Paysage : volée en attente', 'VALIDER')}
+      ${L('fete-180-paysage', 'Paysage : célébration 180', 'saisie possible dessous')}
     </nav>
     <div class="pad"><div class="sec">Données</div></div>
     <nav class="toc">

@@ -24,7 +24,7 @@ export const QUICK = [
 
 /** Adresses d'écrans en plus des états du sommaire (« scène » = clé de SCENES dans screens/sommaire.js). */
 export const ROUTES = ['#/', '#/joueurs', '#/joueur/nouveau', '#/joueur/p1', '#/avatars', '#/nouvelle', '#/historique',
-  '#/partie/g1', '#/stats/p1', '#/stats/p3', '#/reglages', '#/sommaire'];
+  '#/partie/g1', '#/stats/p1', '#/stats/p3', '#/face/p1/p2', '#/face/p3/p1', '#/face/p10/p1', '#/reglages', '#/sommaire'];
 const SKIP_SCENES = new Set(['reinit']);
 
 // ------------------------------------------------------------------ dans la page
