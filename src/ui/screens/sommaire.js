@@ -9,6 +9,7 @@ import { polar, sectorAngle, RINGS } from '../../engine/board.js';
 import { isDeletedId } from '../../engine/players.js';
 import { openDraft } from './players.js';
 import { selectLogCell, presetHistory } from './history.js';
+import { celebrate } from './game.js';
 import { computeState } from '../../engine/x01.js';
 import { correctDart } from '../../engine/correct.js';
 import { topBar, ico } from '../dom.js';
@@ -119,6 +120,17 @@ export const SCENES = {
     selectLogCell(`${store.current.id}|2`);
     return '#/jeu';
   },
+  // Lot 3 : célébrations (figées jusqu'au prochain appui)
+  'fete-100': () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S20', {}, true); celebrate('ton', 100, 0, { frozen: true }); return '#/jeu'; },
+  'fete-140': () => { setGame(cfg(['p1', 'p2']), 'T20 T20 S20', {}, true); celebrate('ton40', 140, 0, { frozen: true }); return '#/jeu'; },
+  'fete-180': () => { setGame(cfg(['p1', 'p2', 'p3']), 'T20 T20 T20', {}, true); celebrate('max', 180, 0, { frozen: true }); return '#/jeu'; },
+  'fete-180-paysage': () => { setGame(cfg(['p1', 'p2']), 'T20 T20 T20', {}, true); celebrate('max', 180, 0, { frozen: true }); return '#/jeu'; },
+  'fete-finition': () => {
+    setGame(cfg(['p1', 'p2'], 301, 'double', 2), 'T20 T20 T20  20 1 5  T20 S20 0  1 1 1  S1 D20');
+    celebrate('finish', 41, 0, { frozen: true });
+    return '#/manche';
+  },
+  'fete-finition-100': () => { setGame(cfg(['p1', 'p2'], 301, 'double', 2), 'T20 T20 T20 20 1 5 T20 T11 D14'); celebrate('finish-big', 121, 0, { frozen: true }); return '#/manche'; },
   'cible-grande': () => { setGame(cfg(['p1', 'p2']), LIVE(), { panel: 'board' }); return '#/jeu'; },
   'histo-cours': () => {
     const config = cfg(['p1', 'p2'], 301, 'double', 2);
@@ -262,6 +274,11 @@ export function sommaire() {
       ${L('histo-huit', 'Historique en cours : 8 joueurs', 'défile de côté')}
       ${L('histo-huit-detail', 'Historique terminé : 8 joueurs', 'finition ouverte')}
       ${L('finition', 'Finition proposée', 'reste 100')}
+      ${L('fete-100', 'Célébration 100+', 'discrète')}
+      ${L('fete-140', 'Célébration 140+', 'couleur du joueur')}
+      ${L('fete-180', 'Célébration 180', 'moitié de l\'écran')}
+      ${L('fete-finition', 'Célébration d\'une finition', 'fin de manche')}
+      ${L('fete-finition-100', 'Célébration d\'une finition de 100+', 'fin de manche')}
       ${L('huit', '8 joueurs')}
       ${L('long', 'Pseudo très long', 'en jeu')}
       ${L('long-fiche', 'Pseudo très long', 'fiche')}
@@ -274,6 +291,7 @@ export function sommaire() {
       ${L('paysage', 'Paysage', 'saisie sur la cible')}
       ${L('loupe', 'Loupe active sur T20', 'figée')}
       ${L('paysage-attente', 'Paysage : volée en attente', 'VALIDER')}
+      ${L('fete-180-paysage', 'Paysage : célébration 180', 'saisie possible dessous')}
     </nav>
     <div class="pad"><div class="sec">Données</div></div>
     <nav class="toc">

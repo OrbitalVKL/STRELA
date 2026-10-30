@@ -14,6 +14,7 @@ import { settingsScreen, applyTheme, actions as settingsActions } from './screen
 import { cropScreen, mountCrop, onPhotoFile, actions as photoActions } from './screens/photo.js';
 import { animateRolls, rollScope } from './roll.js';
 import { fitAll } from './fit.js';
+import { sayLog, soundLog } from './feedback.js';
 
 const ROUTES = [
   [/^\/?$/, home],
@@ -207,6 +208,8 @@ if (new URLSearchParams(location.search).has('maquette')) {
   requestPersistence();
   // Écritures en cours (lu par les tests de parcours avant un rechargement : 0 = tout est sur le disque).
   window.__strelaSaving = () => saving.pending;
+  // Annonces vocales et sons joués (lus par les tests).
+  window.__strelaFeedback = () => ({ said: [...sayLog], sounds: [...soundLog] });
   // Ouverture sans adresse (appli installée) : l'accueil, avec REPRENDRE si une partie est en cours.
 }
 started = true;

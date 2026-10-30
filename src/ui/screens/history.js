@@ -141,7 +141,7 @@ export function gameLog(g, s, { live = false, abandoned = false, reverse = false
     const winner = l.winner !== null ? players[l.winner] : null;
     const wd = winner ? l.visits.filter(v => v.player === l.winner).reduce((n, v) => n + v.darts.length, 0) : 0;
     const info = winner ? `<span class="nm">${esc(winner.name)}</span> en ${wd} fl.` : abandoned ? 'interrompue' : 'en cours';
-    const head = t.columns.map(i => `<th class="pc" scope="col">${avatarHtml(players[i], 24)}<span class="nm ell">${esc(players[i].name)}</span></th>`).join('');
+    const head = t.columns.map(i => `<th class="pc" scope="col">${avatarHtml(players[i], 24, live ? 'mono' : '')}<span class="nm ell">${esc(players[i].name)}</span></th>`).join('');
     const body = t.rows.map(r => `<tr${r.round === t.currentRound ? ' class="cur"' : ''}><th class="rd" scope="row">${r.round}</th>${r.cells.map(c => cell(g, c)).join('')}</tr>`).join('');
     const table = t.rows.length
       ? `<div class="lt-wrap"><table class="lt" style="--cols:${t.columns.length}" data-fit-same><thead><tr><th class="rd" scope="col">TOUR</th>${head}</tr></thead><tbody>${body}</tbody></table></div>${details ? detail(g, s, t, players) : ''}`

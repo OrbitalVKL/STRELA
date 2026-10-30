@@ -11,7 +11,8 @@ import { AVATAR_COLORS, contrast } from '../src/ui/theme.js';
 const pw = await loadPlaywright();
 
 const SCENES = ['jeu', 'arme-d', 'volee', 'volee-4', 'volee-8', 'bust', 'annonce', 'cible', 'manches', 'finition', 'huit',
-  'long', 'solo-attente', 'paysage', 'paysage-attente', 'photo-jeu'];
+  'long', 'solo-attente', 'paysage', 'paysage-attente', 'photo-jeu', 'fete-100', 'fete-140', 'fete-180', 'fete-180-paysage',
+  'correction', 'panneau-case'];
 
 /** Dans la page : couleurs d'avatar trouvées sur les éléments visibles de l'écran de jeu. */
 function scan(palette) {

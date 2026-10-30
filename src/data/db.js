@@ -9,7 +9,7 @@
 //   players   { id, name, avatar: { kind, icon?, color, photo? }, archived }
 //   games     { id, startedAt, endedAt, config, darts[], validated, abandoned }
 //             darts[] : { segment, multiplier, pos? } ; la partie en cours est celle dont endedAt vaut null
-//   settings  clés « display » { theme, night, vibrate, anim }, « lastSetup » { players, startScore, outMode,
+//   settings  clés « display » { theme, night, vibrate, anim, sound, voice (lot 3, OUI si absents) }, « lastSetup » { players, startScore, outMode,
 //             legsToWin }, « storage » { asked, persisted } (demande de stockage persistant)
 //
 // Toutes les écritures passent par write(ops) : une seule transaction pour la liste d'opérations, durabilité

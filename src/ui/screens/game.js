@@ -23,6 +23,7 @@ import { pendingVisit, validatedAfterUndo } from '../turn.js';
 import { go, refresh, buzz, BUZZ } from '../nav.js';
 import { themeControls } from './settings.js';
 import { gameLog, selectLogCell, selectedLogCell } from './history.js';
+import { sound, dartSound, say, SPEECH } from '../feedback.js';
 import { correctDart, locateDart, visitStart, CORRECT_ERRORS } from '../../engine/correct.js';
 
 export const ANNOUNCE_MS = 800;
@@ -224,7 +225,7 @@ export function game() {
     <div class="toparea">${band(v, slide)}${rest(v)}${announce(v)}</div>
     <div class="vblock"><div class="vcol">${visitBoxes(v)}${checkoutLine(v)}</div>${smallBoard(v)}</div>
     ${others(v)}${pad}
-    ${overlays}
+    ${overlays}${celebrationHtml()}
   </div>`;
 }
 
@@ -249,7 +250,7 @@ function landscape(v, slide, overlays) {
       <p class="bhint alert" id="bhint" role="status" data-layer hidden></p>
     </div>
     <div class="loupe" id="loupe" data-layer hidden><b class="lz"></b><div class="lens">${plainBoard()}<i class="cross"></i></div></div>
-    ${overlays}
+    ${overlays}${celebrationHtml()}
   </div>`;
 }
 
@@ -511,15 +512,71 @@ function play(dart, key, pos = null) {
   if (pos) g.darts[g.darts.length - 1] = { segment: dart.segment, multiplier: dart.multiplier, pos: pos.map(c => Math.round(c * 1000) / 1000) };
   g.ui.mult = 1;
   saveCurrent();
-  switch (r.state.lastEvent) {
-    case 'visit_end': buzz(BUZZ.dart); break;
-    case 'bust': buzz(BUZZ.bust); break;
-    case 'leg_won': buzz(BUZZ.leg); go('#/manche'); return;
-    case 'match_won': buzz(BUZZ.leg); go('#/fin'); return;
-    default: buzz(BUZZ.dart);
+  // Retours (lot 3) : son, annonce vocale et célébration ; jamais d'attente (l'annonce part après le rendu).
+  const st = r.state;
+  const v = st.lastVisit;
+  const name = i => playerById(g.config.players[i]).name;
+  switch (st.lastEvent) {
+    case 'visit_end':
+      buzz(BUZZ.dart);
+      sound(v.total === 180 ? 'max' : dartSound(dart));
+      later(() => say(SPEECH.total(v.total), { strong: v.total === 180 }));
+      if (v.total >= 100) celebrate(v.total === 180 ? 'max' : v.total >= 140 ? 'ton40' : 'ton', v.total, v.player);
+      break;
+    case 'bust': buzz(BUZZ.bust); sound('bust'); later(() => say(SPEECH.bust())); break;
+    case 'leg_won':
+    case 'match_won':
+      buzz(BUZZ.leg);
+      sound('finish');
+      celebrate(v.startRemaining >= 100 ? 'finish-big' : 'finish', v.startRemaining, v.player);
+      later(() => say(st.lastEvent === 'leg_won' ? SPEECH.leg(name(v.player)) : SPEECH.match(name(v.player))));
+      go(st.lastEvent === 'leg_won' ? '#/manche' : '#/fin');
+      return;
+    default: buzz(BUZZ.dart); sound(dartSound(dart));
   }
   refresh();
   flash(key);
+}
+
+/** Après le rendu : l'annonce vocale ne passe jamais avant l'écran. */
+const later = fn => setTimeout(fn, 0);
+
+// ------------------------------------------------------------------ célébration 100+ / 140+ / 180 / finition (lot 3)
+// Bandeau en haut de l'écran, gradué : discret en vidéo inverse pour 100+, plus haut à la couleur du joueur pour 140+,
+// la moitié haute de l'écran pour 180 ; un bandeau pour chaque finition (à la couleur du joueur si elle fait 100 ou
+// plus). Jamais le rouge (réservé au bust). Il ne capte aucun appui (la saisie continue dessous) et le premier appui le
+// ferme. Sans animation si le réglage Animations est sur NON ou si le téléphone demande moins d'animations.
+export const CELE_MS = Object.freeze({ ton: 1200, ton40: 1400, max: 1600, finish: 1500, 'finish-big': 1700 });
+const CELE_TEXT = { ton: '100 +', ton40: '140 +', max: 'CENT QUATRE-VINGTS', finish: 'FINITION', 'finish-big': 'GROSSE FINITION' };
+let celeTimer = null;
+
+export function celebrate(kind, value, player, { frozen = false } = {}) {
+  const g = store.current;
+  if (!g) return;
+  g.ui.cele = { kind, value, player, fresh: true, frozen };
+  clearTimeout(celeTimer);
+  if (!frozen) celeTimer = setTimeout(endCele, CELE_MS[kind]);
+}
+
+function endCele() {
+  celeTimer = null;
+  const g = store.current;
+  if (g) g.ui.cele = null;
+  document.querySelector('.cele')?.remove();
+}
+// Un appui n'importe où ferme le bandeau (sans rien bloquer : l'appui fait aussi ce qu'il devait faire).
+window.addEventListener('pointerdown', () => { if (store.current && store.current.ui.cele) { clearTimeout(celeTimer); endCele(); } }, true);
+
+/** Bandeau en cours (jeu, fin de manche, fin de partie), ou ''. */
+export function celebrationHtml() {
+  const g = store.current;
+  const c = g && g.ui.cele;
+  if (!c) return '';
+  const p = playerById(g.config.players[c.player]);
+  const enter = c.fresh && animationsOn() ? ' enter' : '';
+  c.fresh = false;
+  return `<div class="cele ${c.kind}${enter}" role="status" aria-live="polite" data-layer style="--pc:${colorOf(p)}">
+    <small>${CELE_TEXT[c.kind]}</small><b data-shrink>${c.value}</b><span class="nm ell">${esc(p.name)}</span></div>`;
 }
 
 /** ANNULER : retire la dernière fléchette (aussi depuis une volée en attente, une fin de manche ou de partie). */
@@ -530,8 +587,10 @@ export function undo() {
   g.darts = undoDart(g.config, g.darts).darts;
   g.validated = validatedAfterUndo(g.validated, g.darts.length);
   g.ui.mult = 1;
+  g.ui.cele = null;
   saveCurrent();
   buzz(BUZZ.undo);
+  sound('undo');
 }
 
 /** VALIDER : la volée en attente est acquise, au joueur suivant (annonce « À TOI »). */
@@ -545,6 +604,10 @@ export function validate() {
   saveCurrent();
   if (g.config.players.length > 1) { g.ui.announce = s.currentPlayer; g.ui.frozen = false; }
   buzz(BUZZ.dart);
+  sound('validate');
+  // Le joueur qui commence son tour avec une finition jouable : « PSEUDO, il reste quarante ».
+  const rest = s.remaining[s.currentPlayer];
+  if (suggestCheckout(rest, g.config.outMode, 3)) later(() => say(SPEECH.checkout(playerById(g.config.players[s.currentPlayer]).name, rest)));
   refresh();
 }
 

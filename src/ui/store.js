@@ -19,7 +19,7 @@ export const store = {
   draft: null,       // fiche joueur en cours de modification
   setupDraft: null,  // écran « Nouvelle partie » en cours
   crop: null,        // photo en cours de recadrage (screens/photo.js)
-  settings: { theme: 'auto', night: false, vibrate: true, anim: true },
+  settings: { theme: 'auto', night: false, vibrate: true, anim: true, sound: true, voice: true },
   maquette: false,
   // Base du téléphone : version, erreur éventuelle, stockage persistant (affichés dans le diagnostic des Réglages)
   db: { version: null, error: null, persisted: null, unreadable: 0 },
@@ -141,7 +141,7 @@ export function startGame(setup) {
  * panneau cible + historique ouvert ('board' | null), correction d'une fléchette en cours (`fix`), vue de la cible agrandie ('visit' | 'leg'), annonce du joueur suivant (rang), glissement du bandeau,
  * loupe figée du sommaire ({ x, y }), `frozen` : annonce figée (sommaire de maquette).
  */
-export const freshUi = () => ({ mult: 1, pause: false, confirm: false, panel: null, boardView: 'visit', announce: null, slide: false, loupe: null, frozen: false, fix: null });
+export const freshUi = () => ({ mult: 1, pause: false, confirm: false, panel: null, boardView: 'visit', announce: null, slide: false, loupe: null, frozen: false, fix: null, cele: null });
 
 export const currentState = () => (store.current ? computeState(store.current.config, store.current.darts) : null);
 
@@ -217,7 +217,7 @@ export function deletePlayer(id) {
 // ------------------------------------------------------------------ réglages
 // La base fait foi ; une copie de thème et mode nuit reste dans localStorage, lue par index.html avant l'affichage
 // (pas d'éclair de la mauvaise couleur au lancement). Sommaire de maquette : lus là, jamais écrits.
-const KEYS = { theme: 'strela.theme', night: 'strela.night', vibrate: 'strela.vibrate', anim: 'strela.anim' };
+const KEYS = { theme: 'strela.theme', night: 'strela.night', vibrate: 'strela.vibrate', anim: 'strela.anim', sound: 'strela.sound', voice: 'strela.voice' };
 
 export function loadSettings() {
   try {
@@ -226,6 +226,8 @@ export function loadSettings() {
     store.settings.night = localStorage.getItem(KEYS.night) === '1';
     store.settings.vibrate = localStorage.getItem(KEYS.vibrate) !== '0';
     store.settings.anim = localStorage.getItem(KEYS.anim) !== '0';
+    store.settings.sound = localStorage.getItem(KEYS.sound) !== '0';
+    store.settings.voice = localStorage.getItem(KEYS.voice) !== '0';
   } catch (e) { /* stockage indisponible : réglages par défaut */ }
 }
 

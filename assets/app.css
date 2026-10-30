@@ -555,13 +555,42 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 .mk .imp text { fill: var(--board-mark-ink); font-family: var(--font); font-weight: 800; }
 .mk .imp-old { fill: var(--board-mark-ink); stroke: var(--board-mark); stroke-width: 1.5; }
 .fin-board, .vb { display: flex; align-items: center; gap: 14px; }
-.fin-board svg, .vb svg.tgt { flex: 0 1 200px; width: 200px; min-width: 0; }
+.fin-board > svg, .vb > svg.tgt { flex: 0 1 200px; width: 200px; min-width: 0; }
 .vb .vtxt { flex: 1 1 0; }
 .fin-board .note, .vb .note { margin: 0; }
 
+/* Célébration (lot 3) : bandeau en haut de l'écran, gradué ; ne capte aucun appui (la saisie continue dessous) */
+.cele {
+  container-type: inline-size; position: fixed; left: 0; right: 0; top: 0; z-index: 30; pointer-events: none;
+  display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; align-items: center; column-gap: 14px;
+  padding: calc(env(safe-area-inset-top, 0px) + 8px) 16px 10px; background: var(--inv-bg); color: var(--inv-fg);
+}
+.cele small { grid-column: 2; grid-row: 1; align-self: end; font-size: 12px; font-weight: 800; letter-spacing: 0.14em; line-height: 1.3; }
+.cele .nm { grid-column: 2; grid-row: 2; align-self: start; font-size: 14px; font-weight: 700; }
+.cele b { grid-column: 1; grid-row: 1 / span 2; font-size: 40px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.cele.ton { min-height: 64px; box-shadow: 0 1px 0 var(--bg); }
+.cele.finish { min-height: 72px; box-shadow: 0 1px 0 var(--bg); }
+/* 140+ et grosse finition : plus haut, à la couleur du joueur */
+.cele.ton40, .cele.finish-big { min-height: 120px; background: var(--pc); color: var(--av-ink); box-shadow: inset 0 -5px 0 var(--av-ink); }
+.cele.ton40 b, .cele.finish-big b { font-size: 76px; }
+.cele.ton40 small, .cele.finish-big small { font-size: 15px; }
+/* 180 : toute la moitié haute de l'écran, chiffres géants, filets obliques à l'encre du joueur */
+.cele.max {
+  height: 52dvh; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr auto; justify-items: center; row-gap: 4px;
+  background: repeating-linear-gradient(135deg, transparent 0 22px, color-mix(in srgb, var(--av-ink) 16%, transparent) 22px 26px), var(--pc);
+  color: var(--av-ink); box-shadow: inset 0 -8px 0 var(--av-ink);
+}
+.cele.max small { grid-column: 1; grid-row: 1; font-size: 18px; }
+.cele.max b { grid-column: 1; grid-row: 2; align-self: center; font-size: min(44cqw, 52dvh - 96px); line-height: 1; }
+.cele.max .nm { grid-column: 1; grid-row: 3; font-size: 20px; max-width: 100%; }
+.cele.enter { animation: cele-in 240ms cubic-bezier(.2, .8, .3, 1); }
+.cele.max.enter b { animation: cele-pop 520ms cubic-bezier(.2, .8, .3, 1.3); }
+@keyframes cele-in { from { transform: translateY(-100%); } to { transform: none; } }
+@keyframes cele-pop { from { transform: scale(0.4); } to { transform: none; } }
+
 /* Animations coupées (réglage ou demande du téléphone) */
-html.still .gband.slide, html.still .announce { animation: none; }
-@media (prefers-reduced-motion: reduce) { .gband.slide, .announce { animation: none; } }
+html.still .gband.slide, html.still .announce, html.still .cele, html.still .cele b { animation: none; }
+@media (prefers-reduced-motion: reduce) { .gband.slide, .announce, .cele, .cele b { animation: none; } }
 
 /* ---------------------------------------------------------------- fins de manche / de partie */
 .result-head { padding: 18px 16px; display: flex; align-items: center; gap: 16px; }

@@ -1,10 +1,11 @@
 // Réglages : thème Auto / Sombre / Clair (« strela.theme »), mode nuit (option du sombre : console en rouge
-// atténué, comme Grafit), vibrations, animations (chiffres en rouleau, glissement du bandeau ; coupées d'office si le
+// atténué, comme Grafit), sons et annonces vocales (lot 3), vibrations, animations (chiffres en rouleau, glissement du bandeau ; coupées d'office si le
 // téléphone demande moins d'animations). Les mêmes commandes servent au menu pause du jeu.
 import { store, saveSetting, reducedMotion } from '../store.js';
 import { esc, topBar } from '../dom.js';
 import { BUILD } from '../build.js';
 import { refresh, buzz, BUZZ } from '../nav.js';
+import { say, sound, voiceInfo } from '../feedback.js';
 
 const prefersLight = () => { try { return matchMedia('(prefers-color-scheme: light)').matches; } catch (e) { return false; } };
 export const isDark = () => store.settings.theme === 'dark' || (store.settings.theme === 'auto' && !prefersLight());
@@ -32,6 +33,8 @@ export function themeControls() {
   return `<div class="seg" role="group" aria-label="Thème">${b('auto', 'Auto')}${b('dark', 'Sombre')}${b('light', 'Clair')}</div>
     <div>
       <div class="row"><div class="lbl"><b>Mode nuit</b><small>${dark ? 'Console en rouge atténué, pour la pénombre.' : 'Option du thème sombre.'}</small></div>${toggle('night', store.settings.night && dark, !dark)}</div>
+      <div class="row"><div class="lbl"><b>Sons</b><small>Clic à chaque fléchette, sons du bust, de la validation et de la finition.</small></div>${toggle('sound', store.settings.sound)}</div>
+      <div class="row"><div class="lbl"><b>Annonces vocales</b><small>Total de la volée, bust, finition jouable, manche et partie.</small></div>${toggle('voice', store.settings.voice)}</div>
       <div class="row"><div class="lbl"><b>Vibrations</b><small>Courte à chaque fléchette, longue sur un bust.</small></div>${toggle('vibrate', store.settings.vibrate)}</div>
       <div class="row"><div class="lbl"><b>Animations</b><small>${reduced ? 'Coupées : le téléphone demande moins d\'animations.' : 'Chiffres qui roulent, bandeau du joueur qui glisse.'}</small></div>${toggle('anim', store.settings.anim && !reduced, reduced)}</div>
     </div>`;
@@ -82,6 +85,18 @@ export function diagnostic() {
     + ` · police ${fs} % · ${displayMode()} · ${storageLine()} · v${BUILD.version}`;
 }
 
+/** État de la voix française du téléphone (annonces vocales, lot 3). */
+function voiceBlock() {
+  const v = voiceInfo();
+  if (v.state === 'ok') return `<div class="kv"><span>Voix</span><b class="small ell">${esc(v.name)}</b></div>`;
+  const text = {
+    absent: ['PAS DE SYNTHÈSE VOCALE', 'Ce navigateur ne sait pas parler : les annonces vocales sont impossibles ici.'],
+    loading: ['VOIX EN COURS DE RECHERCHE', 'Le téléphone n\'a pas encore donné la liste de ses voix. Touchez TESTER LA VOIX, puis revenez sur cet écran.'],
+    none: ['AUCUNE VOIX FRANÇAISE', 'Aucune voix française n\'est installée sur ce téléphone. Réglages Android › Système › Langues › Synthèse vocale : moteur Google, puis installer les données vocales en français.'],
+  }[v.state];
+  return `<div class="vibe bad" role="status"><b>${text[0]}</b><span>${text[1]}</span></div>`;
+}
+
 export function settingsScreen() {
   const vr = vibeResult && VIBE_TEXT[vibeResult];
   return `<div class="screen">${topBar('Réglages', '#/')}
@@ -89,6 +104,9 @@ export function settingsScreen() {
       <div class="sec">Affichage</div>
       ${themeControls()}
       <p class="note">Auto suit le réglage du téléphone. Le mode nuit ne s'applique qu'en sombre.</p>
+      <div class="sec">Son et voix</div>
+      ${voiceBlock()}
+      <div class="btns two" style="margin-top:10px"><button type="button" class="btn ghost" data-act="test-voice">TESTER LA VOIX</button><button type="button" class="btn ghost" data-act="test-sound">TESTER LES SONS</button></div>
       <div class="sec">Vibrations</div>
       <button type="button" class="btn ghost" data-act="test-vibrate">TESTER LA VIBRATION</button>
       ${vr ? `<div class="vibe ${vibeResult === 'sent' ? '' : 'bad'}" role="status"><b>${vr[0]}</b><span>${vr[1]}</span>${store.settings.vibrate ? '' : '<span>Le réglage « Vibrations » est sur NON : en partie, rien ne vibrera.</span>'}</div>` : ''}
@@ -112,6 +130,11 @@ export const actions = {
   night(v) { saveSetting('night', v === '1'); applyTheme(); refresh(); },
   anim(v) { saveSetting('anim', v === '1'); applyTheme(); refresh(); },
   vibrate(v) { saveSetting('vibrate', v === '1'); if (v === '1') buzz(BUZZ.dart); refresh(); },
+  sound(v) { saveSetting('sound', v === '1'); if (v === '1') sound('validate'); refresh(); },
+  voice(v) { saveSetting('voice', v === '1'); if (v === '1') say('Annonces vocales activées'); refresh(); },
+  // Dans le clic (geste de l'utilisateur), même si le réglage est sur NON : on veut entendre.
+  'test-voice'() { say('Strela. Guillaume, il reste quarante. Cent quatre-vingts !', { force: true }); setTimeout(refresh, 600); },
+  'test-sound'() { ['single', 'double', 'triple', 'miss', 'bust', 'validate', 'finish'].forEach((k, i) => setTimeout(() => sound(k, { force: true }), i * 420)); },
   // Appelé dans le clic (geste de l'utilisateur), sans tenir compte du réglage : on veut savoir si le téléphone vibre.
   'test-vibrate'() { vibeResult = buzz(BUZZ.test, { force: true }); refresh(); },
   async 'copy-diag'(arg, el) {

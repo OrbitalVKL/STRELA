@@ -10,7 +10,7 @@ import { formatDart } from '../../engine/darts.js';
 import { playerSummary } from '../../engine/stats.js';
 import { boardSvg, impactsFor, markIcon } from '../board.js';
 import { go } from '../nav.js';
-import { undo } from './game.js';
+import { undo, celebrationHtml } from './game.js';
 
 const route = v => v.darts.map(d => formatDart(d).replace(/^S/, '')).join(' · ');
 
@@ -49,6 +49,7 @@ export function legEnd() {
       ${store.maquette ? `<div class="mq-row">${maquetteButtons('mq')}</div>` : ''}
     </div>
     <div class="dock" data-layer><button type="button" class="btn primary big" data-act="next-leg">MANCHE SUIVANTE</button></div>
+    ${celebrationHtml()}
   </div>`;
 }
 
@@ -81,6 +82,7 @@ export function matchEnd() {
       <button type="button" class="btn primary big" data-act="rematch">REVANCHE <small>${g.config.players.length > 1 ? `${esc(nextFirst.name).toUpperCase()} COMMENCE` : 'MÊMES RÉGLAGES'}</small></button>
       <button type="button" class="btn" data-act="finish-home">ACCUEIL</button>
     </div>
+    ${celebrationHtml()}
   </div>`;
 }
 
