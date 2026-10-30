@@ -32,6 +32,8 @@ const screenTexts = async () => {
   const xml = await sh('cat /sdcard/ui.xml');
   return [...xml.matchAll(/text="([^"]+)"/g)].map(m => m[1]).filter(Boolean).slice(0, 40);
 };
+/** Reste affiché (le nombre exact, pas les chiffres du rouleau en cours d'animation). */
+const remaining = () => page.evaluate(() => { const el = document.querySelector('#remaining'); return el ? (el.getAttribute('aria-label') || el.textContent).trim() : null; });
 const topActivity = () => sh('dumpsys activity activities | grep -m1 -E "topResumedActivity|mResumedActivity"');
 const shot = name => device.screenshot({ path: join(OUT, `${name}.png`) }).catch(() => {});
 
@@ -97,9 +99,9 @@ await step('une partie : joueurs, fléchettes, VALIDER, enregistrées dans la ba
   await validate(page);
   await throwDarts(page, '20 5');
   await settle(page);
-  const rest = await page.textContent('#remaining');
+  const rest = await remaining();
   await shot('2-partie');
-  if (rest.trim() !== '276') throw new Error(`reste ${rest}`);
+  if (rest !== '276') throw new Error(`reste ${rest}`);
   return 'Bravo : reste 276';
 });
 
@@ -124,7 +126,7 @@ await step('rotation en pleine partie : paysage sans recharger la page, état ga
   }
   await sleep(800);
   await shot('3-paysage');
-  const r = await page.evaluate(() => ({ m: window.__marque, rest: document.querySelector('#remaining')?.textContent.trim(), w: innerWidth, h: innerHeight, land: !!document.querySelector('.game.land, .land') }));
+  const r = await page.evaluate(() => ({ m: window.__marque, rest: document.querySelector('#remaining')?.getAttribute('aria-label') || document.querySelector('#remaining')?.textContent.trim(), w: innerWidth, h: innerHeight, land: !!document.querySelector('.game.land, .land') }));
   const rot = await sh('dumpsys window displays | grep -m1 -oE "mCurrentRotation=[^ ]+"');
   // Retour en portrait
   if (how.length > 1) await sh('settings put system user_rotation 0'); else emu('rotate'), emu('rotate'), emu('rotate');
@@ -141,16 +143,20 @@ await step('bouton retour en partie : menu pause, pas de sortie', async () => {
   await front();
   if (!(await page.evaluate(() => location.hash)).includes('jeu')) { await page.evaluate(() => { location.hash = '#/jeu'; }); await page.waitForSelector('.game'); }
   await page.evaluate(() => { const f = window.strelaBack; window.__backs = 0; window.strelaBack = () => { window.__backs++; return f(); }; });
+  const ime = await sh('dumpsys input_method | grep -m1 -oE "mInputShown=[a-z]+"');
+  const before = Number(await page.evaluate(() => window.strelaNative.backCount ? window.strelaNative.backCount() : -1));
   await sh('input keyevent KEYCODE_BACK');
-  const ok = await page.waitForSelector('.sheet [data-act="resume"]', { timeout: 10e3 }).then(() => true, () => false);
-  const info = { backs: await page.evaluate(() => window.__backs).catch(() => '?'), top: await topActivity() };
-  if (!ok) throw new Error(`menu pause absent (strelaBack appelé ${info.backs} fois ; ${info.top})`);
+  let ok = await page.waitForSelector('.sheet [data-act="resume"]', { timeout: 5e3 }).then(() => true, () => false);
+  let presses = 1;
+  if (!ok) { await sh('input keyevent KEYCODE_BACK'); presses++; ok = await page.waitForSelector('.sheet [data-act="resume"]', { timeout: 5e3 }).then(() => true, () => false); }
+  const native = Number(await page.evaluate(() => window.strelaNative.backCount ? window.strelaNative.backCount() : -1)) - before;
+  const info = { backs: await page.evaluate(() => window.__backs).catch(() => '?'), top: await topActivity(), ime, native, presses };  if (!ok) throw new Error(`menu pause absent (strelaBack appelé ${info.backs} fois, retour reçu par la coquille ${info.native} fois, ${info.ime}, ${info.top})`);
   await shot('4-retour-pause');
   await sh('input keyevent KEYCODE_BACK');
   await page.waitForFunction(() => !document.querySelector('.sheet-bg'), null, { timeout: 10e3 });
   const top = await topActivity();
   if (!top.includes(PKG)) throw new Error(`appli plus au premier plan : ${top}`);
-  return `strelaBack appelé ${await page.evaluate(() => window.__backs)} fois`;
+  return `${presses} appui(s) ; strelaBack appelé ${await page.evaluate(() => window.__backs)} fois ; ${ime}`;
 });
 
 let exported = null;
@@ -182,9 +188,10 @@ await step('IMPORTER : sélecteur de fichiers d\'Android, aperçu de la sauvegar
       await sleep(1500);
       await sh('uiautomator dump /sdcard/ui.xml >/dev/null 2>&1');
       const xml = await sh('cat /sdcard/ui.xml');
-      const nodes = [...xml.matchAll(/<node [^>]*?text="([^"]*)"[^>]*?bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/g)];
-      const n = nodes.find(m => re.test(m[1]));
-      if (n) { await sh(`input tap ${(+n[2] + +n[4]) >> 1} ${(+n[3] + +n[5]) >> 1}`); return true; }
+      const nodes = [...xml.matchAll(/<node [^>]*?text="([^"]*)"[^>]*?content-desc="([^"]*)"[^>]*?bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/g)]
+        .map(m => [m[1] || m[2], m[3], m[4], m[5], m[6]]);
+      const n = nodes.find(m => re.test(m[0]));
+      if (n) { await sh(`input tap ${(+n[1] + +n[3]) >> 1} ${(+n[2] + +n[4]) >> 1}`); return true; }
     }
     return false;
   };
@@ -192,6 +199,7 @@ await step('IMPORTER : sélecteur de fichiers d\'Android, aperçu de la sauvegar
   let found = await tapText(new RegExp(base));
   if (!found) {
     await shot('6-selecteur');
+    await tapText(/^(Show roots|Afficher les racines)$/);
     if (await tapText(/^(Downloads|Téléchargements|Download)$/)) { await sleep(800); await tapText(/^Strela$/); found = await tapText(new RegExp(base)); }
   }
   if (!found) {
@@ -217,7 +225,7 @@ await step('fermeture brutale puis réouverture : REPRENDRE, rien de perdu', asy
   await page.waitForSelector('.resume');
   await page.click('.resume');
   await page.waitForSelector('.game');
-  const rest = (await page.textContent('#remaining')).trim();
+  const rest = await remaining();
   if (rest !== '276') throw new Error(`reste ${rest}`);
   await shot('7-reprise');
   return 'reste 276';
@@ -226,7 +234,7 @@ await step('fermeture brutale puis réouverture : REPRENDRE, rien de perdu', asy
 finish();
 
 function finish() {
-  try { console.log(execFileSync('adb', ['-s', device.serial(), 'logcat', '-d', '-t', '300', 'AndroidRuntime:E', 'chromium:W', '*:S'], { encoding: 'utf8' }).split('\n').slice(-40).join('\n')); } catch (e) { /* rien */ }
+  try { console.log(execFileSync('adb', ['-s', device.serial(), 'logcat', '-d', '-t', '300', 'AndroidRuntime:E', 'chromium:W', 'Strela:I', '*:S'], { encoding: 'utf8' }).split('\n').slice(-40).join('\n')); } catch (e) { /* rien */ }
   const lines = ['## Strela sur émulateur Android', '', '| Étape | Résultat | Détail |', '|---|---|---|',
     ...results.map(r => `| ${r.step} | ${r.status} | ${String(r.detail).replace(/\|/g, '/')} |`)];
   writeFileSync(join(OUT, 'rapport.md'), lines.join('\n') + '\n');

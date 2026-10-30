@@ -52,6 +52,7 @@ public class MainActivity extends Activity {
     Updater updater;
     boolean pageReady = false;
     boolean immersive = false;
+    volatile int backs = 0;                 // retours reçus (diagnostic, vérification sur émulateur)
     int gestureCss = 0;                     // zone des gestes en bas, en px CSS, au-delà de la marge déjà laissée
     ValueCallback<Uri[]> fileCallback;      // sélecteur de fichiers de la page en attente
     Uri photoUri;                           // photo en cours de prise de vue
@@ -270,8 +271,11 @@ public class MainActivity extends Activity {
     public void onBackPressed() { goBack(); }
 
     void goBack() {
+        backs++;
+        android.util.Log.i("Strela", "retour (page prête : " + pageReady + ")");
         if (!pageReady) { moveTaskToBack(true); return; }
         web.evaluateJavascript("window.strelaBack ? window.strelaBack() : false", v -> {
+            android.util.Log.i("Strela", "retour traité par la page : " + v);
             if (!"true".equals(v)) moveTaskToBack(true);
         });
     }

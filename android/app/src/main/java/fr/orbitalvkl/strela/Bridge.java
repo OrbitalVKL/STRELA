@@ -171,6 +171,10 @@ public class Bridge {
     @JavascriptInterface
     public int gestureInset() { return act.gestureCss; }
 
+    /** Nombre de retours d'Android reçus par la coquille (diagnostic). */
+    @JavascriptInterface
+    public int backCount() { return act.backs; }
+
     // ------------------------------------------------------------------ mise à jour (Updater)
     @JavascriptInterface
     public void checkUpdate() { act.updater.check(); }
