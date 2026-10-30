@@ -144,19 +144,22 @@ await step('bouton retour en partie : menu pause, pas de sortie', async () => {
   if (!(await page.evaluate(() => location.hash)).includes('jeu')) { await page.evaluate(() => { location.hash = '#/jeu'; }); await page.waitForSelector('.game'); }
   await page.evaluate(() => { const f = window.strelaBack; window.__backs = 0; window.strelaBack = () => { window.__backs++; return f(); }; });
   const ime = await sh('dumpsys input_method | grep -m1 -oE "mInputShown=[a-z]+"');
+  const focus = await sh('dumpsys window | grep -m1 -E "mCurrentFocus"');
   const before = Number(await page.evaluate(() => window.strelaNative.backCount ? window.strelaNative.backCount() : -1));
+  // Deux façons d'appuyer sur retour : adb (input keyevent), puis le pilote de Playwright (injection d'événement).
   await sh('input keyevent KEYCODE_BACK');
   let ok = await page.waitForSelector('.sheet [data-act="resume"]', { timeout: 5e3 }).then(() => true, () => false);
   let presses = 1;
-  if (!ok) { await sh('input keyevent KEYCODE_BACK'); presses++; ok = await page.waitForSelector('.sheet [data-act="resume"]', { timeout: 5e3 }).then(() => true, () => false); }
+  const how = ['adb'];
+  if (!ok) { await device.input.press('Back').catch(e => how.push(`pilote : ${e.message.split('\n')[0]}`)); presses++; how.push('pilote'); ok = await page.waitForSelector('.sheet [data-act="resume"]', { timeout: 5e3 }).then(() => true, () => false); }
   const native = Number(await page.evaluate(() => window.strelaNative.backCount ? window.strelaNative.backCount() : -1)) - before;
-  const info = { backs: await page.evaluate(() => window.__backs).catch(() => '?'), top: await topActivity(), ime, native, presses };  if (!ok) throw new Error(`menu pause absent (strelaBack appelé ${info.backs} fois, retour reçu par la coquille ${info.native} fois, ${info.ime}, ${info.top})`);
+  const info = { backs: await page.evaluate(() => window.__backs).catch(() => '?'), top: await topActivity(), ime, native, presses, focus, how: how.join(', ') };  if (!ok) throw new Error(`menu pause absent (${info.how} ; strelaBack appelé ${info.backs} fois, retour reçu par la coquille ${info.native} fois, ${info.ime}, ${info.focus}, ${info.top})`);
   await shot('4-retour-pause');
   await sh('input keyevent KEYCODE_BACK');
   await page.waitForFunction(() => !document.querySelector('.sheet-bg'), null, { timeout: 10e3 });
   const top = await topActivity();
   if (!top.includes(PKG)) throw new Error(`appli plus au premier plan : ${top}`);
-  return `${presses} appui(s) ; strelaBack appelé ${await page.evaluate(() => window.__backs)} fois ; ${ime}`;
+  return `${presses} appui(s) (${how.join(', ')}) ; strelaBack appelé ${await page.evaluate(() => window.__backs)} fois ; ${ime}`;
 });
 
 let exported = null;
@@ -211,7 +214,11 @@ await step('IMPORTER : sélecteur de fichiers d\'Android, aperçu de la sauvegar
   await sleep(1500);
   await front(); // la page a pu être recréée pendant le sélecteur : on la reprend
   const preview = await page.waitForSelector('[data-act="backup-mode"][data-arg="merge"]', { timeout: 15e3 }).then(() => true, () => false);
-  if (!preview) { await shot('6-apres-selecteur'); throw new Error(`pas d'aperçu après le choix du fichier ; à l'écran : ${(await screenTexts()).join(' / ')}`); }
+  if (!preview) {
+    await shot('6-apres-selecteur');
+    const where = await page.evaluate(() => `${location.hash} · ${document.querySelector('.bk')?.textContent.replace(/\s+/g, ' ').trim() || 'aucun encadré de sauvegarde'}`).catch(e => e.message);
+    throw new Error(`pas d'aperçu après le choix du fichier (${where} ; ${await topActivity()})`);
+  }
   await shot('6-apercu-import');
   await page.click('[data-act="backup-mode"][data-arg="merge"]');
   await page.click('[data-act="backup-yes"]');
@@ -237,7 +244,7 @@ await step('fermeture brutale puis réouverture : REPRENDRE, rien de perdu', asy
 finish();
 
 function finish() {
-  try { console.log(execFileSync('adb', ['-s', device.serial(), 'logcat', '-d', '-t', '300', 'AndroidRuntime:E', 'chromium:W', 'Strela:I', '*:S'], { encoding: 'utf8' }).split('\n').slice(-40).join('\n')); } catch (e) { /* rien */ }
+  try { console.log(execFileSync('adb', ['-s', device.serial(), 'logcat', '-d', '-s', 'Strela:I', 'AndroidRuntime:E'], { encoding: 'utf8' }).split('\n').slice(-40).join('\n')); } catch (e) { /* rien */ }
   const lines = ['## Strela sur émulateur Android', '', '| Étape | Résultat | Détail |', '|---|---|---|',
     ...results.map(r => `| ${r.step} | ${r.status} | ${String(r.detail).replace(/\|/g, '/')} |`)];
   writeFileSync(join(OUT, 'rapport.md'), lines.join('\n') + '\n');

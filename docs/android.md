@@ -42,7 +42,10 @@ La page cherche `window.strelaNative` ; sans elle (navigateur), elle garde les A
   d'Android (ACTION_IMAGE_CAPTURE, fichier du cache par FileProvider), GALERIE ouvre le sélecteur de photos avec
   l'appareil photo proposé à côté. L'appli ne déclare pas la permission caméra : c'est l'appareil photo d'Android qui
   prend la vue (avec sa propre permission) ; rien n'est donc demandé à Strela, ni au lancement ni ensuite.
-- **Retour** : `onBackPressed()` appelle `window.strelaBack()` (`src/ui/back.js`) : ferme d'abord ce qui est ouvert
+- **Retour** : la touche retour est prise par l'activité avant la WebView (`dispatchKeyEvent`, et
+  `shouldOverrideKeyEvent` : sans cela la WebView la garde pour elle et rien ne se passe — vu sur l'émulateur) ; le
+  geste retour arrive par `OnBackInvokedDispatcher` (Android 13 et plus, déclaré dans le manifeste) ou
+  `onBackPressed()` (Android 11 et 12). Tous mènent à `goBack()`, qui appelle `window.strelaBack()` (`src/ui/back.js`) : ferme d'abord ce qui est ouvert
   (correction, confirmations, menu pause, panneau, sélection, aperçu d'import, recadrage), en partie ouvre le menu
   pause, sinon remonte d'un écran (lien Retour de la barre du haut, ou l'accueil) ; à l'accueil (ou sur l'écran de
   secours), la page répond `false` et Strela passe en arrière-plan. Jamais de sortie directe en pleine partie.
