@@ -43,7 +43,7 @@ let vibeResult = null; // dernier résultat de TESTER LA VIBRATION
 const VIBE_TEXT = {
   absent: ['FONCTION ABSENTE', 'Ce navigateur ne sait pas faire vibrer le téléphone. L\'appli Android (lot 5) utilisera le vibreur natif.'],
   refused: ['REFUSÉE', 'Chrome a refusé la demande (navigator.vibrate a répondu « non ») : page pas encore touchée, ou onglet en arrière-plan.'],
-  sent: ['ENVOYÉE', 'La demande est partie vers le téléphone (3 impulsions). Rien senti ? Chrome ne vibre pas en mode silencieux, et Android coupe les vibrations des pages quand le retour haptique est désactivé : Réglages Android › Son et vibreur › Vibreur et retour haptique.'],
+  sent: ['ENVOYÉE', 'La demande est partie vers le téléphone (3 impulsions). Rien senti ? Chrome ne vibre pas en mode silencieux, et Android coupe les vibrations des pages quand le retour haptique est désactivé : Réglages Android › Son et vibreur › Vibreur et retour haptique. Certains téléphones (Pixel) ne vibrent pas du tout pour une page web : l\'appli Android (lot 5) passera par le vibreur natif.'],
 };
 
 function displayMode() {
@@ -62,7 +62,16 @@ function fontScale() {
   return h / 100;
 }
 
-/** Ligne de diagnostic : orientation, taille de l'écran en px CSS, police, mode d'affichage, version. */
+/** Base du téléphone : version, contenu, stockage persistant (demandé au lancement). */
+export function storageLine() {
+  if (store.maquette) return 'maquette (en mémoire, base non ouverte)';
+  const d = store.db;
+  const persist = { yes: 'persistant', no: 'non persistant (refusé par Chrome)', absent: 'persistant : fonction absente', error: 'persistant : erreur' }[d.persisted] || 'persistant : en attente';
+  const base = d.error ? `base : ${d.error}` : `base v${d.version} · ${store.players.length} j. · ${store.games.length + (store.current ? 1 : 0)} p.`;
+  return `${base}${d.unreadable ? ` · ${d.unreadable} illisible(s)` : ''} · stockage ${persist}`;
+}
+
+/** Ligne de diagnostic : orientation, taille de l'écran en px CSS, police, mode d'affichage, base, version. */
 export function diagnostic() {
   let orient = 'inconnue';
   try { orient = matchMedia('(orientation: landscape)').matches ? 'paysage' : 'portrait'; } catch (e) { /* rien */ }
@@ -70,7 +79,7 @@ export function diagnostic() {
   const dpr = Math.round((window.devicePixelRatio || 1) * 100) / 100;
   const fs = Math.round(fontScale() * 100);
   return `${orient}${type ? ` (${type})` : ''} · écran ${window.innerWidth}×${window.innerHeight} px · ×${String(dpr).replace('.', ',')}`
-    + ` · police ${fs} % · ${displayMode()} · v${BUILD.version}`;
+    + ` · police ${fs} % · ${displayMode()} · ${storageLine()} · v${BUILD.version}`;
 }
 
 export function settingsScreen() {
@@ -88,8 +97,10 @@ export function settingsScreen() {
       <div class="kv"><span>Tests du moteur</span><b>${esc(BUILD.pass)} / ${esc(BUILD.total)}</b></div>
       <div class="kv"><span>Construit le</span><b class="small" style="white-space:normal;text-align:right">${esc(BUILD.date)}</b></div>
       <div class="kv"><span>Commit</span><b>${esc(BUILD.commit)}</b></div>
-      <p class="note">Maquette (lot 1.2) : les joueurs et les parties sont fictifs et rien n'est enregistré (sauf ces réglages). La sauvegarde arrive au lot 2.</p>
-      <div style="margin-top:16px"><a class="btn ghost" href="#/sommaire">SOMMAIRE DE MAQUETTE</a></div>
+      <p class="note">${store.maquette
+        ? 'Maquette : joueurs et parties fictifs, en mémoire. Rien n\'est enregistré, et les vraies données du téléphone ne sont pas touchées.'
+        : 'Joueurs, parties et réglages sont enregistrés sur ce téléphone, à chaque fléchette. Le sommaire de maquette montre des données fictives sans toucher aux tiennes.'}</p>
+      <div style="margin-top:16px"><a class="btn ghost" href="${store.maquette ? '#/sommaire' : '?maquette#/sommaire'}">SOMMAIRE DE MAQUETTE</a></div>
       <div class="sec">Diagnostic</div>
       <p class="diag" id="diag">${esc(diagnostic())}</p>
       <button type="button" class="btn ghost" data-act="copy-diag">COPIER LE DIAGNOSTIC</button>

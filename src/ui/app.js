@@ -1,6 +1,7 @@
-// Strela — point d'entrée de la page : routes, rendu, actions, thème, écran allumé, service worker.
-// Adresses internes en « #/… » ; « ?maquette » ouvre le sommaire de maquette.
-import { store, resetMock, loadSettings, animationsOn } from './store.js';
+// Strela — point d'entrée de la page : routes, rendu, actions, thème, écran allumé, base du téléphone, service worker.
+// Adresses internes en « #/… » ; « ?maquette » ouvre le sommaire de maquette (données fictives en mémoire, la base du
+// téléphone n'est pas ouverte ; sommaire et données fictives ne sont chargés que dans ce cas).
+import { store, loadSettings, animationsOn, openStorage, requestPersistence, saving } from './store.js';
 import { setRenderer, noteRoute, keepAwake, go } from './nav.js';
 import { home } from './screens/home.js';
 import { playersList, playerForm, avatarBank, actions as playerActions, inputs as playerInputs } from './screens/players.js';
@@ -10,10 +11,9 @@ import { legEnd, matchEnd, actions as resultActions } from './screens/results.js
 import { historyList, historyDetail, actions as historyActions } from './screens/history.js';
 import { statsScreen, actions as statsActions } from './screens/stats.js';
 import { settingsScreen, applyTheme, actions as settingsActions } from './screens/settings.js';
-import { sommaire, actions as sommaireActions } from './screens/sommaire.js';
+import { cropScreen, mountCrop, onPhotoFile, actions as photoActions } from './screens/photo.js';
 import { animateRolls, rollScope } from './roll.js';
 import { fitAll } from './fit.js';
-import { SCENES } from './screens/sommaire.js';
 
 const ROUTES = [
   [/^\/?$/, home],
@@ -28,19 +28,21 @@ const ROUTES = [
   [/^\/partie\/(.+)$/, historyDetail],
   [/^\/stats(?:\/(.+))?$/, statsScreen],
   [/^\/reglages$/, settingsScreen],
-  [/^\/sommaire$/, sommaire],
+  [/^\/recadrage$/, cropScreen],
 ];
 
 const ACTIONS = {
   ...playerActions, ...newGameActions, ...gameActions, ...resultActions,
-  ...statsActions, ...settingsActions, ...sommaireActions, ...historyActions,
+  ...statsActions, ...settingsActions, ...historyActions, ...photoActions,
 };
 const INPUTS = { ...playerInputs };
 
 const app = document.getElementById('app');
 let lastPath = null;
+let started = false; // rien n'est dessiné avant la lecture de la base (ou des données fictives)
 
 function render() {
+  if (!started) return;
   const path = decodeURIComponent(location.hash.replace(/^#/, ''));
   noteRoute(location.hash || '#/');
   let html = null;
@@ -60,8 +62,9 @@ function render() {
   animateRolls(app, animationsOn());
   fitAll(app); // blocs compactés ou rapetissés s'ils ne tiennent pas (taille d'affichage, police du téléphone)
   if (path === '/jeu') mountGame();
+  if (path === '/recadrage') mountCrop();
   app.querySelector('[data-reveal]')?.scrollIntoView({ block: 'center' });
-  keepAwake(path === '/jeu');
+  keepAwake(path === '/jeu' || path === '/manche'); // écran allumé pendant la partie, relâché en la quittant
   document.title = path === '/jeu' ? 'СТРЕЛА · partie' : 'СТРЕЛА · Strela';
 }
 setRenderer(render);
@@ -99,6 +102,12 @@ app.addEventListener('input', ev => {
 app.addEventListener('keydown', ev => {
   if (ev.key === 'Enter' && ev.target.dataset && ev.target.dataset.input === 'name') ev.target.blur();
 });
+// Photo d'avatar choisie (appareil photo ou galerie) : chargée, puis écran de recadrage.
+app.addEventListener('change', ev => {
+  const el = ev.target.closest('[data-file]');
+  if (el && el.files && el.files[0]) onPhotoFile(el.files[0]);
+  if (el) el.value = '';
+});
 window.addEventListener('hashchange', render);
 // Rotation : l'écran de jeu change de mise en page (pavé en portrait, cible en paysage), l'état reste.
 try { matchMedia('(orientation: landscape)').addEventListener('change', () => { if (location.hash === '#/jeu') render(); }); } catch (e) { /* vieux navigateur */ }
@@ -114,23 +123,44 @@ try { matchMedia('(prefers-color-scheme: light)').addEventListener('change', () 
 // ------------------------------------------------------------------ démarrage
 loadSettings();
 applyTheme();
-resetMock();
 if (new URLSearchParams(location.search).has('maquette')) {
   store.maquette = true;
+  const [{ resetMock }, mq] = await Promise.all([import('./maquette.js'), import('./screens/sommaire.js')]);
+  ROUTES.push([/^\/sommaire$/, mq.sommaire]);
+  Object.assign(ACTIONS, mq.actions);
+  resetMock();
   // Accès des scripts de vérification (tools/) : états du sommaire et réajustement après un changement de police.
   window.__strela = {
-    scene(name, arg) { const target = SCENES[name] ? SCENES[name](arg) : null; if (target) { history.replaceState(null, '', target); render(); } return target; },
-    scenes: () => Object.keys(SCENES),
+    scene(name, arg) { const target = mq.SCENES[name] ? mq.SCENES[name](arg) : null; if (target) { history.replaceState(null, '', target); render(); } return target; },
+    scenes: () => Object.keys(mq.SCENES),
     reset: () => resetMock(),
     darts: () => (store.current ? store.current.darts.map(d => ({ ...d })) : null),
     fit: () => fitAll(app),
     render,
   };
   if (!location.hash || location.hash === '#/' || location.hash === '#') history.replaceState(null, '', '#/sommaire');
+} else {
+  // Base du téléphone : tout est relu avant le premier affichage. Si une version plus récente de l'appli ouvre la
+  // base (mise à jour), cette page se recharge : tout est déjà écrit.
+  try {
+    await openStorage({ onVersionChange: () => location.reload() });
+  } catch (e) {
+    store.db.error = e && e.code === 'NEWER'
+      ? 'base plus récente que l\'appli : recharger la page'
+      : `base indisponible (${(e && e.message) || e})`;
+  }
+  applyTheme();
+  requestPersistence();
+  // Écritures en cours (lu par les tests de parcours avant un rechargement : 0 = tout est sur le disque).
+  window.__strelaSaving = () => saving.pending;
+  // Ouverture sans adresse (appli installée) : l'accueil, avec REPRENDRE si une partie est en cours.
 }
+started = true;
 render();
+document.body.dataset.ready = '1';
 
 // Service worker « réseau d'abord » : appli installable, toujours la dernière version quand le réseau répond.
+// Il ne touche qu'à ses copies de fichiers (caches « strela-… ») : jamais à la base du téléphone.
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }

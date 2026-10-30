@@ -1,6 +1,6 @@
 // Nouvelle partie : joueurs touchés dans l'ordre de passage (ordre visible et corrigeable), 301 / 501 / 701,
 // sortie simple ou double, manches à gagner. Les derniers réglages sont repris. LANCER bien visible.
-import { store, activePlayers, playerById, startGame, ensureExtraPlayers } from '../store.js';
+import { store, activePlayers, playerById, startGame, currentState } from '../store.js';
 import { esc, ico, topBar } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
 import { START_SCORES, MAX_PLAYERS } from '../../engine/x01.js';
@@ -38,8 +38,14 @@ export function newGame() {
 
   const legs = d.legsToWin;
   const ok = d.players.length > 0;
+  // Partie en cours : LANCER l'abandonne (elle reste dans l'historique) ; on le dit avant.
+  const cur = currentState();
+  const busy = cur && cur.status === 'playing' && store.current.darts.length
+    ? `<div class="confirm warn" role="note"><p><b>Une partie est en cours.</b></p><p class="small">LANCER l'abandonnera : elle restera dans l'historique, marquée « abandonnée ».</p><a class="btn ghost" href="#/jeu">REPRENDRE LA PARTIE</a></div>`
+    : '';
   return `<div class="screen has-dock">${topBar('Nouvelle partie', '#/')}
     <div class="pad">
+      ${busy ? `<div style="margin-top:16px">${busy}</div>` : ''}
       <div class="sec">Ordre de passage <span class="n">${d.players.length}/${MAX_PLAYERS}</span></div>
       ${order}
       ${pool.length || !store.players.length ? `<div class="sec">${chosen.length ? 'Ajouter' : 'Joueurs'}</div>${poolHtml}` : ''}
@@ -70,8 +76,8 @@ export const actions = {
   launch() {
     const d = draft();
     if (!d.players.length) return;
-    ensureExtraPlayers(d.players);
-    startGame(d);
+    startGame(d); // une partie en cours non finie est d'abord rangée, abandonnée
+
     store.setupDraft = null;
     go('#/jeu');
   },

@@ -1,4 +1,4 @@
-# Interface — maquette des lots 1, 1.1, 1.2 et 1.3
+# Interface — lots 1 à 1.3 (maquette) et lot 2 (partie jouable et enregistrée)
 
 Page unique (`index.html`) + modules ES dans `src/ui/`, sans framework ni dépendance. Chaque écran est une
 fonction qui rend du HTML en chaîne ; les actions passent par des attributs `data-act` (délégation d'événements
@@ -12,15 +12,19 @@ après la 3e fléchette). Les clics clavier ou programmés (`detail === 0`) pass
 
 | Fichier | Rôle |
 |---|---|
-| `src/ui/app.js` | point d'entrée : routes, rendu, délégation des événements, rotation, démarrage, service worker |
+| `src/ui/app.js` | point d'entrée : routes, rendu, délégation des événements, rotation, démarrage (base du téléphone ou, avec `?maquette`, données fictives chargées à la demande), service worker |
 | `src/ui/nav.js` | `go()`, `refresh()`, retour, vibrations (`buzz`, qui dit ce qui s'est passé), écran allumé (`keepAwake`, Wake Lock) |
-| `src/ui/store.js` | état en mémoire : joueurs, parties, partie en cours, suppression d'un joueur, réglages (`strela.theme`, `strela.night`, `strela.vibrate`, `strela.anim`) |
+| `src/data/db.js` | **base du téléphone** (IndexedDB, lot 2), sans DOM : ouverture et migrations, `loadAll()`, `write(ops)` (une transaction), formes des enregistrements |
+| `src/ui/store.js` | état de l'appli en mémoire (l'écran s'en dessine) + écriture de chaque changement dans la base : joueurs, parties, partie en cours, suppression d'un joueur, réglages, stockage persistant |
+| `src/ui/maquette.js` | données fictives du sommaire (`resetMock`, joueurs d'appoint, photo d'exemple) ; chargé seulement avec `?maquette` |
+| `src/ui/crop.js` | recadrage carré d'une photo (pur, testé) : glisser, zoomer autour d'un point, rectangle gardé |
+| `src/ui/screens/photo.js` | photo d'avatar : contrôle du fichier (poids, type, lisibilité), image de travail, écran de recadrage, photo 256 × 256 |
 | `src/ui/turn.js` | validation de chaque volée (pur, testé) : `pendingVisit()`, `validatedAfterUndo()` |
 | `src/ui/roll.js` | chiffres en rouleau : `rollHtml()` au rendu, `animateRolls()` après ; `rollStrip()` pur, testé |
 | `src/ui/board.js` | dessin SVG de la cible aux couleurs réglementaires (marques rondes, carte des stats), `impactsFor()`, `markIcon()` ; géométrie et couleur des zones dans `src/engine/board.js` |
 | `src/ui/table.js` | historique en tableau (pur, testé) : `legTable()` = colonnes par joueur, lignes par tour ; `cellView()` / `cellHtml()` = contenu d'une case (fléchettes, total, reste) |
 | `src/ui/fit.js` | après chaque rendu : `data-fit` (compaction par paliers `fit1…n`), `data-shrink` (texte qui rapetisse pour tenir), `data-fit-same` (même palier pour tout un groupe) |
-| `src/ui/mock.js` | données fictives : 5 joueurs (+1 archivé), 15 parties **jouées par le vrai moteur** (lanceur simulé, tirage reproductible) |
+| `src/ui/mock.js` | données fictives (sommaire et tests seulement) : 5 joueurs (+1 archivé), 15 parties **jouées par le vrai moteur** (lanceur simulé, tirage reproductible) |
 | `src/ui/avatars.js` | banque de 24 pictogrammes SVG (grille 48, trait 3, `currentColor`), initiales, avatar neutre du joueur supprimé, `avatarHtml()` |
 | `src/ui/dom.js` | échappement, nombres et dates en français, pictogrammes d'interface, barre du haut |
 | `src/ui/build.js` | version / tests / date / commit lus dans `<div id="build">` (rempli par le build) |
@@ -29,14 +33,17 @@ après la 3e fléchette). Les clics clavier ou programmés (`detail === 0`) pass
 | `manifest.webmanifest`, `sw.js` | PWA : deux orientations, plein écran ; service worker « réseau d'abord (3 s), copie sinon » |
 | `tools/make-icons.mjs` | régénère les PNG d'icône depuis `assets/icon.svg` (poste avec Playwright ; PNG versionnés) |
 | `tools/check-layout.mjs`, `tools/lib/layout.mjs` | test de chevauchement (aussi `tests/chevauchement.test.js`) |
+| `tools/lib/app.mjs` | pilotage de la vraie appli pour les tests de parcours : saisie au pavé, lecture de la base, instantané de l'écran, création de joueurs |
 | `tools/captures.mjs`, `tools/geste.mjs` | captures d'écran ; saisie au doigt en paysage (aussi `tests/geste.test.js`) |
 
 ## Adresses
 
 `#/` accueil · `#/joueurs` · `#/joueur/<id|nouveau>` fiche · `#/avatars` banque · `#/nouvelle` · `#/jeu` ·
 `#/manche` fin de manche · `#/fin` fin de partie · `#/historique` · `#/partie/<id>` détail · `#/stats/<id>` ·
-`#/reglages` · `#/sommaire`. `?maquette` dans l'adresse ouvre le sommaire et ajoute, en haut à droite de chaque
-écran, la bascule de thème et le retour au sommaire (dans le menu pause pendant une partie).
+`#/reglages` · `#/recadrage` (photo d'avatar) · `#/sommaire` (maquette seulement). `?maquette` dans l'adresse ouvre le
+sommaire et ajoute, en haut à droite de chaque écran, la bascule de thème et le retour au sommaire (dans le menu pause
+pendant une partie). Sans `?maquette` : la vraie appli, sur la base du téléphone ; l'appli installée s'ouvre sur
+l'accueil.
 
 ## Écran de jeu (choix)
 
@@ -78,10 +85,11 @@ rotation, l'état (`store.current`) ne bouge pas.
   validation. La volée close attend si `lastEvent` vaut `visit_end` ou `bust` et `validated ≠ dartCount`. ANNULER
   ramène `validated` à `min(validated, longueur)`, pour qu'une fléchette rejouée remette la volée en attente.
   En portrait, VALIDER couvre la moitié haute du pavé ; le reste du pavé est éteint et hachuré, ANNULER reste actif.
-  En paysage, VALIDER est le 3e bouton du bas et la cible s'estompe. **VALIDER** (lot 1.3) : aplat de la couleur du
-  joueur qui vient de lancer (`.validate.go`, `--pc`, encre `--av-ink`), « VALIDER » (30 px) puis « suivant : PSEUDO »
-  (17 px), sans la couleur du suivant ; le pseudo garde au moins 5 caractères, sinon « suivant : » s'efface (palier
-  `fit1`) ; en solo, « VALIDER » seul. Contraste et couleurs : `tests/couleurs.test.js`.
+  En paysage, VALIDER est le 3e bouton du bas et la cible s'estompe. **VALIDER** (lot 2) : aplat de la couleur du
+  joueur qui vient de lancer (`.validate.go`, `--pc`, encre `--av-ink`), « VALIDER » seul sur une ligne, en grand
+  (54 px en portrait, 28 px en paysage, rapetissé par `data-shrink` si la place manque) ; le joueur suivant n'est plus
+  écrit dessus (il apparaissait deux fois) : il est repéré par « SUIVANT » dans la bande des autres. En portrait, la
+  ligne sous les cases dit aussi « SUIVANT PSEUDO » (inchangée, lot 1.3). Contraste et couleurs : `tests/couleurs.test.js`.
 - **Annonce** « À TOI, PSEUDO » : aplat de la couleur du joueur sur le haut de l'écran (bandeau + reste), avatar
   72 px au-dessus du pseudo (jusqu'à 92 px, ajusté au mot le plus long, 2 lignes au plus), 800 ms
   (`ANNOUNCE_MS`), puis le bandeau glisse depuis la gauche (280 ms). Aussi au début d'une manche (MANCHE SUIVANTE).
@@ -130,6 +138,10 @@ rotation, l'état (`store.current`) ne bouge pas.
 
 ## Réglages : vibrations et diagnostic (lot 1.2)
 
+- **Lot 2 : sur le Pixel 10 Pro de Guillaume, rien ne vibre**, même avec TESTER LA VIBRATION (appli installée, retour
+  haptique activé). On ne cherche pas plus loin côté web : appels et bouton de test gardés ; **le lot 5 passera par le
+  vibreur natif d'Android via la coquille APK** (`Vibrator` / `VibrationEffect`, appelé par la page à travers une
+  interface Java de la WebView ; `buzz()` de `nav.js` est le seul point d'appel à rebrancher).
 - **TESTER LA VIBRATION** (dans le clic, donc avec un geste de l'utilisateur, même si le réglage est sur NON) : dit
   ce qui s'est passé. FONCTION ABSENTE (pas de `navigator.vibrate`), REFUSÉE (`vibrate` a répondu `false` : page pas
   encore touchée, onglet caché), ENVOYÉE (demande transmise : si rien ne vibre, c'est le téléphone).
@@ -188,18 +200,81 @@ agrandie (VOLÉE, MANCHE), cible seule, manches gagnées (premier à 3), histori
 2 joueurs (ratés, bust ouvert, finition), à 8 joueurs (en cours ; terminé, finition ouverte), finition proposée, fin de manche, fin de partie, 8 joueurs, pseudo très long,
 joueur seul, pause, confirmation d'abandon, suppression d'un joueur (confirmation, refus pendant une partie, partie
 avec un joueur supprimé), paysage (saisie sur la cible, loupe figée sur T20, volée en attente), aucun joueur,
-historique vide, données rétablies. Les états paysage s'affichent en paysage : tourner le téléphone.
+historique vide, données rétablies. Lot 2 : accueil au premier lancement, REPRENDRE une fin de manche ou une fin de
+partie, nouvelle partie avec une partie en cours, fiche avec avatar photo, photo refusée, recadrage (×1 et ×2,5),
+avatars photo en jeu. Les états paysage s'affichent en paysage : tourner le téléphone.
 
-## Pour le lot 2
+## Enregistrement sur le téléphone (lot 2)
 
-- Remplacer `store.js` (mémoire) par IndexedDB **avec la même forme** : joueur `{ id, name, avatar, archived }`,
-  partie `{ id, startedAt, config, darts[], abandoned }`, fléchette `{ segment, multiplier, pos? }` ;
-  partie en cours `{ id, startedAt, config, darts[], validated }` enregistrée à chaque fléchette **et à chaque
-  VALIDER** (sinon une volée validée redeviendrait en attente après une fermeture). `ui` n'est pas enregistré.
-- Suppression d'un joueur : enregistrer tel quel le résultat de `deletePlayer()` (fiche retirée, parties
-  anonymisées `~<rang>`, parties seul retirées), dans une seule transaction.
-- `mock.js` ne doit plus être chargé en production (le garder pour le sommaire / les tests).
-- Photo d'avatar : boutons présents (`data-act="photo"`), sélection et recadrage carré à faire.
-- Les statistiques (`src/engine/stats.js`) et la table de finitions (`src/engine/checkout.js`) sont déjà prêtes.
-- Tout nouvel écran ou état doit figurer au sommaire (`SCENES` ou `ROUTES` de `tools/lib/layout.mjs`) pour passer
-  dans le test de chevauchement ; un texte qui peut s'allonger prend `.ell`, `data-shrink` ou un palier `data-fit`.
+- **Base** `strela` (IndexedDB), module `src/data/db.js` sans DOM. Versionnée : `MIGRATIONS[i]` passe de la version i
+  à i + 1 ; à l'ouverture, les migrations manquantes sont jouées dans l'ordre, dans la transaction de mise à niveau
+  (tout ou rien). Ajouter une version = ajouter une fonction en fin de liste, sans toucher aux précédentes ni effacer
+  de données. Version actuelle : **1** (magasins `players`, `games`, `settings`). Une base plus récente que l'appli
+  (retour à une vieille version) n'est pas touchée : l'appli le dit (diagnostic, pied de l'accueil « NON ENREGISTRÉ »).
+- **Forme** (celle de la maquette) : joueur `{ id, name, avatar: { kind, icon?, color, photo? }, archived }` ;
+  partie `{ id, startedAt, endedAt, config, darts[], validated, abandoned }`, fléchette `{ segment, multiplier, pos? }` ;
+  **la partie en cours est celle dont `endedAt` vaut `null`** ; réglages : `display` `{ theme, night, vibrate, anim }`,
+  `lastSetup` (derniers réglages de partie), `storage` (réponse à la demande de stockage persistant). `ui` (état
+  d'affichage : D/T armé, panneaux, vue de la cible) n'est jamais enregistré.
+- **Écritures** : `store.js` garde tout en mémoire (l'écran se dessine sans attendre) et écrit chaque changement par
+  `write(ops)` : une transaction par changement, durabilité `strict`, exécutées dans l'ordre. Partie en cours écrite
+  entière à chaque fléchette, ANNULER, VALIDER et MANCHE SUIVANTE (`validated` = nombre de fléchettes validées ; il
+  sert aussi à la fin de manche : tant qu'elle n'est pas passée, une reprise y revient). Une fermeture brutale ne
+  perd au plus que l'écriture en cours. Suppression d'un joueur : fiche, parties anonymisées, parties seul effacées et
+  derniers réglages dans **une seule transaction** (`deletionOps()`).
+- **Démarrage** : `openStorage()` relit tout avant le premier affichage. Partie illisible (ne doit pas arriver) :
+  gardée dans la base, pas affichée, comptée dans le diagnostic. Réglages : la base fait foi ; thème et mode nuit sont
+  recopiés dans `localStorage` (lus par `index.html` avant l'affichage, pas d'éclair de couleur) ; au premier lancement,
+  les réglages de la maquette (localStorage) passent dans la base.
+- **Stockage persistant** : `navigator.storage.persist()` demandé au lancement tant qu'il n'est pas accordé (Chrome
+  répond sans rien demander à l'utilisateur ; une appli installée l'obtient en général). Résultat dans la ligne de
+  diagnostic des Réglages (« stockage persistant » / « non persistant ») avec la version de la base et son contenu.
+- **Mise à jour de l'appli** : le service worker ne touche qu'à ses copies de fichiers (caches `strela-…`), jamais à la
+  base. Si une version plus récente ouvre la base pendant qu'une ancienne page est ouverte, l'ancienne ferme sa
+  connexion (pas de blocage) et se recharge. Testé de bout en bout : `tests/miseajour.test.js`.
+- **Sommaire de maquette** (`?maquette`) : n'ouvre jamais la base ; données fictives en mémoire ; ne réécrit pas les
+  réglages. `mock.js`, `maquette.js` et `sommaire.js` sont chargés à la demande (import dynamique), jamais par la vraie
+  appli (vérifié par `tests/maquette.test.js`). Lien depuis les Réglages ; « Quitter la maquette » en bas du sommaire.
+
+## Partie de bout en bout (lot 2)
+
+- **Premier lancement** (aucun joueur) : l'accueil montre « BIENVENUE » et CRÉER LES JOUEURS en tête.
+- **Accueil** : partie en cours → **REPRENDRE** en tête (aplat), NOUVELLE PARTIE en dessous. REPRENDRE va où l'on
+  s'était arrêté (`resumeRoute()`) : jeu (joueur, fléchettes de la volée, volée en attente, bust en attente), fin de
+  manche pas encore validée, ou fin de partie pas encore rangée (« PARTIE TERMINÉE · X GAGNE »).
+- **Nouvelle partie** : derniers réglages repris (enregistrés). Si une partie est en cours, un encadré le dit : LANCER
+  l'abandonne (elle reste dans l'historique, « abandonnée »), avec un lien pour la reprendre.
+- **Abandon** (menu pause) : partie rangée `abandoned: true`, fléchettes comptées dans les moyennes, aucune victoire.
+  Partie sans aucune fléchette : oubliée. REVANCHE et ACCUEIL (fin de partie) rangent la partie terminée.
+- **Écran allumé** pendant le jeu et la fin de manche (Wake Lock), repris au retour dans l'appli (`visibilitychange`),
+  relâché en quittant (vérifié avec un verrou simulé : `tests/parcours.test.js`).
+- **Joueurs** : création, modification, archivage, **RÉACTIVER directement dans la liste** (et sur la fiche),
+  suppression (refusée pendant la partie du joueur).
+- **Photo d'avatar** : boutons PHOTO (`capture="user"` : appareil photo) et GALERIE (`accept="image/*"` : sélecteur
+  d'images d'Android). Fichier refusé avec un message clair : plus de 20 Mo (« Photo trop lourde : 23,4 Mo, 20 Mo au
+  plus »), pas une image, image illisible. Sinon : décodée (orientation EXIF comprise), réduite à 1600 px de côté pour
+  le travail, puis **écran de recadrage** : cadre carré = l'avatar exact ; glisser pour cadrer, pincer pour zoomer
+  (×1 à ×6, autour du point pincé), − / + et molette aussi ; ANNULER / VALIDER. VALIDER garde un JPEG 256 × 256
+  (~15–30 ko, `data:` URL dans `avatar.photo`). À l'affichage, la photo passe par une adresse `blob:` créée une fois
+  (pas de recopie de l'image dans le HTML de chaque écran). En jeu, la photo d'un autre joueur est en gris
+  (`.av.mono img`, `grayscale(1)`), comme les pictogrammes.
+- **Historique et stats** lisent les vraies parties avec les écrans existants (vérification fine des chiffres au lot 3).
+
+## Tests du lot 2
+
+| Fichier | Ce qui est vérifié |
+|---|---|
+| `tests/db.test.js` | formes des enregistrements, séparation partie en cours / closes, opérations de suppression, ordre des migrations ; calculs du recadrage |
+| `tests/stockage.test.js` | dans Chromium : écriture et relecture, migrations (données gardées, transformation, base plus récente refusée), suppression tout ou rien (une opération invalide annule tout), partie en cours après rechargement, nouvelle version ouverte ailleurs |
+| `tests/parcours.test.js` | vraie appli : premiers joueurs ; rechargement **en milieu de volée, volée en attente, juste après un bust, après ANNULER, fin de manche** (écran et base identiques) ; REPRENDRE depuis l'accueil ; abandon ; 501 à 2 joueurs jusqu'au bout puis retrouvée case par case dans l'historique ; REVANCHE ; archivage, réactivation, suppression ; écran allumé |
+| `tests/photo.test.js` | image test chargée par le sélecteur, pincer, zoom, glisser, VALIDER : JPEG 256 × 256 du bon carré, en couleur hors jeu, en gris en jeu ; trop lourde, pas une image, abîmée |
+| `tests/miseajour.test.js` | version A installée (service worker, `localhost`) avec une partie en cours, puis version B avec une base en version 2 : rien de perdu, l'ancienne page se recharge, le nouveau service worker n'efface que l'ancien cache |
+
+## Pour le lot 3
+
+- Les écrans Historique et Stats lisent `store.games` (parties closes) ; la partie en cours est à part (`store.current`).
+  Une partie abandonnée a `abandoned: true` et un `endedAt`.
+- Pour un index (par date, par joueur) : ajouter une migration (version 2) à `MIGRATIONS` de `src/data/db.js`.
+- Export / import (lot 4) : la forme des enregistrements est stable ; les photos sont des `data:` URL (JSON direct).
+- Tout nouvel écran ou état : l'ajouter au sommaire (`SCENES`) pour le test de chevauchement ; tout état de jeu : aussi à
+  `SCENES` de `tests/couleurs.test.js` ; un texte qui peut s'allonger prend `.ell`, `data-shrink` ou un palier `data-fit`.

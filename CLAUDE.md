@@ -36,6 +36,7 @@ assets/theme.css          thème (jetons CSS sombre / clair, fonds d'avatar --av
 assets/app.css            styles des écrans (jetons uniquement)
 assets/fonts/             Martian Mono woff2 (latin, latin-ext, cyrillique) + OFL.txt
 assets/icon.svg           icône (+ icon-192/512/maskable-512.png générés par tools/make-icons.mjs)
+src/data/db.js            base du téléphone (IndexedDB) : migrations, relecture, écritures en une transaction ; sans DOM
 src/engine/               moteur de règles, JS pur sans dépendance ni DOM (docs/moteur-x01.md)
   darts.js                la fléchette (commune à tous les jeux)
   x01.js                  règles X01 : état recalculé depuis config + liste des fléchettes
@@ -44,15 +45,19 @@ src/engine/               moteur de règles, JS pur sans dépendance ni DOM (doc
   board.js                géométrie de la cible (position → segment, centre d'un segment, couleur de chaque zone)
   players.js              suppression d'un joueur (anonymisation « ~rang » de ses parties)
   index.js                point d'entrée, registre GAMES
-src/ui/                   interface (docs/interface.md) : app.js, nav.js, store.js, mock.js, avatars.js, screens/,
+src/ui/                   interface (docs/interface.md) : app.js, nav.js, store.js (état + écritures dans la base),
+                          avatars.js, screens/ (dont photo.js : recadrage), crop.js (calculs du recadrage),
                           board.js (dessin de la cible), roll.js (chiffres en rouleau), turn.js (validation des volées),
-                          table.js (historique en tableau), fit.js (compaction des blocs trop chargés)
+                          table.js (historique en tableau), fit.js (compaction des blocs trop chargés),
+                          mock.js + maquette.js (données fictives : sommaire ?maquette et tests seulement)
 src/ui/theme.js           palette (source de vérité des couleurs), contraste
 tests/                    tests node:test (*.test.js) ; helpers.js = aides (notation ds('T20 D16'))
-                          chevauchement.test.js, couleurs.test.js et geste.test.js : Playwright (sautés s'il est absent)
+                          Playwright (sautés s'il est absent) : chevauchement, couleurs, geste, stockage (base),
+                          parcours (vraie appli, rechargements), photo, miseajour (service worker + base v2)
 tools/build-site.mjs      construit _site/ : lance les tests, remplit la page, copie assets/ et src/
 tools/check-layout.mjs    test de chevauchement en ligne de commande ; tools/captures.mjs : captures ; tools/geste.mjs :
-                          saisie au doigt en paysage ; tools/lib/ : serveur, contrôle de mise en page, geste
+                          saisie au doigt en paysage ; tools/lib/ : serveur, contrôle de mise en page, geste,
+                          app.mjs (pilotage de la vraie appli : saisie, lecture de la base, instantané de l'écran)
 .github/workflows/ci.yml     tests sur chaque demande de fusion et sur main
 .github/workflows/pages.yml  build + déploiement GitHub Pages à chaque push sur main
 docs/                     cahier des charges, DA, moteur, interface
@@ -94,43 +99,37 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 1 | Maquette de tous les écrans, sombre et clair (validation du design) — **fait** |
 | 1.1 | Corrections de la maquette après essai sur le Pixel (suppression, VALIDER, rouleaux, cible, paysage) — **fait** |
 | 1.2 | Corrections : rotation de l'appli installée, vibrations, mini-cible, historique en tableau, vraie cible, superpositions — **fait** |
-| 1.3 | Corrections : 3 fléchettes par case d'historique, une seule couleur de joueur en jeu, VALIDER à la couleur du lanceur — **fait, en attente de validation** |
-| 2 | Partie jouable + joueurs et avatars |
+| 1.3 | Corrections : 3 fléchettes par case d'historique, une seule couleur de joueur en jeu, VALIDER à la couleur du lanceur — **fait, design validé** |
+| 2 | Partie jouable et enregistrée (IndexedDB, reprise), vrais joueurs et photo d'avatar, VALIDER sans le suivant — **fait, en attente de validation** |
 | 3 | Historique et stats |
 | 4 | Finitions : propositions de finition, mode nuit, vibrations, export / import (validation des fonctions) |
 | 5 | APK (coquille Java WebView `fr.orbitalvkl.strela`, minSdk 30, release signée, mise à jour dans l'appli) |
 | 6 | Recette |
 
-## État (fin du lot 1.3)
+## État (fin du lot 2)
 
-- Maquette corrigée publiée (version 0.1.3), sommaire : `https://orbitalvkl.github.io/STRELA/?maquette`.
-  Détail : docs/interface.md ; décisions : docs/cahier-des-charges.md (§ 4) et docs/direction-artistique.md.
-- Lot 1.3 :
-  - **Historique** : chaque case montre les fléchettes du tour (« T20 · 5 · 1 », « 0 » = raté), puis le total en gros,
-    puis le reste en petit ; bust (fautive barrée) et finition comme avant. Contenu pur et testé : `cellView()` /
-    `cellHtml()` de `src/ui/table.js`. Fléchettes jamais coupées : paliers `fit1…3` de `.ds` (séparateurs resserrés,
-    deux lignes, plus petit), même palier pour tout un tableau (`data-fit-same`, nouveau dans `fit.js`).
-  - **Une seule couleur de joueur en jeu** : celle du joueur en cours. Bande des autres neutre (avatars `mono`, sans
-    fond) ; le suivant, en tête de bande : filet de 3 px en haut + « SUIVANT » (flèche si le pseudo serait coupé).
-    `tests/couleurs.test.js` scanne les écrans de jeu (portrait / paysage, sombre / clair) : aucune couleur d'avatar
-    hors de celle du joueur en cours.
-  - **VALIDER** : aplat de la couleur du lanceur, encre `--av-ink` (≥ 4,5:1 sur les 8 fonds, testé dans le navigateur
-    sur les 8 couleurs via `__strela.scene('volee-8', k)`), « VALIDER » puis « suivant : PSEUDO » ; solo : VALIDER seul.
-  - `fit.js` : ordre paliers → rapetissement → paliers (une étiquette abrégée libère la place avant qu'un voisin
-    rapetisse).
-  - Nouvelles scènes : `volee-4`, `volee-8`, `solo-attente` ; `histo-deux` a des ratés.
-  - Points tranchés par l'architecte : grille du test de chevauchement à 360 px minimum (sauf si la ligne de diagnostic
-    de Guillaume montre plus étroit) ; pseudos coupés en « … » dans le tableau à 8 joueurs acceptés.
-- Lot 1.2 (rappel) : test de chevauchement (`tests/chevauchement.test.js`, grille complète en CI), `buzz()` qui dit ce
-  qui s'est passé + TESTER LA VIBRATION, diagnostic en bas des Réglages, manifeste `orientation: any` (réinstaller
-  l'appli installée avant 1.1), cible réglementaire, historique en tableau, palette d'avatar (CIEDE2000 ≥ 20).
-- Toujours en mémoire : rien n'est enregistré sauf les réglages d'affichage (`strela.theme`, `strela.night`,
-  `strela.vibrate`, `strela.anim`) ; données fictives recréées à chaque chargement.
-- Tests : 99 (dont cible, tableau, cases, palette, couleurs, chevauchement, geste). Captures et geste : `tools/`.
-- Toujours en attente de Guillaume : la ligne de diagnostic des Réglages et le résultat de TESTER LA VIBRATION.
-- À faire au lot 2 (une fois le design validé) : IndexedDB avec la même forme de données que `store.js`
-  (y compris `pos` des fléchettes et `validated`), enregistrement à chaque fléchette et à chaque VALIDER,
-  suppression d'un joueur en une transaction, photo d'avatar (en jeu, la bande des autres la montre en gris),
-  retrait des données fictives hors sommaire.
+- Version 0.2.0 : **la vraie appli enregistre tout sur le téléphone** (IndexedDB) ; le sommaire
+  `https://orbitalvkl.github.io/STRELA/?maquette` garde les données fictives, en mémoire, sans toucher à la base.
+  Détail : docs/interface.md (« Enregistrement sur le téléphone », « Partie de bout en bout », « Tests du lot 2 »).
+- Lot 2 :
+  - **Base** `src/data/db.js` : version 1, magasins `players`, `games` (partie en cours = `endedAt: null`), `settings`
+    (`display`, `lastSetup`, `storage`). Migrations : ajouter une fonction à `MIGRATIONS`, jamais modifier les
+    anciennes. Écriture à chaque fléchette / ANNULER / VALIDER / MANCHE SUIVANTE, une transaction par changement
+    (`strict`) ; suppression d'un joueur en une transaction. Stockage persistant demandé ; résultat dans le diagnostic.
+  - **Reprise** : REPRENDRE en tête de l'accueil, à l'état exact (volée en attente, bust, fin de manche non validée
+    grâce à `validated`, fin de partie non rangée). Rechargements testés en 5 moments de jeu.
+  - **Joueurs** : premier lancement guidé, RÉACTIVER dans la liste, photo (PHOTO / GALERIE, recadrage carré, JPEG
+    256 × 256, en gris en jeu chez les autres), messages clairs (trop lourde > 20 Mo, pas une image, illisible).
+  - **VALIDER** : « VALIDER » seul, une ligne, en grand ; le suivant reste dans la bande des autres.
+  - Nouvelle partie pendant une partie en cours : encadré d'avertissement, LANCER abandonne l'ancienne.
+  - **Vibrations** : rien ne vibre sur le Pixel 10 Pro même au test ; pas d'autre piste web, **lot 5 = vibreur natif**
+    (noté dans docs/interface.md et le cahier des charges).
+- Tests : 120 (dont stockage, parcours, photo, mise à jour du service worker, et les anciens chevauchement / couleurs).
+- Laissé ouvert : en portrait, une volée en attente affiche encore « SUIVANT PSEUDO » sous les cases (lot 1.3) en plus
+  du repère de la bande ; le correctif 0 ne visait que VALIDER.
+- Toujours en attente de Guillaume : la ligne de diagnostic des Réglages (elle donne maintenant aussi la base et le
+  stockage persistant).
+- À faire au lot 3 : vérification fine des chiffres de l'historique et des stats sur les vraies parties (les écrans
+  lisent déjà `store.games`). Un index de base éventuel = migration version 2.
   Tout nouvel écran ou état : l'ajouter au sommaire (`SCENES`) pour qu'il passe dans le test de chevauchement ; tout
   état de jeu : l'ajouter aussi à `SCENES` de `tests/couleurs.test.js`.

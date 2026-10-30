@@ -2,7 +2,8 @@
 // traits droits, angles vifs, monochromes), 8 fonds sourds, initiales par défaut.
 // Grille 48 × 48, trait de 3 (lisible de 40 px à 96 px). Tout est en `currentColor`.
 //
-// Un avatar = { kind: 'icon' | 'initials' | 'photo', icon?: clé de ICONS, color: 0..7, photo?: URL }
+// Un avatar = { kind: 'icon' | 'initials' | 'photo', icon?: clé de ICONS, color: 0..7, photo?: URL (data: JPEG
+// 256 × 256, lot 2) }
 // (et { kind: 'deleted' } pour un joueur supprimé, affiché neutre).
 
 // Fonds : jetons --av-0 … --av-7 de assets/theme.css (mêmes valeurs que AVATAR_COLORS de theme.js).
@@ -58,6 +59,25 @@ export function iconSvg(key) {
   return `<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true">${icon[1]}</svg>`;
 }
 
+// Photo enregistrée en data: URL (~20 ko) : affichée par une adresse blob: créée une fois, pour ne pas recopier
+// l'image entière dans le HTML de chaque écran (historique : un avatar par joueur et par partie).
+const blobs = new Map();
+function photoSrc(url) {
+  const m = /^data:([^;,]+);base64,/.exec(url);
+  if (!m || typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function' || typeof atob !== 'function') return url;
+  let u = blobs.get(url);
+  if (!u) {
+    try {
+      const bin = atob(url.slice(m[0].length));
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      u = URL.createObjectURL(new Blob([bytes], { type: m[1] }));
+    } catch (e) { u = url; }
+    blobs.set(url, u);
+  }
+  return u;
+}
+
 /**
  * Avatar d'un joueur : carré, fond sourd, pictogramme ou initiales.
  * `size` en px (le CSS .av gère le reste), `extra` = classes supplémentaires (« mono » : sans couleur).
@@ -70,7 +90,8 @@ export function avatarHtml(player, size = 40, extra = '') {
   // « mono » : avatar sans sa couleur (bande des autres joueurs en jeu, où seule la couleur du joueur en cours se voit).
   const style = /\bmono\b/.test(extra) ? `--s:${size}px` : `--s:${size}px;background:var(--av-${color})`;
   let inner;
-  if (av.kind === 'photo' && av.photo) inner = `<img src="${esc(av.photo)}" alt="">`;
+  // « mono » : la photo passe en gris (CSS), comme les pictogrammes de la bande des autres joueurs en jeu.
+  if (av.kind === 'photo' && av.photo) inner = `<img src="${esc(photoSrc(av.photo))}" alt="">`;
   else if (av.kind === 'icon' && ICONS[av.icon]) inner = iconSvg(av.icon);
   else inner = `<b>${esc(initials(player && player.name))}</b>`;
   return `<span class="av ${extra}" style="${style}" aria-hidden="true">${inner}</span>`;

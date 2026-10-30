@@ -1,5 +1,5 @@
-// Strela — données fictives de la maquette (lot 1) : joueurs, parties simulées avec le vrai moteur.
-// Rien n'est enregistré : tout est recréé à chaque chargement (persistance au lot 2).
+// Strela — données fictives (sommaire ?maquette et tests seulement) : joueurs, parties simulées avec le vrai moteur.
+// Rien n'est enregistré : tout est recréé à chaque chargement (la vraie appli lit la base du téléphone).
 // Les parties sont jouées par un lanceur simulé (adresse propre à chaque joueur) et un tirage reproductible :
 // historique, détail fléchette par fléchette et statistiques sont donc cohérents entre eux.
 

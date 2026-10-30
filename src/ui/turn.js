@@ -1,7 +1,7 @@
 // Strela — tour de jeu côté interface (JS pur, testé) : validation de chaque volée.
 // Après la 3e fléchette ou un bust, la volée reste affichée jusqu'à VALIDER. Le moteur ne change pas : la partie
 // en cours garde seulement `validated` = nombre de fléchettes au moment de la dernière validation. Ce champ est
-// enregistré avec la partie (lot 2) : une volée en attente le reste après une fermeture de l'appli.
+// enregistré avec la partie (lot 2, src/data/db.js) : une volée en attente le reste après une fermeture de l'appli.
 // Une finition ne passe pas par là : l'écran de fin de manche sert de validation.
 import { EVENTS } from '../engine/x01.js';
 

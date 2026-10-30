@@ -1,28 +1,48 @@
-// Accueil : NOUVELLE PARTIE, REPRENDRE (si une partie est en cours), Joueurs, Historique, Stats, Réglages.
-import { store, activePlayers, currentState, playerById } from '../store.js';
+// Accueil : REPRENDRE en tête si une partie est en cours (jeu, fin de manche ou fin de partie pas encore rangée),
+// NOUVELLE PARTIE, Joueurs, Historique, Stats, Réglages. Premier lancement (aucun joueur) : invitation à créer les
+// joueurs.
+import { store, activePlayers, currentState, playerById, resumeRoute } from '../store.js';
 import { esc, ico, plural, OUT_SHORT, maquetteButtons } from '../dom.js';
 import { BUILD } from '../build.js';
 
-export function home() {
+function resumeButton() {
   const s = currentState();
-  let resume = '';
-  if (s && s.status === 'playing') {
-    const p = playerById(store.current.config.players[s.currentPlayer]);
-    resume = `<a class="btn resume" href="#/jeu">
-      <span class="t">REPRENDRE</span>
-      <small>${store.current.config.startScore} · ${OUT_SHORT[store.current.config.outMode]} · MANCHE ${s.legNumber}<br>À <span class="nm">${esc(p.name)}</span> · RESTE ${s.remaining[s.currentPlayer]}</small>
-      <span class="go">${ico('chev')}</span></a>`;
+  if (!s) return '';
+  const g = store.current;
+  const head = `${g.config.startScore} · ${OUT_SHORT[g.config.outMode]}`;
+  let line;
+  if (s.status === 'finished') {
+    line = `PARTIE TERMINÉE · <span class="nm">${esc(playerById(g.config.players[s.winner]).name)}</span> GAGNE`;
+  } else {
+    const p = playerById(g.config.players[s.currentPlayer]);
+    line = `MANCHE ${s.legNumber}<br>À <span class="nm">${esc(p.name)}</span> · RESTE ${s.remaining[s.currentPlayer]}`;
   }
+  return `<a class="btn primary resume" href="${resumeRoute()}">
+      <span class="t">REPRENDRE</span>
+      <small>${head} · ${line}</small>
+      <span class="go">${ico('chev')}</span></a>`;
+}
+
+export function home() {
+  const resume = resumeButton();
   const n = activePlayers().length;
   const g = store.games.length;
+  // Premier lancement : aucun joueur. L'accueil invite à les créer (une fois pour toutes).
+  const welcome = !store.players.length && !resume
+    ? `<section class="welcome" aria-label="Premier lancement"><b>BIENVENUE</b>
+        <p>Crée d'abord les joueurs : un pseudo et un avatar (initiales, icône ou photo). Ils restent sur ce téléphone, d'une partie à l'autre.</p>
+        <a class="btn primary big" href="#/joueur/nouveau">${ico('plus')} CRÉER LES JOUEURS</a></section>`
+    : '';
+  const newGame = `<a class="btn${resume || welcome ? '' : ' primary'} big" href="#/nouvelle">NOUVELLE PARTIE</a>`;
+  const saved = store.maquette ? 'Maquette · données fictives'
+    : store.db.error ? '<span class="red">Non enregistré</span>' : 'Enregistré sur ce téléphone';
   return `<div class="screen">
     <header>
       <div class="home-head inv"><h1 class="home-title" data-shrink>СТРЕЛА</h1><span class="home-ver">v${esc(BUILD.version)}</span></div>
       <p class="home-sub">Strela · compteur de fléchettes X01</p>
     </header>
     <main class="home-main">
-      <a class="btn primary big" href="#/nouvelle">NOUVELLE PARTIE</a>
-      ${resume}
+      ${welcome}${resume}${newGame}
       <nav class="tiles" aria-label="Menu">
         <a class="tile" href="#/joueurs">${ico('players')}<div><b data-shrink>Joueurs</b><br><span data-shrink="2">${n ? plural(n, 'joueur', 'joueurs') : 'aucun joueur'}</span></div></a>
         <a class="tile" href="#/historique">${ico('history')}<div><b data-shrink>Historique</b><br><span data-shrink="2">${g ? plural(g, 'partie', 'parties') : 'aucune partie'}</span></div></a>
@@ -30,7 +50,7 @@ export function home() {
         <a class="tile" href="#/reglages">${ico('settings')}<div><b data-shrink>Réglages</b><br><span data-shrink="2">thème · nuit</span></div></a>
       </nav>
     </main>
-    <footer class="home-foot"><span>Maquette · rien n'est enregistré</span><span>Orbital VKL</span></footer>
+    <footer class="home-foot"><span>${saved}</span><span>Orbital VKL</span></footer>
     ${store.maquette ? `<div class="mq-row">${maquetteButtons('mq')}</div>` : ''}
   </div>`;
 }

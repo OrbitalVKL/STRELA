@@ -1,4 +1,5 @@
-// Jeu : branché sur le vrai moteur X01, en mémoire. Deux mises en page, même état (la rotation ne perd rien) :
+// Jeu : branché sur le vrai moteur X01 ; la partie est enregistrée à chaque fléchette, ANNULER et VALIDER (store.js).
+// Deux mises en page, même état (la rotation ne perd rien) :
 // - portrait : bandeau du joueur actif (aplat de la couleur de son avatar, seule couleur de joueur à l'écran), reste
 //   en très grand, 3 cases + total et finition à côté d'une petite cible (impacts), autres joueurs (neutres, le
 //   suivant repéré), pavé S / D / T, 1 à 20,
@@ -8,7 +9,7 @@
 //   hors de la cible ne compte rien).
 // Après la 3e fléchette ou un bust, la volée reste affichée jusqu'à VALIDER (turn.js) ; ANNULER reste possible.
 // À la validation, « À TOI, PSEUDO » occupe le haut de l'écran ~0,8 s, puis le bandeau du joueur glisse en place.
-import { store, currentState, playerById, archiveCurrent, animationsOn } from '../store.js';
+import { store, currentState, playerById, archiveCurrent, animationsOn, saveCurrent, legEndPending } from '../store.js';
 import { esc, ico, avg, OUT_SHORT, maquetteButtons } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
 import { throwDart, undoDart } from '../../engine/x01.js';
@@ -145,16 +146,13 @@ function others(v) {
   }).join('')}</section>`;
 }
 
-// VALIDER (lot 1.3) : aplat de la couleur du joueur qui vient de lancer (le joueur en cours, encore au bandeau), encre
-// --av-ink (contraste vérifié sur les 8 couleurs) ; « VALIDER » en gros, « suivant : PSEUDO » en dessous, sans la
-// couleur du suivant (il ne la prend qu'à l'annonce). En solo, « VALIDER » seul. Place trop juste (paysage bas, grande
-// police) : « suivant : » s'efface, le pseudo reste (palier fit1).
+// VALIDER (lot 2) : aplat de la couleur du joueur qui vient de lancer (le joueur en cours, encore au bandeau), encre
+// --av-ink (contraste vérifié sur les 8 couleurs) ; « VALIDER » seul, sur une ligne, aussi grand que la place le
+// permet. Le joueur suivant n'est indiqué qu'une fois : dans la bande des autres (« SUIVANT »).
 function validateButton(v, cls = '') {
   const over = cls.includes('over');
   if (!v.pend) return `<button type="button" class="validate ${cls}" data-act="validate"${over ? ' data-layer' : ' data-shrink'} disabled>VALIDER<small>après 3 fléchettes</small></button>`;
-  const name = playerById(v.cfg.players[v.next]).name;
-  const next = v.n > 1 ? `<span class="vnext" data-fit="1"><span class="lg">suivant&nbsp;: </span><span class="nm" style="--nl:${[...name].length}">${esc(name)}</span></span>` : '';
-  return `<button type="button" class="validate go ${cls}" data-act="validate"${over ? ' data-layer' : ' data-shrink'} style="--pc:${colorOf(v.player)}"><span class="vl">VALIDER</span>${next}</button>`;
+  return `<button type="button" class="validate go ${cls}" data-act="validate"${over ? ' data-layer' : ''} style="--pc:${colorOf(v.player)}"><span class="vl" data-shrink>VALIDER</span></button>`;
 }
 
 function announce(v) {
@@ -178,6 +176,7 @@ export function game() {
   if (!g) { go('#/', { replace: true }); return ''; }
   const s = currentState();
   if (s.status === 'finished') { go('#/fin', { replace: true }); return ''; }
+  if (legEndPending()) { go('#/manche', { replace: true }); return ''; } // reprise : fin de manche pas encore validée
   const v = view();
   const slide = v.ui.slide;
   v.ui.slide = false; // le glissement ne se joue qu'une fois
@@ -416,6 +415,7 @@ function play(dart, key, pos = null) {
   // Position réelle du doigt (paysage), gardée avec la fléchette pour marquer l'impact.
   if (pos) g.darts[g.darts.length - 1] = { segment: dart.segment, multiplier: dart.multiplier, pos: pos.map(c => Math.round(c * 1000) / 1000) };
   g.ui.mult = 1;
+  saveCurrent();
   switch (r.state.lastEvent) {
     case 'visit_end': buzz(BUZZ.dart); break;
     case 'bust': buzz(BUZZ.bust); break;
@@ -435,6 +435,7 @@ export function undo() {
   g.darts = undoDart(g.config, g.darts).darts;
   g.validated = validatedAfterUndo(g.validated, g.darts.length);
   g.ui.mult = 1;
+  saveCurrent();
   buzz(BUZZ.undo);
 }
 
@@ -446,6 +447,7 @@ export function validate() {
   if (!pendingVisit(s, g.validated)) return;
   g.validated = s.dartCount;
   g.ui.mult = 1;
+  saveCurrent();
   if (g.config.players.length > 1) { g.ui.announce = s.currentPlayer; g.ui.frozen = false; }
   buzz(BUZZ.dart);
   refresh();

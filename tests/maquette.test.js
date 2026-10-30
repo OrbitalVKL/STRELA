@@ -70,6 +70,22 @@ describe('maquette', () => {
     assert.match(html, /<!--@version-->/);
   });
 
+  test('vraie appli : données fictives et sommaire jamais chargés (imports statiques depuis app.js)', () => {
+    const seen = new Set();
+    const walk = file => {
+      if (seen.has(file)) return;
+      seen.add(file);
+      const src = read(file);
+      for (const m of src.matchAll(/^import\s[^'"]*['"]([^'"]+)['"]/gm)) {
+        walk(new URL(m[1], new URL(file, root)).pathname.slice(new URL(root).pathname.length));
+      }
+    };
+    walk('src/ui/app.js');
+    for (const f of ['src/ui/mock.js', 'src/ui/maquette.js', 'src/ui/screens/sommaire.js']) assert.ok(!seen.has(f), `${f} chargé hors maquette`);
+    assert.ok(seen.has('src/data/db.js'));
+    assert.match(read('src/ui/app.js'), /import\('\.\/maquette\.js'\)/, 'chargés à la demande avec ?maquette');
+  });
+
   test('styles : uniquement les jetons du thème (aucune couleur en dur hors theme.css)', () => {
     const css = read('assets/app.css');
     assert.ok(!/#[0-9a-f]{3,8}\b/i.test(css), 'pas de #couleur dans app.css');
