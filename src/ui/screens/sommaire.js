@@ -210,6 +210,8 @@ export function sommaire() {
       ${L('histo-selection', '8 · Historique : sélection', 'appui long')}
       ${L('histo-selection-confirmer', '8 · Supprimer 3 parties', 'confirmation')}
       ${H('#/stats/p1', '9 · Stats joueur')}
+      ${H('#/face/p1/p2', '9 · Face-à-face', 'Guillaume contre Mathilde')}
+      ${H('#/face/p3/p1', '9 · Face-à-face', 'à 3 et 4 joueurs')}
       ${H('#/reglages', '10 · Réglages')}
     </nav>
     <div class="pad"><div class="sec">États de jeu</div></div>

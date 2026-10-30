@@ -2,9 +2,9 @@
 // meilleure finition, manche la plus courte, 100+ / 140+ / 180, victoires, face-à-face, carte des segments
 // touchés (sur une cible), évolution de la moyenne. Tout est recalculé depuis les fléchettes.
 import { store, playerById } from '../store.js';
-import { esc, topBar, avg, pct, int, shortDate, plural } from '../dom.js';
+import { esc, ico, topBar, avg, pct, int, shortDate, plural, when, OUT_SHORT } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
-import { playerStats, inPeriod } from '../../engine/stats.js';
+import { playerStats, inPeriod, faceToFace } from '../../engine/stats.js';
 import { boardSvg } from '../board.js';
 import { refresh } from '../nav.js';
 
@@ -69,10 +69,11 @@ export function statsScreen(id) {
       <div class="empty"><div class="big">AUCUNE PARTIE</div><p><span class="nm">${esc(p.name)}</span> n'a pas joué sur cette période.</p></div></div>`;
   }
 
+  // Face-à-face : bilan en toutes lettres, un appui ouvre le détail (lot 3)
   const h2h = Object.entries(st.headToHead).sort((a, b) => b[1].played - a[1].played).map(([oid, h]) => {
     const o = playerById(oid);
-    return `<li>${avatarHtml(o, 32)}<span class="nm ell b">${esc(o.name)}</span><span class="sc">${h.won} – ${h.lost}</span>
-      <div class="bar"><i style="flex:${h.won}"></i><i class="l" style="flex:${h.lost}"></i>${h.played - h.won - h.lost ? `<i style="flex:${h.played - h.won - h.lost};background:none"></i>` : ''}</div></li>`;
+    return `<li><a class="h2h-row" href="#/face/${esc(pid)}/${esc(oid)}">${avatarHtml(o, 32)}<span class="nm ell b">${esc(o.name)}</span>
+      <span class="sc">${tally(h.won, h.lost)}</span>${ico('chev')}</a></li>`;
   }).join('');
 
   let readBoard = 'Touchez une case de la cible pour lire le nombre d\'impacts.';
@@ -95,7 +96,7 @@ export function statsScreen(id) {
         <div class="kpi wide tons"><div><small>100+</small><b>${st.ton}</b></div><div><small>140+</small><b>${st.ton40}</b></div><div><small>180</small><b>${st.max}</b></div></div>
       </div>
       <p class="note">Finition : volées gagnées quand la finition était jouable. Doubles : fléchettes qui ont fini quand une seule pouvait finir.</p>
-      ${h2h ? `<div class="sec">Face-à-face</div><ul class="h2h">${h2h}</ul>` : ''}
+      ${h2h ? `<div class="sec">Face-à-face</div><ul class="h2h">${h2h}</ul><p class="note">Touchez un adversaire pour le détail partie par partie.</p>` : ''}
       <div class="sec">Segments touchés <span class="n">${st.segments.total} fl.</span></div>
       ${board(st.segments)}
       <div class="legend"><span>peu</span><i style="--k:8%"></i><i style="--k:35%"></i><i style="--k:65%"></i><i></i><span>souvent</span> · à côté : ${st.segments.miss}</div>
@@ -103,6 +104,49 @@ export function statsScreen(id) {
       <div class="sec">Évolution de la moyenne</div>
       ${chart(tl, st.average)}
       <p class="note center">${readPoint}</p>
+    </div></div>`;
+}
+
+// ------------------------------------------------------------------ face-à-face (lot 3)
+const words = (n, one, many) => `${n} ${n > 1 ? many : one}`;
+/** « 7 VICTOIRES · 3 DÉFAITES » (bilan en toutes lettres, sans s'appuyer sur la couleur). */
+const tally = (won, lost) => `${words(won, 'VICTOIRE', 'VICTOIRES')} · ${words(lost, 'DÉFAITE', 'DÉFAITES')}`;
+
+/** Une partie commune : date, GAGNÉ / PERDU / GAGNÉE PAR …, score en manches, moyenne de chacun. */
+function faceRow(r, me, op) {
+  const verdict = r.result === 'won' ? '<b class="verdict won">GAGNÉ</b>'
+    : r.result === 'lost' ? '<b class="verdict lost">PERDU</b>'
+      : r.result === 'other' ? `<b class="verdict other">GAGNÉE PAR <span class="nm">${esc(playerById(r.winner).name)}</span></b>`
+        : '<b class="verdict other">ABANDONNÉE</b>';
+  return `<li><a class="frow" href="#/partie/${esc(r.id)}">
+    <span class="l1"><span>${when(r.at)}</span><span>${r.config.startScore} · ${OUT_SHORT[r.config.outMode]}${r.config.players.length > 2 ? ` · ${r.config.players.length} J.` : ''}</span></span>
+    <span class="l2">${verdict}<span class="legs" aria-label="Manches : ${r.legs[0]} à ${r.legs[1]}">MANCHES <b>${r.legs[0]} – ${r.legs[1]}</b></span></span>
+    <span class="l3"><span class="ell">MOY. <span class="nm">${esc(me.name)}</span> <b>${avg(r.average[0])}</b></span><span class="ell"><span class="nm">${esc(op.name)}</span> <b>${avg(r.average[1])}</b></span></span>
+  </a></li>`;
+}
+
+export function faceScreen(pid, oid) {
+  const me = playerById(pid), op = playerById(oid);
+  const f = faceToFace(inPeriod(store.games, period), pid, oid);
+  const seg = (v, l) => `<button type="button" data-act="period" data-arg="${v}" aria-pressed="${period === v}">${l}</button>`;
+  const side = (p, cls) => `<div class="fside ${cls}">${avatarHtml(p, 64)}<span class="nm" data-shrink>${esc(p.name)}</span></div>`;
+  const played = f.games.length;
+  const body = played
+    ? `<div class="fbilan" role="status"><span class="small dim caps">Bilan de <span class="nm">${esc(me.name)}</span></span>
+        <b data-shrink>${tally(f.won, f.lost)}</b>${f.other ? `<span class="small">${words(f.other, 'partie gagnée par un autre joueur', 'parties gagnées par un autre joueur')}</span>` : ''}
+        <span class="fl">MANCHES : <b>${words(f.legsWon, 'GAGNÉE', 'GAGNÉES')} · ${words(f.legsLost, 'PERDUE', 'PERDUES')}</b></span></div>
+       <div class="sec">Parties communes <span class="n">${played}</span></div>
+       <ul class="flist">${f.games.map(r => faceRow(r, me, op)).join('')}</ul>`
+    : `<div class="empty" style="padding-top:24px"><div class="big">AUCUNE PARTIE</div><p>Pas de partie terminée entre eux sur cette période.</p></div>`;
+  const ab = f.abandoned.length
+    ? `<div class="sec">Abandonnées <span class="n">${f.abandoned.length}</span></div><p class="note" style="margin:0 0 10px">Elles ne comptent pas dans le bilan.</p>
+       <ul class="flist">${f.abandoned.map(r => faceRow(r, me, op)).join('')}</ul>`
+    : '';
+  return `<div class="screen">${topBar('Face-à-face', `#/stats/${esc(pid)}`)}
+    <div class="pad" style="padding-top:14px">
+      <div class="faces">${side(me, 'fme')}<span class="vs">CONTRE</span>${side(op, 'fop')}</div>
+      <div class="seg" style="margin-top:14px">${seg('7j', '7 jours')}${seg('30j', '30 jours')}${seg('tout', 'Tout')}</div>
+      ${body}${ab}
     </div></div>`;
 }
 

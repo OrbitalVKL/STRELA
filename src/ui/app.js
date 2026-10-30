@@ -9,7 +9,7 @@ import { newGame, actions as newGameActions } from './screens/newgame.js';
 import { game, key, mountGame, actions as gameActions } from './screens/game.js';
 import { legEnd, matchEnd, actions as resultActions } from './screens/results.js';
 import { historyList, historyDetail, leaveHistory, actions as historyActions } from './screens/history.js';
-import { statsScreen, actions as statsActions } from './screens/stats.js';
+import { statsScreen, faceScreen, actions as statsActions } from './screens/stats.js';
 import { settingsScreen, applyTheme, actions as settingsActions } from './screens/settings.js';
 import { cropScreen, mountCrop, onPhotoFile, actions as photoActions } from './screens/photo.js';
 import { animateRolls, rollScope } from './roll.js';
@@ -27,6 +27,7 @@ const ROUTES = [
   [/^\/historique$/, historyList],
   [/^\/partie\/(.+)$/, historyDetail],
   [/^\/stats(?:\/(.+))?$/, statsScreen],
+  [/^\/face\/([^/]+)\/(.+)$/, faceScreen],
   [/^\/reglages$/, settingsScreen],
   [/^\/recadrage$/, cropScreen],
 ];
@@ -49,7 +50,7 @@ function render() {
   let html = null;
   for (const [re, screen] of ROUTES) {
     const m = re.exec(path);
-    if (m) { html = screen(m[1]); break; }
+    if (m) { html = screen(...m.slice(1)); break; }
   }
   if (html === null) { go('#/', { replace: true }); return; }
   if (!html) return; // l'écran a redirigé
