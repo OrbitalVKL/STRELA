@@ -29,20 +29,25 @@ filets fins, angles droits, rien d'arrondi. Utiliser les jetons CSS de `assets/t
 ## Structure du dépôt
 
 ```
-index.html                page publiée (lot 0 : page d'attente ; lot 1 : l'appli). Marques <!--@clé-->…<!--/@--> remplies au build
-assets/theme.css          thème (jetons CSS sombre / clair, @font-face)
+index.html                l'appli (page unique). Marques <!--@clé-->…<!--/@--> remplies au build (bloc #build)
+manifest.webmanifest      PWA : portrait, plein écran ; sw.js : service worker « réseau d'abord »
+assets/theme.css          thème (jetons CSS sombre / clair, fonds d'avatar --av-0…7, --night, @font-face)
+assets/app.css            styles des écrans (jetons uniquement)
 assets/fonts/             Martian Mono woff2 (latin, latin-ext, cyrillique) + OFL.txt
-assets/icon.svg           icône provisoire
+assets/icon.svg           icône (+ icon-192/512/maskable-512.png générés par tools/make-icons.mjs)
 src/engine/               moteur de règles, JS pur sans dépendance ni DOM (docs/moteur-x01.md)
   darts.js                la fléchette (commune à tous les jeux)
   x01.js                  règles X01 : état recalculé depuis config + liste des fléchettes
+  checkout.js             table de finitions
+  stats.js                statistiques recalculées depuis les fléchettes
   index.js                point d'entrée, registre GAMES
+src/ui/                   interface (docs/interface.md) : app.js, nav.js, store.js, mock.js, avatars.js, screens/
 src/ui/theme.js           palette (source de vérité des couleurs), contraste
 tests/                    tests node:test (*.test.js) ; helpers.js = aides (notation ds('T20 D16'))
 tools/build-site.mjs      construit _site/ : lance les tests, remplit la page, copie assets/ et src/
 .github/workflows/ci.yml     tests sur chaque demande de fusion et sur main
 .github/workflows/pages.yml  build + déploiement GitHub Pages à chaque push sur main
-docs/                     cahier des charges, DA, moteur
+docs/                     cahier des charges, DA, moteur, interface
 package.json              version de l'appli (champ "version"), scripts ; aucune dépendance
 ```
 
@@ -70,17 +75,23 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | Lot | Contenu |
 |---|---|
 | 0 | Fondations : cahier des charges, CLAUDE.md, moteur X01 + tests, CI, page d'attente Pages — **fait** |
-| 1 | Maquette de tous les écrans, sombre et clair (validation du design) |
+| 1 | Maquette de tous les écrans, sombre et clair (validation du design) — **fait, en attente de validation** |
 | 2 | Partie jouable + joueurs et avatars |
 | 3 | Historique et stats |
 | 4 | Finitions : propositions de finition, mode nuit, vibrations, export / import (validation des fonctions) |
 | 5 | APK (coquille Java WebView `fr.orbitalvkl.strela`, minSdk 30, release signée, mise à jour dans l'appli) |
 | 6 | Recette |
 
-## État (fin du lot 0)
+## État (fin du lot 1)
 
-- Moteur X01 complet et testé (50 tests : moteur, thème, build). API : docs/moteur-x01.md.
-- Thème sombre / clair + police embarquée prêts à réutiliser (`assets/theme.css`, `src/ui/theme.js`).
-- CI et déploiement Pages en place. Pas encore de service worker / PWA ni d'IndexedDB (lots 1-2).
-- À faire au lot 1 : remplacer la page d'attente d'`index.html` par la maquette des écrans (garder les
-  marques de build utiles, ex. version), charger le moteur en `<script type="module">` depuis `src/`.
+- Maquette complète publiée (version 0.1.0) : tous les écrans, sombre et clair, navigation réelle.
+  Sommaire des écrans et états : `https://orbitalvkl.github.io/STRELA/?maquette`. Détail : docs/interface.md.
+- Jeu branché sur le vrai moteur, en mémoire (bust, ANNULER, manches, revanche, abandon). Rien n'est enregistré
+  sauf les réglages d'affichage (`strela.theme`, `strela.night`, `strela.vibrate`) ; données fictives recréées
+  à chaque chargement (`src/ui/mock.js`, parties jouées par le moteur).
+- Nouveaux modules purs testés : `checkout.js` (finitions), `stats.js` (statistiques). 70 tests.
+- PWA : manifeste + service worker réseau d'abord ; Wake Lock et vibrations pendant la partie.
+- Vérification visuelle : captures Playwright 410 × 914 et 410 × 760 (scripts hors dépôt), relecture de l'écran
+  de jeu par un second agent, corrections faites.
+- À faire au lot 2 : IndexedDB avec la même forme de données que `store.js`, enregistrement à chaque fléchette,
+  photo d'avatar, retrait des données fictives hors sommaire. Attendre la validation du design par Guillaume.

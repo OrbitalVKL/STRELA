@@ -7,6 +7,8 @@ JavaScript pur (modules ES), sans dépendance ni affichage. Utilisable tel quel 
 |---|---|
 | `darts.js` | la fléchette, commune à tous les jeux : validation, valeur, double, notation |
 | `x01.js` | règles X01 : configuration, état recalculé, jouer, annuler |
+| `checkout.js` | table de finitions (sortie simple / double, 1 à 3 fléchettes restantes) |
+| `stats.js` | statistiques d'un joueur recalculées depuis les fléchettes ; résumé d'un joueur dans une partie |
 | `index.js` | point d'entrée ; `GAMES` liste les jeux (X01 seul pour l'instant) |
 
 ## Fléchette
@@ -52,6 +54,23 @@ Configuration : `{ startScore: 301|501|701, outMode: 'single'|'double', legsToWi
 Après une manche gagnée, l'état est déjà sur la manche suivante (restes remis au départ) ; les restes
 de fin de manche sont dans `legs[k].finalRemaining`.
 
+## Finitions (`checkout.js`)
+
+`suggestCheckout(reste, outMode, fléchettesRestantes)` → liste de fléchettes ou `null` (non jouable).
+Table calculée une fois par recherche exhaustive. Choix : le moins de fléchettes ; en sortie double, le double
+le plus classique (D20, D16, D8, D18, D12…, 50 en dernier) ; préparation simple plutôt que triple, gros triples
+d'abord, jouée de la plus grosse à la plus petite ; jamais de route qui ferait bust en chemin.
+Ex. 170 → T20 T20 50, 100 → T20 D20, 41 → S1 D20, 33 → S1 D16.
+`isCheckoutRoute()` vérifie une route. À affiner au lot 4 (doubles préférés du joueur).
+
+## Statistiques (`stats.js`)
+
+Partie enregistrée = `{ id, startedAt, config, darts[], abandoned }`. `playerStats(parties, idJoueur)` :
+moyenne 3 fléchettes (bust = 0), 9 premières, taux de finition (volées gagnées / volées commencées sur une
+finition jouable), taux de doubles (fléchettes qui finissent / fléchettes lancées quand une seule pouvait
+finir), meilleure finition, manche la plus courte, 100+ / 140+ / 180, victoires, face-à-face (parties finies
+seulement), carte des segments, évolution (moyenne par partie). `inPeriod(parties, '7j'|'30j'|'tout')`.
+
 ### Ajouter un jeu
 
 Même forme : un module `src/engine/<jeu>.js` qui prend une configuration et la liste des fléchettes
@@ -59,7 +78,7 @@ et rend un état recalculé ; l'ajouter à `GAMES` dans `index.js`. `darts.js` e
 
 ## Tests
 
-`tests/darts.test.js`, `tests/x01.test.js` (aides dans `tests/helpers.js`, notation `ds('T20 T20 0 D16')`).
+`tests/darts.test.js`, `tests/x01.test.js`, `tests/checkout.test.js`, `tests/stats.test.js` (aides dans `tests/helpers.js`, notation `ds('T20 T20 0 D16')`).
 Couverts : 3 scores de départ, finitions simple / double / sur 50, bust par dépassement / reste 1 / 0 sans
 double, bust et finition à chaque rang de fléchette, saisies invalides, rotation du premier joueur,
 fin de partie à N manches, ANNULER dans tous les cas imposés, partie de 501 rejouée volée par volée,

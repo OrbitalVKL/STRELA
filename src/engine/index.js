@@ -3,6 +3,8 @@
 // → état recalculé), ajouté à GAMES.
 import * as darts from './darts.js';
 import * as x01 from './x01.js';
+import * as checkout from './checkout.js';
+import * as stats from './stats.js';
 
-export { darts, x01 };
+export { darts, x01, checkout, stats };
 export const GAMES = Object.freeze({ x01 });

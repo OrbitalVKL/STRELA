@@ -1,7 +1,7 @@
 // Strela — construit le site GitHub Pages dans _site/ :
 //   1. lance les tests (node --test, sortie TAP) et en tire le résumé (réussis / total, durée, échecs) ;
 //   2. recopie index.html en remplaçant les marques <!--@clé-->…<!--/@--> (version, tests, date, commit) ;
-//   3. recopie assets/ et src/, écrit _site/tests.json.
+//   3. recopie assets/, src/, le manifeste et le service worker (cache nommé par build), écrit _site/tests.json.
 // Le site est construit même si des tests échouent : la page affiche alors les échecs en rouge.
 // Le blocage d'une fusion sur test rouge est le rôle de .github/workflows/ci.yml.
 import { spawnSync } from 'node:child_process';
@@ -74,6 +74,9 @@ function build() {
   writeFileSync(join(OUT, 'index.html'), render(readFileSync(join(ROOT, 'index.html'), 'utf8'), values));
   cpSync(join(ROOT, 'assets'), join(OUT, 'assets'), { recursive: true });
   cpSync(join(ROOT, 'src'), join(OUT, 'src'), { recursive: true });
+  cpSync(join(ROOT, 'manifest.webmanifest'), join(OUT, 'manifest.webmanifest'));
+  // Nom du cache du service worker propre à chaque build (les vieilles copies sont effacées).
+  writeFileSync(join(OUT, 'sw.js'), readFileSync(join(ROOT, 'sw.js'), 'utf8').replace('__BUILD__', `${pkg.version}-${commit}`));
   writeFileSync(join(OUT, 'tests.json'), JSON.stringify({
     version: pkg.version, commit, builtAt: now.toISOString(),
     total: tests.total, pass: tests.pass, fail: tests.fail, fails: tests.fails,

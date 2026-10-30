@@ -1,0 +1,129 @@
+// Stats joueur : 7 j / 30 j / tout ; moyenne 3 fléchettes, 9 premières, taux de finition, taux de doubles,
+// meilleure finition, manche la plus courte, 100+ / 140+ / 180, victoires, face-à-face, carte des segments
+// touchés (sur une cible), évolution de la moyenne. Tout est recalculé depuis les fléchettes.
+import { store, playerById } from '../store.js';
+import { esc, topBar, avg, pct, int, shortDate, plural } from '../dom.js';
+import { avatarHtml } from '../avatars.js';
+import { playerStats, inPeriod } from '../../engine/stats.js';
+import { BOARD } from '../mock.js';
+import { refresh } from '../nav.js';
+
+let period = '30j';
+let picked = { board: null, point: null };
+
+// ------------------------------------------------------------------ cible
+const R = { bull: 11, outerBull: 25, triIn: 88, triOut: 108, dblIn: 146, dblOut: 166, label: 184 };
+const pt = (r, deg) => { const a = (deg * Math.PI) / 180; return `${(r * Math.cos(a)).toFixed(2)} ${(r * Math.sin(a)).toFixed(2)}`; };
+const sector = (r0, r1, a0, a1) => `M${pt(r0, a0)}L${pt(r1, a0)}A${r1} ${r1} 0 0 1 ${pt(r1, a1)}L${pt(r0, a1)}A${r0} ${r0} 0 0 0 ${pt(r0, a0)}Z`;
+
+function board(seg) {
+  const cells = [];
+  let max = 1;
+  for (let s = 1; s <= 20; s++) max = Math.max(max, ...seg[s]);
+  max = Math.max(max, seg[25][0], seg[25][1]);
+  const op = c => (0.07 + 0.93 * Math.pow(c / max, 0.6)).toFixed(3);
+  const sel = picked.board;
+  BOARD.forEach((s, i) => {
+    const mid = -90 + i * 18, a0 = mid - 9, a1 = mid + 9;
+    const [single, dbl, tri] = seg[s];
+    const rings = [
+      [R.outerBull, R.triIn, single, `${s}`], [R.triIn, R.triOut, tri, `T${s}`],
+      [R.triOut, R.dblIn, single, `${s}`], [R.dblIn, R.dblOut, dbl, `D${s}`],
+    ];
+    for (const [r0, r1, c, label] of rings) {
+      cells.push(`<path class="cell" d="${sector(r0, r1, a0, a1)}" style="fill:var(--fg);fill-opacity:${op(c)}${sel === `${label}:${c}` ? ';stroke:var(--dim);stroke-width:4' : ''}" data-act="board" data-arg="${label}:${c}"/>`);
+    }
+    cells.push(`<text x="${(R.label * Math.cos((mid * Math.PI) / 180)).toFixed(1)}" y="${(R.label * Math.sin((mid * Math.PI) / 180) + 5).toFixed(1)}" text-anchor="middle">${s}</text>`);
+  });
+  cells.push(`<circle class="cell" r="${R.outerBull}" style="fill:var(--fg);fill-opacity:${op(seg[25][0])}" data-act="board" data-arg="25:${seg[25][0]}"/>`);
+  cells.push(`<circle class="cell" r="${R.bull}" style="fill:var(--fg);fill-opacity:${op(seg[25][1])}" data-act="board" data-arg="50:${seg[25][1]}"/>`);
+  return `<svg class="board" viewBox="-200 -200 400 400" role="img" aria-label="Carte des segments touchés">${cells.join('')}</svg>`;
+}
+
+// ------------------------------------------------------------------ évolution de la moyenne
+function chart(timeline, mean) {
+  if (timeline.length < 2) return '<p class="note">Il faut au moins deux parties sur la période pour tracer l\'évolution.</p>';
+  const W = 360, H = 170, L = 34, Rt = 40, T = 14, B = 26;
+  const vals = timeline.map(t => t.average);
+  const lo = Math.floor((Math.min(...vals) - 4) / 10) * 10, hi = Math.ceil((Math.max(...vals) + 4) / 10) * 10;
+  const t0 = timeline[0].at, t1 = timeline[timeline.length - 1].at;
+  const x = at => L + ((at - t0) / Math.max(1, t1 - t0)) * (W - L - Rt);
+  const y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+  const grid = [];
+  for (let v = lo; v <= hi; v += (hi - lo) > 40 ? 20 : 10) grid.push(`<line class="ax" x1="${L}" x2="${W - Rt}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 6}" y="${y(v) + 3.5}" text-anchor="end">${v}</text>`);
+  const line = timeline.map(t => `${x(t.at).toFixed(1)},${y(t.average).toFixed(1)}`).join(' ');
+  const sel = picked.point;
+  const pts = timeline.map((t, i) => `<rect class="pt" x="${(x(t.at) - 4).toFixed(1)}" y="${(y(t.average) - 4).toFixed(1)}" width="8" height="8"${i === sel ? ' style="fill:var(--fg)"' : ''}/>
+    <rect x="${(x(t.at) - 14).toFixed(1)}" y="${T}" width="28" height="${H - T - B}" fill="transparent" data-act="point" data-arg="${i}"/>`).join('');
+  const last = timeline[timeline.length - 1];
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Moyenne par partie">
+    ${grid.join('')}
+    <line class="mean" x1="${L}" x2="${W - Rt}" y1="${y(mean)}" y2="${y(mean)}"/><text x="${L + 4}" y="${y(mean) - 5}">moy. ${avg(mean)}</text>
+    <polyline class="ln" points="${line}"/>${pts}
+    <text x="${x(last.at) + 8}" y="${y(last.average) - 8}" style="fill:var(--fg);font-weight:700">${avg(last.average)}</text>
+    <text x="${L}" y="${H - 6}">${shortDate(t0)}</text><text x="${W - Rt}" y="${H - 6}" text-anchor="end">${shortDate(t1)}</text>
+  </svg>`;
+}
+
+// ------------------------------------------------------------------ écran
+export function statsScreen(id) {
+  const players = store.players.filter(p => !p.archived || store.games.some(g => g.config.players.includes(p.id)));
+  if (!players.length) {
+    return `<div class="screen">${topBar('Stats', '#/')}<div class="empty"><div class="big">AUCUN JOUEUR</div>
+      <p>Les statistiques apparaissent dès qu'un joueur a joué une partie.</p><a class="btn primary" href="#/joueur/nouveau">NOUVEAU JOUEUR</a></div></div>`;
+  }
+  const pid = id && players.some(p => p.id === id) ? id : players[0].id;
+  const p = playerById(pid);
+  const games = inPeriod(store.games, period);
+  const st = playerStats(games, pid);
+  const seg = (v, l) => `<button type="button" data-act="period" data-arg="${v}" aria-pressed="${period === v}">${l}</button>`;
+  const chips = `<div class="chips">${players.map(q => `<a class="btn chip" href="#/stats/${esc(q.id)}" aria-pressed="${q.id === pid}">${avatarHtml(q, 38)}<span class="nm">${esc(q.name.split(' ')[0])}</span></a>`).join('')}</div>`;
+  const head = `${chips}<div class="pad" style="margin-top:10px"><div class="seg">${seg('7j', '7 jours')}${seg('30j', '30 jours')}${seg('tout', 'Tout')}</div></div>`;
+
+  if (!st.played) {
+    return `<div class="screen">${topBar('Stats', '#/')}${head}
+      <div class="empty"><div class="big">AUCUNE PARTIE</div><p><span class="nm">${esc(p.name)}</span> n'a pas joué sur cette période.</p></div></div>`;
+  }
+
+  const h2h = Object.entries(st.headToHead).sort((a, b) => b[1].played - a[1].played).map(([oid, h]) => {
+    const o = playerById(oid);
+    return `<li>${avatarHtml(o, 32)}<span class="nm ell b">${esc(o.name)}</span><span class="sc">${h.won} – ${h.lost}</span>
+      <div class="bar"><i style="flex:${h.won}"></i><i class="l" style="flex:${h.lost}"></i>${h.played - h.won - h.lost ? `<i style="flex:${h.played - h.won - h.lost};background:none"></i>` : ''}</div></li>`;
+  }).join('');
+
+  let readBoard = 'Touchez une case de la cible pour lire le nombre d\'impacts.';
+  if (picked.board) { const [l, c] = picked.board.split(':'); readBoard = `<b>${l}</b> : ${plural(Number(c), 'impact', 'impacts')}`; }
+  const tl = st.timeline;
+  let readPoint = 'Touchez un point pour lire la moyenne de la partie.';
+  if (picked.point !== null && tl[picked.point]) readPoint = `<b>${shortDate(tl[picked.point].at)}</b> : moyenne ${avg(tl[picked.point].average)}`;
+
+  return `<div class="screen">${topBar('Stats', '#/')}${head}
+    <div class="pad">
+      <div class="sec"><span class="nm">${esc(p.name)}</span> <span class="n">${plural(st.played, 'partie', 'parties')}</span></div>
+      <div class="kpis">
+        <div class="kpi hero wide"><small>Moyenne sur 3 fléchettes</small><b>${avg(st.average)}</b></div>
+        <div class="kpi"><small>9 premières</small><b>${avg(st.first9)}</b></div>
+        <div class="kpi"><small>Victoires</small><b>${st.won}<small> / ${st.played}</small></b></div>
+        <div class="kpi"><small>Taux de finition</small><b>${pct(st.checkoutRate)}</b></div>
+        <div class="kpi"><small>Taux de doubles</small><b>${pct(st.doubleRate)}</b></div>
+        <div class="kpi"><small>Meilleure finition</small><b>${int(st.bestFinish)}</b></div>
+        <div class="kpi"><small>Manche la + courte</small><b>${st.shortestLeg ?? '—'}${st.shortestLeg ? '<small> fl.</small>' : ''}</b></div>
+        <div class="kpi wide tons"><div><small>100+</small><b>${st.ton}</b></div><div><small>140+</small><b>${st.ton40}</b></div><div><small>180</small><b>${st.max}</b></div></div>
+      </div>
+      <p class="note">Finition : volées gagnées quand la finition était jouable. Doubles : fléchettes qui ont fini quand une seule pouvait finir.</p>
+      ${h2h ? `<div class="sec">Face-à-face</div><ul class="h2h">${h2h}</ul>` : ''}
+      <div class="sec">Segments touchés <span class="n">${st.segments.total} fl.</span></div>
+      ${board(st.segments)}
+      <div class="legend"><span>peu</span><i style="opacity:.1"></i><i style="opacity:.4"></i><i style="opacity:.7"></i><i></i><span>souvent</span> · à côté : ${st.segments.miss}</div>
+      <p class="note center">${readBoard}</p>
+      <div class="sec">Évolution de la moyenne</div>
+      ${chart(tl, st.average)}
+      <p class="note center">${readPoint}</p>
+    </div></div>`;
+}
+
+export const actions = {
+  period(v) { period = v; picked = { board: null, point: null }; refresh(); },
+  board(arg) { picked.board = picked.board === arg ? null : arg; refresh(); },
+  point(i) { picked.point = picked.point === Number(i) ? null : Number(i); refresh(); },
+};
