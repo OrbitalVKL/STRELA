@@ -103,7 +103,7 @@ export function playerForm(id) {
       <div class="swatches">${AVATAR_COLOR_NAMES.map((n, i) => `<button type="button" class="swatch" style="background:var(--av-${i})" data-act="avcolor" data-arg="${i}" aria-pressed="${d.avatar.color === i}" aria-label="${n}">${n}</button>`).join('')}</div>
       ${archiveBlock || deleteBlock ? `<div class="sec">Archiver ou supprimer</div><div class="btns">${archiveBlock}${deleteBlock}</div>` : ''}
     </div>
-    <div class="dock"><button type="button" class="btn primary" data-act="save-player">${isNew ? 'CRÉER LE JOUEUR' : 'ENREGISTRER'}</button></div>
+    <div class="dock" data-layer><button type="button" class="btn primary" data-act="save-player">${isNew ? 'CRÉER LE JOUEUR' : 'ENREGISTRER'}</button></div>
   </div>`;
 }
 

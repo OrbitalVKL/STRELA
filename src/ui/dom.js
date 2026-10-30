@@ -59,7 +59,7 @@ export const ico = (name, cls = 'ico') => `<svg class="${cls}" viewBox="0 0 24 2
 /** Barre du haut : retour (lien), titre, action facultative (HTML). */
 export function topBar(title, backHref = '#/', action = '') {
   const back = backHref === null ? '' : `<a class="back" href="${backHref}" aria-label="Retour">${ico('back')}</a>`;
-  return `<header class="top">${back}<h1><span>${esc(title)}</span></h1>${action}${store.maquette ? maquetteButtons() : ''}</header>`;
+  return `<header class="top" data-layer>${back}<h1><span>${esc(title)}</span></h1>${action}${store.maquette ? maquetteButtons() : ''}</header>`;
 }
 
 /** Maquette (?maquette) : bascule du thème et retour au sommaire, présents sur tous les écrans. */

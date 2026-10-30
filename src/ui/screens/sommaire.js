@@ -5,6 +5,8 @@ import { store, startGame, ensureExtraPlayers, resetMock, freshUi, currentState,
 import { polar, sectorAngle, RINGS } from '../../engine/board.js';
 import { isDeletedId } from '../../engine/players.js';
 import { openDraft } from './players.js';
+import { selectLogCell } from './history.js';
+import { computeState } from '../../engine/x01.js';
 import { topBar, ico } from '../dom.js';
 import { parseDart } from '../../engine/darts.js';
 import { simulateGame } from '../mock.js';
@@ -33,7 +35,24 @@ const LIVE = () => withPos('T20 S20 T5 T19 S19 S3 T20 S20', [
   at(20, MID_T, -3), at(20, 0.3, 4), at(5, MID_T + 0.03, 2), at(19, MID_T - 0.02, -2), at(19, 0.75), at(3, 0.32, 3), at(20, MID_T + 0.02, 1.5), at(20, 0.72, -4),
 ]);
 
-const SCENES = {
+export // Partie à 2 terminée (301, sortie double) avec un bust (Guillaume : 20 puis 19, il reste 1) et une finition D20.
+const TWO = 'T20 T20 T20 20 20 20 T20 S20 S1 T20 T20 S1 S20 S19 T20 S20 S20 D20';
+// 8 joueurs, 2 manches à gagner : la première jouée par le lanceur simulé (tirage 14 : 3 bust), puis 2 tours.
+const EIGHT = ['p1', 'p2', 'p3', 'p4', 'p5', 'p7', 'p8', 'p9'];
+const eightGame = () => {
+  const config = cfg(EIGHT, 301, 'double', 2);
+  const leg1 = simulateGame({ ...config, legsToWin: 1 }, EIGHT.map(() => 0.35), 14);
+  return { config, darts: [...leg1, ...ds('T20 S20 S5  S20 S1 S5  T19 S19 S3  S20 S20 S20  S5 S5 S1  T20 T20 S20  S1 S1 S1  S20 S5 S20  T20 S1')] };
+};
+/** Range une partie terminée dans l'historique (sommaire) et renvoie son identifiant. */
+function storeGame(id, config, darts) {
+  ensureExtraPlayers(config.players);
+  store.games = [{ id, startedAt: Date.now() - 3600e3, config, darts, abandoned: false }, ...store.games.filter(g => g.id !== id)];
+  return id;
+}
+const visitIndex = (config, darts, pick) => computeState(config, darts).visits.findIndex(pick);
+
+export const SCENES = {
   jeu: () => { setGame(cfg(['p1', 'p2']), ''); return '#/jeu'; },
   reprendre: () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S5 S20 T19 S1 T20'); return '#/'; },
   'arme-d': () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S5 S20 T19 S1 T20', { mult: 2 }); return '#/jeu'; },
@@ -42,6 +61,27 @@ const SCENES = {
   volee: () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S1 S20 S20 S20 T20 T20 S20', {}, true); return '#/jeu'; },
   annonce: () => { setGame(cfg(['p1', 'p2', 'p3']), 'T20 S20 S1 S20 S20 S20 T20 T20 S20', { announce: 0, frozen: true }); return '#/jeu'; },
   cible: () => { setGame(cfg(['p1', 'p2']), LIVE()); return '#/jeu'; },
+  'cible-tour1': () => { setGame(cfg(['p1', 'p2']), LIVE().slice(0, 2)); return '#/jeu'; },
+  'cible-seule': () => { setGame(cfg(['p1', 'p2']), '', { panel: 'board' }); return '#/jeu'; },
+  'cible-manche': () => { setGame(cfg(['p1', 'p2']), LIVE(), { panel: 'board', boardView: 'leg' }); return '#/jeu'; },
+  manches: () => {
+    const config = cfg(['p1', 'p2'], 301, 'double', 3);
+    setGame(config, [...simulateGame({ ...config, legsToWin: 1 }, [0.45, 0.3], 3), ...ds('S20 S1 S5 T20 T20 S20 S20 S5')]);
+    return '#/jeu';
+  },
+  'histo-deux': () => {
+    const config = cfg(['p1', 'p2'], 301);
+    const darts = ds(TWO);
+    selectLogCell(`gx2|${visitIndex(config, darts, v => v.bust)}`);
+    return `#/partie/${storeGame('gx2', config, darts)}`;
+  },
+  'histo-huit': () => { const { config, darts } = eightGame(); setGame(config, darts, { panel: 'history' }); selectLogCell(null); return '#/jeu'; },
+  'histo-huit-detail': () => {
+    const config = cfg(EIGHT, 301, 'double', 2);
+    const full = simulateGame(config, EIGHT.map(() => 0.35), 14);
+    selectLogCell(`gx8|${visitIndex(config, full, v => v.finish)}`);
+    return `#/partie/${storeGame('gx8', config, full)}`;
+  },
   'cible-grande': () => { setGame(cfg(['p1', 'p2']), LIVE(), { panel: 'board' }); return '#/jeu'; },
   'histo-cours': () => {
     const config = cfg(['p1', 'p2'], 301, 'double', 2);
@@ -125,9 +165,16 @@ export function sommaire() {
       ${L('volee', 'Volée en attente de validation', '3 fléchettes')}
       ${L('bust', 'Bust en attente de validation', 'ANNULER possible')}
       ${L('annonce', 'Annonce « À TOI »', 'figée')}
-      ${L('cible', 'Cible avec impacts', 'petite cible')}
-      ${L('cible-grande', 'Cible agrandie', 'appui sur la petite')}
+      ${L('cible-tour1', 'Petite cible au 1er tour', 'volée en cours seule')}
+      ${L('cible', 'Petite cible au 2e tour', 'vidée à chaque volée')}
+      ${L('cible-grande', 'Cible agrandie', 'VOLÉE')}
+      ${L('cible-manche', 'Cible agrandie', 'MANCHE')}
+      ${L('cible-seule', 'Cible seule', 'couleurs réglementaires')}
+      ${L('manches', 'Manches gagnées', 'premier à 3')}
       ${L('histo-cours', 'Historique de la partie en cours', 'panneau')}
+      ${L('histo-deux', 'Historique : 2 joueurs', 'bust ouvert, finition')}
+      ${L('histo-huit', 'Historique en cours : 8 joueurs', 'défile de côté')}
+      ${L('histo-huit-detail', 'Historique terminé : 8 joueurs', 'finition ouverte')}
       ${L('finition', 'Finition proposée', 'reste 100')}
       ${L('huit', '8 joueurs')}
       ${L('long', 'Pseudo très long', 'en jeu')}

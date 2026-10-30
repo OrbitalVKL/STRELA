@@ -15,7 +15,7 @@ import { makeDart, formatDart } from '../../engine/darts.js';
 import { suggestCheckout } from '../../engine/checkout.js';
 import { playerSummary } from '../../engine/stats.js';
 import { segmentAt, zoneLabel, RINGS } from '../../engine/board.js';
-import { boardSvg, plainBoard, impactsFor } from '../board.js';
+import { boardSvg, plainBoard, impactsFor, markIcon } from '../board.js';
 import { rollHtml } from '../roll.js';
 import { pendingVisit, validatedAfterUndo } from '../turn.js';
 import { go, refresh, buzz, BUZZ } from '../nav.js';
@@ -67,20 +67,25 @@ function view() {
 }
 
 // ------------------------------------------------------------------ morceaux communes aux deux mises en page
+// Bandeau : la ligne sous le pseudo se compacte par paliers si elle ne tient pas (fit.js) : manches gagnées en
+// « 1/2 », « MANCHE 2 » en « M2 », carrés de fléchettes retirés, « FLÉCHETTE 2/3 » en « FL. 2/3 ».
 function band(v, slide) {
   const { s, cfg, player, pend } = v;
+  const won = s.legsWon[v.shown];
   const legs = cfg.legsToWin > 1
-    ? Array.from({ length: cfg.legsToWin }, (_, i) => `<i class="${i < s.legsWon[v.shown] ? 'on' : ''}"></i>`).join('')
+    ? `<span class="won" aria-hidden="true">${Array.from({ length: cfg.legsToWin }, (_, i) => `<i class="${i < won ? 'on' : ''}"></i>`).join('')}</span>`
+      + `<span class="wn" aria-label="Manches gagnées : ${won} sur ${cfg.legsToWin}">${won}/${cfg.legsToWin}</span>`
     : '';
   // Compteur de fléchettes lisible de loin : 3 carrés, pleins pour les fléchettes lancées, encadré pour la prochaine.
   const thrown = pend ? pend.darts.length : s.dartNumber - 1;
   const squares = [0, 1, 2].map(i => `<i class="${i < thrown ? 'on' : !pend && i === thrown ? 'now' : ''}"></i>`).join('');
   const state = `<span class="dn" aria-hidden="true">${squares}</span>`
-    + (pend ? (pend.bust ? '<b>BUST</b>' : '<b>VOLÉE TERMINÉE</b>') : `<b>FLÉCHETTE ${s.dartNumber}/3</b>`);
+    + (pend ? (pend.bust ? '<b>BUST</b>' : '<b><span class="lg">VOLÉE </span>TERMINÉE</b>')
+      : `<b><span class="lg">FLÉCHETTE</span><span class="sh">FL.</span> ${s.dartNumber}/3</b>`);
   return `<header class="gband${slide ? ' slide' : ''}" style="--pc:${colorOf(player)};--n:${[...player.name].length}">
       ${avatarHtml(player, 56)}
-      <div class="who"><span class="nm">${esc(player.name)}</span>
-        <span class="legs">${state}<span>MANCHE ${s.legNumber}</span>${legs ? `<span class="won" aria-label="Manches gagnées">${legs}</span>` : ''}</span></div>
+      <div class="who"><span class="nm" data-shrink>${esc(player.name)}</span>
+        <span class="legs" data-fit="4">${state}<span class="mn"><span class="lg">MANCHE </span><span class="sh">M</span>${s.legNumber}</span>${legs}</span></div>
       <button type="button" class="pause" data-act="pause" aria-label="Pause">${ico('pause')}</button>
     </header>`;
 }
@@ -89,14 +94,14 @@ function rest(v) {
   const { cfg, player, remaining, s, shown } = v;
   if (v.bust) {
     return `<section class="rest alert" role="alert" aria-label="Bust">
-      <div class="meta"><span>${esc(player.name)}</span><span>AUCUN POINT</span></div>
-      <b class="bust-word">BUST</b><span class="bust-rest">RESTE ${remaining}</span><span id="remaining" hidden>${remaining}</span>
+      <div class="meta"><span class="ell">${esc(player.name)}</span><span>AUCUN POINT</span></div>
+      <b class="bust-word" data-shrink>BUST</b><span class="bust-rest">RESTE ${remaining}</span><span id="remaining" hidden>${remaining}</span>
     </section>`;
   }
   const legAvg = playerSummary(s, shown, s.legNumber).average;
   return `<section class="rest" aria-label="Reste à faire">
-      <div class="meta"><span>${cfg.startScore} · ${OUT_SHORT[cfg.outMode]}</span><span>MOY. ${avg(legAvg)}</span></div>
-      <div class="big" id="remaining" aria-label="${remaining}">${rollHtml(`r:${s.legNumber}:${shown}`, remaining)}</div>
+      <div class="meta"><span class="ell">${cfg.startScore} · ${OUT_SHORT[cfg.outMode]}</span><span>MOY. ${avg(legAvg)}</span></div>
+      <div class="big" id="remaining" aria-label="${remaining}" data-shrink>${rollHtml(`r:${s.legNumber}:${shown}`, remaining)}</div>
     </section>`;
 }
 
@@ -104,11 +109,11 @@ function visitBoxes(v) {
   const { darts, pend, bust } = v;
   const boxes = [0, 1, 2].map(i => {
     const d = darts[i];
-    if (d) return `<div class="dart ${bust && i === darts.length - 1 ? 'bust' : 'done'}">${dartLabel(d)}</div>`;
+    if (d) return `<div class="dart ${bust && i === darts.length - 1 ? 'bust' : 'done'}"><span data-shrink>${dartLabel(d)}</span></div>`;
     if (!pend && i === darts.length) return '<div class="dart todo" aria-label="Fléchette à jouer"></div>';
     return '<div class="dart"></div>';
   }).join('');
-  return `<div class="visit">${boxes}<div class="total ${darts.length ? 'inv' : 'zero'}"><small>${pend && !bust ? 'VOLÉE' : 'TOTAL'}</small>${rollHtml(`t:${v.totalKey}`, v.total)}</div></div>`;
+  return `<div class="visit">${boxes}<div class="total ${darts.length ? 'inv' : 'zero'}"><small>${pend && !bust ? 'VOLÉE' : 'TOTAL'}</small><span class="tv" data-shrink>${rollHtml(`t:${v.totalKey}`, v.total)}</span></div></div>`;
 }
 
 function checkoutLine(v) {
@@ -119,7 +124,7 @@ function checkoutLine(v) {
       : '<div class="co turn"><small>VOLÉE SUIVANTE</small></div>';
   }
   const route = suggestCheckout(remaining, cfg.outMode, 4 - s.dartNumber);
-  if (route) return `<div class="co"><small>FINITION</small><span class="route">${route.map(d => `<span>${dartLabel(d)}</span>`).join('')}</span></div>`;
+  if (route) return `<div class="co" data-shrink><small>FINITION</small><span class="route">${route.map(d => `<span>${dartLabel(d)}</span>`).join('')}</span></div>`;
   return '<div class="co"></div>';
 }
 
@@ -132,8 +137,8 @@ function others(v) {
   return `<section class="others${many ? ' many' : ''}" aria-label="Autres joueurs">${order.map(i => {
     const p = playerById(cfg.players[i]);
     const isNext = i === next;
-    return `<div class="op${isNext ? ' next' : ''}" style="--pc:${colorOf(p)}">${isNext ? '<span class="tag-next">SUIVANT</span>' : ''}${avatarHtml(p, many ? 26 : 34)}
-      <div class="col"><span class="nm ell">${esc(p.name)}</span><span class="r">${rollHtml(`o:${s.legNumber}:${i}`, s.remaining[i])}</span></div></div>`;
+    return `<div class="op${isNext ? ' next' : ''}" style="--pc:${colorOf(p)}">${avatarHtml(p, many ? 20 : 34)}
+      <div class="col"><span class="l1"><span class="nm ell">${esc(p.name)}</span>${isNext ? '<span class="tag-next">SUIVANT</span>' : ''}</span><span class="r">${rollHtml(`o:${s.legNumber}:${i}`, s.remaining[i])}</span></div></div>`;
   }).join('')}</section>`;
 }
 
@@ -141,7 +146,7 @@ function others(v) {
 function validateButton(v, cls = '') {
   const np = playerById(v.cfg.players[v.next]);
   const label = v.n > 1 ? `<span class="vnext" style="--pc:${colorOf(np)}"><i></i>À <span class="nm">${esc(np.name)}</span></span>` : '<span class="vnext">VOLÉE SUIVANTE</span>';
-  return `<button type="button" class="validate ${cls}" data-act="validate" ${v.pend ? '' : 'disabled'}>VALIDER${v.pend ? label : '<small>après 3 fléchettes</small>'}</button>`;
+  return `<button type="button" class="validate ${cls}" data-act="validate"${cls.includes('over') ? ' data-layer' : ' data-shrink'} ${v.pend ? '' : 'disabled'}>VALIDER${v.pend ? label : '<small>après 3 fléchettes</small>'}</button>`;
 }
 
 function announce(v) {
@@ -149,12 +154,13 @@ function announce(v) {
   if (a === null || a !== v.s.currentPlayer || v.pend) return '';
   const p = playerById(v.cfg.players[a]);
   const longest = Math.max(4, ...p.name.split(/\s+/).map(w => [...w].length));
-  return `<div class="announce" role="status" style="--pc:${colorOf(p)};--w:${longest}">${avatarHtml(p, 72)}
-    <div class="msg"><small>À TOI,</small><b class="nm">${esc(p.name)}</b></div></div>`;
+  return `<div class="announce" role="status" data-layer style="--pc:${colorOf(p)};--w:${longest}">${avatarHtml(p, 72)}
+    <div class="msg"><small>À TOI,</small><b class="nm" data-shrink="2">${esc(p.name)}</b></div></div>`;
 }
 
+// Petite cible : seulement la volée en cours (marques rondes 1, 2, 3) ; elle se vide à chaque nouvelle volée.
 function smallBoard(v) {
-  const impacts = impactsFor(v.g, v.s, v.visitIdx);
+  const impacts = impactsFor(v.g, v.s, v.visitIdx, { previous: false });
   return `<button type="button" class="mini-board" data-act="open-board" aria-label="Agrandir la cible">${boardSvg({ size: 104, impacts, label: 'Impacts de la volée' })}</button>`;
 }
 
@@ -180,18 +186,18 @@ export function game() {
   for (let r = 0; r < 4; r++) {
     nums.push(`<div class="krow nums">${[1, 2, 3, 4, 5].map(c => {
       const k = r * 5 + c;
-      return `<button type="button" class="key" data-key="${k}" ${dis}>${wait ? '' : pre}${k}</button>`;
+      return `<button type="button" class="key" data-key="${k}" ${dis}><span class="kl" data-shrink>${wait ? '' : pre}${k}</span></button>`;
     }).join('')}</div>`);
   }
-  const mk = (k, label, word) => `<button type="button" class="key m" data-key="${k}" aria-pressed="${!wait && m === { S: 1, D: 2, T: 3 }[k]}" ${dis}>${label}<small>${word}</small></button>`;
+  const mk = (k, label, word) => `<button type="button" class="key m" data-key="${k}" aria-pressed="${!wait && m === { S: 1, D: 2, T: 3 }[k]}" ${dis}><span class="kl" data-shrink>${label}<small>${word}</small></span></button>`;
   const pad = `<section class="pad-k${m > 1 && !wait ? ' armed' : ''}${wait ? ' wait' : ''}" aria-label="Saisie">
       <div class="krow mult">${mk('S', 'S', 'SIMPLE')}${mk('D', 'D', 'DOUBLE')}${mk('T', 'T', 'TRIPLE')}</div>
       ${nums.join('')}
       <div class="krow last">
-        <button type="button" class="key bull" data-key="25" ${m === 3 || wait ? 'disabled' : ''}>${m === 2 && !wait ? '<sup>D</sup>' : ''}25</button>
-        <button type="button" class="key" data-key="50" ${dis}>50</button>
+        <button type="button" class="key bull" data-key="25" ${m === 3 || wait ? 'disabled' : ''}><span class="kl" data-shrink>${m === 2 && !wait ? '<sup>D</sup>' : ''}25</span></button>
+        <button type="button" class="key" data-key="50" ${dis}><span class="kl" data-shrink>50</span></button>
         <button type="button" class="key zero" data-key="0" ${dis}>0<small>RATÉ</small></button>
-        <button type="button" class="key undo" data-key="undo" ${g.darts.length ? '' : 'disabled'}>${ico('undo')}ANNULER</button>
+        <button type="button" class="key undo" data-key="undo" ${g.darts.length ? '' : 'disabled'}>${ico('undo')}<span class="kl" data-shrink>ANNULER</span></button>
       </div>
       ${wait ? validateButton(v, 'over') : ''}
     </section>`;
@@ -207,7 +213,7 @@ export function game() {
 function landscape(v, slide, overlays) {
   const g = v.g;
   const wait = !!v.pend;
-  const impacts = impactsFor(g, v.s, v.visitIdx);
+  const impacts = impactsFor(g, v.s, v.visitIdx, { previous: false }); // comme la petite cible : la volée seule
   return `<div class="game land">
     <div class="lcol">
       <div class="toparea">${band(v, slide)}
@@ -216,33 +222,38 @@ function landscape(v, slide, overlays) {
       ${others(v)}
       <div class="lbtns">
         <button type="button" class="key zero" data-key="0" ${wait ? 'disabled' : ''}>0<small>RATÉ</small></button>
-        <button type="button" class="key undo" data-key="undo" ${g.darts.length ? '' : 'disabled'}>${ico('undo')}ANNULER</button>
+        <button type="button" class="key undo" data-key="undo" ${g.darts.length ? '' : 'disabled'}>${ico('undo')}<span class="kl" data-shrink>ANNULER</span></button>
         ${validateButton(v)}
       </div>
     </div>
     <div class="rcol">
       <div class="bwrap${wait ? ' wait' : ''}" id="tboard">${boardSvg({ size: 400, impacts, label: 'Cible : touchez pour saisir' })}</div>
-      <p class="bhint alert" id="bhint" role="status" hidden></p>
+      <p class="bhint alert" id="bhint" role="status" data-layer hidden></p>
     </div>
-    <div class="loupe" id="loupe" hidden><b class="lz"></b><div class="lens">${plainBoard()}<i class="cross"></i></div></div>
+    <div class="loupe" id="loupe" data-layer hidden><b class="lz"></b><div class="lens">${plainBoard()}<i class="cross"></i></div></div>
     ${overlays}
   </div>`;
 }
 
+// Cible agrandie : bascule VOLÉE (volée en cours seule) / MANCHE (avec ses volées précédentes de la manche).
 function boardSheet(v) {
-  const impacts = impactsFor(v.g, v.s, v.visitIdx);
-  return `<div class="sheet-bg" role="dialog" aria-label="Cible"><div class="sheet">
-    <header class="top"><h1><span>Cible · <span class="nm">${esc(v.player.name)}</span></span></h1>${store.maquette ? maquetteButtons() : ''}<button type="button" class="act" data-act="close-panel" aria-label="Fermer">${ico('close')}</button></header>
+  const leg = v.ui.boardView === 'leg';
+  const impacts = impactsFor(v.g, v.s, v.visitIdx, { previous: leg });
+  const b = (val, label) => `<button type="button" data-act="board-view" data-arg="${val}" aria-pressed="${(val === 'leg') === leg}">${label}</button>`;
+  const empty = !v.darts.length ? '<br>Aucune fléchette dans cette volée pour l\'instant.' : '';
+  return `<div class="sheet-bg" role="dialog" aria-label="Cible" data-layer><div class="sheet">
+    <header class="top" data-layer><h1><span>Cible · <span class="nm">${esc(v.player.name)}</span></span></h1>${store.maquette ? maquetteButtons() : ''}<button type="button" class="act" data-act="close-panel" aria-label="Fermer">${ico('close')}</button></header>
     <div class="body" style="padding-top:12px">
+      <div class="seg" role="group" aria-label="Impacts montrés">${b('visit', 'Volée')}${b('leg', 'Manche')}</div>
       <button type="button" class="big-board" data-act="close-panel" aria-label="Fermer la cible">${boardSvg({ size: 380, impacts, label: 'Impacts' })}</button>
-      <p class="note center"><b class="sq"></b> volée ${v.pend ? 'jouée' : 'en cours'}, numérotée · <b class="sq old"></b> volées précédentes de la manche.<br>Une fléchette saisie au pavé est placée au centre de son segment ; le 0 n'est pas marqué.</p>
+      <p class="note legend-marks">${markIcon(true)}volée ${v.pend ? 'jouée' : 'en cours'}, numérotée${leg ? `<br>${markIcon(false)}volées précédentes de la manche` : ''}${empty}<br>Une fléchette saisie au pavé est placée au centre de son segment ; le 0 n'est pas marqué.</p>
       <button type="button" class="btn ghost" data-act="open-history">${ico('history')} HISTORIQUE DE LA PARTIE</button>
     </div></div></div>`;
 }
 
 function historySheet(v) {
-  return `<div class="sheet-bg" role="dialog" aria-label="Historique de la partie en cours"><div class="sheet">
-    <header class="top"><h1><span>Partie en cours</span></h1>${store.maquette ? maquetteButtons() : ''}<button type="button" class="act" data-act="close-panel" aria-label="Fermer">${ico('close')}</button></header>
+  return `<div class="sheet-bg" role="dialog" aria-label="Historique de la partie en cours" data-layer><div class="sheet">
+    <header class="top" data-layer><h1><span>Partie en cours</span></h1>${store.maquette ? maquetteButtons() : ''}<button type="button" class="act" data-act="close-panel" aria-label="Fermer">${ico('close')}</button></header>
     ${gameLog(v.g, v.s, { live: true })}
     <div class="pad" style="margin-top:18px"><button type="button" class="btn primary" data-act="close-panel">${ico('play')} RETOUR À LA PARTIE</button></div>
   </div></div>`;
@@ -254,8 +265,8 @@ function pauseSheet() {
     ? `<div class="confirm"><p><b>Abandonner la partie ?</b></p><p class="small dim">Elle restera dans l'historique, marquée « abandonnée ».</p>
         <div class="btns two"><button type="button" class="btn" data-act="abandon-no">NON</button><button type="button" class="btn alert" data-act="abandon-yes">ABANDONNER</button></div></div>`
     : '<button type="button" class="btn danger" data-act="abandon">ABANDONNER LA PARTIE</button>';
-  return `<div class="sheet-bg" role="dialog" aria-label="Pause"><div class="sheet">
-    <header class="top"><h1><span>Pause</span></h1>${store.maquette ? '<a class="act mq" href="#/sommaire" aria-label="Sommaire de maquette">' + ico('menu') + '</a>' : ''}<button type="button" class="act" data-act="resume" aria-label="Fermer">${ico('close')}</button></header>
+  return `<div class="sheet-bg" role="dialog" aria-label="Pause" data-layer><div class="sheet">
+    <header class="top" data-layer><h1><span>Pause</span></h1>${store.maquette ? '<a class="act mq" href="#/sommaire" aria-label="Sommaire de maquette">' + ico('menu') + '</a>' : ''}<button type="button" class="act" data-act="resume" aria-label="Fermer">${ico('close')}</button></header>
     <div class="body" style="padding-top:16px">
       <button type="button" class="btn primary big" data-act="resume">${ico('play')} REPRENDRE</button>
       <button type="button" class="btn" data-act="open-history">${ico('history')} HISTORIQUE DE LA PARTIE</button>
@@ -459,6 +470,7 @@ export const actions = {
   'open-board'() { stopAnnounce(); store.current.ui.panel = 'board'; refresh(); },
   'open-history'() { stopAnnounce(); Object.assign(store.current.ui, { panel: 'history', pause: false, confirm: false }); refresh(); },
   'close-panel'() { store.current.ui.panel = null; refresh(); },
+  'board-view'(val) { store.current.ui.boardView = val === 'leg' ? 'leg' : 'visit'; refresh(); },
   abandon() { store.current.ui.confirm = true; refresh(); },
   'abandon-no'() { store.current.ui.confirm = false; refresh(); },
   'abandon-yes'() { stopAnnounce(); archiveCurrent(true); go('#/'); },

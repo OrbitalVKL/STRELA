@@ -9,7 +9,7 @@ JavaScript pur (modules ES), sans dépendance ni affichage. Utilisable tel quel 
 | `x01.js` | règles X01 : configuration, état recalculé, jouer, annuler |
 | `checkout.js` | table de finitions (sortie simple / double, 1 à 3 fléchettes restantes) |
 | `stats.js` | statistiques d'un joueur recalculées depuis les fléchettes ; résumé d'un joueur dans une partie |
-| `board.js` | géométrie de la cible : position → segment (saisie au doigt), centre d'un segment (impacts) |
+| `board.js` | géométrie de la cible : position → segment (saisie au doigt), centre d'un segment (impacts), couleur de chaque zone |
 | `players.js` | suppression d'un joueur : anonymisation de ses parties |
 | `index.js` | point d'entrée ; `GAMES` liste les jeux (X01 seul pour l'instant) |
 
@@ -89,6 +89,9 @@ dessin à 1,18. (Une vraie cible a triple et double de 0,05 : intouchables au do
 - `dartPoint(fléchette)` : centre de la zone (simple : milieu du grand simple intérieur ; 25 : sur l'anneau du 25,
   en haut ; 50 : centre ; 0 → `null`, non marqué). `impactPoint()` : `pos` si elle correspond bien à la fléchette,
   sinon `dartPoint()`. `zoneLabel()` : « T20 », « D16 », « 5 », « 25 », « 50 ».
+- `zoneTone(segment, multiplicateur)` (lot 1.2) : couleur réglementaire de la zone, `'black' | 'cream' | 'red' |
+  'green'` (simple du 20 noir puis un secteur sur deux ; doubles et triples rouges sur les noirs, verts sur les crème ;
+  25 vert, 50 rouge ; 0 → `null`). Le dessin (`src/ui/board.js`) en tire ses classes, les jetons `--board-*` les couleurs.
 
 ## Suppression d'un joueur (`players.js`)
 

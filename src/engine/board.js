@@ -90,6 +90,20 @@ export function impactPoint(dart) {
   return dartPoint(dart);
 }
 
+/**
+ * Couleur réglementaire d'une zone (lot 1.2) : 'black' | 'cream' | 'red' | 'green'.
+ * Simples : noir pour le 20 puis un secteur sur deux (sens horaire), crème pour les autres ; doubles et triples :
+ * rouge sur les secteurs noirs, vert sur les crème ; 25 vert, 50 rouge. Le 0 n'a pas de zone (null).
+ */
+export function zoneTone(segment, multiplier = SINGLE) {
+  if (segment === BULL) return multiplier === DOUBLE ? 'red' : 'green';
+  const i = SECTORS.indexOf(segment);
+  if (i < 0) return null;
+  const dark = i % 2 === 0;
+  if (multiplier === SINGLE) return dark ? 'black' : 'cream';
+  return dark ? 'red' : 'green';
+}
+
 /** Nom affiché d'une zone : « T20 », « D16 », « 5 », « 25 », « 50 », « 0 ». */
 export function zoneLabel(dart) {
   if (!dart) return '';

@@ -54,7 +54,7 @@ export function newGame() {
         <button type="button" data-act="legs" data-arg="1" ${legs >= 9 ? 'disabled' : ''} aria-label="Plus">+</button></div>
       <p class="note">Le premier à lancer change à chaque manche.</p>
     </div>
-    <div class="dock"><button type="button" class="btn primary big" data-act="launch" ${ok ? '' : 'disabled'}>
+    <div class="dock" data-layer><button type="button" class="btn primary big" data-act="launch" ${ok ? '' : 'disabled'}>
       ${ok ? `LANCER <small>${d.startScore} · ${d.players.length === 1 ? 'SOLO' : `${d.players.length} JOUEURS`}</small>` : 'CHOISIR LES JOUEURS'}</button></div>
   </div>`;
 }

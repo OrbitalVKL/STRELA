@@ -23,12 +23,22 @@ export function goBackTo(hash) {
   else go(hash, { replace: true });
 }
 
-/** Vibration, si le réglage la permet et si le téléphone sait faire. */
-export function buzz(pattern) {
-  if (!store.settings.vibrate || !navigator.vibrate) return;
-  try { navigator.vibrate(pattern); } catch (e) { /* rien */ }
+/**
+ * Vibration : 'absent' (le navigateur ne sait pas faire), 'off' (réglage sur NON), 'refused' (navigator.vibrate a
+ * renvoyé false : Chrome refuse tant que l'utilisateur n'a pas encore touché la page, ou motif invalide), 'sent'
+ * (demande transmise). « Transmise » ne veut pas dire « ressentie » : Chrome sur Android ne fait rien quand le
+ * téléphone est en mode silencieux, et Android coupe les vibrations des pages quand le retour haptique est désactivé.
+ * L'APK (lot 5) passera par le vibreur natif d'Android.
+ */
+export function buzz(pattern, { force = false } = {}) {
+  if (typeof navigator.vibrate !== 'function') return 'absent';
+  if (!force && !store.settings.vibrate) return 'off';
+  let ok = false;
+  try { ok = navigator.vibrate(pattern); } catch (e) { ok = false; }
+  return ok ? 'sent' : 'refused';
 }
-export const BUZZ = Object.freeze({ dart: 12, bust: 450, leg: [60, 70, 60, 70, 160], undo: [8, 40, 8] });
+// Durées en ms. Une impulsion de moins de ~20 ms se sent à peine sur les moteurs linéaires des Pixel.
+export const BUZZ = Object.freeze({ dart: 25, bust: 450, leg: [60, 70, 60, 70, 160], undo: [15, 50, 15], test: [40, 120, 40, 120, 300] });
 
 // Écran toujours allumé pendant la partie (Wake Lock), libéré en quittant le jeu.
 let lock = null;

@@ -42,16 +42,26 @@
   --inv-fg: #0C0F12;
   --inv-bg: #CFD2D4;
   /* Fonds d'avatar (identiques dans les deux thèmes), encre des pictogrammes, calque du mode nuit */
-  --av-0: #3D4A5A;
-  --av-1: #3C5545;
-  --av-2: #5B5A36;
-  --av-3: #7A5F30;
-  --av-4: #7C4535;
-  --av-5: #5B3E58;
-  --av-6: #2C5759;
-  --av-7: #4A4E52;
+  --av-0: #234870;
+  --av-1: #3F7352;
+  --av-2: #464415;
+  --av-3: #8B6135;
+  --av-4: #6D312C;
+  --av-5: #57385E;
+  --av-6: #0D7281;
+  --av-7: #69686B;
   --av-ink: #ECEDEE;
   --night: #B21400;
+  /* Cible : mêmes couleurs dans les deux thèmes (objet physique) ; voir BOARD_COLORS de theme.js */
+  --board-black: #1E2022;
+  --board-cream: #E4D9BC;
+  --board-red: #B0443D;
+  --board-green: #2F7D50;
+  --board-ring: #151719;
+  --board-num: #F2F0EA;
+  --board-wire: #A2A7AC;
+  --board-mark: #FAF8F2;
+  --board-mark-ink: #0E1012;
   --font: 'Martian Mono', ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
   --rule: 1px solid var(--faint);
   color-scheme: dark;
