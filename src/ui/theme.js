@@ -26,6 +26,14 @@ export const THEMES = Object.freeze({
   light: build({ bg: '#ECEDEE', fg: '#14171A', redText: '#9E4A4A', invFg: '#ECEDEE', invBg: '#14171A' }),
 });
 
+// Fonds d'avatar : 8 couleurs sourdes, identiques en sombre et en clair (l'avatar est une identité),
+// pictogramme ou initiales en AVATAR_INK par-dessus. Jetons --av-0 … --av-7 et --av-ink de theme.css.
+export const AVATAR_COLORS = Object.freeze(['#3D4A5A', '#3C5545', '#5B5A36', '#7A5F30', '#7C4535', '#5B3E58', '#2C5759', '#4A4E52']);
+export const AVATAR_INK = '#ECEDEE';
+
+// Mode nuit (option du thème sombre, comme Grafit) : calque « multiply » de cette couleur sur tout l'écran.
+export const NIGHT_FILTER = '#B21400';
+
 export const THEME_CHOICES = Object.freeze(['auto', 'dark', 'light']); // Auto par défaut
 export const THEME_LABELS = Object.freeze({ auto: 'AUTO', dark: 'SOMBRE', light: 'CLAIR' });
 

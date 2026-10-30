@@ -1,9 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" fill="#0A0C0E"/>
-  <g fill="none" stroke="#CFD2D4" stroke-width="4" stroke-linecap="square">
-    <path d="M14 50 L46 18"/>
-    <path d="M30 18 H46 V34"/>
-    <path d="M14 42 V50 H22"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Strela : cible carrée (filets fins, angles droits), flèche plantée au centre. Couleurs = sombre de la DA. -->
+  <rect width="512" height="512" fill="#0A0C0E"/>
+  <g transform="translate(-26 26)">
+  <g fill="none" stroke="#CFD2D4" stroke-width="10" stroke-linecap="square" stroke-linejoin="miter">
+    <rect x="96" y="96" width="320" height="320"/>
+    <rect x="156" y="156" width="200" height="200" stroke="#848789"/>
   </g>
-  <rect x="4" y="4" width="56" height="56" fill="none" stroke="#9E4A4A" stroke-width="2"/>
+  <rect x="226" y="226" width="60" height="60" fill="#9E4A4A"/>
+  <g transform="rotate(-45 256 256)">
+    <path d="M256 256H332" stroke="#CFD2D4" stroke-width="10"/>
+    <rect x="332" y="241" width="74" height="30" fill="#CFD2D4"/>
+    <path d="M406 256H452" stroke="#CFD2D4" stroke-width="12"/>
+    <path d="M440 256L486 214H520L500 256L520 298H486Z" fill="#CFD2D4"/>
+  </g>
+  </g>
 </svg>

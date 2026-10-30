@@ -41,6 +41,17 @@
   --red-ink: #F6ECEC;
   --inv-fg: #0C0F12;
   --inv-bg: #CFD2D4;
+  /* Fonds d'avatar (identiques dans les deux thèmes), encre des pictogrammes, calque du mode nuit */
+  --av-0: #3D4A5A;
+  --av-1: #3C5545;
+  --av-2: #5B5A36;
+  --av-3: #7A5F30;
+  --av-4: #7C4535;
+  --av-5: #5B3E58;
+  --av-6: #2C5759;
+  --av-7: #4A4E52;
+  --av-ink: #ECEDEE;
+  --night: #B21400;
   --font: 'Martian Mono', ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
   --rule: 1px solid var(--faint);
   color-scheme: dark;

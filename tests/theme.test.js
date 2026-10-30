@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
-import { THEMES, mix, contrast } from '../src/ui/theme.js';
+import { THEMES, mix, contrast, AVATAR_COLORS, AVATAR_INK, NIGHT_FILTER } from '../src/ui/theme.js';
 
 const root = new URL('../', import.meta.url);
 const css = readFileSync(new URL('assets/theme.css', root), 'utf8');
@@ -61,4 +61,16 @@ test('police Martian Mono embarquée avec sa licence OFL', () => {
     if (f.endsWith('.woff2')) assert.ok(css.includes(`fonts/${f}`), `${f} déclarée dans theme.css`);
   }
   assert.match(readFileSync(new URL('assets/fonts/OFL.txt', root), 'utf8'), /SIL Open Font License/);
+});
+
+test('avatars : 8 fonds sourds dans theme.css, pictogramme lisible sur chacun', () => {
+  const vars = block(':root');
+  assert.equal(AVATAR_COLORS.length, 8);
+  AVATAR_COLORS.forEach((c, i) => {
+    assert.equal(vars[`av-${i}`], c, `--av-${i}`);
+    assert.ok(contrast(AVATAR_INK, c) >= 4.5, `encre sur --av-${i} : ${contrast(AVATAR_INK, c).toFixed(2)}`);
+    assert.notEqual(c, THEMES.dark.red, 'le rouge reste réservé aux alertes');
+  });
+  assert.equal(vars['av-ink'], AVATAR_INK);
+  assert.equal(vars.night, NIGHT_FILTER);
 });
