@@ -10,6 +10,7 @@
 import { computeState, STATUS, EVENTS } from '../engine/x01.js';
 import { deletePlayer as removePlayer, deletionImpact, isDeletedId } from '../engine/players.js';
 import { openDb, currentRecord, closedRecord, playerRecord, deletionOps, gameDeletionOps, DB_VERSION } from '../data/db.js';
+import { makeBackup, importPlan } from '../data/backup.js';
 
 export const store = {
   players: [],
@@ -193,6 +194,40 @@ export function deleteCurrent() {
   if (!g) return;
   store.current = null;
   write(gameDeletionOps([g.id]));
+}
+
+// ------------------------------------------------------------------ sauvegarde : export / import (lot 3)
+/** Sauvegarde complète de ce qui est sur le téléphone (src/data/backup.js). */
+export function exportBackup(app) {
+  const display = { ...store.settings };
+  return makeBackup({ players: store.players, games: store.games, current: store.current, display, lastSetup: store.lastSetup },
+    { app, dbVersion: store.db.version });
+}
+
+/**
+ * Importe une sauvegarde vérifiée (parseBackup) : 'replace' (tout remplacer) ou 'merge' (ajouter ce qui manque).
+ * Une seule transaction ; l'état en mémoire suit. Renvoie les chiffres de l'import.
+ */
+const localData = () => ({ players: store.players, games: store.games, current: store.current, display: { ...store.settings }, lastSetup: store.lastSetup });
+
+/** Chiffres d'un import avant de le faire (texte des confirmations). */
+export const importCounts = (backup, mode) => importPlan(localData(), backup, mode).counts;
+
+export function applyImport(backup, mode) {
+  const local = localData();
+  const plan = importPlan(local, backup, mode);
+  store.players = plan.state.players.map(p => ({ ...p }));
+  store.games = plan.state.games;
+  store.current = plan.state.current
+    ? (plan.state.current === local.current ? local.current : { ...plan.state.current, ui: freshUi() })
+    : null;
+  store.lastSetup = plan.state.lastSetup || null;
+  store.setupDraft = null;
+  store.draft = null;
+  Object.assign(store.settings, plan.state.display);
+  if (!store.maquette) mirrorSettings();
+  write(plan.ops);
+  return plan.counts;
 }
 
 // ------------------------------------------------------------------ suppression d'un joueur

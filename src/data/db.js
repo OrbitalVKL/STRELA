@@ -107,7 +107,7 @@ export class Database {
   }
 
   /**
-   * Une transaction pour toute la liste : [{ store, put: valeur, key? } | { store, del: clé }].
+   * Une transaction pour toute la liste : [{ store, put: valeur, key? } | { store, del: clé } | { store, clear: true }].
    * Tout est écrit, ou rien (une erreur annule la transaction entière).
    */
   write(ops) {
@@ -119,7 +119,8 @@ export class Database {
     try {
       for (const o of ops) {
         const st = tx.objectStore(o.store);
-        if ('del' in o) st.delete(o.del);
+        if (o.clear) st.clear();
+        else if ('del' in o) st.delete(o.del);
         else if (o.key !== undefined) st.put(o.put, o.key);
         else st.put(o.put);
       }

@@ -10,7 +10,7 @@ import { game, key, mountGame, actions as gameActions } from './screens/game.js'
 import { legEnd, matchEnd, actions as resultActions } from './screens/results.js';
 import { historyList, historyDetail, leaveHistory, actions as historyActions } from './screens/history.js';
 import { statsScreen, faceScreen, actions as statsActions } from './screens/stats.js';
-import { settingsScreen, applyTheme, actions as settingsActions } from './screens/settings.js';
+import { settingsScreen, applyTheme, onBackupFile, actions as settingsActions } from './screens/settings.js';
 import { cropScreen, mountCrop, onPhotoFile, actions as photoActions } from './screens/photo.js';
 import { animateRolls, rollScope } from './roll.js';
 import { fitAll } from './fit.js';
@@ -162,6 +162,10 @@ app.addEventListener('change', ev => {
   const el = ev.target.closest('[data-file]');
   if (el && el.files && el.files[0]) onPhotoFile(el.files[0]);
   if (el) el.value = '';
+  // Sauvegarde choisie (Réglages › IMPORTER) : lue et vérifiée, puis aperçu.
+  const bf = ev.target.closest('[data-backup]');
+  if (bf && bf.files && bf.files[0]) onBackupFile(bf.files[0]);
+  if (bf) bf.value = '';
 });
 window.addEventListener('hashchange', render);
 // Rotation : l'écran de jeu change de mise en page (pavé en portrait, cible en paysage), l'état reste.

@@ -1,8 +1,9 @@
 // Réglages : thème Auto / Sombre / Clair (« strela.theme »), mode nuit (option du sombre : console en rouge
 // atténué, comme Grafit), sons et annonces vocales (lot 3), vibrations, animations (chiffres en rouleau, glissement du bandeau ; coupées d'office si le
 // téléphone demande moins d'animations). Les mêmes commandes servent au menu pause du jeu.
-import { store, saveSetting, reducedMotion } from '../store.js';
-import { esc, topBar } from '../dom.js';
+import { store, saveSetting, reducedMotion, exportBackup, applyImport, importCounts } from '../store.js';
+import { backupFileName, parseBackup, BackupError } from '../../data/backup.js';
+import { esc, topBar, plural } from '../dom.js';
 import { BUILD } from '../build.js';
 import { refresh, buzz, BUZZ } from '../nav.js';
 import { say, sound, voiceInfo } from '../feedback.js';
@@ -97,6 +98,76 @@ function voiceBlock() {
   return `<div class="vibe bad" role="status"><b>${text[0]}</b><span>${text[1]}</span></div>`;
 }
 
+// ------------------------------------------------------------------ sauvegarde : export / import (lot 3)
+// bk.preview : sauvegarde lue et vérifiée (parseBackup), en attente d'un choix ; bk.ask : 'replace' | 'merge'
+// (confirmation) ; bk.error : fichier refusé ; bk.done : compte rendu du dernier export ou import.
+const bk = { preview: null, file: '', ask: null, error: '', done: '' };
+
+/** Sommaire de maquette : sauvegarde lue d'avance, confirmation ou refus affichés. */
+export function presetBackup(state) { Object.assign(bk, { preview: null, file: '', ask: null, error: '', done: '' }, state); }
+
+const fmtDate = iso => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return 'date inconnue';
+  const p = n => String(n).padStart(2, '0');
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} à ${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+
+function backupBlock() {
+  const exp = `<button type="button" class="btn" data-act="backup-export">EXPORTER</button>`;
+  const imp = `<label class="btn ghost">IMPORTER<input type="file" accept="application/json,.json" data-backup hidden></label>`;
+  let box = '';
+  if (bk.error) {
+    box = `<div class="vibe bad" role="alert"><b>FICHIER REFUSÉ</b><span>${esc(bk.error)}</span><span>Rien n'a été modifié.</span></div>`;
+  } else if (bk.preview) {
+    const sm = bk.preview.summary;
+    const what = `${plural(sm.players, 'joueur', 'joueurs')} · ${plural(sm.games, 'partie', 'parties')}${sm.current ? ' · une partie en cours' : ''}`;
+    const head = `<div class="bk-prev"><b>SAUVEGARDE DU ${esc(fmtDate(sm.exportedAt))}</b><span>${what}${sm.app ? ` · Strela v${esc(sm.app)}` : ''}</span><span class="small dim ell">${esc(bk.file)}</span></div>`;
+    if (bk.ask === 'replace') {
+      const nP = store.players.length, nG = store.games.length + (store.current ? 1 : 0);
+      box = `${head}<div class="confirm" role="alertdialog" aria-label="Tout remplacer ?"><p class="alert-h">REMPLACER TOUTES LES DONNÉES ?</p>
+        <p class="small">Les ${plural(nP, 'joueur', 'joueurs')} et ${plural(nG, 'partie', 'parties')} de ce téléphone seront effacés et remplacés par ceux de la sauvegarde (réglages compris).</p>
+        <div class="btns two"><button type="button" class="btn" data-act="backup-no">NON</button><button type="button" class="btn alert" data-act="backup-yes">REMPLACER</button></div></div>`;
+    } else if (bk.ask === 'merge') {
+      const c = importCounts(bk.preview, 'merge');
+      box = `${head}<div class="confirm warn" role="alertdialog" aria-label="Fusionner ?"><p><b>FUSIONNER ?</b></p>
+        <p class="small">Ajoute ${plural(c.playersAdded, 'joueur', 'joueurs')} et ${plural(c.gamesAdded, 'partie', 'parties')} absents de ce téléphone. Rien n'est effacé ; ce qui existe déjà ici est gardé tel quel.${c.currentSkipped ? ' Une partie est déjà en cours ici : celle de la sauvegarde ira dans l\'historique, abandonnée.' : ''}</p>
+        <div class="btns two"><button type="button" class="btn" data-act="backup-no">NON</button><button type="button" class="btn primary" data-act="backup-yes">FUSIONNER</button></div></div>`;
+    } else {
+      box = `${head}<div class="btns two"><button type="button" class="btn danger" data-act="backup-mode" data-arg="replace">REMPLACER TOUT</button><button type="button" class="btn" data-act="backup-mode" data-arg="merge">FUSIONNER</button></div>
+        <button type="button" class="btn ghost" data-act="backup-cancel">ANNULER</button>`;
+    }
+  } else if (bk.done) {
+    box = `<div class="vibe" role="status"><b>FAIT</b><span>${esc(bk.done)}</span></div>`;
+  }
+  return `<div class="btns two">${exp}${imp}</div>${box ? `<div class="bk" data-reveal>${box}</div>` : ''}
+    <p class="note">EXPORTER : un fichier avec les joueurs (photos comprises), les parties et les réglages, à garder sur Drive ou ailleurs. IMPORTER : REMPLACER TOUT ou FUSIONNER (sans doublon), après un aperçu.</p>`;
+}
+
+/** Fichier de sauvegarde choisi (IMPORTER) : lu et vérifié en entier avant tout choix ; rien n'est encore écrit. */
+export async function onBackupFile(file) {
+  Object.assign(bk, { preview: null, ask: null, error: '', done: '', file: file.name });
+  try {
+    if (file.size > 200 * 1048576) throw new BackupError('Fichier trop lourd pour une sauvegarde Strela.');
+    bk.preview = parseBackup(await file.text());
+  } catch (e) {
+    bk.error = e instanceof BackupError ? e.message : `Lecture impossible (${(e && e.message) || e}).`;
+  }
+  refresh();
+}
+
+/** Téléchargement du fichier (repli quand le partage d'Android n'est pas proposé). */
+function download(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+
 export function settingsScreen() {
   const vr = vibeResult && VIBE_TEXT[vibeResult];
   return `<div class="screen">${topBar('Réglages', '#/')}
@@ -110,6 +181,8 @@ export function settingsScreen() {
       <div class="sec">Vibrations</div>
       <button type="button" class="btn ghost" data-act="test-vibrate">TESTER LA VIBRATION</button>
       ${vr ? `<div class="vibe ${vibeResult === 'sent' ? '' : 'bad'}" role="status"><b>${vr[0]}</b><span>${vr[1]}</span>${store.settings.vibrate ? '' : '<span>Le réglage « Vibrations » est sur NON : en partie, rien ne vibrera.</span>'}</div>` : ''}
+      <div class="sec">Sauvegarde</div>
+      ${backupBlock()}
       <div class="sec">À propos</div>
       <div class="kv"><span>Version</span><b>${esc(BUILD.version)}</b></div>
       <div class="kv"><span>Tests du moteur</span><b>${esc(BUILD.pass)} / ${esc(BUILD.total)}</b></div>
@@ -137,6 +210,42 @@ export const actions = {
   'test-sound'() { ['single', 'double', 'triple', 'miss', 'bust', 'validate', 'finish'].forEach((k, i) => setTimeout(() => sound(k, { force: true }), i * 420)); },
   // Appelé dans le clic (geste de l'utilisateur), sans tenir compte du réglage : on veut savoir si le téléphone vibre.
   'test-vibrate'() { vibeResult = buzz(BUZZ.test, { force: true }); refresh(); },
+  // Sauvegarde : partagée par le menu d'Android (Drive…) si le téléphone le propose pour ce fichier, sinon téléchargée.
+  async 'backup-export'() {
+    const name = backupFileName();
+    const data = exportBackup(BUILD.version);
+    const text = JSON.stringify(data);
+    const blob = new Blob([text], { type: 'application/json' });
+    const sm = `${plural(data.players.length, 'joueur', 'joueurs')} et ${plural(data.games.length, 'partie', 'parties')}`;
+    Object.assign(bk, { preview: null, ask: null, error: '' });
+    try {
+      const file = new File([blob], name, { type: 'application/json' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: name });
+        bk.done = `${name} partagé (${sm}).`;
+        refresh();
+        return;
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') return; // partage annulé
+    }
+    download(blob, name);
+    bk.done = `${name} enregistré dans les téléchargements (${sm}).`;
+    refresh();
+  },
+  'backup-mode'(m) { bk.ask = m === 'replace' ? 'replace' : 'merge'; refresh(); },
+  'backup-no'() { bk.ask = null; refresh(); },
+  'backup-cancel'() { Object.assign(bk, { preview: null, ask: null }); refresh(); },
+  'backup-yes'() {
+    if (!bk.preview || !bk.ask) return;
+    const c = applyImport(bk.preview, bk.ask);
+    bk.done = bk.ask === 'replace'
+      ? `Données remplacées : ${plural(store.players.length, 'joueur', 'joueurs')}, ${plural(store.games.length + (store.current ? 1 : 0), 'partie', 'parties')}.`
+      : `Fusion faite : ${plural(c.playersAdded, 'joueur ajouté', 'joueurs ajoutés')}, ${plural(c.gamesAdded, 'partie ajoutée', 'parties ajoutées')}.`;
+    Object.assign(bk, { preview: null, ask: null });
+    applyTheme();
+    refresh();
+  },
   async 'copy-diag'(arg, el) {
     const text = diagnostic();
     try { await navigator.clipboard.writeText(text); el.textContent = 'COPIÉ'; } catch (e) { el.textContent = 'COPIE IMPOSSIBLE : RECOPIER LA LIGNE'; }

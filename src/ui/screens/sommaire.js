@@ -16,7 +16,8 @@ import { topBar, ico } from '../dom.js';
 import { parseDart } from '../../engine/darts.js';
 import { simulateGame } from '../mock.js';
 import { go } from '../nav.js';
-import { isDark, applyTheme } from './settings.js';
+import { isDark, applyTheme, presetBackup } from './settings.js';
+import { makeBackup, parseBackup } from '../../data/backup.js';
 import { saveSetting } from '../store.js';
 
 const ds = text => text.trim().split(/\s+/).filter(Boolean).map(parseDart);
@@ -56,6 +57,12 @@ function storeGame(id, config, darts) {
   ensureExtraPlayers(config.players);
   store.games = [{ id, startedAt: Date.now() - 3600e3, config, darts, abandoned: false }, ...store.games.filter(g => g.id !== id)];
   return id;
+}
+/** Sauvegarde fictive (les données de la maquette, plus un joueur et une partie absents d'ici). */
+function mockBackup() {
+  const extra = { id: 'px', name: 'Nadia', avatar: { kind: 'initials', color: 5 }, archived: false };
+  const g = { id: 'gx-import', startedAt: Date.now() - 86400e3 * 40, endedAt: Date.now() - 86400e3 * 40 + 1800e3, config: cfg(['p1', 'px'], 301), darts: ds('T20 T20 T20 20 20 20 T20 T11 D14'), validated: 9, abandoned: false };
+  return parseBackup(JSON.stringify(makeBackup({ players: [...store.players, extra], games: [...store.games, g], current: null, display: { ...store.settings }, lastSetup: null }, { app: '0.3.0', now: new Date(2026, 9, 30, 21, 18) })));
 }
 const visitIndex = (config, darts, pick) => computeState(config, darts).visits.findIndex(pick);
 
@@ -164,6 +171,11 @@ export const SCENES = {
   'aucun-joueur': () => { store.players = []; store.current = null; store.setupDraft = null; return '#/joueurs'; },
   'nouvelle-vide': () => { store.players = []; store.current = null; store.setupDraft = null; return '#/nouvelle'; },
   'historique-vide': () => { store.games = []; return '#/historique'; },
+  // Lot 3 : sauvegarde (aperçu d'un fichier, confirmations, fichier refusé)
+  'sauvegarde-apercu': () => { presetBackup({ preview: mockBackup(), file: 'strela-20261030-2118.json' }); return '#/reglages'; },
+  'sauvegarde-remplacer': () => { presetBackup({ preview: mockBackup(), file: 'strela-20261030-2118.json', ask: 'replace' }); return '#/reglages'; },
+  'sauvegarde-fusionner': () => { presetBackup({ preview: mockBackup(), file: 'strela-20261030-2118.json', ask: 'merge' }); return '#/reglages'; },
+  'sauvegarde-refus': () => { presetBackup({ error: 'Sauvegarde faite par une version plus récente de Strela (9.0.0) : mets l\'appli à jour avant de l\'importer.' }); return '#/reglages'; },
   // Lot 3 : suppression de parties (sélection par appui long, confirmation ; détail d'une partie)
   'histo-selection': () => { presetHistory({ ids: store.games.slice(0, 3).map(g => g.id) }); return '#/historique'; },
   'histo-selection-confirmer': () => { presetHistory({ ids: store.games.slice(0, 3).map(g => g.id), ask: true }); return '#/historique'; },
@@ -249,6 +261,10 @@ export function sommaire() {
       ${H('#/face/p1/p2', '9 · Face-à-face', 'Guillaume contre Mathilde')}
       ${H('#/face/p3/p1', '9 · Face-à-face', 'à 3 et 4 joueurs')}
       ${H('#/reglages', '10 · Réglages')}
+      ${L('sauvegarde-apercu', '10 · Importer : aperçu', 'REMPLACER / FUSIONNER')}
+      ${L('sauvegarde-remplacer', '10 · Importer : tout remplacer ?', 'confirmation')}
+      ${L('sauvegarde-fusionner', '10 · Importer : fusionner ?', 'confirmation')}
+      ${L('sauvegarde-refus', '10 · Importer : fichier refusé', 'version future')}
     </nav>
     <div class="pad"><div class="sec">États de jeu</div></div>
     <nav class="toc">
