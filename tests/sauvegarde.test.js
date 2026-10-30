@@ -62,8 +62,10 @@ test('exporter, effacer, importer : base identique ; fusion sans doublon ; versi
     assert.match(await page.innerText('.bk'), /enregistré dans les téléchargements/);
 
     // Base effacée (comme une nouvelle installation) : l'appli se recharge, vide.
-    // (la page ouverte ferme sa connexion et se recharge, comme lors d'une mise à jour de l'appli)
-    await Promise.all([page.waitForEvent('load'), page.evaluate(() => new Promise(res => { const r = indexedDB.deleteDatabase('strela'); r.onsuccess = r.onerror = () => res(); }))]);
+    // L'appli est fermée, puis la base effacée depuis une page du même site sans l'appli (manifeste).
+    await page.goto('about:blank');
+    await page.goto(`${srv.url}manifest.webmanifest`);
+    await page.evaluate(() => new Promise((res, rej) => { const r = indexedDB.deleteDatabase('strela'); r.onsuccess = () => res(); r.onerror = r.onblocked = () => rej(new Error('effacement refusé')); }));
     await openApp(page, srv.url, '#/reglages');
     let db = await readDb(page);
     assert.equal(db.players.length + db.games.length, 0, 'base vide');
