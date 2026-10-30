@@ -22,7 +22,8 @@ import { rollHtml } from '../roll.js';
 import { pendingVisit, validatedAfterUndo } from '../turn.js';
 import { go, refresh, buzz, BUZZ } from '../nav.js';
 import { themeControls } from './settings.js';
-import { gameLog } from './history.js';
+import { gameLog, selectLogCell, selectedLogCell } from './history.js';
+import { correctDart, locateDart, visitStart, CORRECT_ERRORS } from '../../engine/correct.js';
 
 export const ANNOUNCE_MS = 800;
 const LENS = { size: 150, zoom: 2.5, gap: 26 };
@@ -181,7 +182,7 @@ export function game() {
   const slide = v.ui.slide;
   v.ui.slide = false; // le glissement ne se joue qu'une fois
   const land = isLandscape();
-  const overlays = `${v.ui.panel === 'board' ? boardSheet(v) : ''}${v.ui.panel === 'history' ? historySheet(v) : ''}${v.ui.pause ? pauseSheet() : ''}`;
+  const overlays = `${v.ui.panel ? livePanel(v) : ''}${v.ui.pause ? pauseSheet() : ''}`;
   if (land) return landscape(v, slide, overlays);
 
   // Pavé (portrait)
@@ -242,28 +243,105 @@ function landscape(v, slide, overlays) {
   </div>`;
 }
 
-// Cible agrandie : bascule VOLÉE (volée en cours seule) / MANCHE (avec ses volées précédentes de la manche).
-function boardSheet(v) {
-  const leg = v.ui.boardView === 'leg';
-  const impacts = impactsFor(v.g, v.s, v.visitIdx, { previous: leg });
-  const b = (val, label) => `<button type="button" data-act="board-view" data-arg="${val}" aria-pressed="${(val === 'leg') === leg}">${label}</button>`;
-  const empty = !v.darts.length ? '<br>Aucune fléchette dans cette volée pour l\'instant.' : '';
-  return `<div class="sheet-bg" role="dialog" aria-label="Cible" data-layer><div class="sheet">
-    <header class="top" data-layer><h1><span>Cible · <span class="nm">${esc(v.player.name)}</span></span></h1>${store.maquette ? maquetteButtons() : ''}<button type="button" class="act" data-act="close-panel" aria-label="Fermer">${ico('close')}</button></header>
-    <div class="body" style="padding-top:12px">
-      <div class="seg" role="group" aria-label="Impacts montrés">${b('visit', 'Volée')}${b('leg', 'Manche')}</div>
-      <button type="button" class="big-board" data-act="close-panel" aria-label="Fermer la cible">${boardSvg({ size: 380, impacts, label: 'Impacts' })}</button>
-      <p class="note legend-marks">${markIcon(true)}volée ${v.pend ? 'jouée' : 'en cours'}, numérotée${leg ? `<br>${markIcon(false)}volées précédentes de la manche` : ''}${empty}<br>Une fléchette saisie au pavé est placée au centre de son segment ; le 0 n'est pas marqué.</p>
-      <button type="button" class="btn ghost" data-act="open-history">${ico('history')} HISTORIQUE DE LA PARTIE</button>
-    </div></div></div>`;
+// ------------------------------------------------------------------ panneau « cible + historique » (lot 3)
+// Un seul panneau, ouvert par la petite cible ou par HISTORIQUE DE LA PARTIE : la cible en grand en haut (bascule
+// VOLÉE / MANCHE ; collée en haut pendant que le tableau défile), puis le tableau de la partie, manche en cours
+// d'abord. Une case touchée montre ses fléchettes sur la cible ; une fléchette touchée sous la cible s'ouvre au
+// sélecteur de correction (correct.js : acceptée seulement si le déroulé de la partie ne change pas).
+const cellKey = (g, idx) => `${g.id}|${idx}`;
+
+/** Volée montrée sur la cible du panneau : la case touchée, sinon la volée en cours (ou en attente). */
+function panelVisit(v) {
+  const sel = selectedLogCell();
+  const [gid, raw] = sel ? sel.split('|') : [];
+  let idx = v.visitIdx;
+  if (gid === v.g.id) idx = raw === 'open' ? 'open' : Number(raw);
+  const visit = idx === 'open' ? v.s.visit : v.s.visits[idx];
+  if (!visit) return { idx: v.visitIdx, visit: v.visitIdx === 'open' ? v.s.visit : v.s.visits[v.visitIdx], selected: false };
+  return { idx, visit, selected: !!sel && gid === v.g.id };
 }
 
-function historySheet(v) {
-  return `<div class="sheet-bg" role="dialog" aria-label="Historique de la partie en cours" data-layer><div class="sheet">
+/** Tour (numéro de ligne du tableau) d'une volée : nombre de volées du joueur dans la manche, celle-ci comprise. */
+function roundOf(s, idx) {
+  const visit = idx === 'open' ? s.visit : s.visits[idx];
+  const leg = idx === 'open' ? s.legNumber : visit.leg;
+  const upto = idx === 'open' ? s.visits.length : idx + 1;
+  return s.visits.slice(0, upto).filter(x => x.player === visit.player && x.leg === leg).length + (idx === 'open' ? 1 : 0);
+}
+
+function livePanel(v) {
+  const { g, s, ui } = v;
+  const leg = ui.boardView === 'leg';
+  const pv = panelVisit(v);
+  const who = playerById(g.config.players[pv.visit.player]);
+  const vleg = pv.idx === 'open' ? s.legNumber : pv.visit.leg;
+  const caption = pv.idx === 'open' && !pv.visit.darts.length ? 'VOLÉE À JOUER'
+    : `TOUR ${roundOf(s, pv.idx)}${vleg !== s.legNumber ? ` · MANCHE ${vleg}` : ''}`;
+  const impacts = impactsFor(g, s, pv.idx, { previous: leg });
+  const b = (val, label) => `<button type="button" data-act="board-view" data-arg="${val}" aria-pressed="${(val === 'leg') === leg}">${label}</button>`;
+  const start = visitStart(s, pv.idx);
+  const fix = ui.fix;
+  const darts = [0, 1, 2].map(n => {
+    const d = pv.visit.darts[n];
+    if (!d) return '<span class="fd none">–</span>';
+    const i = start + n;
+    return `<button type="button" class="fd${fix && fix.index === i ? ' on' : ''}" data-act="fix-dart" data-arg="${i}" aria-label="Corriger la fléchette ${n + 1} : ${dartLabel(d)}">${dartLabel(d)}</button>`;
+  }).join('');
+  const boardBox = `<div class="lb-svg${fix ? ' pick' : ''}"${fix ? ' data-act="fix-board"' : ''}>${boardSvg({ size: 380, impacts, label: fix ? 'Cible : touchez la zone de la fléchette corrigée' : 'Impacts' })}</div>`;
+  return `<div class="sheet-bg" role="dialog" aria-label="Cible et historique de la partie" data-layer><div class="sheet live${fix ? ' fixing' : ''}">
     <header class="top" data-layer><h1><span>Partie en cours</span></h1>${store.maquette ? maquetteButtons() : ''}<button type="button" class="act" data-act="close-panel" aria-label="Fermer">${ico('close')}</button></header>
-    ${gameLog(v.g, v.s, { live: true })}
-    <div class="pad" style="margin-top:18px"><button type="button" class="btn primary" data-act="close-panel">${ico('play')} RETOUR À LA PARTIE</button></div>
+    <div class="live-grid">
+      <section class="live-board" aria-label="Cible">
+        <div class="seg" role="group" aria-label="Impacts montrés">${b('visit', 'Volée')}${b('leg', 'Manche')}</div>
+        <div class="lb-cap"><span class="nm ell">${esc(who.name)}</span><span>${caption}</span></div>
+        ${boardBox}
+        <div class="lb-darts">${darts}</div>
+        <p class="note lb-note">${fix ? 'Choisissez la bonne fléchette ci-dessous, ou touchez sa zone sur la cible.'
+          : pv.visit.darts.length ? 'Touchez une fléchette pour la corriger.' : `${markIcon(true)}volée numérotée${leg ? ` · ${markIcon(false)}volées précédentes` : ''}`}</p>
+      </section>
+      <section class="live-log">
+        ${gameLog(g, s, { live: true, reverse: true, details: false })}
+        <div class="pad" style="margin-top:18px"><button type="button" class="btn primary" data-act="close-panel">${ico('play')} RETOUR À LA PARTIE</button></div>
+      </section>
+    </div>
+    ${fix ? fixer(v, fix) : ''}
   </div></div>`;
+}
+
+// Sélecteur de correction : S / D / T, 1 à 20, 25, 50, 0 (ou la cible au-dessus) ; puis l'effet, à confirmer.
+function fixer(v, fix) {
+  const { g, s } = v;
+  const where = locateDart(s, fix.index);
+  const who = playerById(g.config.players[where.player]);
+  const old = g.darts[fix.index];
+  const head = `<div class="fx-h"><b>CORRIGER ${dartLabel(old)}</b><span class="small"><span class="nm">${esc(who.name)}</span> · fléchette ${where.n + 1}</span></div>`;
+  let body;
+  if (fix.result && !fix.result.ok) {
+    const msg = fix.result.error === CORRECT_ERRORS.SAME ? 'c\'est déjà cette fléchette, rien à corriger.'
+      : 'cette correction change le déroulé de la partie : utilise ANNULER.';
+    body = `<div class="confirm" role="alert"><p class="alert-h">CORRECTION IMPOSSIBLE</p><p><b>${dartLabel(old)} → ${dartLabel(fix.pick)}</b> : ${msg}</p><p class="small dim">Rien n'a été modifié.</p>
+      <div class="btns two"><button type="button" class="btn" data-act="fix-cancel">FERMER</button><button type="button" class="btn" data-act="fix-again">AUTRE CHOIX</button></div></div>`;
+  } else if (fix.result) {
+    const e = fix.result.effects;
+    const vt = x => (x === null ? 'BUST' : String(x));
+    const restLine = e.leg === s.legNumber
+      ? `Reste de <span class="nm">${esc(who.name)}</span> : <b>${e.remaining[0]} → ${e.remaining[1]}</b>`
+      : `Manche ${e.leg}, reste de <span class="nm">${esc(who.name)}</span> à la fin : <b>${e.remaining[0]} → ${e.remaining[1]}</b>`;
+    body = `<div class="confirm warn" role="alertdialog" aria-label="Confirmer la correction"><p class="fx-swap"><b>${dartLabel(old)}</b> → <b>${dartLabel(fix.pick)}</b></p>
+      <p>Volée : <b>${vt(e.visit[0])} → ${vt(e.visit[1])}</b><br>${restLine}</p>
+      <div class="btns two"><button type="button" class="btn" data-act="fix-again">NON</button><button type="button" class="btn primary" data-act="fix-yes">CORRIGER</button></div></div>`;
+  } else {
+    const m = fix.mult;
+    const k = (val, label, dis = false) => `<button type="button" class="key" data-act="fix-key" data-arg="${val}"${dis ? ' disabled' : ''}><span class="kl" data-shrink>${label}</span></button>`;
+    const mk = (val, label) => `<button type="button" class="key m" data-act="fix-mult" data-arg="${val}" aria-pressed="${m === val}"><span class="kl" data-shrink>${label}</span></button>`;
+    const pre = m === 2 ? 'D' : m === 3 ? 'T' : '';
+    const nums = [];
+    for (let r = 0; r < 4; r++) nums.push(`<div class="krow nums">${[1, 2, 3, 4, 5].map(c => k(r * 5 + c, `${pre}${r * 5 + c}`)).join('')}</div>`);
+    body = `<div class="fx-pad${m > 1 ? ' armed' : ''}">
+      <div class="krow mult">${mk(1, 'S')}${mk(2, 'D')}${mk(3, 'T')}</div>${nums.join('')}
+      <div class="krow last">${k(25, m === 2 ? 'D25' : '25', m === 3)}${k(50, '50')}${k(0, '0')}<button type="button" class="key undo" data-act="fix-cancel"><span class="kl" data-shrink>FERMER</span></button></div></div>`;
+  }
+  return `<div class="fixer" data-layer role="dialog" aria-label="Corriger une fléchette">${head}${body}</div>`;
 }
 
 function pauseSheet() {
@@ -460,6 +538,22 @@ export function validate() {
   refresh();
 }
 
+/** Ouvre le panneau cible + historique sur la volée en cours. */
+function openPanel() {
+  stopAnnounce();
+  selectLogCell(null);
+  Object.assign(store.current.ui, { panel: 'board', pause: false, confirm: false, fix: null });
+  refresh();
+}
+
+/** Fléchette choisie dans le sélecteur : correction calculée (rien n'est modifié avant CORRIGER). */
+function proposeFix(f, dart) {
+  const g = store.current;
+  f.pick = dart;
+  f.result = correctDart(g.config, g.darts, f.index, dart);
+  refresh();
+}
+
 /** Touche du pavé (appelée au relâcher, si le doigt n'a pas glissé : app.js). */
 export function key(k) {
   const g = store.current;
@@ -484,10 +578,42 @@ export const actions = {
   validate() { validate(); },
   pause() { stopAnnounce(); store.current.ui.pause = true; store.current.ui.confirm = false; refresh(); },
   resume() { store.current.ui.pause = false; store.current.ui.confirm = false; refresh(); },
-  'open-board'() { stopAnnounce(); store.current.ui.panel = 'board'; refresh(); },
-  'open-history'() { stopAnnounce(); Object.assign(store.current.ui, { panel: 'history', pause: false, confirm: false }); refresh(); },
-  'close-panel'() { store.current.ui.panel = null; refresh(); },
+  'open-board'() { openPanel(); },
+  'open-history'() { openPanel(); },
+  'close-panel'() { Object.assign(store.current.ui, { panel: null, fix: null }); refresh(); },
   'board-view'(val) { store.current.ui.boardView = val === 'leg' ? 'leg' : 'visit'; refresh(); },
+  // Correction d'une fléchette (lot 3, I)
+  'fix-dart'(i) { store.current.ui.fix = { index: Number(i), mult: 1, pick: null, result: null }; refresh(); },
+  'fix-mult'(m) { const f = store.current.ui.fix; if (f) { f.mult = f.mult === Number(m) ? 1 : Number(m); refresh(); } },
+  'fix-key'(k) {
+    const f = store.current.ui.fix;
+    if (!f) return;
+    const n = Number(k);
+    const dart = n === 50 ? makeDart(25, 2) : n === 0 ? makeDart(0, 1) : n === 25 ? (f.mult === 3 ? null : makeDart(25, f.mult === 2 ? 2 : 1)) : makeDart(n, f.mult);
+    if (dart) proposeFix(f, dart);
+  },
+  'fix-board'(arg, el, ev) {
+    const f = store.current.ui.fix;
+    const svg = el && el.querySelector('svg');
+    if (!f || !svg || !ev) return;
+    const r = svg.getBoundingClientRect();
+    const scale = r.width / 2 / RINGS.edge;
+    const x = (ev.clientX - r.left - r.width / 2) / scale, y = (ev.clientY - r.top - r.height / 2) / scale;
+    const dart = segmentAt(x, y);
+    if (dart) proposeFix(f, { segment: dart.segment, multiplier: dart.multiplier, pos: [x, y].map(c => Math.round(c * 1000) / 1000) });
+  },
+  'fix-again'() { const f = store.current.ui.fix; if (f) { Object.assign(f, { pick: null, result: null, mult: 1 }); refresh(); } },
+  'fix-cancel'() { store.current.ui.fix = null; refresh(); },
+  'fix-yes'() {
+    const g = store.current;
+    const f = g.ui.fix;
+    if (!f || !f.result || !f.result.ok) return;
+    g.darts = f.result.darts;
+    g.ui.fix = null;
+    saveCurrent();
+    buzz(BUZZ.dart);
+    refresh();
+  },
   abandon() { store.current.ui.confirm = 'abandon'; refresh(); },
   'delete-current'() { store.current.ui.confirm = 'delete'; refresh(); },
   'delete-current-yes'() { stopAnnounce(); deleteCurrent(); go('#/'); },

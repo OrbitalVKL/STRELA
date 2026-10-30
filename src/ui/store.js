@@ -138,10 +138,10 @@ export function startGame(setup) {
 
 /**
  * État d'affichage de la partie en cours (non enregistré) : multiplicateur armé, menu pause et confirmation,
- * panneau ouvert ('history' | 'board' | null), vue de la cible agrandie ('visit' | 'leg'), annonce du joueur suivant (rang), glissement du bandeau,
+ * panneau cible + historique ouvert ('board' | null), correction d'une fléchette en cours (`fix`), vue de la cible agrandie ('visit' | 'leg'), annonce du joueur suivant (rang), glissement du bandeau,
  * loupe figée du sommaire ({ x, y }), `frozen` : annonce figée (sommaire de maquette).
  */
-export const freshUi = () => ({ mult: 1, pause: false, confirm: false, panel: null, boardView: 'visit', announce: null, slide: false, loupe: null, frozen: false });
+export const freshUi = () => ({ mult: 1, pause: false, confirm: false, panel: null, boardView: 'visit', announce: null, slide: false, loupe: null, frozen: false, fix: null });
 
 export const currentState = () => (store.current ? computeState(store.current.config, store.current.darts) : null);
 

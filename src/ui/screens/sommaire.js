@@ -10,6 +10,7 @@ import { isDeletedId } from '../../engine/players.js';
 import { openDraft } from './players.js';
 import { selectLogCell, presetHistory } from './history.js';
 import { computeState } from '../../engine/x01.js';
+import { correctDart } from '../../engine/correct.js';
 import { topBar, ico } from '../dom.js';
 import { parseDart } from '../../engine/darts.js';
 import { simulateGame } from '../mock.js';
@@ -88,17 +89,40 @@ export const SCENES = {
     selectLogCell(`gx2|${visitIndex(config, darts, v => v.bust)}`);
     return `#/partie/${storeGame('gx2', config, darts)}`;
   },
-  'histo-huit': () => { const { config, darts } = eightGame(); setGame(config, darts, { panel: 'history' }); selectLogCell(null); return '#/jeu'; },
+  'histo-huit': () => { const { config, darts } = eightGame(); setGame(config, darts, { panel: 'board' }); selectLogCell(null); return '#/jeu'; },
   'histo-huit-detail': () => {
     const config = cfg(EIGHT, 301, 'double', 2);
     const full = simulateGame(config, EIGHT.map(() => 0.35), 14);
     selectLogCell(`gx8|${visitIndex(config, full, v => v.finish)}`);
     return `#/partie/${storeGame('gx8', config, full)}`;
   },
+  // Lot 3 : panneau cible + historique, correction d'une fléchette (sélecteur, confirmation, refus)
+  'panneau-case': () => {
+    const config = cfg(['p1', 'p2'], 301, 'double', 2);
+    const darts = [...simulateGame({ ...config, legsToWin: 1 }, [0.45, 0.45], 12), ...ds('T20 S20 S5 T19 S7')];
+    setGame(config, darts, { panel: 'board' });
+    selectLogCell(`${store.current.id}|2`);
+    return '#/jeu';
+  },
+  correction: () => { setGame(cfg(['p1', 'p2']), LIVE(), { panel: 'board', fix: { index: 1, mult: 1, pick: null, result: null } }); selectLogCell(`${store.current.id}|0`); return '#/jeu'; },
+  'correction-confirmer': () => {
+    setGame(cfg(['p1', 'p2']), LIVE(), { panel: 'board' });
+    const pick = parseDart('T20');
+    store.current.ui.fix = { index: 1, mult: 1, pick, result: correctDart(store.current.config, store.current.darts, 1, pick) };
+    selectLogCell(`${store.current.id}|0`);
+    return '#/jeu';
+  },
+  'correction-refus': () => {
+    setGame(cfg(['p1', 'p2'], 301), 'T20 T20 T20  20 20 20  T20 S20 S1  20', { panel: 'board' });
+    const pick = parseDart('T20'); // 2e fléchette S20 → T20 : reste 1, bust, la volée serait coupée
+    store.current.ui.fix = { index: 7, mult: 1, pick, result: correctDart(store.current.config, store.current.darts, 7, pick) };
+    selectLogCell(`${store.current.id}|2`);
+    return '#/jeu';
+  },
   'cible-grande': () => { setGame(cfg(['p1', 'p2']), LIVE(), { panel: 'board' }); return '#/jeu'; },
   'histo-cours': () => {
     const config = cfg(['p1', 'p2'], 301, 'double', 2);
-    setGame(config, [...simulateGame({ ...config, legsToWin: 1 }, [0.45, 0.45], 12), ...ds('T20 S20 S5 T19 S7')], { panel: 'history' });
+    setGame(config, [...simulateGame({ ...config, legsToWin: 1 }, [0.45, 0.45], 12), ...ds('T20 S20 S5 T19 S7')], { panel: 'board' });
     return '#/jeu';
   },
   paysage: () => { setGame(cfg(['p1', 'p2', 'p3']), LIVE()); return '#/jeu'; },
@@ -230,6 +254,10 @@ export function sommaire() {
       ${L('cible-seule', 'Cible seule', 'couleurs réglementaires')}
       ${L('manches', 'Manches gagnées', 'premier à 3')}
       ${L('histo-cours', 'Historique de la partie en cours', 'panneau')}
+      ${L('panneau-case', 'Panneau : case d\'une manche précédente', 'sur la cible')}
+      ${L('correction', 'Corriger une fléchette', 'sélecteur')}
+      ${L('correction-confirmer', 'Corriger une fléchette', 'confirmation')}
+      ${L('correction-refus', 'Corriger une fléchette', 'refusée')}
       ${L('histo-deux', 'Historique : 2 joueurs', 'ratés, bust ouvert, finition')}
       ${L('histo-huit', 'Historique en cours : 8 joueurs', 'défile de côté')}
       ${L('histo-huit-detail', 'Historique terminé : 8 joueurs', 'finition ouverte')}

@@ -129,11 +129,14 @@ function detail(g, s, t, players) {
 
 /**
  * Manches d'une partie en tableaux.
- *   live : partie en cours (la volée commencée et le tour en cours sont repérés) ; abandoned : partie abandonnée.
+ *   live : partie en cours (la volée commencée et le tour en cours sont repérés) ; abandoned : partie abandonnée ;
+ *   reverse : manche en cours d'abord (panneau du jeu) ; details : fléchettes de la case touchée sous le tableau
+ *   (le panneau du jeu les montre sur sa cible, au-dessus).
  */
-export function gameLog(g, s, { live = false, abandoned = false } = {}) {
+export function gameLog(g, s, { live = false, abandoned = false, reverse = false, details = true } = {}) {
   const players = g.config.players.map(playerById);
-  const legs = s.legs.filter(l => l.visits.length || (live && l.number === s.legNumber)).map(l => {
+  const shown = s.legs.filter(l => l.visits.length || (live && l.number === s.legNumber));
+  const legs = (reverse ? [...shown].reverse() : shown).map(l => {
     const t = legTable(s, l.number, { live });
     const winner = l.winner !== null ? players[l.winner] : null;
     const wd = winner ? l.visits.filter(v => v.player === l.winner).reduce((n, v) => n + v.darts.length, 0) : 0;
@@ -141,16 +144,18 @@ export function gameLog(g, s, { live = false, abandoned = false } = {}) {
     const head = t.columns.map(i => `<th class="pc" scope="col">${avatarHtml(players[i], 24)}<span class="nm ell">${esc(players[i].name)}</span></th>`).join('');
     const body = t.rows.map(r => `<tr${r.round === t.currentRound ? ' class="cur"' : ''}><th class="rd" scope="row">${r.round}</th>${r.cells.map(c => cell(g, c)).join('')}</tr>`).join('');
     const table = t.rows.length
-      ? `<div class="lt-wrap"><table class="lt" style="--cols:${t.columns.length}" data-fit-same><thead><tr><th class="rd" scope="col">TOUR</th>${head}</tr></thead><tbody>${body}</tbody></table></div>${detail(g, s, t, players)}`
+      ? `<div class="lt-wrap"><table class="lt" style="--cols:${t.columns.length}" data-fit-same><thead><tr><th class="rd" scope="col">TOUR</th>${head}</tr></thead><tbody>${body}</tbody></table></div>${details ? detail(g, s, t, players) : ''}`
       : '<p class="note pad">Aucune volée pour l\'instant.</p>';
     return `<div class="leg-h"><b>MANCHE ${l.number}</b><span>${info}</span></div>${table}`;
   }).join('');
   return `<div class="pad"><div class="sec" style="margin-bottom:0">Tour par tour</div></div>${legs}
-    <p class="note pad">Chaque case : les fléchettes du tour, le total de la volée en gros, le reste après la volée en petit${live ? ' ; la ligne en inverse est le tour en cours' : ''}. Touchez une case pour voir ses fléchettes sur la cible.</p>`;
+    <p class="note pad">Chaque case : les fléchettes du tour, le total de la volée en gros, le reste après la volée en petit${live ? ' ; la ligne en inverse est le tour en cours' : ''}. Touchez une case pour voir ses fléchettes sur la cible${details ? '' : ' au-dessus'}.</p>`;
 }
 
-/** Case ouverte d'avance (sommaire de maquette) : « idPartie|rangVolée », ou null. */
+/** Case ouverte d'avance (sommaire de maquette, ouverture du panneau du jeu) : « idPartie|rangVolée », ou null. */
 export const selectLogCell = key => { openRow = key; };
+/** Case touchée (« idPartie|rangVolée » ou « idPartie|open »), ou null. */
+export const selectedLogCell = () => openRow;
 
 export const actions = {
   'log-visit'(key) { openRow = openRow === key ? null : key; refresh(); },
