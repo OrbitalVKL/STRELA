@@ -19,6 +19,7 @@ import { go } from '../nav.js';
 import { isDark, applyTheme, presetBackup } from './settings.js';
 import { makeBackup, parseBackup } from '../../data/backup.js';
 import { saveSetting } from '../store.js';
+import { setHomeVariant, homeVariant } from './home.js';
 
 const ds = text => text.trim().split(/\s+/).filter(Boolean).map(parseDart);
 const cfg = (players, startScore = 501, outMode = 'double', legsToWin = 1) => ({ players, startScore, outMode, legsToWin });
@@ -64,6 +65,15 @@ function mockBackup() {
   const g = { id: 'gx-import', startedAt: Date.now() - 86400e3 * 40, endedAt: Date.now() - 86400e3 * 40 + 1800e3, config: cfg(['p1', 'px'], 301), darts: ds('T20 T20 T20 20 20 20 T20 T11 D14'), validated: 9, abandoned: false };
   return parseBackup(JSON.stringify(makeBackup({ players: [...store.players, extra], games: [...store.games, g], current: null, display: { ...store.settings }, lastSetup: null }, { app: '0.3.0', now: new Date(2026, 9, 30, 21, 18) })));
 }
+/** Problème d'enregistrement simulé (le sommaire n'a pas de base : storageIssue() le montre quand même). */
+function mockIssue(db) {
+  Object.assign(store.db, { openCode: null, writeFail: null, error: null }, db);
+  store.mockIssue = true;
+}
+
+/** Écran de secours (src/ui/rescue.js), montré comme un écran ordinaire : RECHARGER, EXPORTER LA SAUVEGARDE. */
+export const secours = () => (window.strelaRescueHtml ? window.strelaRescueHtml('TypeError: exemple d\'erreur inattendue (maquette)') : '');
+
 /** Préférences de finition d'un joueur fictif : D16 et bull évité. */
 const prefer = id => { const p = store.players.find(q => q.id === id); if (p) p.checkout = { double: 16, avoidBull: true }; };
 const visitIndex = (config, darts, pick) => computeState(config, darts).visits.findIndex(pick);
@@ -193,6 +203,10 @@ export const SCENES = {
     return g ? `#/partie/${g.id}` : '#/historique';
   },
   // Lot 2 : premier lancement, reprise d'une fin de manche ou de partie, photo d'avatar (recadrage, erreur, en jeu)
+  // Lot 4 : deux variantes du rouge d'accent de l'accueil (« bande » retenue)
+  'accueil-bande': () => { setHomeVariant('bande'); return '#/'; },
+  'accueil-filet': () => { setHomeVariant('filet'); return '#/'; },
+  'accueil-filet-reprendre': () => { setHomeVariant('filet'); setGame(cfg(['p1', 'p2']), 'T20 S20 S5 S20 T19 S1 T20'); return '#/'; },
   'premier-lancement': () => { store.players = []; store.games = []; store.current = null; store.lastSetup = null; return '#/'; },
   'reprendre-manche': () => { setGame(cfg(['p1', 'p2'], 301, 'double', 2), 'T20 T20 T20 20 1 5 T20 T11 D14'); store.current.validated = 6; return '#/'; },
   'reprendre-fin': () => { setGame(cfg(['p1', 'p2', 'p3'], 301), 'T20 T20 T20 20 1 5 T19 S7 S3 T20 T11 D14'); return '#/'; },
@@ -216,7 +230,16 @@ export const SCENES = {
   // Lot 4 : préférences de finition (Mathilde : D16, bull évité) dans la fiche et en jeu (41 → S9 D16)
   'fiche-finition': () => { prefer('p2'); store.draft = null; return '#/joueur/p2'; },
   'finition-preferee': () => { prefer('p2'); setGame(cfg(['p2', 'p1'], 301), 'T20 T20 T20 20 20 20 T20 S20 0 20 20 20'); return '#/jeu'; },
-  reinit: () => { resetMock(); return '#/sommaire'; },
+  // Lot 4 : écrans vides et erreurs
+  secours: () => '#/secours',
+  'stats-vide': () => { const p = store.players.find(q => q.id === 'p5'); store.games = store.games.filter(g => !g.config.players.includes('p5')); return p ? '#/stats/p5' : '#/stats'; },
+  'face-vide': () => { store.games = store.games.filter(g => !(g.config.players.includes('p1') && g.config.players.includes('p4'))); return '#/face/p1/p4'; },
+  'nouvelle-archives': () => { store.current = null; store.setupDraft = null; store.players.forEach(p => { p.archived = true; }); return '#/nouvelle'; },
+  'base-inaccessible': () => { mockIssue({ openCode: 'OPEN', error: 'base indisponible (UnknownError)' }); return '#/'; },
+  'base-recente': () => { mockIssue({ openCode: 'NEWER', error: 'base plus récente que l\'appli' }); return '#/'; },
+  'stockage-plein': () => { mockIssue({ writeFail: { full: true, name: 'QuotaExceededError', at: Date.now() } }); return '#/'; },
+  'stockage-plein-jeu': () => { mockIssue({ writeFail: { full: true, name: 'QuotaExceededError', at: Date.now() } }); setGame(cfg(['p1', 'p2']), 'T20 S20 S5', { pause: true }); return '#/jeu'; },
+  reinit: () => { resetMock(); setHomeVariant('bande'); mockIssue({}); store.mockIssue = false; return '#/sommaire'; },
 };
 
 const L = (scene, label, hint = '') => `<a href="#/sommaire" data-act="scene" data-arg="${scene}"><span>${label}</span><span>${hint}</span></a>`;
@@ -232,7 +255,10 @@ export function sommaire() {
     </div>
     <div class="pad"><div class="sec">Écrans</div></div>
     <nav class="toc">
-      ${H('#/', '1 · Accueil')}
+      ${H('#/', '1 · Accueil', `variante « ${homeVariant()} »`)}
+      ${L('accueil-bande', '1 · Accueil, variante A « bande »', 'retenue')}
+      ${L('accueil-filet', '1 · Accueil, variante B « filet »')}
+      ${L('accueil-filet-reprendre', '1 · Variante B avec REPRENDRE')}
       ${L('premier-lancement', '1 · Accueil au premier lancement', 'aucun joueur')}
       ${L('reprendre', '1 · Accueil avec REPRENDRE', 'partie en cours')}
       ${L('reprendre-manche', '1 · REPRENDRE une fin de manche', 'pas encore validée')}
@@ -321,6 +347,16 @@ export function sommaire() {
       ${L('aucun-joueur', 'Aucun joueur', 'liste vide')}
       ${L('nouvelle-vide', 'Aucun joueur', 'nouvelle partie')}
       ${L('historique-vide', 'Historique vide')}
+      ${L('stats-vide', 'Stats sans partie', 'NOUVELLE PARTIE')}
+      ${L('face-vide', 'Face-à-face sans partie commune', 'jouer entre eux')}
+      ${L('nouvelle-archives', 'Nouvelle partie : tous archivés')}
+      ${L('base-inaccessible', 'Base inaccessible', 'accueil')}
+      ${L('base-recente', 'Base d\'une version plus récente', 'accueil')}
+      ${L('stockage-plein', 'Stockage plein', 'RÉESSAYER · EXPORTER')}
+      ${L('stockage-plein-jeu', 'Stockage plein en partie', 'menu pause')}
+      ${L('sauvegarde-refus', 'Import : fichier refusé')}
+      ${L('photo-erreur', 'Photo illisible ou trop lourde')}
+      ${L('secours', 'Écran de secours', 'erreur inattendue')}
       ${L('reinit', 'Rétablir les données fictives', '5 joueurs · 15 parties')}
       ${H('./', 'Quitter la maquette', 'vraies données')}
     </nav>

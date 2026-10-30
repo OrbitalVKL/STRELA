@@ -1,7 +1,7 @@
-# Strela (СТРЕЛА) — cahier des charges
+# Strela — cahier des charges
 
-Application Android de comptage de fléchettes X01, pour Guillaume. Interface entièrement en français ;
-seul le titre de l'appli reste en russe : **СТРЕЛА**.
+Application Android de comptage de fléchettes X01, pour Guillaume. Interface entièrement en français. Titre : **STRELA**
+en lettres latines (lot 4 ; c'était СТРЕЛА jusqu'au lot 3).
 
 ## 1. Périmètre
 
@@ -48,6 +48,8 @@ ordonnée de ses fléchettes. Détail du moteur : [moteur-x01.md](moteur-x01.md)
   où il apparaît comme « Joueur supprimé » avec un avatar neutre ; les stats des autres restent justes, mais il
   n'apparaît plus comme adversaire dans leurs face-à-face. Une partie jouée seul par lui disparaît. Un joueur de la
   partie en cours ne peut pas être supprimé : le message demande de finir ou d'abandonner la partie d'abord.
+- **Finition** (lot 4, fiche joueur) : double préféré (D20 par défaut, D16, D8, D18, D12, D10…) et « éviter le bull »
+  (oui / non) ; la finition conseillée en jeu en tient compte (détail : [moteur-x01.md](moteur-x01.md)).
 - **Avatar**, au choix :
   - une photo (caméra ou galerie), recadrée au carré ;
   - une icône tirée d'une banque d'environ 24 pictogrammes SVG monochromes dessinés pour Strela dans la DA
@@ -170,6 +172,14 @@ L'appli accepte les deux orientations ; l'écran de jeu suit la rotation du tél
   `strela-AAAAMMJJ-HHMM.json` ; import avec aperçu, REMPLACER TOUT ou FUSIONNER ; fichier invalide ou d'une version
   future refusé sans rien toucher. Détail : [interface.md](interface.md), « Lot 3 ».
 
+## 5 bis. Écrans vides et erreurs (lot 4)
+
+Chaque écran vide dit ce qui manque et propose l'action utile (aucun joueur, joueurs tous archivés, aucune partie,
+stats sans partie sur la période, face-à-face sans partie commune). Base inaccessible, base d'une version plus récente,
+stockage plein ou écriture refusée : alerte sur l'accueil, les Réglages et le menu pause, avec RECHARGER ou
+RÉESSAYER / EXPORTER ; rien de ce qui est à l'écran n'est perdu. Import invalide et photo illisible : message clair,
+rien n'est modifié. Erreur inattendue : écran de secours avec RECHARGER et EXPORTER LA SAUVEGARDE, jamais une page vide.
+
 ## 6. Statistiques par joueur
 
 - Moyenne sur 3 fléchettes (les volées en bust comptent 0).
@@ -211,6 +221,6 @@ Détail : [direction-artistique.md](direction-artistique.md).
 | 1.3 | Corrections : 3 fléchettes dans chaque case de l'historique, une seule couleur de joueur à l'écran (le joueur en cours), VALIDER à la couleur du lanceur avec le nom du suivant (retiré au lot 2) | design validé (v0.1.3) |
 | 2 | Partie jouable et enregistrée (IndexedDB, reprise), vrais joueurs (photo recadrée), VALIDER sans le nom du suivant | validation des fonctions de la partie |
 | 3 | Corrections de jeu (touches au relâcher, fléchettes et finition dans les cases, correction d'une fléchette, panneau cible + historique), suppression de parties, face-à-face, annonces vocales, sons, célébrations, export / import, chiffres vérifiés | validation des fonctions |
-| 4 | Finitions : propositions de finition (affinées), mode nuit, vibrations | validation des fonctions |
-| 5 | APK Android | |
+| 4 | Finitions : titre STRELA et rouge d'accent de l'accueil, finition au double préféré, écrans vides et erreurs, écran de secours | validation des fonctions |
+| 5 | APK Android (coquille, passerelle native : vibreur, voix, fichiers, photo ; mise à jour depuis l'appli) | |
 | 6 | Recette | |

@@ -30,7 +30,11 @@ export function newGame() {
     : '<p class="note" style="margin:0">Touchez les joueurs dans l\'ordre où ils vont lancer.</p>';
 
   const poolHtml = !store.players.some(p => !p.archived)
-    ? `<div class="empty" style="padding:20px 0"><p style="margin:0 0 14px">Aucun joueur pour l'instant.</p><a class="btn" href="#/joueur/nouveau">${ico('plus')} CRÉER UN JOUEUR</a></div>`
+    ? (store.players.length
+      // Tous archivés (lot 4) : le dire, et mener à la liste où RÉACTIVER les remet.
+      ? `<div class="empty" style="padding:20px 0"><p style="margin:0 0 14px">Tous les joueurs sont archivés. Réactive-les dans la liste des joueurs, ou crées-en un.</p>
+          <div class="btns"><a class="btn" href="#/joueurs">VOIR LES JOUEURS</a><a class="btn ghost" href="#/joueur/nouveau">${ico('plus')} CRÉER UN JOUEUR</a></div></div>`
+      : `<div class="empty" style="padding:20px 0"><p style="margin:0 0 14px">Aucun joueur pour l'instant.</p><a class="btn" href="#/joueur/nouveau">${ico('plus')} CRÉER UN JOUEUR</a></div>`)
     : pool.length
       ? `<div class="pool">${pool.map(p => `<button type="button" data-act="add" data-arg="${esc(p.id)}" ${full ? 'disabled' : ''}>${avatarHtml(p, 48)}<span class="nm ell">${esc(p.name)}</span></button>`).join('')}
          <a class="btn ghost" href="#/joueur/nouveau" style="min-height:104px;flex-direction:column;gap:6px;font-size:11px">${ico('plus')}NOUVEAU</a></div>`
@@ -56,7 +60,7 @@ export function newGame() {
       ${busyNote}
       <div class="sec">Ordre de passage <span class="n">${d.players.length}/${MAX_PLAYERS}</span></div>
       ${order}
-      ${pool.length || !store.players.length ? `<div class="sec">${chosen.length ? 'Ajouter' : 'Joueurs'}</div>${poolHtml}` : ''}
+      ${pool.length || !activePlayers().length ? `<div class="sec">${chosen.length ? 'Ajouter' : 'Joueurs'}</div>${poolHtml}` : ''}
       ${full ? '<p class="note">8 joueurs au plus.</p>' : ''}
       <div class="sec">Jeu</div>
       <div class="seg">${START_SCORES.map(s => seg('score', s, s, d.startScore)).join('')}</div>

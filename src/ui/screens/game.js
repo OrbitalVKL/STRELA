@@ -21,7 +21,7 @@ import { boardSvg, plainBoard, impactsFor, markIcon } from '../board.js';
 import { rollHtml } from '../roll.js';
 import { pendingVisit, validatedAfterUndo } from '../turn.js';
 import { go, refresh, buzz, BUZZ } from '../nav.js';
-import { themeControls } from './settings.js';
+import { themeControls, storageBanner } from './settings.js';
 import { gameLog, selectLogCell, selectedLogCell } from './history.js';
 import { sound, dartSound, say, SPEECH } from '../feedback.js';
 import { correctDart, locateDart, visitStart, CORRECT_ERRORS } from '../../engine/correct.js';
@@ -370,6 +370,7 @@ function pauseSheet() {
   return `<div class="sheet-bg" role="dialog" aria-label="Pause" data-layer><div class="sheet">
     <header class="top" data-layer><h1><span>Pause</span></h1>${store.maquette ? '<a class="act mq" href="#/sommaire" aria-label="Sommaire de maquette">' + ico('menu') + '</a>' : ''}<button type="button" class="act" data-act="resume" aria-label="Fermer">${ico('close')}</button></header>
     <div class="body" style="padding-top:16px">
+      ${storageBanner()}
       <button type="button" class="btn primary big" data-act="resume">${ico('play')} REPRENDRE</button>
       <button type="button" class="btn" data-act="open-history">${ico('history')} HISTORIQUE DE LA PARTIE</button>
       <div class="sec" style="margin-bottom:0">Réglages rapides</div>

@@ -7,7 +7,7 @@ JavaScript pur (modules ES), sans dépendance ni affichage. Utilisable tel quel 
 |---|---|
 | `darts.js` | la fléchette, commune à tous les jeux : validation, valeur, double, notation |
 | `x01.js` | règles X01 : configuration, état recalculé, jouer, annuler |
-| `checkout.js` | table de finitions (sortie simple / double, 1 à 3 fléchettes restantes) |
+| `checkout.js` | table de finitions (sortie simple / double, 1 à 3 fléchettes restantes, préférences du joueur) |
 | `stats.js` | statistiques d'un joueur recalculées depuis les fléchettes ; résumé d'un joueur dans une partie |
 | `board.js` | géométrie de la cible : position → segment (saisie au doigt), centre d'un segment (impacts), couleur de chaque zone |
 | `players.js` | suppression d'un joueur : anonymisation de ses parties |
@@ -61,12 +61,24 @@ de fin de manche sont dans `legs[k].finalRemaining`.
 
 ## Finitions (`checkout.js`)
 
-`suggestCheckout(reste, outMode, fléchettesRestantes)` → liste de fléchettes ou `null` (non jouable).
-Table calculée une fois par recherche exhaustive. Choix : le moins de fléchettes ; en sortie double, le double
-le plus classique (D20, D16, D8, D18, D12…, 50 en dernier) ; préparation simple plutôt que triple, gros triples
-d'abord, jouée de la plus grosse à la plus petite ; jamais de route qui ferait bust en chemin.
-Ex. 170 → T20 T20 50, 100 → T20 D20, 41 → S1 D20, 33 → S1 D16.
-`isCheckoutRoute()` vérifie une route. À affiner au lot 4 (doubles préférés du joueur).
+`suggestCheckout(reste, outMode, fléchettesRestantes, préférences?)` → liste de fléchettes ou `null` (non jouable).
+Tables calculées une fois par réglage (recherche exhaustive), puis gardées. Préférences du joueur (lot 4, fiche
+joueur, `checkoutPrefs()`) : `{ double: 20, avoidBull: false }` par défaut. Choix, dans l'ordre :
+
+1. « éviter le bull » : une route sans 25 ni 50 dès qu'il en existe une dans la volée (50 → S10 D20, 110 → T20 S10
+   D20) ; sinon le bull reste (170 → T20 T20 50 ; 110 avec 2 fléchettes → T20 50) ;
+2. le moins de fléchettes (40 → D20 même pour un joueur au D16) ;
+3. sortie double : le double préféré, puis les plus classiques (D20, D16, D8, D18, D12…, 50 en dernier)
+   (41 → S1 D20 au D20, S9 D16 au D16) ;
+4. à valeur égale, une première fléchette qui laisse encore un double d'une fléchette (D1 à D20) si elle ne fait que
+   le simple (raté le plus courant d'un triple) ; à défaut, une finition avec les fléchettes qui restent (67 → T17 D8 :
+   S17 laisse 50 ; T9 D20 : S9 laisse 58, plus rien) ;
+5. préparation simple plutôt que triple, gros triples d'abord, jouée de la plus grosse à la plus petite ; jamais de
+   route qui ferait bust en chemin.
+
+Ex. (défaut) 170 → T20 T20 50, 100 → T20 D20, 41 → S1 D20, 33 → S1 D16, 128 → T18 T14 D16. Les préférences changent la
+route, jamais l'existence d'une finition (les stats, « chances de finition », appellent sans préférence).
+`isCheckoutRoute()` vérifie une route.
 
 ## Statistiques (`stats.js`)
 

@@ -1,4 +1,4 @@
-# Strela (СТРЕЛА) — règles du projet
+# Strela — règles du projet
 
 Appli Android de fléchettes X01 pour Guillaume. Dépôt `OrbitalVKL/STRELA` (public, branche `main`).
 Cahier des charges : [docs/cahier-des-charges.md](docs/cahier-des-charges.md).
@@ -14,7 +14,7 @@ Cahier des charges : [docs/cahier-des-charges.md](docs/cahier-des-charges.md).
 - Fin de lot : message court en trois parties — **Fait**, **À toi** (adresse à ouvrir sur son Pixel 10 Pro et
   quoi y vérifier), **Rapport pour l'architecte** (bloc à copier : état du dépôt, choix et raisons, écarts au
   cahier des charges, questions ouvertes, à savoir avant le lot suivant).
-- **Interface entièrement en français.** Seul le titre de l'appli reste en russe : **СТРЕЛА**.
+- **Interface entièrement en français.** Titre de l'appli en lettres latines : **STRELA** (lot 4 ; plus de titre russe).
   Le code (identifiants) est en anglais, les commentaires et la doc en français.
 - Grafit (`OrbitalVKL/GRAFIT`) est la référence de DA et de chaîne APK : **lecture seule, ne jamais le modifier.**
 
@@ -24,7 +24,8 @@ Cahier des charges : [docs/cahier-des-charges.md](docs/cahier-des-charges.md).
 Résumé : sombre `#0A0C0E` / texte `#CFD2D4` ; clair `#ECEDEE` / texte `#14171A` ; atténué = 62 % du texte
 mélangé au fond, discret = 30 % ; rouge `#9E4A4A`, texte rouge `#C26A6A` (en clair : `#9E4A4A`) ; vidéo inverse.
 Cible aux couleurs d'une vraie cible, identiques dans les deux thèmes (jetons `--board-*`).
-Thème Auto / Sombre / Clair (Auto par défaut). Police Martian Mono **embarquée** (`assets/fonts/`, OFL),
+Rouge d'accent (lot 4) : accueil et écran de secours seulement (variante « bande » : bande de titre et action principale en
+aplat rouge) ; en jeu, le rouge reste réservé au bust. Thème Auto / Sombre / Clair (Auto par défaut). Police Martian Mono **embarquée** (`assets/fonts/`, OFL),
 filets fins, angles droits, rien d'arrondi. Utiliser les jetons CSS de `assets/theme.css`, jamais de couleur en dur.
 
 ## Structure du dépôt
@@ -52,13 +53,15 @@ src/ui/                   interface (docs/interface.md) : app.js, nav.js, store.
                           board.js (dessin de la cible), roll.js (chiffres en rouleau), turn.js (validation des volées),
                           table.js (historique en tableau), fit.js (compaction des blocs trop chargés),
                           feedback.js (sons Web Audio et annonces vocales, lot 3),
+                          rescue.js (écran de secours, script classique chargé avant l'appli, lot 4),
                           mock.js + maquette.js (données fictives : sommaire ?maquette et tests seulement)
 src/ui/theme.js           palette (source de vérité des couleurs), contraste
 tests/                    tests node:test (*.test.js) ; helpers.js = aides (notation ds('T20 D16'))
                           Playwright (sautés s'il est absent) : chevauchement, couleurs, geste, stockage (base),
                           parcours (vraie appli, rechargements), photo, miseajour (service worker + base v2) ;
                           lot 3 : saisie (touches au relâcher), suppression, panneau (+ correction), annonces,
-                          sauvegarde (aller-retour), chiffres (stats contre un calcul à la main)
+                          sauvegarde (aller-retour), chiffres (stats contre un calcul à la main) ;
+                          lot 4 : finition (double préféré en vraie appli), secours (écran de secours, stockage plein)
 tools/build-site.mjs      construit _site/ : lance les tests, remplit la page, copie assets/ et src/
 tools/check-layout.mjs    test de chevauchement en ligne de commande ; tools/captures.mjs : captures ; tools/geste.mjs :
                           saisie au doigt en paysage ; tools/lib/ : serveur, contrôle de mise en page, geste,
@@ -106,12 +109,26 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 1.2 | Corrections : rotation de l'appli installée, vibrations, mini-cible, historique en tableau, vraie cible, superpositions — **fait** |
 | 1.3 | Corrections : 3 fléchettes par case d'historique, une seule couleur de joueur en jeu, VALIDER à la couleur du lanceur — **fait, design validé** |
 | 2 | Partie jouable et enregistrée (IndexedDB, reprise), vrais joueurs et photo d'avatar, VALIDER sans le suivant — **fait** |
-| 3 | Corrections de jeu, historique, stats et sauvegarde (touches au relâcher, suppression de parties, face-à-face, panneau cible + historique, finition dans les cases, voix, célébrations, sons, correction d'une fléchette, export / import, chiffres vérifiés) — **fait, en attente de validation** |
-| 4 | Finitions : propositions de finition affinées, mode nuit, vibrations (validation des fonctions) |
+| 3 | Corrections de jeu, historique, stats et sauvegarde (touches au relâcher, suppression de parties, face-à-face, panneau cible + historique, finition dans les cases, voix, célébrations, sons, correction d'une fléchette, export / import, chiffres vérifiés) — **fait** |
+| 4 | Finitions : titre STRELA + rouge d'accent (accueil), finition au double préféré (base v2), écrans vides et erreurs, écran de secours — **fait** |
 | 5 | APK (coquille Java WebView `fr.orbitalvkl.strela`, minSdk 30, release signée, mise à jour dans l'appli) |
 | 6 | Recette |
 
-## État (fin du lot 3)
+## État (fin du lot 4)
+
+- Version 0.4.0. Base en **version 2** (migration : préférences de finition `checkout: { double, avoidBull }` ajoutées à
+  chaque joueur ; rien d'autre ne change). Sauvegarde toujours au format 1 (une sauvegarde sans préférences prend les
+  valeurs par défaut). Détail : docs/interface.md, « Lot 4 ».
+- Lot 4 :
+  - **Accueil** : STRELA en lettres latines partout ; rouge d'accent, variante A « bande » retenue (B « filet » au
+    sommaire) ; NOUVELLE PARTIE en aplat rouge quand c'est l'action principale.
+  - **Finition** : fiche joueur (double préféré, éviter le bull), table de finitions selon le joueur qui lance, et à
+    valeur égale une première fléchette qui laisse un double si elle ne fait que le simple (docs/moteur-x01.md).
+  - **Écrans vides et erreurs** : action utile sur chaque écran vide ; alertes d'enregistrement (base inaccessible,
+    plus récente, stockage plein : RÉESSAYER / EXPORTER) ; écran de secours (RECHARGER, EXPORTER LA SAUVEGARDE).
+- Mode nuit et vibrations : déjà en place (lot 1.2) ; les vibrations passent par le vibreur natif dans l'APK (lot 5).
+
+## État (fin du lot 3, pour mémoire)
 
 - Version 0.3.0. Base toujours en **version 1** (aucune migration au lot 3 ; `write()` sait maintenant vider un magasin,
   `{ store, clear: true }`, pour REMPLACER TOUT). Détail du lot : docs/interface.md, « Lot 3 » ; définitions des

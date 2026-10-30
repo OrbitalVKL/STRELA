@@ -2,7 +2,7 @@
 // gardé en copie ; sans réseau, la copie sert. Ainsi l'appli installée affiche toujours la dernière version
 // publiée dès que le téléphone est connecté, et marche quand même hors ligne.
 const CACHE = 'strela-__BUILD__';
-const CORE = ['./', 'index.html', 'manifest.webmanifest', 'assets/theme.css', 'assets/app.css', 'assets/icon.svg', 'src/ui/app.js'];
+const CORE = ['./', 'index.html', 'manifest.webmanifest', 'assets/theme.css', 'assets/app.css', 'assets/icon.svg', 'src/ui/rescue.js', 'src/ui/app.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE)).catch(() => {}).then(() => self.skipWaiting()));

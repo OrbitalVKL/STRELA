@@ -1,7 +1,8 @@
 // Strela — point d'entrée de la page : routes, rendu, actions, thème, écran allumé, base du téléphone, service worker.
 // Adresses internes en « #/… » ; « ?maquette » ouvre le sommaire de maquette (données fictives en mémoire, la base du
 // téléphone n'est pas ouverte ; sommaire et données fictives ne sont chargés que dans ce cas).
-import { store, loadSettings, animationsOn, openStorage, requestPersistence, saving } from './store.js';
+import { store, loadSettings, animationsOn, openStorage, requestPersistence, saving, setStorageListener, exportBackup } from './store.js';
+import { BUILD } from './build.js';
 import { setRenderer, noteRoute, keepAwake, go } from './nav.js';
 import { home } from './screens/home.js';
 import { playersList, playerForm, avatarBank, actions as playerActions, inputs as playerInputs } from './screens/players.js';
@@ -44,7 +45,13 @@ let lastPath = null;
 let started = false; // rien n'est dessiné avant la lecture de la base (ou des données fictives)
 
 function render() {
-  if (!started) return;
+  if (!started || document.body.dataset.rescue) return;
+  // Filet de sécurité (lot 4) : une erreur pendant le rendu mène à l'écran de secours (src/ui/rescue.js), jamais à
+  // une page vide.
+  try { draw(); } catch (e) { if (window.strelaRescue) window.strelaRescue(e); else throw e; }
+}
+
+function draw() {
   const path = decodeURIComponent(location.hash.replace(/^#/, ''));
   noteRoute(location.hash || '#/');
   if (path !== lastPath) leaveHistory(path); // sélection et confirmations de l'historique oubliées en changeant d'écran
@@ -68,9 +75,12 @@ function render() {
   if (path === '/recadrage') mountCrop();
   app.querySelector('[data-reveal]')?.scrollIntoView({ block: 'center' });
   keepAwake(path === '/jeu' || path === '/manche'); // écran allumé pendant la partie, relâché en la quittant
-  document.title = path === '/jeu' ? 'СТРЕЛА · partie' : 'СТРЕЛА · Strela';
+  document.title = path === '/jeu' ? 'STRELA · partie' : 'STRELA';
 }
 setRenderer(render);
+setStorageListener(() => render());
+// Sauvegarde de ce que l'appli a en mémoire (écran de secours, si la base ne se relit pas).
+window.__strelaExport = () => exportBackup(BUILD.version);
 
 // ------------------------------------------------------------------ événements (délégués)
 // Un clic ne compte que si le doigt s'est posé sur la même commande : après une touche du pavé (qui redessine
@@ -185,7 +195,7 @@ applyTheme();
 if (new URLSearchParams(location.search).has('maquette')) {
   store.maquette = true;
   const [{ resetMock }, mq] = await Promise.all([import('./maquette.js'), import('./screens/sommaire.js')]);
-  ROUTES.push([/^\/sommaire$/, mq.sommaire]);
+  ROUTES.push([/^\/sommaire$/, mq.sommaire], [/^\/secours$/, mq.secours]);
   Object.assign(ACTIONS, mq.actions);
   resetMock();
   // Accès des scripts de vérification (tools/) : états du sommaire et réajustement après un changement de police.
@@ -204,6 +214,7 @@ if (new URLSearchParams(location.search).has('maquette')) {
   try {
     await openStorage({ onVersionChange: () => location.reload() });
   } catch (e) {
+    store.db.openCode = (e && e.code) || 'OPEN';
     store.db.error = e && e.code === 'NEWER'
       ? 'base plus récente que l\'appli : recharger la page'
       : `base indisponible (${(e && e.message) || e})`;

@@ -76,6 +76,10 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 .btn.ghost { border-color: var(--faint); }
 .btn.danger { color: var(--red-text); border-color: var(--red); }
 .btn.alert { color: var(--red-ink); background: var(--red); border-color: var(--red); }
+/* Rouge d'accent (lot 4) : accueil seulement, jamais en jeu (le rouge y est réservé au bust) */
+.btn.accent { color: var(--red-ink); background: var(--red); border-color: var(--red); }
+.btn.accent-line { border-color: var(--red); }
+.btn.accent:active:not(:disabled) { background: var(--fg); color: var(--bg); border-color: var(--fg); }
 .btn:disabled, .btn.off { color: var(--faint); border-color: var(--faint); background: var(--bg); }
 .btn:active:not(:disabled), .press:active { background: var(--fg); color: var(--bg); }
 .btn.primary:active:not(:disabled) { background: var(--dim); }
@@ -145,6 +149,12 @@ label.btn { cursor: pointer; }
 .home-title { margin: 0; white-space: nowrap; font-size: 58px; line-height: 0.9; font-weight: 800; letter-spacing: 0.08em; font-stretch: 112.5%; }
 .home-sub { margin: 10px 16px 0; font-size: 11.5px; color: var(--dim); letter-spacing: 0.1em; text-transform: uppercase; }
 .home-ver { font-size: 12px; font-weight: 600; }
+/* Variante « bande » (retenue) : bande de titre en aplat rouge, texte clair */
+.v-bande .home-head { background: var(--red); color: var(--red-ink); }
+/* Variante « filet » : titre en texte rouge, filet rouge épais dessous, filet rouge au-dessus du pied */
+.v-filet .home-head { color: var(--red-text); border-bottom: 4px solid var(--red); padding-bottom: 14px; }
+.v-filet .home-ver { color: var(--dim); }
+.v-filet .home-foot { border-top: 1px solid var(--red); }
 .home-main { flex: 1; padding: 26px 16px 0; display: flex; flex-direction: column; gap: 12px; }
 .resume { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; text-align: left; justify-content: stretch; }
 .resume .t { font-size: 18px; }
@@ -164,6 +174,17 @@ label.btn { cursor: pointer; }
 .tile:active span { color: var(--bg); }
 .home-foot { margin: 22px 16px 0; padding-top: 10px; border-top: var(--rule); display: flex; justify-content: space-between; gap: 12px; font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; }
 .home-foot a { color: var(--dim); }
+/* Problème d'enregistrement (lot 4) : base inaccessible, stockage plein ; et écran de secours */
+.issue { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--red); border-left-width: 6px; font-size: 12.5px; line-height: 1.5; }
+.issue > b { color: var(--red-text); font-size: 13px; letter-spacing: 0.08em; }
+.issue .btns { margin-top: 6px; }
+.issue .btn { min-height: 48px; }
+.rescue .home-head { background: var(--red); color: var(--red-ink); }
+.rescue .home-title { font-size: min(58px, 13vw); }
+.rescue .pad { display: grid; gap: 12px; padding-top: 22px; padding-bottom: 24px; font-size: 13px; line-height: 1.55; }
+.rescue .pad > p { margin: 0; }
+.rescue-h { font-weight: 800; letter-spacing: 0.1em; font-size: 15px; color: var(--red-text); }
+.rescue-msg { overflow-wrap: anywhere; }
 /* Premier lancement (lot 2) : invitation à créer les joueurs */
 .welcome { display: grid; gap: 10px; padding: 14px 0 4px; border-top: var(--rule); }
 .welcome > b { font-size: 13px; letter-spacing: 0.12em; }

@@ -127,7 +127,8 @@ export class Database {
     const names = [...new Set(ops.map(o => o.store))];
     let tx;
     try { tx = this.db.transaction(names, 'readwrite', { durability: 'strict' }); } catch (e) { return Promise.reject(e); }
-    const done = finished(tx);
+    let thrown = null; // erreur levée par une opération (ex. QuotaExceededError) : c'est elle qu'on renvoie
+    const done = finished(tx).catch(e => { throw thrown || e; });
     try {
       for (const o of ops) {
         const st = tx.objectStore(o.store);
@@ -137,6 +138,7 @@ export class Database {
         else st.put(o.put);
       }
     } catch (e) {
+      thrown = e;
       try { tx.abort(); } catch (x) { /* déjà annulée */ }
     }
     return done;

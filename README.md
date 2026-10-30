@@ -1,4 +1,4 @@
-# СТРЕЛА · Strela
+# STRELA
 
 Application de comptage et de suivi pour les parties de fléchettes (X01 : 301, 501, 701), hors ligne, pour Android.
 

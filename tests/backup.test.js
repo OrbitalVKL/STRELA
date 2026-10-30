@@ -5,8 +5,8 @@ import { makeBackup, parseBackup, importPlan, backupFileName, BackupError, BACKU
 import { ds } from './helpers.js';
 
 const P = [
-  { id: 'a', name: 'Alpha', avatar: { kind: 'photo', color: 1, photo: 'data:image/jpeg;base64,AAAA' }, archived: false },
-  { id: 'b', name: 'Bravo', avatar: { kind: 'icon', icon: 'renard', color: 3 }, archived: true },
+  { id: 'a', name: 'Alpha', avatar: { kind: 'photo', color: 1, photo: 'data:image/jpeg;base64,AAAA' }, archived: false, checkout: { double: 16, avoidBull: true } },
+  { id: 'b', name: 'Bravo', avatar: { kind: 'icon', icon: 'renard', color: 3 }, archived: true, checkout: { double: 20, avoidBull: false } },
 ];
 const config = { startScore: 301, outMode: 'double', legsToWin: 1, players: ['a', 'b'] };
 const G = [{ id: 'g1', startedAt: 1000, endedAt: 2000, config, darts: ds('T20 T20 T20 20 20 20'), validated: 6, abandoned: true }];
@@ -64,3 +64,11 @@ test('fichier refusé avec un message clair : illisible, pas Strela, version fut
   refuse({ ...ok, players: [{ ...ok.players[0], avatar: { kind: 'photo', color: 1, photo: 'javascript:alert(1)' } }] }, /photo/);
   refuse({ ...ok, games: [ok.games[1], { ...ok.games[1], id: 'g9' }] }, /plusieurs parties en cours/);
 });
+
+test('sauvegarde d\'avant le lot 4 (sans préférences de finition) : valeurs par défaut', () => {
+  const old = makeBackup(LOCAL, { app: '0.3.0' });
+  for (const p of old.players) delete p.checkout;
+  const b = parseBackup(JSON.stringify(old));
+  assert.deepEqual(b.players.map(p => p.checkout), [{ double: 20, avoidBull: false }, { double: 20, avoidBull: false }]);
+});
+
