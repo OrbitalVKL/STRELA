@@ -108,26 +108,36 @@ function rest(v) {
     </section>`;
 }
 
+// Fléchette dessinée (lot 3) : chaque case vide en montre une, qui laisse place au score une fois tirée ; on voit
+// d'un coup d'œil combien il en reste. Pointe en bas à gauche, empennage en haut à droite (trait, angles droits).
+export const DART_ICON = '<svg class="dico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21L7.5 16.5"/><path d="M7.5 16.5L13.5 10.5" stroke-width="4"/><path d="M13.5 10.5L17 7"/><path d="M15.5 8.5V2.5L21.5 8.5Z" fill="currentColor" stroke-width="1.5"/></svg>';
+
+// 3 cases + total. Case vide : la fléchette dessinée et, quand une finition est jouable avec les fléchettes qui
+// restent, le segment conseillé pour cette fléchette (ex. T20 · T20 · D20 pour 140), recalculé après chaque fléchette.
 function visitBoxes(v) {
-  const { darts, pend, bust } = v;
+  const { darts, pend, bust, cfg, remaining } = v;
+  const route = pend ? null : suggestCheckout(remaining, cfg.outMode, 3 - darts.length);
   const boxes = [0, 1, 2].map(i => {
     const d = darts[i];
-    if (d) return `<div class="dart ${bust && i === darts.length - 1 ? 'bust' : 'done'}"><span data-shrink>${dartLabel(d)}</span></div>`;
-    if (!pend && i === darts.length) return '<div class="dart todo" aria-label="Fléchette à jouer"></div>';
-    return '<div class="dart"></div>';
+    if (d) return `<div class="dart ${bust && i === darts.length - 1 ? 'bust' : 'done'}"><span class="sv" data-shrink>${dartLabel(d)}</span></div>`;
+    if (pend) return '<div class="dart"></div>';
+    const seg = route && route[i - darts.length];
+    const todo = i === darts.length;
+    const label = `${todo ? 'Fléchette à jouer' : 'Fléchette restante'}${seg ? `, finition : ${dartLabel(seg)}` : ''}`;
+    return `<div class="dart left${todo ? ' todo' : ''}${seg ? ' hint' : ''}" aria-label="${label}">${DART_ICON}${seg ? `<small class="cs" data-shrink>${dartLabel(seg)}</small>` : ''}</div>`;
   }).join('');
   return `<div class="visit">${boxes}<div class="total ${darts.length ? 'inv' : 'zero'}"><small>${pend && !bust ? 'VOLÉE' : 'TOTAL'}</small><span class="tv" data-shrink>${rollHtml(`t:${v.totalKey}`, v.total)}</span></div></div>`;
 }
 
+// Sous les cases : « SUIVANT PSEUDO » quand la volée attend VALIDER (repère voulu en portrait). La finition, elle,
+// est dans les cases vides (lot 3) : l'ancienne ligne FINITION aurait répété la même chose.
 function checkoutLine(v) {
-  const { pend, n, cfg, s, remaining } = v;
+  const { pend, n, cfg } = v;
   if (pend) {
     return n > 1
       ? `<div class="co turn"><small>SUIVANT</small><span class="nm ell">${esc(playerById(cfg.players[v.next]).name)}</span></div>`
       : '<div class="co turn"><small>VOLÉE SUIVANTE</small></div>';
   }
-  const route = suggestCheckout(remaining, cfg.outMode, 4 - s.dartNumber);
-  if (route) return `<div class="co" data-shrink><small>FINITION</small><span class="route">${route.map(d => `<span>${dartLabel(d)}</span>`).join('')}</span></div>`;
   return '<div class="co"></div>';
 }
 

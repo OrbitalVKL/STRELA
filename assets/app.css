@@ -319,6 +319,14 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 .visit { flex: 0 0 auto; min-height: 56px; display: grid; grid-template-columns: 1fr 1fr 1fr 1.3fr; gap: 5px; }
 .dart { display: grid; place-items: center; min-width: 0; border: var(--rule); font-size: 22px; line-height: 1.25; font-weight: 700; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dart.todo { border: 2px dashed var(--fg); }
+/* Case vide (lot 3) : fléchette dessinée ; segment conseillé en discret quand une finition est jouable */
+.dart.left { grid-template-rows: minmax(0, 1fr); color: var(--dim); }
+.dart.left .dico { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: square; stroke-linejoin: miter; }
+.dart.left.hint { grid-template-rows: minmax(0, 1fr) auto; align-content: center; gap: 1px; padding: 3px 2px 2px; }
+.dart.left.hint .dico { width: 17px; height: 17px; align-self: end; }
+.dart.left .cs { font-size: 15px; font-weight: 700; line-height: 1.25; color: var(--dim); letter-spacing: 0; }
+.dart.left.todo { color: var(--fg); }
+.dart.left.todo .cs { color: var(--fg); }
 .dart.done { border-color: var(--dim); }
 .dart.bust { color: var(--red-text); border-color: var(--red); text-decoration: line-through; }
 .total { min-width: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; padding: 4px 8px; font-size: 28px; line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; }

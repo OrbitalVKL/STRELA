@@ -99,3 +99,25 @@ test('paysage : un geste système pendant la saisie sur la cible ne compte rien'
     await srv.close();
   }
 });
+
+test('cases vides : fléchette dessinée et segment conseillé, mis à jour après chaque fléchette (portrait et paysage)', { skip: !pw && 'Playwright absent', timeout: 60e3 }, async () => {
+  const srv = await serve();
+  const browser = await pw.chromium.launch();
+  try {
+    for (const viewport of [{ width: 410, height: 914 }, { width: 914, height: 410 }]) {
+      const { ctx, page } = await touchPage(browser, srv.url, viewport);
+      const boxes = () => page.$$eval('.visit .dart', ds => ds.map(d => ({ icon: !!d.querySelector('.dico'), hint: d.querySelector('.cs')?.textContent || '', score: d.querySelector('.sv')?.textContent || '' })));
+      await show(page, { scene: 'finition' }); // reste 100 : T20 D20
+      assert.deepEqual(await boxes(), [{ icon: true, hint: 'T20', score: '' }, { icon: true, hint: 'D20', score: '' }, { icon: true, hint: '', score: '' }]);
+      assert.equal(await page.locator('.co .route').count(), 0, 'plus de ligne FINITION en double');
+      await page.evaluate(() => { document.querySelector('[data-key="0"]').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 7 })); window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 7 })); });
+      assert.deepEqual(await boxes(), [{ icon: false, hint: '', score: '0' }, { icon: true, hint: 'T20', score: '' }, { icon: true, hint: 'D20', score: '' }], `${viewport.width} : la finition suit les fléchettes restantes`);
+      await show(page, { scene: 'jeu' }); // 501 : pas de finition, les 3 fléchettes dessinées
+      assert.deepEqual((await boxes()).map(b => [b.icon, b.hint]), [[true, ''], [true, ''], [true, '']]);
+      await ctx.close();
+    }
+  } finally {
+    await browser.close();
+    await srv.close();
+  }
+});
