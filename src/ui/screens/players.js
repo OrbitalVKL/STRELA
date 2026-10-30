@@ -1,7 +1,8 @@
 // Joueurs : liste (avatar, pseudo, chiffres clés), fiche création / modification, banque d'avatars.
-// Archiver : le joueur n'est plus proposé, ses stats restent. Supprimer : il disparaît avec ses stats ; ses parties
-// avec d'autres restent, où il devient « Joueur supprimé » (src/engine/players.js).
-import { store, newId, inCurrentGame, deletionPreview, deletePlayer } from '../store.js';
+// Archiver : le joueur n'est plus proposé, ses stats restent ; RÉACTIVER (liste ou fiche) le remet. Supprimer : il
+// disparaît avec ses stats ; ses parties avec d'autres restent, où il devient « Joueur supprimé » (src/engine/players.js).
+// Photo : appareil photo ou galerie (sélecteur d'images d'Android), puis recadrage carré (screens/photo.js).
+import { store, newId, inCurrentGame, deletionPreview, deletePlayer, savePlayer, setArchived } from '../store.js';
 import { esc, ico, topBar, avg, plural } from '../dom.js';
 import { avatarHtml, iconSvg, ICONS, ICON_KEYS, AVATAR_COLOR_NAMES } from '../avatars.js';
 import { playerStats } from '../../engine/stats.js';
@@ -34,8 +35,8 @@ export function playersList() {
     <ul class="list">${active.map(p => `<li>${row(p)}</li>`).join('')}</ul>
     <div class="pad" style="margin-top:16px"><a class="btn" href="#/joueur/nouveau">${ico('plus')} NOUVEAU JOUEUR</a></div>
     ${archived.length ? `<div class="pad"><div class="sec">Archivés <span class="n">${archived.length}</span></div></div>
-      <ul class="list">${archived.map(p => `<li>${row(p)}</li>`).join('')}</ul>
-      <p class="note pad">Un joueur archivé n'apparaît plus au lancement d'une partie ; ses parties et ses stats restent.</p>` : ''}
+      <ul class="list">${archived.map(p => `<li class="arow">${row(p)}<button type="button" class="btn ghost react" data-act="unarchive-row" data-arg="${esc(p.id)}">RÉACTIVER</button></li>`).join('')}</ul>
+      <p class="note pad">Un joueur archivé n'apparaît plus au lancement d'une partie ; ses parties et ses stats restent. RÉACTIVER le remet dans la liste.</p>` : ''}
   </div>`;
 }
 
@@ -53,7 +54,7 @@ export function openDraft(id) {
     archived: p ? !!p.archived : false,
     confirm: false,
     del: null, // null | 'ask' (confirmation) | 'refused' (joueur de la partie en cours)
-    photoNote: false,
+    photoError: '', // photo trop lourde ou illisible
     error: '',
   };
   return store.draft;
@@ -69,15 +70,20 @@ const previewHtml = d => {
 export function playerForm(id) {
   if (id !== 'nouveau' && !store.players.some(p => p.id === id)) { go('#/joueurs', { replace: true }); return ''; }
   const d = openDraft(id);
+  if (d.del === 'refused' && !inCurrentGame(d.id)) d.del = null; // la partie est finie depuis le refus
   const kind = d.avatar.kind === 'icon' && !d.avatar.icon ? 'initials' : d.avatar.kind;
   const segBtn = (k, label) => `<button type="button" data-act="avkind" data-arg="${k}" aria-pressed="${kind === k}">${label}</button>`;
   let source = '';
   if (kind === 'icon') {
     source = `<button type="button" class="btn pickicon" data-act="open-bank">${avatarHtml({ avatar: d.avatar }, 48)}<span class="grow">${esc(ICONS[d.avatar.icon]?.[0] || 'CHOISIR')}</span><small>CHANGER</small>${ico('chev')}</button>`;
   } else if (kind === 'photo') {
-    source = `<div class="photo-row"><button type="button" class="btn ghost" data-act="photo">${ico('camera')} PHOTO</button>
-      <button type="button" class="btn ghost" data-act="photo">${ico('image')} GALERIE</button></div>
-      <p class="note">${d.photoNote ? '<b>Maquette :</b> la prise de photo et la galerie arrivent au lot 2 (recadrage au carré). ' : ''}En attendant, l'avatar garde les initiales.</p>`;
+    // Deux sélecteurs d'images d'Android : l'appareil photo (capture) et la galerie. Le fichier choisi part au recadrage.
+    const has = !!d.avatar.photo;
+    source = `<div class="photo-row"><label class="btn ghost">${ico('camera')} PHOTO<input type="file" accept="image/*" capture="user" data-file="camera" hidden></label>
+      <label class="btn ghost">${ico('image')} GALERIE<input type="file" accept="image/*" data-file="gallery" hidden></label></div>
+      ${d.photoBusy ? '<p class="note" role="status">Chargement de la photo…</p>' : ''}
+      ${d.photoError ? `<p class="note red" role="alert">${esc(d.photoError)}</p>` : ''}
+      <p class="note">${has ? 'Photo recadrée au carré. Une autre photo la remplace.' : 'Prends une photo ou choisis-en une : tu la recadreras au carré. En attendant, l\'avatar garde les initiales.'}</p>`;
   } else {
     source = '<p class="note">Les deux premières lettres du pseudo, sur le fond choisi.</p>';
   }
@@ -159,7 +165,6 @@ export const actions = {
   },
   avcolor(i) { store.draft.avatar.color = Number(i); refresh(); },
   'open-bank'() { go('#/avatars'); },
-  photo() { store.draft.photoNote = true; refresh(); },
   'pick-icon'(key) {
     const d = store.draft;
     if (!d) return;
@@ -178,17 +183,16 @@ export const actions = {
   },
   'archive-no'() { store.draft.confirm = false; refresh(); },
   'archive-yes'() {
-    const p = store.players.find(q => q.id === store.draft.id);
-    if (p) p.archived = true;
+    setArchived(store.draft.id, true);
     store.draft = null;
     go('#/joueurs');
   },
   unarchive() {
-    const p = store.players.find(q => q.id === store.draft.id);
-    if (p) p.archived = false;
+    setArchived(store.draft.id, false);
     store.draft.archived = false;
     refresh();
   },
+  'unarchive-row'(id) { setArchived(id, false); refresh(); },
   'save-player'() {
     const d = store.draft;
     const name = d.name.trim().replace(/\s+/g, ' ');
@@ -197,9 +201,10 @@ export const actions = {
       d.error = 'Ce pseudo existe déjà.'; refresh(); return;
     }
     const avatar = { ...d.avatar };
-    if (avatar.kind === 'photo') avatar.kind = 'initials';
-    if (d.id) Object.assign(store.players.find(p => p.id === d.id), { name, avatar });
-    else store.players.push({ id: newId('p'), name, avatar, skill: 0.3 });
+    if (avatar.kind === 'photo' && !avatar.photo) avatar.kind = 'initials'; // pas encore de photo : les initiales
+    if (avatar.kind !== 'photo') delete avatar.photo;
+    const old = d.id && store.players.find(p => p.id === d.id);
+    savePlayer(old ? { ...old, name, avatar } : { id: newId('p'), name, avatar, archived: false });
     store.draft = null;
     go('#/joueurs');
   },

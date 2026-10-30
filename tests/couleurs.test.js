@@ -1,6 +1,7 @@
 // Une seule couleur de joueur à l'écran pendant la partie (lot 1.3) : celle du joueur en cours (bandeau, VALIDER,
 // annonce). Les autres joueurs, le suivant compris, restent neutres. VALIDER prend la couleur du joueur qui vient de
-// lancer, avec un texte lisible sur chacune des 8 couleurs d'avatar. Playwright (sauté s'il est absent).
+// lancer, avec un texte lisible sur chacune des 8 couleurs d'avatar, et ne dit que « VALIDER », sur une ligne (lot 2 :
+// le suivant n'est montré que dans la bande des autres). Playwright (sauté s'il est absent).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { serve, loadPlaywright } from '../tools/lib/serve.mjs';
@@ -10,7 +11,7 @@ import { AVATAR_COLORS, contrast } from '../src/ui/theme.js';
 const pw = await loadPlaywright();
 
 const SCENES = ['jeu', 'arme-d', 'volee', 'volee-4', 'volee-8', 'bust', 'annonce', 'cible', 'manches', 'finition', 'huit',
-  'long', 'solo-attente', 'paysage', 'paysage-attente'];
+  'long', 'solo-attente', 'paysage', 'paysage-attente', 'photo-jeu'];
 
 /** Dans la page : couleurs d'avatar trouvées sur les éléments visibles de l'écran de jeu. */
 function scan(palette) {
@@ -42,7 +43,11 @@ function scan(palette) {
   const vs = v && getComputedStyle(v);
   return {
     cur, found,
-    validate: v ? { bg: hex(vs.backgroundColor), fg: hex(vs.color), text: v.innerText.replace(/\s+/g, ' ').trim(), next: !!v.querySelector('.vnext') } : null,
+    validate: v ? {
+      bg: hex(vs.backgroundColor), fg: hex(vs.color), text: v.innerText.replace(/\s+/g, ' ').trim(),
+      lines: (() => { const r = document.createRange(); r.selectNodeContents(v); return new Set([...r.getClientRects()].filter(x => x.width > 1).map(x => Math.round(x.top))).size; })(),
+      size: parseFloat(getComputedStyle(v.querySelector('.vl') || v).fontSize),
+    } : null,
   };
 }
 
@@ -74,14 +79,16 @@ test('en jeu, seule la couleur du joueur en cours est à l’écran ; VALIDER à
           assert.ok(r.validate, `VALIDER ${k} ${at}`);
           assert.equal(r.validate.bg, AVATAR_COLORS[r.cur], `VALIDER à la couleur du joueur qui vient de lancer (${at})`);
           assert.ok(contrast(r.validate.fg, r.validate.bg) >= 4.5, `VALIDER sur --av-${r.cur} : ${contrast(r.validate.fg, r.validate.bg).toFixed(2)}`);
-          assert.match(r.validate.text, /^VALIDER suivant\s?: \S/i, `VALIDER puis le suivant (${r.validate.text})`);
+          assert.equal(r.validate.text, 'VALIDER', `VALIDER seul, sans le suivant (${r.validate.text})`);
+          assert.equal(r.validate.lines, 1, 'VALIDER sur une ligne');
+          assert.ok(r.validate.size >= (width > height ? 20 : 40), `VALIDER en grand (${r.validate.size} px)`);
           seen.add(r.cur);
         }
         assert.equal(seen.size, 8, 'les 8 couleurs d’avatar passées');
         await show(page, { scene: 'solo-attente' });
         const solo = await page.evaluate(scan, [...AVATAR_COLORS]);
         assert.equal(solo.validate.text, 'VALIDER', 'en solo, VALIDER seul');
-        assert.equal(solo.validate.next, false);
+        assert.equal(solo.validate.lines, 1);
         await ctx.close();
       }
     }

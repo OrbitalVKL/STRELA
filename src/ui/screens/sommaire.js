@@ -1,7 +1,10 @@
 // Sommaire de maquette (?maquette dans l'adresse) : lien direct vers chaque écran et vers les états
 // difficiles à provoquer. Les états de jeu sont fabriqués avec le vrai moteur ; l'annonce « À TOI » et la loupe,
-// qui ne durent qu'un instant, restent figées jusqu'à la prochaine touche.
-import { store, startGame, ensureExtraPlayers, resetMock, freshUi, currentState, deletePlayer } from '../store.js';
+// qui ne durent qu'un instant, restent figées jusqu'à la prochaine touche. Tout est en mémoire (données fictives de
+// maquette.js) : la base du téléphone n'est jamais ouverte. Chargé seulement avec ?maquette (import dynamique).
+import { store, startGame, freshUi, currentState, deletePlayer } from '../store.js';
+import { resetMock, ensureExtraPlayers, givePhoto, SAMPLE_PHOTO, SAMPLE_SIZE } from '../maquette.js';
+import { openCrop, PHOTO_ERRORS } from './photo.js';
 import { polar, sectorAngle, RINGS } from '../../engine/board.js';
 import { isDeletedId } from '../../engine/players.js';
 import { openDraft } from './players.js';
@@ -20,6 +23,7 @@ const cfg = (players, startScore = 501, outMode = 'double', legsToWin = 1) => ({
 /** Partie fabriquée ; `pending` : la dernière volée close attend VALIDER (sinon elle est déjà validée). */
 function setGame(setup, notation, ui = {}, pending = false) {
   ensureExtraPlayers(setup.players);
+  store.current = null; // la partie fabriquée remplace la précédente sans la ranger dans l'historique
   startGame(setup);
   store.current.darts = Array.isArray(notation) ? notation : ds(notation);
   store.current.validated = pending ? 0 : store.current.darts.length;
@@ -133,6 +137,26 @@ export const SCENES = {
     const g = store.games.find(x => x.config.players.some(isDeletedId));
     return g ? `#/partie/${g.id}` : '#/historique';
   },
+  // Lot 2 : premier lancement, reprise d'une fin de manche ou de partie, photo d'avatar (recadrage, erreur, en jeu)
+  'premier-lancement': () => { store.players = []; store.games = []; store.current = null; store.lastSetup = null; return '#/'; },
+  'reprendre-manche': () => { setGame(cfg(['p1', 'p2'], 301, 'double', 2), 'T20 T20 T20 20 1 5 T20 T11 D14'); store.current.validated = 6; return '#/'; },
+  'reprendre-fin': () => { setGame(cfg(['p1', 'p2', 'p3'], 301), 'T20 T20 T20 20 1 5 T19 S7 S3 T20 T11 D14'); return '#/'; },
+  'nouvelle-en-cours': () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S5 S20 T19 S1 T20'); store.setupDraft = null; return '#/nouvelle'; },
+  recadrage: () => { store.draft = null; openDraft('p2'); openCrop(SAMPLE_PHOTO, SAMPLE_SIZE.w, SAMPLE_SIZE.h, 'p2'); return '#/recadrage'; },
+  'recadrage-zoom': () => {
+    store.draft = null; openDraft('p2'); openCrop(SAMPLE_PHOTO, SAMPLE_SIZE.w, SAMPLE_SIZE.h, 'p2');
+    Object.assign(store.crop, { zoom: 2.5, cx: 320, cy: 266 });
+    return '#/recadrage';
+  },
+  'fiche-photo': () => { givePhoto('p2'); store.draft = null; return '#/joueur/p2'; },
+  'photo-erreur': () => {
+    store.draft = null;
+    Object.assign(openDraft('p2'), { photoError: PHOTO_ERRORS.heavy(31.4 * 1048576) });
+    store.draft.avatar.kind = 'photo';
+    return '#/joueur/p2';
+  },
+  // Guillaume (photo) dans la bande des autres : en gris ; Mathilde (photo) au bandeau : en couleur.
+  'photo-jeu': () => { givePhoto('p1'); givePhoto('p2'); setGame(cfg(['p1', 'p2', 'p3']), 'T20 S20 S5'); return '#/jeu'; },
   reinit: () => { resetMock(); return '#/sommaire'; },
 };
 
@@ -144,20 +168,29 @@ export function sommaire() {
   return `<div class="screen">${topBar('Maquette', '#/')}
     <div class="pad" style="padding-top:14px">
       <button type="button" class="btn primary" data-act="flip-theme">${ico('theme')} PASSER EN ${dark ? 'CLAIR' : 'SOMBRE'}</button>
-      <p class="note">Sur chaque écran, ${ico('theme')} en haut à droite bascule le thème et ${ico('menu')} revient ici (en partie : menu pause).</p>
+      <p class="note">Sur chaque écran, ${ico('theme')} en haut à droite bascule le thème et ${ico('menu')} revient ici (en partie : menu pause).
+        Données fictives, en mémoire : la maquette ne touche jamais aux joueurs et aux parties enregistrés sur le téléphone.</p>
     </div>
     <div class="pad"><div class="sec">Écrans</div></div>
     <nav class="toc">
       ${H('#/', '1 · Accueil')}
+      ${L('premier-lancement', '1 · Accueil au premier lancement', 'aucun joueur')}
       ${L('reprendre', '1 · Accueil avec REPRENDRE', 'partie en cours')}
+      ${L('reprendre-manche', '1 · REPRENDRE une fin de manche', 'pas encore validée')}
+      ${L('reprendre-fin', '1 · REPRENDRE une fin de partie', 'pas encore rangée')}
       ${H('#/joueurs', '2 · Joueurs', 'liste')}
       ${L('fiche-new', '2 · Fiche : création')}
       ${L('fiche-edit', '2 · Fiche : modification', 'archiver')}
+      ${L('fiche-photo', '2 · Fiche : avatar photo')}
+      ${L('photo-erreur', '2 · Fiche : photo refusée', 'trop lourde')}
+      ${L('recadrage', '2 · Recadrage de la photo', 'glisser, pincer')}
+      ${L('recadrage-zoom', '2 · Recadrage : zoom ×2,5')}
       ${L('suppression', '2 · Supprimer un joueur', 'confirmation')}
       ${L('suppression-refus', '2 · Supprimer pendant une partie', 'refusé')}
       ${L('joueur-supprime', '8 · Partie avec un joueur supprimé', 'Sacha supprimé')}
       ${H('#/avatars', '3 · Banque d\'avatars', '24 icônes')}
       ${H('#/nouvelle', '4 · Nouvelle partie', 'derniers réglages')}
+      ${L('nouvelle-en-cours', '4 · Nouvelle partie', 'une partie en cours')}
       ${L('jeu', '5 · Jeu : début de partie', '501 · 2 joueurs')}
       ${L('pause', '5 · Jeu : menu pause')}
       ${L('abandon', '5 · Jeu : abandonner ?', 'confirmation')}
@@ -193,6 +226,7 @@ export function sommaire() {
       ${L('long-fiche', 'Pseudo très long', 'fiche')}
       ${L('solo', 'Un seul joueur', 'entraînement')}
       ${L('solo-attente', 'Un seul joueur : volée en attente', 'VALIDER seul')}
+      ${L('photo-jeu', 'Avatars photo en jeu', 'les autres en gris')}
     </nav>
     <div class="pad"><div class="sec">Paysage</div><p class="note" style="margin-top:0">Tourne le téléphone : l'écran de jeu passe en paysage, saisie sur la cible.</p></div>
     <nav class="toc">
@@ -206,6 +240,7 @@ export function sommaire() {
       ${L('nouvelle-vide', 'Aucun joueur', 'nouvelle partie')}
       ${L('historique-vide', 'Historique vide')}
       ${L('reinit', 'Rétablir les données fictives', '5 joueurs · 15 parties')}
+      ${H('./', 'Quitter la maquette', 'vraies données')}
     </nav>
     <div class="pad"><div class="sec">Icône d'appli</div>
       <div style="display:flex;gap:16px;align-items:flex-end"><img src="assets/icon.svg" width="96" height="96" alt="Icône Strela"><img src="assets/icon-maskable-512.png" width="72" height="72" alt="" style="clip-path:circle(50%)"><img src="assets/icon.svg" width="40" height="40" alt=""></div>

@@ -81,7 +81,8 @@ L'appli accepte les deux orientations ; l'écran de jeu suit la rotation du tél
 - 3 cases de fléchettes + total de la volée ; finition proposée quand elle est jouable ; autres joueurs (avatar, reste).
 - **Validation de chaque volée** : plus de passage automatique. Après la 3e fléchette ou un bust, la volée reste
   affichée (joueur, fléchettes, total ou BUST) et un grand bouton **VALIDER** passe au joueur suivant ; il est à la
-  couleur du joueur qui vient de lancer, avec « suivant : PSEUDO » en dessous (lot 1.3 ; en solo, VALIDER seul). En attendant,
+  couleur du joueur qui vient de lancer et ne dit que « VALIDER », sur une ligne, en grand (lot 2 : le suivant n'est
+  montré qu'une fois, par « SUIVANT » dans la bande des autres joueurs). En attendant,
   ANNULER reste actif pour corriger ; les autres touches de saisie sont visiblement inactives. Une fléchette de
   finition mène toujours à l'écran de fin de manche, qui sert de validation. C'est un état de l'interface (le moteur
   ne change pas), enregistré avec la partie en cours : il survit à une fermeture de l'appli.
@@ -105,7 +106,10 @@ L'appli accepte les deux orientations ; l'écran de jeu suit la rotation du tél
   visibles (les pseudos d'en-tête, eux, peuvent finir en « … » : l'avatar identifie le joueur). On le ferme pour revenir exactement où on en était.
 - Retours : vibration courte à chaque fléchette ; bust = zone du reste en aplat rouge + vibration longue. Sur le web,
   Chrome ne vibre ni en mode silencieux ni quand le retour haptique d'Android est coupé ; l'APK (lot 5) utilisera le
-  vibreur natif d'Android. Réglages : TESTER LA VIBRATION et ligne de diagnostic (lot 1.2).
+  vibreur natif d'Android. Réglages : TESTER LA VIBRATION et ligne de diagnostic (lot 1.2). **Lot 2** : sur le Pixel 10
+  Pro de Guillaume (appli installée, retour haptique activé), rien ne vibre, même avec TESTER LA VIBRATION. On n'insiste
+  pas côté web : les appels et le bouton de test restent, **le lot 5 passe par le vibreur natif d'Android** (coquille
+  APK, `Vibrator` / `VibrationEffect`, exposé à la page par l'interface Java de la WebView).
 - **Robustesse** (lot 1.2) : rien ne se chevauche ni ne sort de l'écran, quels que soient la taille de l'écran et les
   réglages de taille d'affichage et de police (Android, Chrome) ; un texte trop long se coupe avec « … », un bloc trop
   chargé se compacte. Vérifié automatiquement en CI.
@@ -136,11 +140,16 @@ L'appli accepte les deux orientations ; l'écran de jeu suit la rotation du tél
 
 - Entités : **Joueur, Partie, Manche, Volée, Fléchette**.
 - Fléchette = segment × multiplicateur, plus la position touchée sur la cible quand elle a été saisie en paysage.
-- Partie en cours : en plus des fléchettes, le nombre de fléchettes déjà validées (volée en attente de VALIDER).
+- Partie en cours : en plus des fléchettes, le nombre de fléchettes déjà validées (volée en attente de VALIDER, et fin
+  de manche pas encore passée par MANCHE SUIVANTE).
 - Joueur supprimé : son identifiant est remplacé dans ses parties par un identifiant anonyme (détail :
   [moteur-x01.md](moteur-x01.md)).
 - Les statistiques sont toujours recalculées à partir des fléchettes (jamais stockées).
-- Stockage : IndexedDB.
+- Stockage : IndexedDB (lot 2), base versionnée avec migrations, sur le téléphone seulement. La partie en cours est
+  écrite à chaque fléchette, ANNULER et VALIDER : une fermeture brutale ne perd au plus que l'écriture en cours, et
+  l'appli rouverte propose REPRENDRE à l'état exact. Stockage persistant demandé à Chrome (sinon il peut effacer les
+  données d'un site quand la place manque). Une mise à jour de l'appli ne touche jamais aux données. Détail :
+  [interface.md](interface.md), « Enregistrement ».
 - Export / import JSON : sauvegarde, et passage de la maquette web à l'APK.
 
 ## 6. Statistiques par joueur
@@ -178,8 +187,8 @@ Détail : [direction-artistique.md](direction-artistique.md).
 | 1 | Maquette de tous les écrans, en sombre et en clair | validation du design |
 | 1.1 | Corrections de la maquette : suppression des joueurs, validation des volées, chiffres en rouleau, cible, historique en cours, joueur actif plus visible, paysage avec saisie sur la cible | validation du design |
 | 1.2 | Corrections : rotation de l'appli installée, vibrations (test et diagnostic), mini-cible de la volée en cours, historique en tableau, cible aux vraies couleurs, superpositions (test automatique), palette d'avatar | validation du design |
-| 1.3 | Corrections : 3 fléchettes dans chaque case de l'historique, une seule couleur de joueur à l'écran (le joueur en cours), VALIDER à la couleur du lanceur avec le nom du suivant | validation du design |
-| 2 | Partie jouable, joueurs et avatars | |
+| 1.3 | Corrections : 3 fléchettes dans chaque case de l'historique, une seule couleur de joueur à l'écran (le joueur en cours), VALIDER à la couleur du lanceur avec le nom du suivant (retiré au lot 2) | design validé (v0.1.3) |
+| 2 | Partie jouable et enregistrée (IndexedDB, reprise), vrais joueurs (photo recadrée), VALIDER sans le nom du suivant | validation des fonctions de la partie |
 | 3 | Historique et statistiques | |
 | 4 | Finitions : propositions de finition, mode nuit, vibrations, export / import | validation des fonctions |
 | 5 | APK Android | |

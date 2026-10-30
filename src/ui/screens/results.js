@@ -1,8 +1,9 @@
 // Fin de manche (vainqueur, fléchettes, moyenne, meilleure volée ; MANCHE SUIVANTE) et
 // fin de partie (vainqueur, résumé par joueur ; REVANCHE, ACCUEIL). ANNULER reste possible depuis les deux.
 // Les deux montrent la cible : volée de la finition numérotée, volées précédentes du vainqueur dans la manche en discret.
-// La fin de manche sert de validation de la volée gagnante (pas de VALIDER en jeu pour une finition).
-import { store, currentState, playerById, archiveCurrent, startGame } from '../store.js';
+// La fin de manche sert de validation de la volée gagnante (pas de VALIDER en jeu pour une finition) : MANCHE SUIVANTE
+// l'enregistre (`validated`), une reprise avant cela revient sur cet écran.
+import { store, currentState, playerById, archiveCurrent, startGame, saveCurrent } from '../store.js';
 import { esc, avg, int, OUT_LABEL, maquetteButtons } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
 import { formatDart } from '../../engine/darts.js';
@@ -19,7 +20,8 @@ export function legEnd() {
   const s = currentState();
   if (s.status === 'finished') { go('#/fin', { replace: true }); return ''; }
   const leg = [...s.legs].reverse().find(l => l.winner !== null);
-  if (!leg) { go('#/jeu', { replace: true }); return ''; }
+  // Seulement juste après une finition (sinon MANCHE SUIVANTE validerait une volée en attente).
+  if (!leg || s.lastEvent !== 'leg_won') { go('#/jeu', { replace: true }); return ''; }
   const w = leg.winner;
   const p = playerById(g.config.players[w]);
   const sum = playerSummary(s, w, leg.number);
@@ -94,12 +96,16 @@ function finishBoard(g, s, fin, p) {
 export const actions = {
   'undo-end'() { undo(); go('#/jeu', { replace: true }); },
   'next-leg'() {
-    // Annonce du premier lanceur de la nouvelle manche, comme après une validation.
+    // La fin de manche est validée (enregistrée : une reprise ne la remontre pas) ; annonce du premier lanceur de la
+    // nouvelle manche, comme après une validation.
     const g = store.current;
-    if (g && g.config.players.length > 1) { g.ui.announce = currentState().currentPlayer; g.ui.frozen = false; }
+    if (!g) { go('#/', { replace: true }); return; }
+    if (currentState().lastEvent === 'leg_won') { g.validated = g.darts.length; saveCurrent(); }
+    if (g.config.players.length > 1) { g.ui.announce = currentState().currentPlayer; g.ui.frozen = false; }
     go('#/jeu', { replace: true });
   },
   rematch() {
+    if (!store.current) { go('#/', { replace: true }); return; }
     const c = store.current.config;
     archiveCurrent(false);
     // Mêmes réglages ; le premier à lancer passe au joueur suivant.
