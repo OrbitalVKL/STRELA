@@ -1,0 +1,97 @@
+/* Strela — DA « console Soyuz » (reprise de Grafit) : thème sombre / clair, police Martian Mono embarquée.
+   Valeurs = src/ui/theme.js (vérifié par tests/theme.test.js). Filets fins, angles droits, rien d'arrondi.
+   Choix du thème : <html data-theme="auto|dark|light"> ; auto (défaut) suit le réglage du téléphone. */
+
+@font-face {
+  font-family: 'Martian Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  font-stretch: 75% 112.5%;
+  src: url(fonts/martian-mono-latin.woff2) format('woff2-variations'), url(fonts/martian-mono-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Martian Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  font-stretch: 75% 112.5%;
+  src: url(fonts/martian-mono-latin-ext.woff2) format('woff2-variations'), url(fonts/martian-mono-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Martian Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  font-stretch: 75% 112.5%;
+  src: url(fonts/martian-mono-cyrillic.woff2) format('woff2-variations'), url(fonts/martian-mono-cyrillic.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
+/* Sombre (défaut) */
+:root {
+  --bg: #0A0C0E;
+  --fg: #CFD2D4;
+  --dim: #848789;
+  --faint: #454749;
+  --red: #9E4A4A;
+  --red-text: #C26A6A;
+  --red-ink: #F6ECEC;
+  --inv-fg: #0C0F12;
+  --inv-bg: #CFD2D4;
+  --font: 'Martian Mono', ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
+  --rule: 1px solid var(--faint);
+  color-scheme: dark;
+}
+
+/* Clair : choisi, ou Auto avec un téléphone en clair */
+:root[data-theme="light"] {
+  --bg: #ECEDEE;
+  --fg: #14171A;
+  --dim: #66686B;
+  --faint: #ABADAE;
+  --red: #9E4A4A;
+  --red-text: #9E4A4A;
+  --red-ink: #F6ECEC;
+  --inv-fg: #ECEDEE;
+  --inv-bg: #14171A;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #ECEDEE;
+    --fg: #14171A;
+    --dim: #66686B;
+    --faint: #ABADAE;
+    --red: #9E4A4A;
+    --red-text: #9E4A4A;
+    --red-ink: #F6ECEC;
+    --inv-fg: #ECEDEE;
+    --inv-bg: #14171A;
+    color-scheme: light;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; border-radius: 0; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-tap-highlight-color: transparent;
+}
+button { font: inherit; color: inherit; background: none; border: var(--rule); border-radius: 0; cursor: pointer; }
+
+/* Briques communes */
+.inv { color: var(--inv-fg); background: var(--inv-bg); }
+.dim { color: var(--dim); }
+.faint { color: var(--faint); }
+.red { color: var(--red-text); }
+.alert { color: var(--red-ink); background: var(--red); }
+.rule { border: 0; border-top: var(--rule); margin: 0; }
+.caps { text-transform: uppercase; letter-spacing: 0.06em; }

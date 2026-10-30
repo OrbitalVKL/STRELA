@@ -1,0 +1,64 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync, existsSync } from 'node:fs';
+import { THEMES, mix, contrast } from '../src/ui/theme.js';
+
+const root = new URL('../', import.meta.url);
+const css = readFileSync(new URL('assets/theme.css', root), 'utf8');
+const VARS = { bg: 'bg', fg: 'fg', dim: 'dim', faint: 'faint', red: 'red', 'red-text': 'redText', 'red-ink': 'redInk', 'inv-fg': 'invFg', 'inv-bg': 'invBg' };
+
+const block = selector => {
+  const i = css.indexOf(selector + ' {');
+  assert.ok(i >= 0, `bloc ${selector} absent de theme.css`);
+  const body = css.slice(i, css.indexOf('}', i));
+  return Object.fromEntries([...body.matchAll(/--([\w-]+):\s*(#[0-9A-Fa-f]{6})/g)].map(m => [m[1], m[2].toUpperCase()]));
+};
+
+test('DA : couleurs imposées et formule atténué 62 % / discret 30 %', () => {
+  assert.equal(THEMES.dark.bg, '#0A0C0E');
+  assert.equal(THEMES.dark.fg, '#CFD2D4');
+  assert.equal(THEMES.dark.red, '#9E4A4A');
+  assert.equal(THEMES.dark.redText, '#C26A6A');
+  assert.equal(THEMES.dark.invFg, '#0C0F12');
+  assert.equal(THEMES.dark.invBg, '#CFD2D4');
+  assert.equal(THEMES.light.bg, '#ECEDEE');
+  assert.equal(THEMES.light.fg, '#14171A');
+  assert.equal(THEMES.light.red, '#9E4A4A');
+  assert.equal(THEMES.light.invBg, '#14171A');
+  assert.equal(THEMES.light.invFg, THEMES.light.bg);
+  for (const t of Object.values(THEMES)) {
+    assert.equal(t.dim, mix(t.fg, 0.62, t.bg));
+    assert.equal(t.faint, mix(t.fg, 0.30, t.bg));
+  }
+  assert.equal(THEMES.dark.dim, '#848789');
+  assert.equal(THEMES.dark.faint, '#454749');
+});
+
+test('theme.css reprend exactement la palette (sombre, clair choisi, clair en Auto)', () => {
+  for (const [selector, theme] of [
+    [':root', THEMES.dark],
+    [':root[data-theme="light"]', THEMES.light],
+    [':root:not([data-theme="dark"])', THEMES.light],
+  ]) {
+    const vars = block(selector);
+    for (const [cssName, key] of Object.entries(VARS)) assert.equal(vars[cssName], theme[key], `${selector} --${cssName}`);
+  }
+});
+
+test('lisibilité : contrastes suffisants dans les deux thèmes', () => {
+  for (const [name, t] of Object.entries(THEMES)) {
+    assert.ok(contrast(t.fg, t.bg) >= 7, `${name} texte`);
+    assert.ok(contrast(t.invFg, t.invBg) >= 7, `${name} vidéo inverse`);
+    assert.ok(contrast(t.dim, t.bg) >= 4.5, `${name} atténué`);
+    assert.ok(contrast(t.redText, t.bg) >= 4.5, `${name} texte rouge`);
+    assert.ok(contrast(t.redInk, t.red) >= 4.5, `${name} texte sur rouge`);
+  }
+});
+
+test('police Martian Mono embarquée avec sa licence OFL', () => {
+  for (const f of ['martian-mono-latin.woff2', 'martian-mono-latin-ext.woff2', 'martian-mono-cyrillic.woff2', 'OFL.txt']) {
+    assert.ok(existsSync(new URL(`assets/fonts/${f}`, root)), f);
+    if (f.endsWith('.woff2')) assert.ok(css.includes(`fonts/${f}`), `${f} déclarée dans theme.css`);
+  }
+  assert.match(readFileSync(new URL('assets/fonts/OFL.txt', root), 'utf8'), /SIL Open Font License/);
+});
