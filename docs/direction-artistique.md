@@ -42,11 +42,20 @@ les réglages de l'appli). La balise `theme-color` suit le fond.
   Aucun appel à Google Fonts : tout marche hors ligne.
 - Libellés en capitales avec léger espacement (`.caps`), chiffres tabulaires pour les scores.
 - Filets fins de 1 px (`--rule`), **angles droits partout**, rien d'arrondi (`border-radius: 0` global).
-- Vidéo inverse (`.inv`) pour l'état sélectionné et VALIDER ; aplat rouge (`.alert`) pour le bust et les
+- Vidéo inverse (`.inv`) pour l'état sélectionné ; aplat rouge (`.alert`) pour le bust et les
   confirmations graves (supprimer un joueur).
 - Joueur actif (lot 1.1) : bandeau en **aplat de la couleur de fond de son avatar** (`--av-0` … `--av-7`, encre
-  `--av-ink`), pour reconnaître le joueur de loin ; même aplat pour l'annonce « À TOI » et filet de cette couleur
-  sur le joueur suivant. Pseudo en Martian Mono étroite (`font-stretch: 75 %`).
+  `--av-ink`), pour reconnaître le joueur de loin ; même aplat pour l'annonce « À TOI ». Pseudo en Martian Mono
+  étroite (`font-stretch: 75 %`).
+- **Une seule couleur de joueur à l'écran en jeu** (lot 1.3) : celle du joueur en cours (bandeau, VALIDER, annonce).
+  Les autres joueurs, dans la bande du bas, sont neutres : avatar sans fond (`.av.mono`, pictogramme au trait dans un
+  filet discret), restes en couleur de texte ; le suivant, toujours en tête de bande, est repéré par un filet de
+  3 px en haut de sa case et « SUIVANT » (une flèche si son pseudo n'a plus la place). Le nouveau joueur ne prend sa
+  couleur qu'après VALIDER, à l'annonce. Vérifié par `tests/couleurs.test.js`. Hors du jeu (historique, résultats,
+  stats, joueurs), chaque avatar garde sa couleur.
+- **VALIDER** (lot 1.3) : aplat de la couleur du joueur qui vient de lancer, encre `--av-ink` (contraste ≥ 4,5:1 sur
+  les 8 fonds, testé) ; « VALIDER » en gros, « suivant : PSEUDO » en dessous, plus petit (« suivant : » s'efface si la
+  place manque, le pseudo reste) ; en solo, « VALIDER » seul. Hors attente (paysage), bouton éteint.
 - Cible (lot 1.2) : voir ci-dessous. Seule exception au « rien d'arrondi » : la cible elle-même et ses marques
   d'impact, rondes pour être lues comme des fléchettes plantées. La loupe de saisie reste carrée.
 

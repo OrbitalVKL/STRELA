@@ -127,6 +127,8 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 .av img { width: 100%; height: 100%; object-fit: cover; }
 .inv .av { box-shadow: 0 0 0 1px var(--inv-fg); }
 .av.gone { background: transparent; color: var(--dim); box-shadow: inset 0 0 0 1px var(--dim); }
+.av.mono { background: transparent; color: var(--fg); box-shadow: inset 0 0 0 1px var(--faint); }
+.av.mono img { filter: grayscale(1); }
 .av.gone svg { width: 60%; height: 60%; }
 
 /* ---------------------------------------------------------------- accueil */
@@ -311,7 +313,7 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 .co.turn { font-size: 22px; }
 .co.turn small { color: var(--fg); }
 
-/* Autres joueurs : le suivant porte un filet de sa couleur et l'étiquette SUIVANT */
+/* Autres joueurs : neutres (lot 1.3) ; le suivant, en tête de bande, porte un filet en haut et l'étiquette SUIVANT */
 .others { flex: 0 0 auto; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border-top: var(--rule); border-bottom: var(--rule); margin-top: 4px; }
 .op { position: relative; display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 54px; padding: 3px 8px; border-left: var(--rule); }
 .op:first-child { border-left: 0; }
@@ -320,11 +322,13 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 .op .col { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; line-height: 1.15; }
 .op .l1 { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
 .op .l1 .nm { flex: 0 1 auto; }
-/* Joueur suivant : aplat de sa couleur, comme le bandeau qu'il aura */
-.op.next { background: var(--pc); color: var(--av-ink); }
-.op.next .nm { color: var(--av-ink); }
-.op.next .av { box-shadow: 0 0 0 1.5px var(--av-ink); }
-.tag-next { flex: 0 0 auto; margin-left: auto; font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; color: var(--av-ink); }
+.op.next { box-shadow: inset 0 3px 0 var(--fg); }
+.tag-next { flex: 0 0 auto; margin-left: auto; font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; color: var(--fg); }
+.tag-next .sh { display: none; }
+/* Pseudo coupé par l'étiquette : « SUIVANT » devient une flèche (palier fit1 du pseudo) */
+.op .l1:has(.nm.fit1) .tag-next .lg { display: none; }
+.op .l1:has(.nm.fit1) .tag-next .sh { display: inline; }
+.tag-next .sh svg { display: inline-block; width: 1.1em; height: 1.1em; vertical-align: -0.2em; stroke-width: 3; }
 /* 5 à 8 joueurs : bande compacte (avatar au-dessus du reste), sans pseudo */
 .others.many .op { flex-direction: column; justify-content: center; gap: 2px; min-height: 46px; padding: 3px 2px 2px; }
 .others.many .op .col { flex: 0 0 auto; align-items: center; }
@@ -365,13 +369,20 @@ input, textarea { -webkit-user-select: text; user-select: text; }
   border: 0; background: var(--inv-bg); color: var(--inv-fg);
   font-size: 30px; font-weight: 800; letter-spacing: 0.14em; line-height: 1;
 }
+/* Volée en attente (lot 1.3) : aplat de la couleur du joueur qui vient de lancer, « VALIDER » puis « suivant : PSEUDO » */
+.validate.go { background: var(--pc); color: var(--av-ink); }
 .validate small { font-size: 13px; font-weight: 700; letter-spacing: 0.08em; line-height: 1.3; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 8px; }
-.validate .vnext { display: flex; align-items: center; gap: 10px; max-width: 100%; padding: 0 12px; font-size: 24px; font-weight: 800; letter-spacing: 0.04em; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.validate .vnext i { flex: 0 0 22px; height: 22px; background: var(--pc); box-shadow: 0 0 0 1.5px var(--inv-fg); }
-.validate .vnext .nm { overflow: hidden; text-overflow: ellipsis; }
-.validate:active:not(:disabled) { background: var(--dim); }
+.validate .vl { line-height: 1.24; }
+.validate .vnext { display: flex; align-items: baseline; gap: 0; max-width: 100%; padding: 0 12px; overflow: hidden; font-size: 17px; font-weight: 600; letter-spacing: 0.02em; line-height: 1.3; white-space: pre; }
+.validate .vnext .lg { flex: 0 0 auto; }
+/* le pseudo garde au moins 5 caractères (ou tout, s'il est plus court) ; sinon « suivant : » s'efface (fit1) */
+.validate .vnext .nm { flex: 0 1 auto; min-width: min(5em, var(--nl, 5) * 1ch + 1px); font-weight: 800; overflow: hidden; text-overflow: ellipsis; }
+.validate .vnext.fit1 .lg { display: none; }
+.validate .vnext.fit1 .nm { min-width: 0; }
+.validate:active:not(:disabled) { box-shadow: inset 0 0 0 4px var(--av-ink); }
 .validate:disabled { background: var(--bg); color: var(--faint); font-size: 20px; }
-.validate.over { position: absolute; left: 0; right: 0; top: 0; height: calc(50% - 1px); z-index: 2; box-shadow: 0 0 0 1px var(--inv-bg); }
+.validate.over { position: absolute; left: 0; right: 0; top: 0; height: calc(50% - 1px); z-index: 2; box-shadow: 0 0 0 1px var(--pc, var(--inv-bg)); }
+.validate.over:active { box-shadow: 0 0 0 1px var(--pc), inset 0 0 0 4px var(--av-ink); }
 
 /* Bust : toute la zone du reste passe en aplat rouge, les fléchettes restent visibles dessous */
 .rest.alert .meta { color: var(--red-ink); }
@@ -421,8 +432,7 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 .land .lbtns .key { min-height: 0; }
 .land .lbtns .validate { font-size: 24px; }
 .land .lbtns .validate { gap: 4px; }
-.land .lbtns .validate .vnext { font-size: 0.67em; gap: 0.5em; }
-.land .lbtns .validate .vnext i { flex-basis: 0.62em; height: 0.62em; }
+.land .lbtns .validate .vnext { font-size: 0.55em; padding: 0 6px; }
 .land .lbtns .validate:disabled { font-size: 16px; letter-spacing: 0.1em; }
 .land .lbtns .validate:disabled small { font-size: 0.6em; }
 /* Paysage bas (petit téléphone, grande police) : bandeau, cases et boutons plus compacts */
@@ -530,9 +540,23 @@ html.still .gband.slide, html.still .announce { animation: none; }
 .lt .pc { padding: 2px 4px 6px; }
 .lt .pc .av { display: flex; margin: 0 auto 3px; }
 .lt .pc .nm { display: block; font-size: 10.5px; font-weight: 700; text-align: center; letter-spacing: 0.02em; }
-.lt .c { height: 50px; padding: 4px 6px; text-align: right; cursor: pointer; overflow: hidden; }
+/* Case : fléchettes du tour, total en gros, reste en petit (lot 1.3). La hauteur d'une cellule de tableau est un
+   minimum : la ligne grandit si les fléchettes passent à la ligne. */
+.lt .c { height: 66px; padding: 4px 6px; text-align: right; cursor: pointer; overflow: hidden; vertical-align: top; }
 .lt .c b, .lt .c small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lt .c b { font-size: 20px; font-weight: 800; line-height: 1.2; }
+/* Fléchettes : toujours toutes visibles, sans « … » ; paliers (fit.js) : séparateurs resserrés, deux lignes, plus petit */
+/* (calées à droite par la marge auto du premier : ce qui dépasse sort à droite, où fit.js le voit) */
+.lt .c .ds { display: flex; flex-wrap: nowrap; min-height: 1.3em; overflow: hidden; font-size: 11.5px; font-weight: 700; line-height: 1.3; letter-spacing: 0; white-space: nowrap; }
+.lt .c .ds i { flex: 0 0 auto; font-style: normal; }
+.lt .c .ds i:first-child { margin-left: auto; }
+.lt .c .ds i + i::before { content: '·'; display: inline-block; padding: 0 0.3em; opacity: 0.55; }
+.lt .c .ds i.x { text-decoration: line-through; }
+.lt .c .ds.fit1 i + i::before { padding: 0 0.1em; }
+.lt .c .ds.fit2 { flex-wrap: wrap; justify-content: flex-end; column-gap: 0.55em; }
+.lt .c .ds.fit2 i:first-child { margin-left: 0; }
+.lt .c .ds.fit2 i + i::before { content: none; }
+.lt .c .ds.fit3 { font-size: 9.5px; }
 .lt .c small { font-size: 11px; color: var(--dim); font-weight: 600; line-height: 1.3; letter-spacing: 0.04em; }
 .lt .c.none { cursor: default; }
 .lt .c.bust { color: var(--red-text); box-shadow: inset 3px 0 0 var(--red); }

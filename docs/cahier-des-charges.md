@@ -75,11 +75,13 @@ L'appli accepte les deux orientations ; l'écran de jeu suit la rotation du tél
 
 - **À qui c'est de jouer**, d'un coup d'œil et de loin : bandeau du joueur actif en aplat de la couleur de fond de
   son avatar, avatar de 56 px au moins, pseudo dont les capitales font 32 px de haut au moins, « FLÉCHETTE 2/3 »,
-  manche. Le joueur suivant est repéré dans la bande des autres (filet de sa couleur, « SUIVANT »).
+  manche. Le joueur suivant est repéré dans la bande des autres, sans sa couleur (filet en haut, « SUIVANT ») : en
+  jeu, la seule couleur de joueur à l'écran est celle du joueur en cours (lot 1.3).
 - Reste à faire en très grand : **120 px de haut au minimum** (chiffres), lisible à 2-3 m.
 - 3 cases de fléchettes + total de la volée ; finition proposée quand elle est jouable ; autres joueurs (avatar, reste).
 - **Validation de chaque volée** : plus de passage automatique. Après la 3e fléchette ou un bust, la volée reste
-  affichée (joueur, fléchettes, total ou BUST) et un grand bouton **VALIDER** passe au joueur suivant. En attendant,
+  affichée (joueur, fléchettes, total ou BUST) et un grand bouton **VALIDER** passe au joueur suivant ; il est à la
+  couleur du joueur qui vient de lancer, avec « suivant : PSEUDO » en dessous (lot 1.3 ; en solo, VALIDER seul). En attendant,
   ANNULER reste actif pour corriger ; les autres touches de saisie sont visiblement inactives. Une fléchette de
   finition mène toujours à l'écran de fin de manche, qui sert de validation. C'est un état de l'interface (le moteur
   ne change pas), enregistré avec la partie en cours : il survit à une fermeture de l'appli.
@@ -95,10 +97,12 @@ L'appli accepte les deux orientations ; l'écran de jeu suit la rotation du tél
   pavé est placée au centre de son segment ; le 0 n'est pas marqué. La même cible sert partout (saisie en paysage,
   historique, fins de manche et de partie, stats).
 - **Historique** (partie en cours : menu pause ou cible agrandie ; parties terminées : détail) : pour chaque manche,
-  un tableau avec une colonne par joueur (avatar et pseudo en tête) et une ligne par tour ; chaque case donne le total
-  de la volée en gros et le reste en petit, un bust en rouge avec BUST, une finition en valeur ; le tour en cours est
-  repéré ; un appui sur une case montre ses 3 fléchettes sur la cible. De 5 à 8 joueurs, le tableau défile de côté,
-  la colonne des tours reste fixe. On le ferme pour revenir exactement où on en était.
+  un tableau avec une colonne par joueur (avatar et pseudo en tête) et une ligne par tour ; chaque case donne, dans
+  cet ordre, les 3 fléchettes du tour (« T20 · 5 · 1 », « 0 » pour un raté), le total de la volée en gros et le reste
+  en petit (lot 1.3), un bust en rouge avec BUST, une finition en valeur ; le tour en cours est repéré ; un appui sur
+  une case montre ses fléchettes sur la cible. De 5 à 8 joueurs, le tableau défile de côté, la colonne des tours reste
+  fixe ; si une case est trop étroite, ses fléchettes passent sur deux lignes ou en plus petit, toujours toutes
+  visibles (les pseudos d'en-tête, eux, peuvent finir en « … » : l'avatar identifie le joueur). On le ferme pour revenir exactement où on en était.
 - Retours : vibration courte à chaque fléchette ; bust = zone du reste en aplat rouge + vibration longue. Sur le web,
   Chrome ne vibre ni en mode silencieux ni quand le retour haptique d'Android est coupé ; l'APK (lot 5) utilisera le
   vibreur natif d'Android. Réglages : TESTER LA VIBRATION et ligne de diagnostic (lot 1.2).
@@ -174,6 +178,7 @@ Détail : [direction-artistique.md](direction-artistique.md).
 | 1 | Maquette de tous les écrans, en sombre et en clair | validation du design |
 | 1.1 | Corrections de la maquette : suppression des joueurs, validation des volées, chiffres en rouleau, cible, historique en cours, joueur actif plus visible, paysage avec saisie sur la cible | validation du design |
 | 1.2 | Corrections : rotation de l'appli installée, vibrations (test et diagnostic), mini-cible de la volée en cours, historique en tableau, cible aux vraies couleurs, superpositions (test automatique), palette d'avatar | validation du design |
+| 1.3 | Corrections : 3 fléchettes dans chaque case de l'historique, une seule couleur de joueur à l'écran (le joueur en cours), VALIDER à la couleur du lanceur avec le nom du suivant | validation du design |
 | 2 | Partie jouable, joueurs et avatars | |
 | 3 | Historique et statistiques | |
 | 4 | Finitions : propositions de finition, mode nuit, vibrations, export / import | validation des fonctions |

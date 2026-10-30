@@ -5,6 +5,7 @@
 // Un tour = une volée de chaque joueur. La case d'une volée : total, reste après la volée, bust, finition ; dans
 // la partie en cours, la volée commencée (même vide) occupe la case du joueur qui lance, et sa ligne est le tour en
 // cours.
+import { formatDart } from '../engine/darts.js';
 
 /**
  * Tableau d'une manche.
@@ -47,4 +48,40 @@ export function legTable(state, legNumber, { live = false } = {}) {
     });
   }
   return { number: legNumber, columns, rows, currentRound, winner: leg.winner };
+}
+
+// ------------------------------------------------------------------ contenu d'une case (lot 1.3)
+const DART = d => { const f = formatDart(d); return f.replace(/^S/, ''); };
+const attr = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
+
+/**
+ * Ce qu'une case montre, dans l'ordre de lecture : les fléchettes du tour (« T20 », « 5 », « 0 » pour un raté), le
+ * total en gros, le reste en petit. Bust : « BUST » en gros (la fléchette fautive barrée), reste inchangé ; finition :
+ * « GAGNÉ » ; volée commencée : « 2/3 » ou « À JOUER ».
+ *   Renvoie { cls, darts: [texte], faulty (rang de la fléchette fautive ou -1), big, small, label }
+ */
+export function cellView(c) {
+  const darts = c.darts.map(DART);
+  const n = darts.length;
+  return {
+    cls: c.open ? 'open' : c.bust ? 'bust' : c.finish ? 'fin' : '',
+    darts,
+    faulty: c.bust ? n - 1 : -1,
+    big: c.bust ? 'BUST' : c.open && !n ? '…' : String(c.total),
+    small: c.finish ? 'GAGNÉ' : c.open ? (n ? `${n}/3` : 'À JOUER') : String(c.remaining),
+    label: `${n ? `${darts.join(', ')} : ` : ''}${c.bust ? `bust, reste ${c.remaining}` : c.finish ? `${c.total}, manche gagnée` : c.open ? `volée en cours, ${c.total}` : `${c.total}, reste ${c.remaining}`}`,
+  };
+}
+
+/**
+ * HTML d'une case (null : case vide). `key` = « idPartie|rangVolée » (appui → fléchettes sur la cible).
+ * Les fléchettes tiennent toujours en entier : si la ligne déborde (case étroite, 5 à 8 joueurs, grande police),
+ * fit.js resserre les séparateurs, puis passe à la ligne, puis rapetisse (paliers fit1 … fit3 de .ds).
+ */
+export function cellHtml(c, { key = '', selected = false } = {}) {
+  if (!c) return '<td class="c none"></td>';
+  const v = cellView(c);
+  const darts = v.darts.map((d, i) => `<i${i === v.faulty ? ' class="x"' : ''}>${d}</i>`).join('');
+  return `<td class="c ${v.cls}${selected ? ' sel' : ''}" data-act="log-visit" data-arg="${attr(key)}" aria-label="${attr(v.label)}">`
+    + `<span class="ds"${v.darts.length ? ' data-fit="3"' : ''}>${darts}</span><b>${v.big}</b><small>${v.small}</small></td>`;
 }

@@ -119,7 +119,7 @@ if (new URLSearchParams(location.search).has('maquette')) {
   store.maquette = true;
   // Accès des scripts de vérification (tools/) : états du sommaire et réajustement après un changement de police.
   window.__strela = {
-    scene(name) { const target = SCENES[name] ? SCENES[name]() : null; if (target) { history.replaceState(null, '', target); render(); } return target; },
+    scene(name, arg) { const target = SCENES[name] ? SCENES[name](arg) : null; if (target) { history.replaceState(null, '', target); render(); } return target; },
     scenes: () => Object.keys(SCENES),
     reset: () => resetMock(),
     darts: () => (store.current ? store.current.darts.map(d => ({ ...d })) : null),

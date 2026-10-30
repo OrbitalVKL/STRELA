@@ -14,10 +14,11 @@ const flag = k => process.argv.includes(`--${k}`);
 // Jeu de captures par défaut (vérification de fin de lot) : [état, taille, page entière ?]
 const P = '410x914', L = '914x410';
 const DEFAULT = [
-  ['#/sommaire', P], ['cible-seule', P], ['cible-seule', L], ['cible-tour1', P], ['cible', P], ['cible-grande', P], ['cible-manche', P],
-  ['paysage', L], ['loupe', L], ['paysage-attente', L], ['histo-deux', P], ['histo-deux', L], ['histo-huit', P], ['histo-huit', L],
-  ['histo-cours', P], ['manches', P], ['manches', L], ['huit', '410x712'], ['bust', P], ['volee', P], ['annonce', P],
-  ['#/reglages', P, true], ['#/reglages', L, true], ['#/stats/p1', P], ['fin-manche', P], ['jeu', '360x640'],
+  // lot 1.3 : VALIDER à 2, 4 et 8 joueurs ; tableau d'historique à 2 et 8 joueurs (ratés, bust, finition)
+  ['volee', P], ['volee', L], ['volee-4', P], ['volee-4', L], ['volee-8', '410x712'], ['volee-8', L], ['solo-attente', P],
+  ['bust', P], ['annonce', P], ['huit', '410x712'], ['jeu', '360x640'],
+  ['histo-deux', P], ['histo-deux', L], ['histo-huit', P], ['histo-huit', L], ['histo-huit-detail', P], ['histo-cours', P],
+  ['paysage', L], ['paysage-attente', L], ['manches', P],
 ];
 
 const pw = await loadPlaywright();

@@ -7,7 +7,7 @@ import { avatarHtml, iconSvg } from '../avatars.js';
 import { gameState, gameWinner, playerSummary } from '../../engine/stats.js';
 import { formatDart } from '../../engine/darts.js';
 import { boardSvg, impactsFor, markIcon } from '../board.js';
-import { legTable } from '../table.js';
+import { legTable, cellHtml } from '../table.js';
 import { go, refresh } from '../nav.js';
 
 const dl = d => { const f = formatDart(d); return f.replace(/^S/, ''); };
@@ -58,19 +58,14 @@ export function historyDetail(id) {
 
 // ------------------------------------------------------------------ tableau des manches (partagé)
 // Sert au détail d'une partie de l'historique et au panneau « Partie en cours » du jeu. Pour chaque manche : une
-// colonne par joueur (avatar et pseudo en tête), une ligne par tour ; chaque case donne le total de la volée en gros
-// et le reste après la volée en petit. Toucher une case montre ses 3 fléchettes et leur place sur la cible.
+// colonne par joueur (avatar et pseudo en tête), une ligne par tour ; chaque case donne les 3 fléchettes du tour, le
+// total de la volée en gros et le reste après la volée en petit (table.js, cellHtml). Toucher une case montre ses 3 fléchettes et leur place sur la cible.
 let openRow = null; // « idPartie|rangVolée » ou « idPartie|open »
 
-function cellHtml(g, c) {
-  if (!c) return '<td class="c none"></td>';
-  const key = `${g.id}|${c.visitIdx}`;
-  const cls = c.open ? 'open' : c.bust ? 'bust' : c.finish ? 'fin' : '';
-  const big = c.bust ? 'BUST' : c.open && !c.darts.length ? '…' : c.total;
-  const small = c.finish ? 'GAGNÉ' : c.open ? (c.darts.length ? `${c.darts.length}/3` : 'À JOUER') : c.remaining;
-  const label = c.bust ? `bust, reste ${c.remaining}` : c.finish ? `${c.total}, manche gagnée` : `${c.total}, reste ${c.remaining}`;
-  return `<td class="c ${cls}${openRow === key ? ' sel' : ''}" data-act="log-visit" data-arg="${esc(key)}" aria-label="${label}"><b>${big}</b><small>${small}</small></td>`;
-}
+const cell = (g, c) => {
+  const key = c ? `${g.id}|${c.visitIdx}` : '';
+  return cellHtml(c, { key, selected: !!c && openRow === key });
+};
 
 function detail(g, s, t, players) {
   const found = t.rows.flatMap(r => r.cells.map(c => (c && openRow === `${g.id}|${c.visitIdx}` ? { c, round: r.round } : null))).find(Boolean);
@@ -97,14 +92,14 @@ export function gameLog(g, s, { live = false, abandoned = false } = {}) {
     const wd = winner ? l.visits.filter(v => v.player === l.winner).reduce((n, v) => n + v.darts.length, 0) : 0;
     const info = winner ? `<span class="nm">${esc(winner.name)}</span> en ${wd} fl.` : abandoned ? 'interrompue' : 'en cours';
     const head = t.columns.map(i => `<th class="pc" scope="col">${avatarHtml(players[i], 24)}<span class="nm ell">${esc(players[i].name)}</span></th>`).join('');
-    const body = t.rows.map(r => `<tr${r.round === t.currentRound ? ' class="cur"' : ''}><th class="rd" scope="row">${r.round}</th>${r.cells.map(c => cellHtml(g, c)).join('')}</tr>`).join('');
+    const body = t.rows.map(r => `<tr${r.round === t.currentRound ? ' class="cur"' : ''}><th class="rd" scope="row">${r.round}</th>${r.cells.map(c => cell(g, c)).join('')}</tr>`).join('');
     const table = t.rows.length
-      ? `<div class="lt-wrap"><table class="lt" style="--cols:${t.columns.length}"><thead><tr><th class="rd" scope="col">TOUR</th>${head}</tr></thead><tbody>${body}</tbody></table></div>${detail(g, s, t, players)}`
+      ? `<div class="lt-wrap"><table class="lt" style="--cols:${t.columns.length}" data-fit-same><thead><tr><th class="rd" scope="col">TOUR</th>${head}</tr></thead><tbody>${body}</tbody></table></div>${detail(g, s, t, players)}`
       : '<p class="note pad">Aucune volée pour l\'instant.</p>';
     return `<div class="leg-h"><b>MANCHE ${l.number}</b><span>${info}</span></div>${table}`;
   }).join('');
   return `<div class="pad"><div class="sec" style="margin-bottom:0">Tour par tour</div></div>${legs}
-    <p class="note pad">Chaque case : total de la volée en gros, reste après la volée en petit${live ? ' ; la ligne en inverse est le tour en cours' : ''}. Touchez une case pour voir ses fléchettes sur la cible.</p>`;
+    <p class="note pad">Chaque case : les fléchettes du tour, le total de la volée en gros, le reste après la volée en petit${live ? ' ; la ligne en inverse est le tour en cours' : ''}. Touchez une case pour voir ses fléchettes sur la cible.</p>`;
 }
 
 /** Case ouverte d'avance (sommaire de maquette) : « idPartie|rangVolée », ou null. */
