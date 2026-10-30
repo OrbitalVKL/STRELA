@@ -1,0 +1,87 @@
+# Appli Android (lot 5)
+
+Strela pour Android = la page web embarquée dans une coquille Java (WebView), sur le modèle de Grafit
+(OrbitalVKL/GRAFIT, lecture seule). Paquet `fr.orbitalvkl.strela`, minSdk 30, targetSdk 35, nom « Strela ».
+
+## Coquille (`android/`)
+
+| Fichier | Rôle |
+|---|---|
+| `app/build.gradle` | version lue dans `package.json` (seule source ; `-PstrelaVersion` la force), versionCode = X·10000 + Y·100 + Z ; signature de la release par variables d'environnement (apk.yml) |
+| `AndroidManifest.xml` | permissions : INTERNET (mise à jour seulement), VIBRATE, REQUEST_INSTALL_PACKAGES ; FileProvider `fr.orbitalvkl.strela.files` ; `configChanges` (rotation sans recharger), `screenOrientation="fullUser"` (suit le téléphone et son verrou de rotation) |
+| `MainActivity.java` | WebView, WebViewAssetLoader (`https://appassets.androidplatform.net/assets/www/index.html`), liens externes dans le navigateur, encarts (barres, découpe, zone des gestes), sélecteur de fichiers (photo, sauvegarde), plein écran, écran allumé, retour |
+| `Bridge.java` | passerelle `strelaNative` (ci-dessous) |
+| `Speech.java` | voix française d'Android (TextToSpeech) |
+| `Updater.java` | mise à jour depuis l'appli (dernière release GitHub de OrbitalVKL/STRELA, PackageInstaller) |
+| `res/mipmap-*` | icône adaptative : dessin de `assets/icon.svg` (fond `#0A0C0E`) et calque monochrome (icônes à thème), produits par `tools/make-icons.mjs` |
+
+Page embarquée : `tools/apk-page.sh` copie le site construit (`_site/`, avec version, tests, date et commit) dans
+`android/app/src/main/assets/www/` (ignoré par git), sans le service worker (la page ne l'enregistre pas dans l'APK).
+Données : la base IndexedDB de la WebView, dans le dossier privé de l'appli ; une mise à jour la garde, une
+désinstallation l'efface (dit dans les Réglages, avec EXPORTER).
+
+## Passerelle `strelaNative` (`Bridge.java` ↔ `src/ui/native.js`)
+
+La page cherche `window.strelaNative` ; sans elle (navigateur), elle garde les API web.
+
+| Fonction | Rôle | Côté page |
+|---|---|---|
+| `info()` | `{ version, sdk, model }` | diagnostic |
+| `vibrate(motif)` | vibreur natif (VibratorManager, usage « média ») ; motif = ms ou `[vibre, pause, …]` (mêmes `BUZZ` que le web) ; `sent` / `absent` / `error` | `buzz()` de nav.js, TESTER LA VIBRATION |
+| `speak(texte, appuyé)`, `stopSpeaking()`, `voice()` | annonces (coupent la précédente), état de la voix `{ state, name }` | `say()` / `voiceInfo()` de feedback.js |
+| `saveBackup(nom, texte, partager)` | Téléchargements/Strela/`strela-AAAAMMJJ-HHMM.json` (MediaStore, sans permission), puis menu de partage (copie en cache, FileProvider) ; `{ ok, path }` | EXPORTER, écran de secours |
+| `storage()` | `{ dir, bytes }` : où sont les données, taille | diagnostic |
+| `keepScreenOn(oui)`, `immersive(oui)` | FLAG_KEEP_SCREEN_ON, barres masquées (rappel par geste) | `keepAwake()` : partie et fin de manche |
+| `setDark(oui)` | fond de la fenêtre, icônes des barres système | `applyTheme()` |
+| `gestureInset()` | zone des gestes en bas, px CSS (aussi posée dans `--gesture-native`) | marge basse du pavé |
+| `checkUpdate()`, `installUpdate()`, `updateState()` | mise à jour ; l'état arrive aussi par l'événement `strela-native` `{ update }` | Réglages › Appli Android |
+
+- **Sons** : Web Audio dans la WebView, sans geste préalable (`setMediaPlaybackRequiresUserGesture(false)`).
+- **Fichiers** : IMPORTER ouvre le sélecteur de documents d'Android (`onShowFileChooser`, ACTION_OPEN_DOCUMENT) ;
+  la page lit le fichier comme dans le navigateur. **Photo d'avatar** : PHOTO ouvre directement l'appareil photo
+  d'Android (ACTION_IMAGE_CAPTURE, fichier du cache par FileProvider), GALERIE ouvre le sélecteur de photos avec
+  l'appareil photo proposé à côté. L'appli ne déclare pas la permission caméra : c'est l'appareil photo d'Android qui
+  prend la vue (avec sa propre permission) ; rien n'est donc demandé à Strela, ni au lancement ni ensuite.
+- **Retour** : `onBackPressed()` appelle `window.strelaBack()` (`src/ui/back.js`) : ferme d'abord ce qui est ouvert
+  (correction, confirmations, menu pause, panneau, sélection, aperçu d'import, recadrage), en partie ouvre le menu
+  pause, sinon remonte d'un écran (lien Retour de la barre du haut, ou l'accueil) ; à l'accueil (ou sur l'écran de
+  secours), la page répond `false` et Strela passe en arrière-plan. Jamais de sortie directe en pleine partie.
+- **Zone des gestes** : `getInsets(mandatorySystemGestures)` au-delà de la marge déjà laissée aux barres, en px CSS,
+  posée dans `--gesture-native` ; `--gesture-bottom = max(env(safe-area-inset-bottom), 16px, --gesture-native)`.
+- **Thème** : thème Android DayNight (la WebView suit le téléphone en Auto) ; un changement de thème du téléphone
+  recrée l'activité (la page se recharge, la partie est enregistrée à chaque fléchette).
+
+## Premier lancement et données
+
+Les données de la version web (autre origine) ne passent pas d'elles-mêmes. Accueil de l'APK sans joueur ni partie :
+« BIENVENUE DANS L'APPLI », IMPORTER UNE SAUVEGARDE DE LA VERSION WEB (import du lot 3 : aperçu dans les Réglages,
+REMPLACER TOUT ou FUSIONNER) ou COMMENCER À ZÉRO. Stockage persistant demandé comme en web ; le diagnostic dit où
+sont les données et leur taille.
+
+## Compilation et publication
+
+- `ci.yml`, à chaque demande de fusion : job `apk` (page sans relancer les tests, `assembleDebug`, artefact
+  `strela-test-apk`, non publié) puis job `emulateur` (émulateur Android 14, `tools/android-check.mjs` : premier
+  lancement, passerelle, partie, zone des gestes, rotation sans rechargement, retour = menu pause, export dans
+  Téléchargements/Strela, import par le sélecteur, fermeture brutale et reprise ; rapport dans le résumé du job,
+  captures en artefact `captures-emulateur`). L'APK de test a le débogage de la WebView ouvert ; la release, non.
+- `apk.yml`, à chaque push sur `main` touchant l'appli : tests (bloquants), page embarquée, clé de signature :
+  générée et chiffrée au premier passage (`android/signing.p12.enc`, AES-256-CBC, PBKDF2 600 000 tours, commit
+  « [skip ci] »), puis déchiffrée avec le secret `STRELA_SIGNING_PASSPHRASE` ; `assembleRelease`, release
+  `apk-vX.Y.Z` avec `strela.apk`. **Sans le secret** : APK de test non publié (artefact) et avertissement.
+- La phrase de passe ne doit jamais changer : une autre clé = une autre signature, et Android refuserait la mise à
+  jour (il faudrait désinstaller, donc exporter avant).
+
+## Mise à jour depuis l'appli
+
+Réglages › Appli Android › RECHERCHER UNE MISE À JOUR : API GitHub (dernière release de OrbitalVKL/STRELA
+seulement, fichier `strela.apk` téléchargé depuis `github.com/OrbitalVKL/STRELA/releases/download/` seulement),
+INSTALLER LA VERSION X.Y.Z, téléchargement (progression), PackageInstaller ; Android demande d'autoriser « Installer
+des applis inconnues » pour Strela la première fois, puis confirme. Même signature exigée ; données gardées.
+Rien ne part sur le réseau sans cet appui.
+
+## Développement
+
+- Compiler sur un poste : Android SDK (platform 35, build-tools 35), Java 17+, Gradle 8.11+ :
+  `STRELA_SANS_TESTS=1 node tools/build-site.mjs && sh tools/apk-page.sh && (cd android && gradle assembleDebug)`.
+- Vérifier sur un émulateur ou un téléphone branché (adb, débogage USB) : `node tools/android-check.mjs chemin.apk`.

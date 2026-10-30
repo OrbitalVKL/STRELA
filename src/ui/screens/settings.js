@@ -117,7 +117,7 @@ onNative(d => { if (d.update) { upd = d.update; if (location.hash === '#/reglage
 
 /** Données de l'APK (désinstallation) et mise à jour depuis l'appli ; rien dans le navigateur. */
 function apkBlock() {
-  if (!isApk()) return '';
+  if (!isApk() && !store.mockApk) return ''; // mockApk : sommaire de maquette (scène reglages-apk)
   const u = upd || callJson('updateState') || {};
   const busy = u.state === 'checking' || u.state === 'downloading' || u.state === 'installing';
   const status = u.state === 'checking' ? 'Recherche en cours…'
