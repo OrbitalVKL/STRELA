@@ -1,6 +1,7 @@
 // Réglages : thème Auto / Sombre / Clair (« strela.theme »), mode nuit (option du sombre : console en rouge
-// atténué, comme Grafit), vibrations. Les mêmes commandes servent au menu pause du jeu.
-import { store, saveSetting } from '../store.js';
+// atténué, comme Grafit), vibrations, animations (chiffres en rouleau, glissement du bandeau ; coupées d'office si le
+// téléphone demande moins d'animations). Les mêmes commandes servent au menu pause du jeu.
+import { store, saveSetting, reducedMotion } from '../store.js';
 import { esc, topBar } from '../dom.js';
 import { BUILD } from '../build.js';
 import { refresh, buzz, BUZZ } from '../nav.js';
@@ -13,6 +14,7 @@ export function applyTheme() {
   const root = document.documentElement;
   root.dataset.theme = store.settings.theme;
   root.classList.toggle('night', store.settings.night && isDark());
+  root.classList.toggle('still', !(store.settings.anim && !reducedMotion()));
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.content = getComputedStyle(root).getPropertyValue('--bg').trim() || '#0A0C0E';
 }
@@ -25,11 +27,13 @@ const toggle = (act, on, disabled = false) => `<div class="toggle">
 export function themeControls() {
   const t = store.settings.theme;
   const dark = isDark();
+  const reduced = reducedMotion();
   const b = (v, l) => `<button type="button" data-act="theme" data-arg="${v}" aria-pressed="${t === v}">${l}</button>`;
   return `<div class="seg" role="group" aria-label="Thème">${b('auto', 'Auto')}${b('dark', 'Sombre')}${b('light', 'Clair')}</div>
     <div>
       <div class="row"><div class="lbl"><b>Mode nuit</b><small>${dark ? 'Console en rouge atténué, pour la pénombre.' : 'Option du thème sombre.'}</small></div>${toggle('night', store.settings.night && dark, !dark)}</div>
       <div class="row"><div class="lbl"><b>Vibrations</b><small>Courte à chaque fléchette, longue sur un bust.</small></div>${toggle('vibrate', store.settings.vibrate)}</div>
+      <div class="row"><div class="lbl"><b>Animations</b><small>${reduced ? 'Coupées : le téléphone demande moins d\'animations.' : 'Chiffres qui roulent, bandeau du joueur qui glisse.'}</small></div>${toggle('anim', store.settings.anim && !reduced, reduced)}</div>
     </div>`;
 }
 
@@ -46,7 +50,7 @@ export function settingsScreen() {
       <div class="kv"><span>Tests du moteur</span><b>${esc(BUILD.pass)} / ${esc(BUILD.total)}</b></div>
       <div class="kv"><span>Construit le</span><b class="small" style="white-space:normal;text-align:right">${esc(BUILD.date)}</b></div>
       <div class="kv"><span>Commit</span><b>${esc(BUILD.commit)}</b></div>
-      <p class="note">Maquette du lot 1 : les joueurs et les parties sont fictifs et rien n'est enregistré (sauf ces réglages). La sauvegarde arrive au lot 2.</p>
+      <p class="note">Maquette (lot 1.1) : les joueurs et les parties sont fictifs et rien n'est enregistré (sauf ces réglages). La sauvegarde arrive au lot 2.</p>
       <div style="margin-top:16px"><a class="btn ghost" href="#/sommaire">SOMMAIRE DE MAQUETTE</a></div>
     </div></div>`;
 }
@@ -54,6 +58,7 @@ export function settingsScreen() {
 export const actions = {
   theme(v) { saveSetting('theme', v); applyTheme(); refresh(); },
   night(v) { saveSetting('night', v === '1'); applyTheme(); refresh(); },
+  anim(v) { saveSetting('anim', v === '1'); applyTheme(); refresh(); },
   vibrate(v) { saveSetting('vibrate', v === '1'); if (v === '1') buzz(BUZZ.dart); refresh(); },
   'test-vibrate'() { buzz([12, 300, 12, 300, 450]); },
 };

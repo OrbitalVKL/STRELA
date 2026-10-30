@@ -1,6 +1,7 @@
 // Joueurs : liste (avatar, pseudo, chiffres clés), fiche création / modification, banque d'avatars.
-// Les joueurs sont archivés, jamais supprimés (leurs statistiques restent).
-import { store, newId } from '../store.js';
+// Archiver : le joueur n'est plus proposé, ses stats restent. Supprimer : il disparaît avec ses stats ; ses parties
+// avec d'autres restent, où il devient « Joueur supprimé » (src/engine/players.js).
+import { store, newId, inCurrentGame, deletionPreview, deletePlayer } from '../store.js';
 import { esc, ico, topBar, avg, plural } from '../dom.js';
 import { avatarHtml, iconSvg, ICONS, ICON_KEYS, AVATAR_COLOR_NAMES } from '../avatars.js';
 import { playerStats } from '../../engine/stats.js';
@@ -39,7 +40,7 @@ export function playersList() {
 }
 
 // ------------------------------------------------------------------ fiche
-function openDraft(id) {
+export function openDraft(id) {
   if (store.draft && store.draft.forId === id) return store.draft;
   const p = id === 'nouveau' ? null : store.players.find(q => q.id === id);
   const usedColors = store.players.map(q => q.avatar && q.avatar.color);
@@ -51,6 +52,7 @@ function openDraft(id) {
     avatar: p ? { ...p.avatar } : { kind: 'initials', color: freeColor },
     archived: p ? !!p.archived : false,
     confirm: false,
+    del: null, // null | 'ask' (confirmation) | 'refused' (joueur de la partie en cours)
     photoNote: false,
     error: '',
   };
@@ -80,12 +82,13 @@ export function playerForm(id) {
     source = '<p class="note">Les deux premières lettres du pseudo, sur le fond choisi.</p>';
   }
   const isNew = !d.id;
-  const archiveBlock = isNew ? '' : d.archived
+  const archiveBlock = isNew || d.del ? '' : d.archived
     ? `<button type="button" class="btn" data-act="unarchive">RÉACTIVER LE JOUEUR</button>`
     : d.confirm
       ? `<div class="confirm"><p><b>Archiver ${esc(d.name)} ?</b></p><p class="small dim">Il n'apparaîtra plus au lancement d'une partie. Ses parties et ses stats sont gardées ; on peut le réactiver à tout moment.</p>
          <div class="btns two"><button type="button" class="btn" data-act="archive-no">NON</button><button type="button" class="btn alert" data-act="archive-yes">ARCHIVER</button></div></div>`
-      : `<button type="button" class="btn ghost" data-act="archive">ARCHIVER</button><p class="note">Un joueur n'est jamais supprimé : ses statistiques restent.</p>`;
+      : `<button type="button" class="btn ghost" data-act="archive">ARCHIVER</button><p class="note">Archiver garde ses parties et ses stats ; on peut le réactiver.</p>`;
+  const deleteBlock = isNew || d.confirm ? '' : deleteHtml(d);
 
   return `<div class="screen has-dock">${topBar(isNew ? 'Nouveau joueur' : 'Modifier le joueur', '#/joueurs')}
     <div class="preview" id="preview">${previewHtml(d)}</div>
@@ -98,10 +101,36 @@ export function playerForm(id) {
       <div style="margin-top:10px">${source}</div>
       <div class="sec">Fond</div>
       <div class="swatches">${AVATAR_COLOR_NAMES.map((n, i) => `<button type="button" class="swatch" style="background:var(--av-${i})" data-act="avcolor" data-arg="${i}" aria-pressed="${d.avatar.color === i}" aria-label="${n}">${n}</button>`).join('')}</div>
-      ${archiveBlock ? `<div class="sec">Archivage</div><div class="btns">${archiveBlock}</div>` : ''}
+      ${archiveBlock || deleteBlock ? `<div class="sec">Archiver ou supprimer</div><div class="btns">${archiveBlock}${deleteBlock}</div>` : ''}
     </div>
     <div class="dock"><button type="button" class="btn primary" data-act="save-player">${isNew ? 'CRÉER LE JOUEUR' : 'ENREGISTRER'}</button></div>
   </div>`;
+}
+
+/** SUPPRIMER, sa confirmation (conséquences chiffrées) ou le refus pendant une partie. */
+function deleteHtml(d) {
+  const name = esc(d.name);
+  // La confirmation s'ouvre en bas de la fiche : on l'amène à l'écran une fois (data-reveal, lu par app.js).
+  const reveal = d.reveal ? ' data-reveal' : '';
+  d.reveal = false;
+  if (d.del === 'refused') {
+    return `<div class="confirm" role="alert"${reveal}><p class="alert-h">SUPPRESSION IMPOSSIBLE</p>
+      <p><b class="nm">${name}</b> joue la partie en cours. Finis ou abandonne la partie d'abord, puis reviens ici.</p>
+      <div class="btns two"><button type="button" class="btn" data-act="delete-no">FERMER</button><a class="btn primary" href="#/jeu">ALLER À LA PARTIE</a></div></div>`;
+  }
+  if (d.del === 'ask') {
+    const { kept, removed } = deletionPreview(d.id);
+    return `<div class="confirm" role="alert"${reveal}><p class="alert-h">SUPPRIMER ${name.toUpperCase()} ?</p>
+      <ul class="cons">
+        <li>Sa fiche et <b>toutes ses statistiques</b> disparaissent. C'est définitif.</li>
+        <li>${kept.length ? `Ses <b>${plural(kept.length, 'partie', 'parties')}</b> avec d'autres joueurs restent dans l'historique : il y apparaît comme « Joueur supprimé ».` : 'Aucune partie avec d\'autres joueurs.'}</li>
+        <li>${removed.length ? `Ses <b>${plural(removed.length, 'partie jouée', 'parties jouées')} seul</b> ${removed.length > 1 ? 'sont effacées' : 'est effacée'}.` : 'Aucune partie jouée seul.'}</li>
+        <li>Les statistiques des autres ne changent pas ; il n'apparaît plus dans leurs face-à-face.</li>
+      </ul>
+      <p class="small dim">Pour seulement le retirer des nouvelles parties, archive-le plutôt.</p>
+      <div class="btns two"><button type="button" class="btn" data-act="delete-no">NON</button><button type="button" class="btn alert" data-act="delete-yes">SUPPRIMER</button></div></div>`;
+  }
+  return '<button type="button" class="btn danger" data-act="delete">SUPPRIMER LE JOUEUR</button>';
 }
 
 // ------------------------------------------------------------------ banque d'avatars
@@ -138,7 +167,15 @@ export const actions = {
     d.avatar.icon = key;
     if (d.forId) goBackTo(`#/joueur/${d.forId}`); else refresh();
   },
-  archive() { store.draft.confirm = true; refresh(); },
+  archive() { store.draft.confirm = true; store.draft.del = null; refresh(); },
+  delete() { const d = store.draft; d.del = inCurrentGame(d.id) ? 'refused' : 'ask'; d.reveal = true; refresh(); },
+  'delete-no'() { store.draft.del = null; refresh(); },
+  'delete-yes'() {
+    const d = store.draft;
+    if (!deletePlayer(d.id)) { d.del = 'refused'; d.reveal = true; refresh(); return; }
+    store.draft = null;
+    go('#/joueurs');
+  },
   'archive-no'() { store.draft.confirm = false; refresh(); },
   'archive-yes'() {
     const p = store.players.find(q => q.id === store.draft.id);

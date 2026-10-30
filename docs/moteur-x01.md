@@ -9,11 +9,15 @@ JavaScript pur (modules ES), sans dépendance ni affichage. Utilisable tel quel 
 | `x01.js` | règles X01 : configuration, état recalculé, jouer, annuler |
 | `checkout.js` | table de finitions (sortie simple / double, 1 à 3 fléchettes restantes) |
 | `stats.js` | statistiques d'un joueur recalculées depuis les fléchettes ; résumé d'un joueur dans une partie |
+| `board.js` | géométrie de la cible : position → segment (saisie au doigt), centre d'un segment (impacts) |
+| `players.js` | suppression d'un joueur : anonymisation de ses parties |
 | `index.js` | point d'entrée ; `GAMES` liste les jeux (X01 seul pour l'instant) |
 
 ## Fléchette
 
-`{ segment, multiplier }` — segment 0 à 20 ou 25, multiplicateur 1 / 2 / 3.
+`{ segment, multiplier }` — segment 0 à 20 ou 25, multiplicateur 1 / 2 / 3. Une fléchette saisie sur la cible
+porte en plus `pos: [x, y]` (repère de `board.js`) : le moteur l'ignore (il recopie segment et multiplicateur),
+la liste enregistrée la garde pour marquer l'impact.
 
 - `dartError(d)` → `null` ou un code : `NOT_A_DART`, `SEGMENT_INVALID` (21, −1, 2,5…),
   `MULTIPLIER_INVALID`, `TRIPLE_BULL` (T25), `MULTIPLIED_MISS` (D0, T0).
@@ -71,6 +75,30 @@ finition jouable), taux de doubles (fléchettes qui finissent / fléchettes lanc
 finir), meilleure finition, manche la plus courte, 100+ / 140+ / 180, victoires, face-à-face (parties finies
 seulement), carte des segments, évolution (moyenne par partie). `inPeriod(parties, '7j'|'30j'|'tout')`.
 
+## Cible (`board.js`)
+
+Repère : centre (0, 0), x vers la droite, **y vers le bas** (comme en SVG), rayon 1 = bord extérieur du double.
+20 en haut, secteurs dans le sens des aiguilles d'une montre (`SECTORS`), 18° chacun, centrés sur leur axe.
+Anneaux (`RINGS`) **élargis** par rapport à une vraie cible pour la saisie au doigt : 50 jusqu'à 0,075, 25 jusqu'à
+0,17, simple jusqu'à 0,5, **triple 0,5–0,65**, simple jusqu'à 0,85, **double 0,85–1** ; numéros à 1,09, bord du
+dessin à 1,18. (Une vraie cible a triple et double de 0,05 : intouchables au doigt sur un téléphone.)
+
+- `segmentAt(x, y)` → fléchette ou `null` hors cible (au-delà de 1, numéros compris). Une limite appartient à la zone
+  extérieure (0,5 → triple, 0,65 → simple), sauf le bord extérieur du double (1 → double) ; un bord de secteur
+  exact va au secteur suivant dans le sens horaire (9° → 1).
+- `dartPoint(fléchette)` : centre de la zone (simple : milieu du grand simple intérieur ; 25 : sur l'anneau du 25,
+  en haut ; 50 : centre ; 0 → `null`, non marqué). `impactPoint()` : `pos` si elle correspond bien à la fléchette,
+  sinon `dartPoint()`. `zoneLabel()` : « T20 », « D16 », « 5 », « 25 », « 50 ».
+
+## Suppression d'un joueur (`players.js`)
+
+`deletePlayer(joueurs, parties, id)` → `{ players, games, kept, removed }`, sans modifier les entrées. Dans chaque
+partie où il a joué avec d'autres, son identifiant devient `~<rang>` (rang dans l'ordre de jeu : unique dans la
+partie, `computeState` reste valide) ; une partie où il ne reste aucun joueur connu (jouée seul) est retirée.
+`isDeletedId()` reconnaît ces identifiants. `playerStats` les ignore dans les face-à-face ; tout le reste (volées,
+vainqueur, moyennes des autres) est inchangé. `deletionImpact()` donne les deux listes sans rien changer
+(texte de la confirmation).
+
 ### Ajouter un jeu
 
 Même forme : un module `src/engine/<jeu>.js` qui prend une configuration et la liste des fléchettes
@@ -78,8 +106,13 @@ et rend un état recalculé ; l'ajouter à `GAMES` dans `index.js`. `darts.js` e
 
 ## Tests
 
-`tests/darts.test.js`, `tests/x01.test.js`, `tests/checkout.test.js`, `tests/stats.test.js` (aides dans `tests/helpers.js`, notation `ds('T20 T20 0 D16')`).
+`tests/darts.test.js`, `tests/x01.test.js`, `tests/checkout.test.js`, `tests/stats.test.js`, `tests/board.test.js`,
+`tests/players.test.js` (aides dans `tests/helpers.js`, notation `ds('T20 T20 0 D16')`). Côté interface (purs) :
+`tests/turn.test.js` (validation des volées, chiffres en rouleau), `tests/maquette.test.js`, `tests/theme.test.js`.
 Couverts : 3 scores de départ, finitions simple / double / sur 50, bust par dépassement / reste 1 / 0 sans
 double, bust et finition à chaque rang de fléchette, saisies invalides, rotation du premier joueur,
 fin de partie à N manches, ANNULER dans tous les cas imposés, partie de 501 rejouée volée par volée,
-8 joueurs, 120 parties aléatoires reproductibles (invariants + ANNULER = préfixe).
+8 joueurs, 120 parties aléatoires reproductibles (invariants + ANNULER = préfixe). Cible : ordre des secteurs,
+bords de secteurs, limites des anneaux triple et double, 25 et 50, hors cible, aller-retour fléchette → centre →
+fléchette pour les 62 zones. Suppression : parties gardées / effacées, entrées intactes, stats des autres inchangées,
+plus de face-à-face avec le joueur supprimé, deux joueurs supprimés dans une même partie.

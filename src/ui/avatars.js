@@ -2,7 +2,8 @@
 // traits droits, angles vifs, monochromes), 8 fonds sourds, initiales par défaut.
 // Grille 48 × 48, trait de 3 (lisible de 40 px à 96 px). Tout est en `currentColor`.
 //
-// Un avatar = { kind: 'icon' | 'initials' | 'photo', icon?: clé de ICONS, color: 0..7, photo?: URL }.
+// Un avatar = { kind: 'icon' | 'initials' | 'photo', icon?: clé de ICONS, color: 0..7, photo?: URL }
+// (et { kind: 'deleted' } pour un joueur supprimé, affiché neutre).
 
 // Fonds : jetons --av-0 … --av-7 de assets/theme.css (mêmes valeurs que AVATAR_COLORS de theme.js).
 export const AVATAR_COLOR_NAMES = Object.freeze(['ARDOISE', 'SAPIN', 'OLIVE', 'OCRE', 'BRIQUE', 'PRUNE', 'PÉTROLE', 'GRAPHITE']);
@@ -63,6 +64,8 @@ export function iconSvg(key) {
  */
 export function avatarHtml(player, size = 40, extra = '') {
   const av = (player && player.avatar) || {};
+  // Joueur supprimé : avatar neutre (filet et barre oblique, sans couleur).
+  if (av.kind === 'deleted') return `<span class="av gone ${extra}" style="--s:${size}px" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 36L36 12"/></svg></span>`;
   const color = Number.isInteger(av.color) ? ((av.color % 8) + 8) % 8 : 7;
   const style = `--s:${size}px;background:var(--av-${color})`;
   let inner;

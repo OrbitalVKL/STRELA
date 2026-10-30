@@ -1,16 +1,17 @@
 // Strela — point d'entrée de la page : routes, rendu, actions, thème, écran allumé, service worker.
 // Adresses internes en « #/… » ; « ?maquette » ouvre le sommaire de maquette.
-import { store, resetMock, loadSettings } from './store.js';
+import { store, resetMock, loadSettings, animationsOn } from './store.js';
 import { setRenderer, noteRoute, keepAwake, go } from './nav.js';
 import { home } from './screens/home.js';
 import { playersList, playerForm, avatarBank, actions as playerActions, inputs as playerInputs } from './screens/players.js';
 import { newGame, actions as newGameActions } from './screens/newgame.js';
-import { game, key, actions as gameActions } from './screens/game.js';
+import { game, key, mountGame, actions as gameActions } from './screens/game.js';
 import { legEnd, matchEnd, actions as resultActions } from './screens/results.js';
-import { historyList, historyDetail } from './screens/history.js';
+import { historyList, historyDetail, actions as historyActions } from './screens/history.js';
 import { statsScreen, actions as statsActions } from './screens/stats.js';
 import { settingsScreen, applyTheme, actions as settingsActions } from './screens/settings.js';
 import { sommaire, actions as sommaireActions } from './screens/sommaire.js';
+import { animateRolls, rollScope } from './roll.js';
 
 const ROUTES = [
   [/^\/?$/, home],
@@ -30,7 +31,7 @@ const ROUTES = [
 
 const ACTIONS = {
   ...playerActions, ...newGameActions, ...gameActions, ...resultActions,
-  ...statsActions, ...settingsActions, ...sommaireActions,
+  ...statsActions, ...settingsActions, ...sommaireActions, ...historyActions,
 };
 const INPUTS = { ...playerInputs };
 
@@ -52,15 +53,26 @@ function render() {
   app.innerHTML = html;
   window.scrollTo(0, samePage ? y : 0);
   lastPath = path;
+  // Chiffres en rouleau (reste, total, autres joueurs) : animés depuis la valeur affichée au rendu précédent.
+  rollScope(store.current ? store.current.id : null);
+  animateRolls(app, animationsOn());
+  if (path === '/jeu') mountGame();
+  app.querySelector('[data-reveal]')?.scrollIntoView({ block: 'center' });
   keepAwake(path === '/jeu');
   document.title = path === '/jeu' ? 'СТРЕЛА · partie' : 'СТРЕЛА · Strela';
 }
 setRenderer(render);
 
 // ------------------------------------------------------------------ événements (délégués)
+// Un clic ne compte que si le doigt s'est posé sur la même commande : après une touche du pavé (qui agit dès
+// l'appui et redessine l'écran), le clic qui suit tomberait sinon sur ce qui est apparu dessous (VALIDER).
+let downAct = null;
+const actKey = el => (el ? `${el.dataset.act}|${el.dataset.arg ?? ''}` : null);
+app.addEventListener('pointerdown', ev => { downAct = actKey(ev.target.closest('[data-act]')); }, true);
 app.addEventListener('click', ev => {
   const el = ev.target.closest('[data-act]');
   if (!el || el.disabled) return;
+  if (ev.detail !== 0 && actKey(el) !== downAct) return; // detail 0 : clavier ou clic programmé
   const fn = ACTIONS[el.dataset.act];
   if (!fn) return;
   if (el.tagName === 'A') ev.preventDefault();
@@ -85,6 +97,8 @@ app.addEventListener('keydown', ev => {
   if (ev.key === 'Enter' && ev.target.dataset && ev.target.dataset.input === 'name') ev.target.blur();
 });
 window.addEventListener('hashchange', render);
+// Rotation : l'écran de jeu change de mise en page (pavé en portrait, cible en paysage), l'état reste.
+try { matchMedia('(orientation: landscape)').addEventListener('change', () => { if (location.hash === '#/jeu') render(); }); } catch (e) { /* vieux navigateur */ }
 try { matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { applyTheme(); render(); }); } catch (e) { /* vieux navigateur */ }
 
 // ------------------------------------------------------------------ démarrage

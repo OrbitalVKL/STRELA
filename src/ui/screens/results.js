@@ -1,10 +1,13 @@
 // Fin de manche (vainqueur, fléchettes, moyenne, meilleure volée ; MANCHE SUIVANTE) et
 // fin de partie (vainqueur, résumé par joueur ; REVANCHE, ACCUEIL). ANNULER reste possible depuis les deux.
+// Les deux montrent la cible : volée de la finition numérotée, volées précédentes du vainqueur dans la manche en discret.
+// La fin de manche sert de validation de la volée gagnante (pas de VALIDER en jeu pour une finition).
 import { store, currentState, playerById, archiveCurrent, startGame } from '../store.js';
 import { esc, avg, int, OUT_LABEL, maquetteButtons } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
 import { formatDart } from '../../engine/darts.js';
 import { playerSummary } from '../../engine/stats.js';
+import { boardSvg, impactsFor } from '../board.js';
 import { go } from '../nav.js';
 import { undo } from './game.js';
 
@@ -32,6 +35,7 @@ export function legEnd() {
       <div><small>Meilleure volée</small><b>${sum.best}</b></div>
       <div><small>Finition</small><b>${fin.startRemaining}</b><span class="small dim">${esc(route(fin))}</span></div>
     </div>
+    ${finishBoard(g, s, fin, p)}
     <div class="pad">
       <div class="sec">Manches</div>
       <table class="score-table"><tbody>${g.config.players.map((id, i) => {
@@ -42,7 +46,7 @@ export function legEnd() {
       <button type="button" class="btn ghost" style="margin-top:14px" data-act="undo-end">ANNULER LA DERNIÈRE FLÉCHETTE</button>
       ${store.maquette ? `<div class="mq-row">${maquetteButtons('mq')}</div>` : ''}
     </div>
-    <div class="dock"><a class="btn primary big" href="#/jeu">MANCHE SUIVANTE</a></div>
+    <div class="dock"><button type="button" class="btn primary big" data-act="next-leg">MANCHE SUIVANTE</button></div>
   </div>`;
 }
 
@@ -61,6 +65,7 @@ export function matchEnd() {
       <b class="caps" style="letter-spacing:.12em">Partie terminée</b><span class="small b">${g.config.startScore} · ${OUT_LABEL[g.config.outMode]}</span></div>
     <div class="result-head">${avatarHtml(p, 88)}<div style="min-width:0"><span class="t dim">VAINQUEUR</span><span class="nm">${esc(p.name)}</span>
       ${legsTxt ? `<span class="small b">${legsTxt}</span>` : ''}</div></div>
+    ${finishBoard(g, s, s.visits[s.visits.length - 1], p)}
     <div class="pad">
       <div class="sec" style="margin-top:6px">Résumé</div>
       <table class="score-table"><thead><tr><th>Joueur</th><th>Man.</th><th>Moy.</th><th>Fl.</th><th>Meil.</th><th>Fin.</th></tr></thead>
@@ -77,8 +82,23 @@ export function matchEnd() {
   </div>`;
 }
 
+/** Cible de la finition : la volée gagnante numérotée, les volées précédentes du vainqueur dans la manche. */
+function finishBoard(g, s, fin, p) {
+  const idx = s.visits.indexOf(fin);
+  if (idx < 0) return '';
+  return `<div class="pad"><div class="sec">Cible · manche ${fin.leg}</div>
+    <div class="fin-board">${boardSvg({ size: 200, impacts: impactsFor(g, s, idx), label: 'Impacts du vainqueur' })}
+      <p class="note"><span class="nm">${esc(p.name)}</span><br><b class="sq"></b> volée de la finition<br><b class="sq old"></b> ses volées précédentes</p></div></div>`;
+}
+
 export const actions = {
   'undo-end'() { undo(); go('#/jeu', { replace: true }); },
+  'next-leg'() {
+    // Annonce du premier lanceur de la nouvelle manche, comme après une validation.
+    const g = store.current;
+    if (g && g.config.players.length > 1) { g.ui.announce = currentState().currentPlayer; g.ui.frozen = false; }
+    go('#/jeu', { replace: true });
+  },
   rematch() {
     const c = store.current.config;
     archiveCurrent(false);

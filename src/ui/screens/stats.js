@@ -5,39 +5,23 @@ import { store, playerById } from '../store.js';
 import { esc, topBar, avg, pct, int, shortDate, plural } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
 import { playerStats, inPeriod } from '../../engine/stats.js';
-import { BOARD } from '../mock.js';
+import { boardSvg } from '../board.js';
 import { refresh } from '../nav.js';
 
 let period = '30j';
 let picked = { board: null, point: null };
 
-// ------------------------------------------------------------------ cible
-const R = { bull: 11, outerBull: 25, triIn: 88, triOut: 108, dblIn: 146, dblOut: 166, label: 184 };
-const pt = (r, deg) => { const a = (deg * Math.PI) / 180; return `${(r * Math.cos(a)).toFixed(2)} ${(r * Math.sin(a)).toFixed(2)}`; };
-const sector = (r0, r1, a0, a1) => `M${pt(r0, a0)}L${pt(r1, a0)}A${r1} ${r1} 0 0 1 ${pt(r1, a1)}L${pt(r0, a1)}A${r0} ${r0} 0 0 0 ${pt(r0, a0)}Z`;
+// ------------------------------------------------------------------ cible (même dessin que le jeu, en carte de chaleur)
+/** Nombre d'impacts d'une zone (« T20 », « D16 », « 5 », « 25 », « 50 »). */
+const countOf = (seg, key) => (key === '25' ? seg[25][0] : key === '50' ? seg[25][1]
+  : key[0] === 'T' ? seg[Number(key.slice(1))][2] : key[0] === 'D' ? seg[Number(key.slice(1))][1] : seg[Number(key)][0]);
 
 function board(seg) {
-  const cells = [];
   let max = 1;
   for (let s = 1; s <= 20; s++) max = Math.max(max, ...seg[s]);
   max = Math.max(max, seg[25][0], seg[25][1]);
-  const op = c => (0.07 + 0.93 * Math.pow(c / max, 0.6)).toFixed(3);
-  const sel = picked.board;
-  BOARD.forEach((s, i) => {
-    const mid = -90 + i * 18, a0 = mid - 9, a1 = mid + 9;
-    const [single, dbl, tri] = seg[s];
-    const rings = [
-      [R.outerBull, R.triIn, single, `${s}`], [R.triIn, R.triOut, tri, `T${s}`],
-      [R.triOut, R.dblIn, single, `${s}`], [R.dblIn, R.dblOut, dbl, `D${s}`],
-    ];
-    for (const [r0, r1, c, label] of rings) {
-      cells.push(`<path class="cell" d="${sector(r0, r1, a0, a1)}" style="fill:var(--fg);fill-opacity:${op(c)}${sel === `${label}:${c}` ? ';stroke:var(--dim);stroke-width:4' : ''}" data-act="board" data-arg="${label}:${c}"/>`);
-    }
-    cells.push(`<text x="${(R.label * Math.cos((mid * Math.PI) / 180)).toFixed(1)}" y="${(R.label * Math.sin((mid * Math.PI) / 180) + 5).toFixed(1)}" text-anchor="middle">${s}</text>`);
-  });
-  cells.push(`<circle class="cell" r="${R.outerBull}" style="fill:var(--fg);fill-opacity:${op(seg[25][0])}" data-act="board" data-arg="25:${seg[25][0]}"/>`);
-  cells.push(`<circle class="cell" r="${R.bull}" style="fill:var(--fg);fill-opacity:${op(seg[25][1])}" data-act="board" data-arg="50:${seg[25][1]}"/>`);
-  return `<svg class="board" viewBox="-200 -200 400 400" role="img" aria-label="Carte des segments touchés">${cells.join('')}</svg>`;
+  const op = c => 0.07 + 0.93 * Math.pow(c / max, 0.6);
+  return boardSvg({ size: 380, heat: key => op(countOf(seg, key)), act: 'board', selected: picked.board, cls: 'board', label: 'Carte des segments touchés' });
 }
 
 // ------------------------------------------------------------------ évolution de la moyenne
@@ -92,7 +76,7 @@ export function statsScreen(id) {
   }).join('');
 
   let readBoard = 'Touchez une case de la cible pour lire le nombre d\'impacts.';
-  if (picked.board) { const [l, c] = picked.board.split(':'); readBoard = `<b>${l}</b> : ${plural(Number(c), 'impact', 'impacts')}`; }
+  if (picked.board) readBoard = `<b>${picked.board}</b> : ${plural(countOf(st.segments, picked.board), 'impact', 'impacts')}`;
   const tl = st.timeline;
   let readPoint = 'Touchez un point pour lire la moyenne de la partie.';
   if (picked.point !== null && tl[picked.point]) readPoint = `<b>${shortDate(tl[picked.point].at)}</b> : moyenne ${avg(tl[picked.point].average)}`;

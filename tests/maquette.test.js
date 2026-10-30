@@ -53,10 +53,10 @@ describe('maquette', () => {
     assert.match(avatarHtml({ name: 'X', avatar: { kind: 'icon', icon: 'renard', color: 9 } }), /var\(--av-1\)/);
   });
 
-  test('PWA : manifeste portrait plein écran, icônes présentes, service worker réseau d’abord', () => {
+  test('PWA : manifeste plein écran, deux orientations, icônes présentes, service worker réseau d’abord', () => {
     const m = JSON.parse(read('manifest.webmanifest'));
     assert.equal(m.display, 'fullscreen');
-    assert.equal(m.orientation, 'portrait');
+    assert.equal(m.orientation, 'any', 'portrait et paysage (saisie sur la cible)');
     assert.equal(m.background_color.toUpperCase(), '#0A0C0E');
     assert.equal(m.short_name, 'СТРЕЛА');
     for (const i of m.icons) assert.ok(existsSync(new URL(i.src, root)), i.src);

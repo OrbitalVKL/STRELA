@@ -36,7 +36,13 @@ les réglages de l'appli). La balise `theme-color` suit le fond.
   Aucun appel à Google Fonts : tout marche hors ligne.
 - Libellés en capitales avec léger espacement (`.caps`), chiffres tabulaires pour les scores.
 - Filets fins de 1 px (`--rule`), **angles droits partout**, rien d'arrondi (`border-radius: 0` global).
-- Vidéo inverse (`.inv`) pour le bandeau du joueur actif et l'état sélectionné ; aplat rouge (`.alert`) pour le bust.
+- Vidéo inverse (`.inv`) pour l'état sélectionné et VALIDER ; aplat rouge (`.alert`) pour le bust et les
+  confirmations graves (supprimer un joueur).
+- Joueur actif (lot 1.1) : bandeau en **aplat de la couleur de fond de son avatar** (`--av-0` … `--av-7`, encre
+  `--av-ink`), pour reconnaître le joueur de loin ; même aplat pour l'annonce « À TOI » et filet de cette couleur
+  sur le joueur suivant. Pseudo en Martian Mono étroite (`font-stretch: 75 %`).
+- Cible : filets fins `--faint`, simples alternés fond / `--fg` à 10 %, double et triple alternés `--red` / `--fg`
+  à 40 %, numéros `--dim`. Impacts en carrés (rien d'arrondi) ; la loupe de saisie est carrée elle aussi.
 
 ## Rappel Grafit (pour les lots 4-5)
 

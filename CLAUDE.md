@@ -30,7 +30,7 @@ filets fins, angles droits, rien d'arrondi. Utiliser les jetons CSS de `assets/t
 
 ```
 index.html                l'appli (page unique). Marques <!--@clé-->…<!--/@--> remplies au build (bloc #build)
-manifest.webmanifest      PWA : portrait, plein écran ; sw.js : service worker « réseau d'abord »
+manifest.webmanifest      PWA : portrait et paysage, plein écran ; sw.js : service worker « réseau d'abord »
 assets/theme.css          thème (jetons CSS sombre / clair, fonds d'avatar --av-0…7, --night, @font-face)
 assets/app.css            styles des écrans (jetons uniquement)
 assets/fonts/             Martian Mono woff2 (latin, latin-ext, cyrillique) + OFL.txt
@@ -40,8 +40,11 @@ src/engine/               moteur de règles, JS pur sans dépendance ni DOM (doc
   x01.js                  règles X01 : état recalculé depuis config + liste des fléchettes
   checkout.js             table de finitions
   stats.js                statistiques recalculées depuis les fléchettes
+  board.js                géométrie de la cible (position → segment, centre d'un segment)
+  players.js              suppression d'un joueur (anonymisation « ~rang » de ses parties)
   index.js                point d'entrée, registre GAMES
-src/ui/                   interface (docs/interface.md) : app.js, nav.js, store.js, mock.js, avatars.js, screens/
+src/ui/                   interface (docs/interface.md) : app.js, nav.js, store.js, mock.js, avatars.js, screens/,
+                          board.js (dessin de la cible), roll.js (chiffres en rouleau), turn.js (validation des volées)
 src/ui/theme.js           palette (source de vérité des couleurs), contraste
 tests/                    tests node:test (*.test.js) ; helpers.js = aides (notation ds('T20 D16'))
 tools/build-site.mjs      construit _site/ : lance les tests, remplit la page, copie assets/ et src/
@@ -75,23 +78,29 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | Lot | Contenu |
 |---|---|
 | 0 | Fondations : cahier des charges, CLAUDE.md, moteur X01 + tests, CI, page d'attente Pages — **fait** |
-| 1 | Maquette de tous les écrans, sombre et clair (validation du design) — **fait, en attente de validation** |
+| 1 | Maquette de tous les écrans, sombre et clair (validation du design) — **fait** |
+| 1.1 | Corrections de la maquette après essai sur le Pixel (suppression, VALIDER, rouleaux, cible, paysage) — **fait, en attente de validation** |
 | 2 | Partie jouable + joueurs et avatars |
 | 3 | Historique et stats |
 | 4 | Finitions : propositions de finition, mode nuit, vibrations, export / import (validation des fonctions) |
 | 5 | APK (coquille Java WebView `fr.orbitalvkl.strela`, minSdk 30, release signée, mise à jour dans l'appli) |
 | 6 | Recette |
 
-## État (fin du lot 1)
+## État (fin du lot 1.1)
 
-- Maquette complète publiée (version 0.1.0) : tous les écrans, sombre et clair, navigation réelle.
-  Sommaire des écrans et états : `https://orbitalvkl.github.io/STRELA/?maquette`. Détail : docs/interface.md.
-- Jeu branché sur le vrai moteur, en mémoire (bust, ANNULER, manches, revanche, abandon). Rien n'est enregistré
-  sauf les réglages d'affichage (`strela.theme`, `strela.night`, `strela.vibrate`) ; données fictives recréées
-  à chaque chargement (`src/ui/mock.js`, parties jouées par le moteur).
-- Nouveaux modules purs testés : `checkout.js` (finitions), `stats.js` (statistiques). 70 tests.
-- PWA : manifeste + service worker réseau d'abord ; Wake Lock et vibrations pendant la partie.
-- Vérification visuelle : captures Playwright 410 × 914 et 410 × 760 (scripts hors dépôt), relecture de l'écran
-  de jeu par un second agent, corrections faites.
-- À faire au lot 2 : IndexedDB avec la même forme de données que `store.js`, enregistrement à chaque fléchette,
-  photo d'avatar, retrait des données fictives hors sommaire. Attendre la validation du design par Guillaume.
+- Maquette corrigée publiée (version 0.1.1), sommaire : `https://orbitalvkl.github.io/STRELA/?maquette`.
+  Détail : docs/interface.md ; décisions : docs/cahier-des-charges.md (§ 3 et § 4).
+- Lot 1.1 : suppression d'un joueur (`src/engine/players.js`, identifiants anonymes `~rang`), validation de chaque
+  volée (VALIDER, `src/ui/turn.js`, champ `validated` de la partie en cours), chiffres en rouleau (`src/ui/roll.js`,
+  réglage `strela.anim`), cible SVG partagée (`src/engine/board.js` + `src/ui/board.js` : jeu, historique, fins de
+  manche, stats), historique de la partie en cours (menu pause), bandeau du joueur actif en couleur de son avatar et
+  annonce « À TOI », paysage avec saisie sur la cible (loupe ×2,5), manifeste `orientation: any`.
+- Toujours en mémoire : rien n'est enregistré sauf les réglages d'affichage (`strela.theme`, `strela.night`,
+  `strela.vibrate`, `strela.anim`) ; données fictives recréées à chaque chargement.
+- Tests : 86 (dont cible, suppression, validation, rouleaux). Vérification visuelle : captures Playwright en
+  410 × 914 / 866 / 760 / 712 et 914 × 410 / 860 × 410, sombre et clair ; geste de saisie simulé (appui décalé,
+  glissé, lâcher) sur 10 zones dont doubles, triples, 25 et 50 ; relecture du point « à qui c'est de jouer » par un
+  second agent. Scripts de capture hors dépôt.
+- À faire au lot 2 (une fois le design validé) : IndexedDB avec la même forme de données que `store.js`
+  (y compris `pos` des fléchettes et `validated`), enregistrement à chaque fléchette et à chaque VALIDER,
+  suppression d'un joueur en une transaction, photo d'avatar, retrait des données fictives hors sommaire.

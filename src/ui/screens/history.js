@@ -1,11 +1,13 @@
 // Historique : parties de la plus récente à la plus ancienne (date, jeu, joueurs, vainqueur, « abandonnée »).
-// Détail : manche par manche, volée par volée, fléchette par fléchette.
+// Détail : manche par manche, volée par volée, fléchette par fléchette, impacts sur la cible (gameLog, partagé avec
+// le panneau « Partie en cours » du jeu).
 import { store, playerById } from '../store.js';
 import { esc, topBar, when, avg, plural, OUT_LABEL, OUT_SHORT } from '../dom.js';
 import { avatarHtml, iconSvg } from '../avatars.js';
 import { gameState, gameWinner, playerSummary } from '../../engine/stats.js';
 import { formatDart } from '../../engine/darts.js';
-import { go } from '../nav.js';
+import { boardSvg, impactsFor } from '../board.js';
+import { go, refresh } from '../nav.js';
 
 const dl = d => { const f = formatDart(d); return f.replace(/^S/, ''); };
 
@@ -50,21 +52,49 @@ export function historyDetail(id) {
     ${players.map((p, i) => { const sum = playerSummary(s, i); return `<tr${w === p.id ? ' class="win"' : ''}><td><div class="pl">${avatarHtml(p, 28)}<span class="nm">${esc(p.name)}</span></div></td>
       <td>${s.legsWon[i]}</td><td>${avg(sum.average)}</td><td>${sum.darts}</td><td>${sum.best}</td></tr>`; }).join('')}
     </tbody></table></div>`;
+  return `<div class="screen">${topBar('Détail de la partie', '#/historique')}${head}${table}${gameLog(g, s, { abandoned: g.abandoned })}</div>`;
+}
 
-  const legs = s.legs.filter(l => l.visits.length).map(l => {
+// ------------------------------------------------------------------ détail volée par volée (partagé)
+// Sert au détail d'une partie de l'historique et au panneau « Partie en cours » du jeu. Toucher une volée
+// déplie sous elle la cible avec ses impacts (numérotés) et, en discret, les volées précédentes du joueur.
+let openRow = null; // « idPartie|rangVolée » ou « idPartie|open »
+
+/**
+ * Manches, volées et fléchettes d'une partie, avec le reste après chaque volée.
+ *   live : partie en cours (la volée commencée s'affiche en dernier) ; abandoned : partie abandonnée.
+ */
+export function gameLog(g, s, { live = false, abandoned = false } = {}) {
+  const players = g.config.players.map(playerById);
+  const row = (v, idx, open) => {
+    const key = `${g.id}|${idx}`;
+    const p = players[v.player];
+    const cells = [0, 1, 2].map(k => `<td class="d">${v.darts[k] ? dl(v.darts[k]) : ''}</td>`).join('');
+    const cls = open ? 'cur' : v.bust ? 'bust' : v.finish ? 'fin' : '';
+    const tot = open ? v.total : v.bust ? 'BUST' : v.total;
+    const rem = open ? '…' : v.finish ? 'GAGNÉ' : v.remainingAfter;
+    const sel = openRow === key;
+    let html = `<tr class="${cls}${sel ? ' sel' : ''}" data-act="log-visit" data-arg="${esc(key)}" aria-expanded="${sel}"><td>${avatarHtml(p, 24)}</td>${cells}
+      <td class="tot">${tot}</td><td class="rem">${rem}</td></tr>`;
+    if (sel) {
+      html += `<tr class="vboard"><td colspan="6"><div class="vb">${boardSvg({ size: 210, impacts: impactsFor(g, s, idx), label: 'Impacts de la volée' })}
+        <p class="note"><span class="nm">${esc(p.name)}</span><br><b class="sq"></b> cette volée<br><b class="sq old"></b> ses volées précédentes de la manche<br>Pavé : centre du segment.</p></div></td></tr>`;
+    }
+    return html;
+  };
+  const legs = s.legs.filter(l => l.visits.length || (live && l.number === s.legNumber)).map(l => {
     const winner = l.winner !== null ? players[l.winner] : null;
     const wd = winner ? l.visits.filter(v => v.player === l.winner).reduce((n, v) => n + v.darts.length, 0) : 0;
-    const info = winner ? `<span class="nm">${esc(winner.name)}</span> en ${wd} fl.` : g.abandoned ? 'interrompue' : 'en cours';
-    const rows = l.visits.map(v => {
-      const p = players[v.player];
-      const cells = [0, 1, 2].map(k => `<td class="d">${v.darts[k] ? dl(v.darts[k]) : ''}</td>`).join('');
-      return `<tr class="${v.bust ? 'bust' : v.finish ? 'fin' : ''}"><td>${avatarHtml(p, 24)}</td>${cells}
-        <td class="tot">${v.bust ? 'BUST' : v.total}</td><td class="rem">${v.finish ? 'GAGNÉ' : v.remainingAfter}</td></tr>`;
-    }).join('');
+    const info = winner ? `<span class="nm">${esc(winner.name)}</span> en ${wd} fl.` : abandoned ? 'interrompue' : 'en cours';
+    const rows = l.visits.map(v => row(v, s.visits.indexOf(v), false));
+    if (live && l.number === s.legNumber && s.visit && s.visit.darts.length) rows.push(row(s.visit, 'open', true));
     return `<div class="leg-h"><b>MANCHE ${l.number}</b><span>${info}</span></div>
-      <table class="visits"><tbody>${rows}</tbody></table>`;
+      ${rows.length ? `<table class="visits"><tbody>${rows.join('')}</tbody></table>` : '<p class="note pad">Aucune volée pour l\'instant.</p>'}`;
   }).join('');
-  return `<div class="screen">${topBar('Détail de la partie', '#/historique')}${head}${table}
-    <div class="pad"><div class="sec" style="margin-bottom:0">Volée par volée</div></div>${legs}
-    <p class="note pad">Chaque ligne : joueur, ses 3 fléchettes, total de la volée, reste après la volée.</p></div>`;
+  return `<div class="pad"><div class="sec" style="margin-bottom:0">Volée par volée</div></div>${legs}
+    <p class="note pad">Chaque ligne : joueur, ses 3 fléchettes, total de la volée, reste après la volée. Touchez une volée pour voir ses impacts sur la cible.</p>`;
 }
+
+export const actions = {
+  'log-visit'(key) { openRow = openRow === key ? null : key; refresh(); },
+};
