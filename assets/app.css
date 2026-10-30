@@ -238,6 +238,10 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 .stepper button:disabled { color: var(--faint); }
 .dock { position: sticky; bottom: 0; z-index: 4; margin-top: auto; padding: 14px 16px max(env(safe-area-inset-bottom, 0px), 16px); background: var(--bg); border-top: var(--rule); }
 .screen.has-dock { padding-bottom: 0; }
+/* Partie en cours pendant « Nouvelle partie » (lot 3) : rappel discret ; LANCER demande confirmation dans la barre du bas */
+.busy { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; padding-bottom: 10px; border-bottom: var(--rule); }
+.busy .btn { flex: 0 0 auto; width: auto; min-height: 44px; }
+.dock .confirm { background: var(--bg); }
 
 /* ---------------------------------------------------------------- JEU */
 .game {
@@ -538,6 +542,16 @@ html.still .gband.slide, html.still .announce { animation: none; }
 /* ---------------------------------------------------------------- historique */
 .gitem { display: block; padding: 14px 16px; border-bottom: var(--rule); color: var(--fg); text-decoration: none; }
 .gitem:active { background: var(--fg); color: var(--bg); }
+.gitem[data-long] { -webkit-touch-callout: none; }
+/* Sélection (lot 3, appui long) : case à cocher carrée, ligne cochée repérée par un filet épais à gauche */
+.gitem.pick { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; border: 0; border-bottom: var(--rule); background: var(--bg); color: var(--fg); }
+.gitem.pick .gbody { flex: 1; min-width: 0; display: block; }
+.gitem.pick .box { flex: 0 0 28px; height: 28px; border: 2px solid var(--fg); display: grid; place-items: center; }
+.gitem.pick .box svg { width: 20px; height: 20px; }
+.gitem.pick[aria-pressed="true"] { box-shadow: inset 4px 0 0 var(--fg); }
+.pick-dock { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
+.pick-dock .btn { min-height: 64px; }
+.gitem.pick[aria-pressed="true"] .box { background: var(--inv-bg); color: var(--inv-fg); border-color: var(--inv-bg); }
 .gitem .l1 { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--dim); letter-spacing: 0.06em; text-transform: uppercase; }
 .gitem .l2 { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
 .gitem .l3 { margin-top: 8px; font-size: 14px; font-weight: 700; display: flex; gap: 8px; align-items: center; }

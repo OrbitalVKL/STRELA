@@ -8,7 +8,7 @@ import { openCrop, PHOTO_ERRORS } from './photo.js';
 import { polar, sectorAngle, RINGS } from '../../engine/board.js';
 import { isDeletedId } from '../../engine/players.js';
 import { openDraft } from './players.js';
-import { selectLogCell } from './history.js';
+import { selectLogCell, presetHistory } from './history.js';
 import { computeState } from '../../engine/x01.js';
 import { topBar, ico } from '../dom.js';
 import { parseDart } from '../../engine/darts.js';
@@ -121,12 +121,17 @@ export const SCENES = {
   },
   'long-fiche': () => { ensureExtraPlayers(['p10']); store.draft = null; return '#/joueur/p10'; },
   pause: () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S5 S20 T19 S1 T20', { pause: true }); return '#/jeu'; },
-  abandon: () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S5 S20 T19 S1 T20', { pause: true, confirm: true }); return '#/jeu'; },
+  abandon: () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S5 S20 T19 S1 T20', { pause: true, confirm: 'abandon' }); return '#/jeu'; },
+  'supprimer-en-cours': () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S5 S20 T19 S1 T20', { pause: true, confirm: 'delete' }); return '#/jeu'; },
   solo: () => { setGame(cfg(['p2'], 301), 'T20 T20 S20 S19 S7 S3'); return '#/jeu'; },
   'solo-attente': () => { setGame(cfg(['p2'], 301), 'T20 T20 S20 S19 S7 S3', {}, true); return '#/jeu'; },
   'aucun-joueur': () => { store.players = []; store.current = null; store.setupDraft = null; return '#/joueurs'; },
   'nouvelle-vide': () => { store.players = []; store.current = null; store.setupDraft = null; return '#/nouvelle'; },
   'historique-vide': () => { store.games = []; return '#/historique'; },
+  // Lot 3 : suppression de parties (sélection par appui long, confirmation ; détail d'une partie)
+  'histo-selection': () => { presetHistory({ ids: store.games.slice(0, 3).map(g => g.id) }); return '#/historique'; },
+  'histo-selection-confirmer': () => { presetHistory({ ids: store.games.slice(0, 3).map(g => g.id), ask: true }); return '#/historique'; },
+  'partie-supprimer': () => { presetHistory({ detail: 'g1' }); return '#/partie/g1'; },
   'fiche-new': () => { store.draft = null; return '#/joueur/nouveau'; },
   'fiche-edit': () => { store.draft = null; return '#/joueur/p2'; },
   suppression: () => { store.current = null; store.draft = null; Object.assign(openDraft('p4'), { del: 'ask', reveal: true }); return '#/joueur/p4'; },
@@ -142,6 +147,7 @@ export const SCENES = {
   'reprendre-manche': () => { setGame(cfg(['p1', 'p2'], 301, 'double', 2), 'T20 T20 T20 20 1 5 T20 T11 D14'); store.current.validated = 6; return '#/'; },
   'reprendre-fin': () => { setGame(cfg(['p1', 'p2', 'p3'], 301), 'T20 T20 T20 20 1 5 T19 S7 S3 T20 T11 D14'); return '#/'; },
   'nouvelle-en-cours': () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S5 S20 T19 S1 T20'); store.setupDraft = null; return '#/nouvelle'; },
+  'nouvelle-confirmer': () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S5 S20 T19 S1 T20'); store.setupDraft = { ...store.lastSetup, confirm: true }; return '#/nouvelle'; },
   recadrage: () => { store.draft = null; openDraft('p2'); openCrop(SAMPLE_PHOTO, SAMPLE_SIZE.w, SAMPLE_SIZE.h, 'p2'); return '#/recadrage'; },
   'recadrage-zoom': () => {
     store.draft = null; openDraft('p2'); openCrop(SAMPLE_PHOTO, SAMPLE_SIZE.w, SAMPLE_SIZE.h, 'p2');
@@ -191,13 +197,18 @@ export function sommaire() {
       ${H('#/avatars', '3 · Banque d\'avatars', '24 icônes')}
       ${H('#/nouvelle', '4 · Nouvelle partie', 'derniers réglages')}
       ${L('nouvelle-en-cours', '4 · Nouvelle partie', 'une partie en cours')}
+      ${L('nouvelle-confirmer', '4 · LANCER pendant une partie', 'confirmation')}
       ${L('jeu', '5 · Jeu : début de partie', '501 · 2 joueurs')}
       ${L('pause', '5 · Jeu : menu pause')}
       ${L('abandon', '5 · Jeu : abandonner ?', 'confirmation')}
+      ${L('supprimer-en-cours', '5 · Jeu : supprimer la partie ?', 'partie d\'essai')}
       ${L('fin-manche', '6 · Fin de manche')}
       ${L('fin-partie', '7 · Fin de partie', 'revanche')}
       ${H('#/historique', '8 · Historique')}
       ${H('#/partie/g1', '8 · Détail d\'une partie', 'volée par volée')}
+      ${L('partie-supprimer', '8 · Supprimer une partie', 'confirmation')}
+      ${L('histo-selection', '8 · Historique : sélection', 'appui long')}
+      ${L('histo-selection-confirmer', '8 · Supprimer 3 parties', 'confirmation')}
       ${H('#/stats/p1', '9 · Stats joueur')}
       ${H('#/reglages', '10 · Réglages')}
     </nav>

@@ -9,7 +9,7 @@
 
 import { computeState, STATUS, EVENTS } from '../engine/x01.js';
 import { deletePlayer as removePlayer, deletionImpact, isDeletedId } from '../engine/players.js';
-import { openDb, currentRecord, closedRecord, playerRecord, deletionOps, DB_VERSION } from '../data/db.js';
+import { openDb, currentRecord, closedRecord, playerRecord, deletionOps, gameDeletionOps, DB_VERSION } from '../data/db.js';
 
 export const store = {
   players: [],
@@ -172,6 +172,27 @@ export function archiveCurrent(abandoned) {
   } else {
     write([{ store: 'games', del: g.id }]);
   }
+}
+
+// ------------------------------------------------------------------ suppression de parties (lot 3)
+/**
+ * Supprime des parties de l'historique, en une seule transaction. Les stats se recalculent d'elles-mêmes (elles ne
+ * sont jamais stockées) ; les joueurs, et leurs photos d'avatar, ne sont jamais touchés. Renvoie le nombre supprimé.
+ */
+export function deleteGames(ids) {
+  const gone = new Set(ids);
+  const before = store.games.length;
+  store.games = store.games.filter(g => !gone.has(g.id));
+  write(gameDeletionOps([...gone]));
+  return before - store.games.length;
+}
+
+/** Supprime la partie en cours (partie d'essai) : elle n'entre pas dans l'historique. */
+export function deleteCurrent() {
+  const g = store.current;
+  if (!g) return;
+  store.current = null;
+  write(gameDeletionOps([g.id]));
 }
 
 // ------------------------------------------------------------------ suppression d'un joueur

@@ -8,7 +8,7 @@ import { playersList, playerForm, avatarBank, actions as playerActions, inputs a
 import { newGame, actions as newGameActions } from './screens/newgame.js';
 import { game, key, mountGame, actions as gameActions } from './screens/game.js';
 import { legEnd, matchEnd, actions as resultActions } from './screens/results.js';
-import { historyList, historyDetail, actions as historyActions } from './screens/history.js';
+import { historyList, historyDetail, leaveHistory, actions as historyActions } from './screens/history.js';
 import { statsScreen, actions as statsActions } from './screens/stats.js';
 import { settingsScreen, applyTheme, actions as settingsActions } from './screens/settings.js';
 import { cropScreen, mountCrop, onPhotoFile, actions as photoActions } from './screens/photo.js';
@@ -45,6 +45,7 @@ function render() {
   if (!started) return;
   const path = decodeURIComponent(location.hash.replace(/^#/, ''));
   noteRoute(location.hash || '#/');
+  if (path !== lastPath) leaveHistory(path); // sélection et confirmations de l'historique oubliées en changeant d'écran
   let html = null;
   for (const [re, screen] of ROUTES) {
     const m = re.exec(path);
@@ -120,6 +121,29 @@ window.addEventListener('pointerup', ev => {
   const fn = ACTIONS[el.dataset.act];
   if (fn) fn(el.dataset.arg, el, null);
 }, true);
+// Appui long (lot 3) : [data-long="action"] agit après LONG_MS sans glisser (sélection dans l'historique) ; le clic qui
+// suit est avalé (pas d'ouverture du détail), et le menu du navigateur sur les liens est coupé.
+export const LONG_MS = 500;
+let long = null;
+let swallow = false;
+const stopLong = () => { if (long) { clearTimeout(long.timer); long = null; } };
+app.addEventListener('pointerdown', ev => {
+  swallow = false;
+  stopLong();
+  const el = ev.target.closest('[data-long]');
+  if (!el || (ev.pointerType === 'mouse' && ev.button !== 0)) return;
+  long = { id: ev.pointerId, x: ev.clientX, y: ev.clientY, timer: setTimeout(() => {
+    long = null;
+    swallow = true;
+    const fn = ACTIONS[el.dataset.long];
+    if (fn) fn(el.dataset.arg, el, null);
+  }, LONG_MS) };
+}, true);
+window.addEventListener('pointermove', ev => { if (long && long.id === ev.pointerId && moved(long, ev)) stopLong(); }, true);
+window.addEventListener('pointerup', stopLong, true);
+window.addEventListener('pointercancel', stopLong, true);
+app.addEventListener('click', ev => { if (swallow) { swallow = false; ev.preventDefault(); ev.stopImmediatePropagation(); } }, true);
+app.addEventListener('contextmenu', ev => { if (ev.target.closest('[data-long]')) ev.preventDefault(); });
 app.addEventListener('keydown', ev => {
   const el = ev.target.closest('[data-key]');
   if (el && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); key(el.dataset.key); }

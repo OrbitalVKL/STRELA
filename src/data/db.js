@@ -169,3 +169,6 @@ export function deletionOps(playerId, result, lastSetup) {
   if (lastSetup) ops.push({ store: 'settings', key: 'lastSetup', put: lastSetup });
   return ops;
 }
+
+/** Opérations de la suppression de parties (lot 3) : une seule transaction ; joueurs (et leurs photos) jamais touchés. */
+export const gameDeletionOps = ids => [...new Set(ids)].map(id => ({ store: 'games', del: id }));

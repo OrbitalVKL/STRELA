@@ -9,7 +9,7 @@
 //   hors de la cible ne compte rien).
 // Après la 3e fléchette ou un bust, la volée reste affichée jusqu'à VALIDER (turn.js) ; ANNULER reste possible.
 // À la validation, « À TOI, PSEUDO » occupe le haut de l'écran ~0,8 s, puis le bandeau du joueur glisse en place.
-import { store, currentState, playerById, archiveCurrent, animationsOn, saveCurrent, legEndPending } from '../store.js';
+import { store, currentState, playerById, archiveCurrent, deleteCurrent, animationsOn, saveCurrent, legEndPending } from '../store.js';
 import { esc, ico, avg, OUT_SHORT, maquetteButtons } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
 import { throwDart, undoDart } from '../../engine/x01.js';
@@ -268,10 +268,15 @@ function historySheet(v) {
 
 function pauseSheet() {
   const ui = store.current.ui;
-  const abandon = ui.confirm
-    ? `<div class="confirm"><p><b>Abandonner la partie ?</b></p><p class="small dim">Elle restera dans l'historique, marquée « abandonnée ».</p>
+  // ABANDONNER (la partie reste dans l'historique) et SUPPRIMER (partie d'essai : effacée), chacun avec sa confirmation.
+  const abandon = ui.confirm === 'abandon'
+    ? `<div class="confirm" data-reveal><p><b>Abandonner la partie ?</b></p><p class="small dim">Elle restera dans l'historique, marquée « abandonnée ».</p>
         <div class="btns two"><button type="button" class="btn" data-act="abandon-no">NON</button><button type="button" class="btn alert" data-act="abandon-yes">ABANDONNER</button></div></div>`
     : '<button type="button" class="btn danger" data-act="abandon">ABANDONNER LA PARTIE</button>';
+  const del = ui.confirm === 'delete'
+    ? `<div class="confirm" role="alert" data-reveal><p class="alert-h">SUPPRIMER LA PARTIE ?</p><p class="small">Elle disparaît complètement : ni historique, ni stats. Les joueurs et leurs photos restent.</p>
+        <div class="btns two"><button type="button" class="btn" data-act="abandon-no">NON</button><button type="button" class="btn alert" data-act="delete-current-yes">SUPPRIMER</button></div></div>`
+    : '<button type="button" class="btn danger" data-act="delete-current">SUPPRIMER LA PARTIE</button>';
   return `<div class="sheet-bg" role="dialog" aria-label="Pause" data-layer><div class="sheet">
     <header class="top" data-layer><h1><span>Pause</span></h1>${store.maquette ? '<a class="act mq" href="#/sommaire" aria-label="Sommaire de maquette">' + ico('menu') + '</a>' : ''}<button type="button" class="act" data-act="resume" aria-label="Fermer">${ico('close')}</button></header>
     <div class="body" style="padding-top:16px">
@@ -282,6 +287,8 @@ function pauseSheet() {
       <div class="sec" style="margin-bottom:0">Partie</div>
       <a class="btn ghost" href="#/">ACCUEIL <small>la partie reste en cours</small></a>
       ${abandon}
+      ${del}
+      <p class="note" style="margin:0">Abandonner : la partie reste dans l'historique et compte dans les moyennes. Supprimer (partie d'essai) : elle disparaît complètement.</p>
     </div></div></div>`;
 }
 
@@ -481,7 +488,9 @@ export const actions = {
   'open-history'() { stopAnnounce(); Object.assign(store.current.ui, { panel: 'history', pause: false, confirm: false }); refresh(); },
   'close-panel'() { store.current.ui.panel = null; refresh(); },
   'board-view'(val) { store.current.ui.boardView = val === 'leg' ? 'leg' : 'visit'; refresh(); },
-  abandon() { store.current.ui.confirm = true; refresh(); },
+  abandon() { store.current.ui.confirm = 'abandon'; refresh(); },
+  'delete-current'() { store.current.ui.confirm = 'delete'; refresh(); },
+  'delete-current-yes'() { stopAnnounce(); deleteCurrent(); go('#/'); },
   'abandon-no'() { store.current.ui.confirm = false; refresh(); },
   'abandon-yes'() { stopAnnounce(); archiveCurrent(true); go('#/'); },
 };
