@@ -57,6 +57,7 @@ public class MainActivity extends Activity {
     volatile int backs = 0;                 // retours reçus (diagnostic, vérification sur émulateur)
     int gestureCss = 0;                     // zone des gestes en bas, en px CSS, au-delà de la marge déjà laissée
     ValueCallback<Uri[]> fileCallback;      // sélecteur de fichiers de la page en attente
+    WebView fileWeb;                        // WebView qui l'a demandé (une autre si la page a été rechargée entre-temps)
     JSONObject pendingImport;               // sauvegarde choisie pendant que l'appli était recréée (voir onActivityResult)
     Uri photoUri;                           // photo en cours de prise de vue
 
@@ -68,9 +69,8 @@ public class MainActivity extends Activity {
         updater = new Updater(this);
         bridge = new Bridge(this);
 
-        web = new WebView(this);
         root = new FrameLayout(this);
-        root.addView(web, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        root.setBackgroundColor(getColor(R.color.bg));
         setContentView(root);
         // Bord à bord (imposé par Android 15) : le cadre laisse la place des barres système et de la découpe de la
         // caméra ; la zone des gestes en bas (getMandatorySystemGestureInsets) est transmise à la page, qui en fait la
@@ -86,6 +86,27 @@ public class MainActivity extends Activity {
             return WindowInsets.CONSUMED;
         });
 
+        createWeb();
+        // Retour d'Android 13 et plus (OnBackInvokedDispatcher, déclaré dans le manifeste) ; avant : onBackPressed().
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::goBack);
+        }
+        IntentFilter f = new IntentFilter(Updater.ACTION);
+        ContextCompat.registerReceiver(this, updater.receiver, f, ContextCompat.RECEIVER_NOT_EXPORTED);
+        // Activité recréée (thème du téléphone changé) : la page revient où elle était ; sinon, l'accueil.
+        if (state == null || web.restoreState(state) == null) web.loadUrl(START);
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle out) {
+        super.onSaveInstanceState(out);
+        web.saveState(out);
+    }
+
+    /** WebView de la page (au démarrage, et de nouveau si Android arrête son moteur de rendu). */
+    void createWeb() {
+        web = new WebView(this);
+        root.addView(web, 0, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
@@ -93,7 +114,6 @@ public class MainActivity extends Activity {
         s.setMediaPlaybackRequiresUserGesture(false);          // sons Web Audio sans geste préalable
         s.setAllowFileAccess(false);
         s.setAllowContentAccess(true);                          // photo et sauvegarde choisies (content://)
-        s.setTextZoom(100);                                     // la page applique elle-même la police du téléphone
         s.setUserAgentString(s.getUserAgentString() + " StrelaAPK/" + version());
         if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
             WebSettingsCompat.setAlgorithmicDarkeningAllowed(s, false); // la page a ses propres thèmes
@@ -101,7 +121,6 @@ public class MainActivity extends Activity {
         boolean debuggable = (getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
         WebView.setWebContentsDebuggingEnabled(debuggable);     // APK de test seulement (vérifications sur émulateur)
         web.setBackgroundColor(getColor(R.color.bg));
-        root.setBackgroundColor(getColor(R.color.bg));
 
         final WebViewAssetLoader loader = new WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this)).build();
@@ -122,6 +141,20 @@ public class MainActivity extends Activity {
             public boolean shouldOverrideKeyEvent(WebView v, KeyEvent e) {
                 return e.getKeyCode() == KeyEvent.KEYCODE_BACK || super.shouldOverrideKeyEvent(v, e);
             }
+            // Moteur de rendu de la page arrêté par Android (mémoire, appli en arrière-plan derrière l'appareil photo ou
+            // le sélecteur) : sans cette réponse, toute l'appli s'arrêterait. Nouvelle WebView, page rechargée ; la
+            // partie est enregistrée à chaque fléchette, rien n'est perdu.
+            @Override
+            public boolean onRenderProcessGone(WebView v, android.webkit.RenderProcessGoneDetail d) {
+                Log.w("Strela", "moteur de rendu arrêté (plantage : " + d.didCrash() + ") : page rechargée");
+                if (v != web) return true;
+                root.removeView(v);
+                v.destroy();
+                pageReady = false;
+                createWeb();
+                web.loadUrl(START);
+                return true;
+            }
             @Override
             public void onPageFinished(WebView v, String url) {
                 pageReady = true;
@@ -138,20 +171,6 @@ public class MainActivity extends Activity {
             }
         });
         web.addJavascriptInterface(bridge, "strelaNative");
-        // Retour d'Android 13 et plus (OnBackInvokedDispatcher, déclaré dans le manifeste) ; avant : onBackPressed().
-        if (android.os.Build.VERSION.SDK_INT >= 33) {
-            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::goBack);
-        }
-        IntentFilter f = new IntentFilter(Updater.ACTION);
-        ContextCompat.registerReceiver(this, updater.receiver, f, ContextCompat.RECEIVER_NOT_EXPORTED);
-        // Activité recréée (thème du téléphone changé) : la page revient où elle était ; sinon, l'accueil.
-        if (state == null || web.restoreState(state) == null) web.loadUrl(START);
-    }
-
-    @Override
-    protected void onSaveInstanceState(Bundle out) {
-        super.onSaveInstanceState(out);
-        web.saveState(out);
     }
 
     String version() {
@@ -166,6 +185,7 @@ public class MainActivity extends Activity {
     boolean chooseFile(ValueCallback<Uri[]> cb, WebChromeClient.FileChooserParams p) {
         if (fileCallback != null) fileCallback.onReceiveValue(null);
         fileCallback = cb;
+        fileWeb = web;
         photoUri = null;
         boolean image = false;
         for (String t : p.getAcceptTypes()) if (t != null && t.startsWith("image")) image = true;
@@ -216,6 +236,7 @@ public class MainActivity extends Activity {
         super.onActivityResult(req, res, data);
         Log.i("Strela", "fichier choisi : " + res + " " + (data != null ? data.getData() : null) + (fileCallback == null ? " (page perdue)" : ""));
         if (req != REQ_FILE) return;
+        if (fileCallback != null && fileWeb != web) { fileCallback.onReceiveValue(null); fileCallback = null; } // page rechargée
         if (fileCallback == null) {
             // Android a fermé l'appli pendant le sélecteur (mémoire) : la page n'attend plus rien. Une sauvegarde choisie
             // n'est pas perdue pour autant : relue ici et remise à la page dès qu'elle est prête (événement importFile).

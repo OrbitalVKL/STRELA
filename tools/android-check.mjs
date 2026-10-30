@@ -44,6 +44,20 @@ const touch = async sel => {
   await sh(`input tap ${Math.round(p[0])} ${Math.round(p[1])}`);
   await sleep(400);
 };
+/** Touche à l'écran le texte (ou la description) qui correspond à `re`, trouvé par uiautomator ; `tries` essais. */
+const tapText = async (re, tries = 6) => {
+for (let i = 0; i < tries; i++) {
+    await sleep(1500);
+    await sh('uiautomator dump /sdcard/ui.xml >/dev/null 2>&1');
+    const xml = await sh('cat /sdcard/ui.xml');
+    const nodes = [...xml.matchAll(/<node [^>]*?text="([^"]*)"[^>]*?content-desc="([^"]*)"[^>]*?bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/g)]
+      .map(m => [m[1] || m[2], m[3], m[4], m[5], m[6]]);
+    const n = nodes.find(m => re.test(m[0]));
+    if (n) { await sh(`input tap ${(+n[1] + +n[3]) >> 1} ${(+n[2] + +n[4]) >> 1}`); return true; }
+  }
+  return false;
+};
+
 const focusLine = async () => (await sh('dumpsys window | grep -m1 -E "mCurrentFocus"')).replace(/\s+/g, ' ').replace(/Failed to write.*$/, '');
 const topActivity = () => sh('dumpsys activity activities | grep -m1 -E "topResumedActivity|mResumedActivity"');
 const shot = name => device.screenshot({ path: join(OUT, `${name}.png`) }).catch(() => {});
@@ -169,7 +183,11 @@ await step('bouton retour en partie : menu pause, pas de sortie', async () => {
   await page.evaluate(() => { const f = window.strelaBack; window.__backs = 0; window.strelaBack = () => { window.__backs++; return f(); }; });
   const ime = await sh('dumpsys input_method | grep -m1 -oE "mInputShown=[a-z]+"');
   await touch('#remaining');
-  const focus = await focusLine();
+  let focus = await focusLine();
+  // Première partie en plein écran : Android peut montrer sa bulle « plein écran » (ImmersiveModeConfirmation), qui
+  // prend le focus ; on la ferme comme le ferait Guillaume.
+  if (/Immersive/i.test(focus)) { await tapText(/^(Got it|OK|J'ai compris|Compris)$/i, 3); await touch('#remaining'); focus = `${focus} → ${await focusLine()}`; }
+  console.log(`focus avant retour : ${focus}`);
   const before = Number(await page.evaluate(() => window.strelaNative.backCount ? window.strelaNative.backCount() : -1));
   // Retour par adb (input keyevent), après un toucher sur le reste (sans action) pour le focus.
   await sh('input keyevent KEYCODE_BACK');
@@ -211,18 +229,6 @@ await step('IMPORTER : sélecteur de fichiers d\'Android, aperçu de la sauvegar
   await page.waitForSelector('label.btn:has(input[data-backup])');
   await page.click('label.btn:has(input[data-backup])');
   // Sélecteur de documents d'Android : on cherche le fichier exporté à l'écran, sinon dans « Téléchargements ».
-  const tapText = async re => {
-    for (let i = 0; i < 6; i++) {
-      await sleep(1500);
-      await sh('uiautomator dump /sdcard/ui.xml >/dev/null 2>&1');
-      const xml = await sh('cat /sdcard/ui.xml');
-      const nodes = [...xml.matchAll(/<node [^>]*?text="([^"]*)"[^>]*?content-desc="([^"]*)"[^>]*?bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/g)]
-        .map(m => [m[1] || m[2], m[3], m[4], m[5], m[6]]);
-      const n = nodes.find(m => re.test(m[0]));
-      if (n) { await sh(`input tap ${(+n[1] + +n[3]) >> 1} ${(+n[2] + +n[4]) >> 1}`); return true; }
-    }
-    return false;
-  };
   const base = exported.replace(/\.json$/, '');
   let found = await tapText(new RegExp(base));
   if (!found) {
@@ -236,8 +242,9 @@ await step('IMPORTER : sélecteur de fichiers d\'Android, aperçu de la sauvegar
     await sh('input keyevent KEYCODE_BACK');
     return ['skip', `fichier introuvable dans le sélecteur (automatisation) ; à l'écran : ${seen.join(' / ')}`];
   }
-  await sleep(1500);
-  await front(); // la page a pu être recréée pendant le sélecteur : on la reprend
+  // Le sélecteur se ferme de lui-même une fois le fichier choisi ; la page a pu être rechargée entre-temps.
+  for (let i = 0; i < 20 && !(await topActivity()).includes(PKG); i++) await sleep(500);
+  try { await page.evaluate(() => 1); } catch (e) { await ready(); }
   const preview = await page.waitForSelector('[data-act="backup-mode"][data-arg="merge"]', { timeout: 15e3 }).then(() => true, () => false);
   if (!preview) {
     await shot('6-apres-selecteur');
