@@ -1,6 +1,6 @@
 {
-  "name": "СТРЕЛА · Strela",
-  "short_name": "СТРЕЛА",
+  "name": "Strela",
+  "short_name": "Strela",
   "description": "Compteur de fléchettes X01 hors ligne.",
   "id": "./",
   "start_url": "./",

@@ -1,6 +1,7 @@
 // Strela — données fictives du sommaire de maquette (?maquette) et des tests : chargé seulement dans ce cas
 // (import dynamique dans app.js). Tout reste en mémoire : la vraie base du téléphone n'est jamais ouverte.
 import { store } from './store.js';
+import { setHomeVariant } from './screens/home.js';
 import { MOCK_PLAYERS, EXTRA_PLAYERS, mockGames } from './mock.js';
 
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -24,6 +25,10 @@ export function resetMock() {
   store.draft = null;
   store.setupDraft = null;
   store.crop = null;
+  // Lot 4 : problème d'enregistrement simulé et variante de l'accueil remis à zéro
+  store.mockIssue = false;
+  Object.assign(store.db, { openCode: null, writeFail: null, error: null });
+  setHomeVariant('bande');
   // Derniers réglages : ceux de la partie la plus récente.
   const last = store.games[0];
   store.lastSetup = { players: [...last.config.players], startScore: last.config.startScore, outMode: last.config.outMode, legsToWin: last.config.legsToWin };

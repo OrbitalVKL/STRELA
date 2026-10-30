@@ -1,4 +1,4 @@
-# Interface — lots 1 à 1.3 (maquette), lot 2 (partie jouable et enregistrée), lot 3 (corrections, historique, stats, sauvegarde)
+# Interface — lots 1 à 1.3 (maquette), lot 2 (partie jouable et enregistrée), lot 3 (corrections, historique, stats, sauvegarde), lot 4 (finitions)
 
 Page unique (`index.html`) + modules ES dans `src/ui/`, sans framework ni dépendance. Chaque écran est une
 fonction qui rend du HTML en chaîne ; les actions passent par des attributs `data-act` (délégation d'événements
@@ -24,6 +24,7 @@ vient d'apparaître dessous). Les clics clavier ou programmés (`detail === 0`) 
 | `src/ui/maquette.js` | données fictives du sommaire (`resetMock`, joueurs d'appoint, photo d'exemple) ; chargé seulement avec `?maquette` |
 | `src/ui/crop.js` | recadrage carré d'une photo (pur, testé) : glisser, zoomer autour d'un point, rectangle gardé |
 | `src/ui/screens/photo.js` | photo d'avatar : contrôle du fichier (poids, type, lisibilité), image de travail, écran de recadrage, photo 256 × 256 |
+| `src/ui/rescue.js` | **lot 4** : écran de secours (script classique, hors modules) : RECHARGER, EXPORTER LA SAUVEGARDE relue de la base |
 | `src/ui/feedback.js` | **lot 3** : sons (Web Audio, générés, aucun fichier) et annonces vocales (`speechSynthesis`, voix française) ; textes des annonces (`SPEECH`) |
 | `src/data/backup.js` | **lot 3** : sauvegarde JSON (format, vérification complète, REMPLACER TOUT / FUSIONNER), sans DOM, testé |
 | `src/ui/turn.js` | validation de chaque volée (pur, testé) : `pendingVisit()`, `validatedAfterUndo()` |
@@ -347,11 +348,51 @@ avatars photo en jeu. Les états paysage s'affichent en paysage : tourner le té
   Définitions : [statistiques.md](statistiques.md). Correction au passage : la légende de la cible des fins de manche
   et de partie (les pastilles prenaient la taille de la cible).
 
+## Lot 4 : finitions
+
+- **Titre STRELA et rouge d'accent** (`screens/home.js`) : titre en lettres latines partout (accueil, `<title>`,
+  manifeste « Strela »). Deux variantes au sommaire (`accueil-bande`, `accueil-filet`, `accueil-filet-reprendre`),
+  `setHomeVariant()` ; l'appli garde **A « bande »** (choix et raisons : direction-artistique.md). Classes
+  `.btn.accent` (aplat rouge, `--red-ink`) et `.btn.accent-line` (filet rouge) : accueil et écran de secours seulement.
+- **Finition au double préféré** : fiche joueur, section FINITION (`finishHtml()` de `screens/players.js`) : grille
+  des 10 doubles les plus joués (D20 par défaut), ÉVITER LE BULL oui / non, et quatre exemples (41, 50, 76, 110)
+  recalculés à chaque choix. Enregistré dans le joueur (`checkout: { double, avoidBull }`), **base en version 2** :
+  la migration ajoute les valeurs par défaut à chaque joueur (`MIGRATIONS[1]` de `db.js`, rien d'autre ne change ;
+  testé par `tests/stockage.test.js`). La sauvegarde garde le format version 1 : une sauvegarde sans préférences
+  prend les valeurs par défaut à l'import. En jeu, les cases vides conseillent la route du joueur qui lance
+  (`suggestCheckout(…, player.checkout)`). Règle de choix : moteur-x01.md. Tests : `tests/checkout.test.js` (41, 170,
+  50 avec et sans bull, raté du triple, existence inchangée), `tests/finition.test.js` (vraie appli : fiche, base,
+  rechargement, conseils de deux joueurs différents).
+- **Écrans vides** : chaque écran vide dit ce qui manque et propose l'action utile. Stats sans partie : VOIR DEPUIS
+  TOUJOURS (s'il a joué avant) ou NOUVELLE PARTIE ; face-à-face sans partie commune : VOIR DEPUIS TOUJOURS ou JOUER UNE
+  PARTIE ENTRE EUX (nouvelle partie préparée avec les deux joueurs) ; face-à-face d'un joueur inconnu : retour aux
+  stats ; nouvelle partie quand tous les joueurs sont archivés : VOIR LES JOUEURS (RÉACTIVER) ou CRÉER UN JOUEUR.
+  Inchangés (déjà clairs) : aucun joueur, historique vide, import refusé, photo refusée.
+- **Problèmes d'enregistrement** (`storageIssue()` / `resaveAll()` de `store.js`, `storageBanner()` de
+  `screens/settings.js`) : encadré sur l'accueil, en tête des Réglages et du menu pause. Base inaccessible
+  (« DONNÉES NON ENREGISTRÉES », RECHARGER), base d'une version plus récente (RECHARGER), stockage plein
+  (`QuotaExceededError`, « STOCKAGE PLEIN ») ou écriture refusée : RÉESSAYER réécrit tout ce qui est en mémoire en une
+  transaction, EXPORTER enregistre la sauvegarde (puis Réglages). L'écran garde toujours l'état en mémoire : rien de ce
+  qui est affiché n'est perdu. `db.write()` renvoie l'erreur de l'opération qui a échoué (avant : celle de l'annulation).
+- **Écran de secours** (`src/ui/rescue.js`, script classique chargé avant l'appli) : une erreur de programmation non
+  rattrapée (événement `error`, promesse rejetée par un `TypeError`, `ReferenceError`…), une erreur pendant le rendu
+  (`render()` l'attrape), ou un démarrage qui n'aboutit pas en 10 s (module introuvable) remplacent l'appli par un écran
+  STRELA : « UNE ERREUR INATTENDUE », RECHARGER, EXPORTER LA SAUVEGARDE, détail de l'erreur. L'export relit la base
+  telle qu'elle est sur le disque (sans la créer ni la mettre à niveau), sinon ce que l'appli a en mémoire
+  (`window.__strelaExport`) ; même format que la sauvegarde (IMPORTER le relit). Les refus ordinaires du navigateur
+  (partage annulé, autorisation refusée) ne déclenchent rien. Au sommaire : `#/secours` (scène `secours`).
+- Nouvelles scènes du sommaire : `accueil-bande`, `accueil-filet`, `accueil-filet-reprendre`, `fiche-finition`,
+  `finition-preferee` (aussi dans `tests/couleurs.test.js`), `secours`, `stats-vide`, `face-vide`,
+  `nouvelle-archives`, `base-inaccessible`, `base-recente`, `stockage-plein`, `stockage-plein-jeu`.
+- Tests : `tests/secours.test.js` (erreur dans un gestionnaire → écran de secours, export relu de la base et accepté
+  par l'import, RECHARGER reprend la partie ; module en erreur → écran de secours ; stockage plein simulé → alerte,
+  RÉESSAYER ; base inaccessible → alerte).
+
 ## Pour le lot 4
 
 - Les écrans Historique et Stats lisent `store.games` (parties closes) ; la partie en cours est à part (`store.current`).
   Une partie abandonnée a `abandoned: true` et un `endedAt`.
-- Base toujours en **version 1** ; pour un index (par date, par joueur) : ajouter une migration (version 2) à
+- Base en **version 2** depuis le lot 4 ; pour un index (par date, par joueur) : ajouter une migration (version 3) à
   `MIGRATIONS` de `src/data/db.js`.
 - Le format de sauvegarde (`src/data/backup.js`, version 1) servira au passage vers l'APK (lot 5) : exporter dans la
   page web, importer dans l'appli Android.

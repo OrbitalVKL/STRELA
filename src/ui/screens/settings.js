@@ -1,11 +1,11 @@
 // Réglages : thème Auto / Sombre / Clair (« strela.theme »), mode nuit (option du sombre : console en rouge
 // atténué, comme Grafit), sons et annonces vocales (lot 3), vibrations, animations (chiffres en rouleau, glissement du bandeau ; coupées d'office si le
 // téléphone demande moins d'animations). Les mêmes commandes servent au menu pause du jeu.
-import { store, saveSetting, reducedMotion, exportBackup, applyImport, importCounts } from '../store.js';
+import { store, saveSetting, reducedMotion, exportBackup, applyImport, importCounts, storageIssue, resaveAll } from '../store.js';
 import { backupFileName, parseBackup, BackupError } from '../../data/backup.js';
 import { esc, topBar, plural } from '../dom.js';
 import { BUILD } from '../build.js';
-import { refresh, buzz, BUZZ } from '../nav.js';
+import { refresh, buzz, BUZZ, go } from '../nav.js';
 import { say, sound, voiceInfo } from '../feedback.js';
 
 const prefersLight = () => { try { return matchMedia('(prefers-color-scheme: light)').matches; } catch (e) { return false; } };
@@ -98,6 +98,25 @@ function voiceBlock() {
   return `<div class="vibe bad" role="status"><b>${text[0]}</b><span>${text[1]}</span></div>`;
 }
 
+// ------------------------------------------------------------------ problème d'enregistrement (lot 4)
+const ISSUE_TEXT = {
+  newer: ['BASE PLUS RÉCENTE QUE L\'APPLI', 'Les données ont été enregistrées par une version plus récente de Strela. Rien n\'est effacé : recharge (en ligne) pour retrouver la dernière version, puis tout réapparaît.'],
+  open: ['DONNÉES NON ENREGISTRÉES', 'La base du téléphone est inaccessible : tu peux jouer, mais rien ne sera gardé à la fermeture. Causes possibles : navigation privée, stockage du site bloqué ou effacé pendant l\'utilisation. RECHARGER réessaie.'],
+  full: ['STOCKAGE PLEIN', 'Le téléphone n\'a plus de place : les dernières modifications ne sont pas enregistrées (elles restent à l\'écran). Libère de la place (Réglages Android › Stockage) ou supprime de vieilles parties, puis RÉESSAYER. EXPORTER garde une copie de tout.'],
+  write: ['ENREGISTREMENT REFUSÉ', 'Le téléphone a refusé d\'enregistrer les dernières modifications (elles restent à l\'écran). RÉESSAYER les réécrit ; EXPORTER garde une copie de tout.'],
+};
+
+/** Alerte d'enregistrement (accueil, réglages, menu pause), avec l'action utile ; vide s'il n'y a pas de problème. */
+export function storageBanner() {
+  const issue = storageIssue();
+  if (!issue) return '';
+  const [title, text] = ISSUE_TEXT[issue.kind];
+  const acts = issue.kind === 'full' || issue.kind === 'write'
+    ? '<button type="button" class="btn" data-act="issue-retry">RÉESSAYER</button><button type="button" class="btn ghost" data-act="issue-export">EXPORTER</button>'
+    : '<button type="button" class="btn" data-act="issue-reload">RECHARGER</button>';
+  return `<section class="issue" role="alert"><b>${title}</b><span>${text}</span>${issue.detail ? `<span class="small dim ell">${esc(issue.detail)}</span>` : ''}<div class="btns two">${acts}</div></section>`;
+}
+
 // ------------------------------------------------------------------ sauvegarde : export / import (lot 3)
 // bk.preview : sauvegarde lue et vérifiée (parseBackup), en attente d'un choix ; bk.ask : 'replace' | 'merge'
 // (confirmation) ; bk.error : fichier refusé ; bk.done : compte rendu du dernier export ou import.
@@ -172,6 +191,7 @@ export function settingsScreen() {
   const vr = vibeResult && VIBE_TEXT[vibeResult];
   return `<div class="screen">${topBar('Réglages', '#/')}
     <div class="pad">
+      ${storageBanner()}
       <div class="sec">Affichage</div>
       ${themeControls()}
       <p class="note">Auto suit le réglage du téléphone. Le mode nuit ne s'applique qu'en sombre.</p>
@@ -233,6 +253,9 @@ export const actions = {
     bk.done = `${name} enregistré dans les téléchargements (${sm}).`;
     refresh();
   },
+  async 'issue-retry'() { await resaveAll(); refresh(); },
+  'issue-reload'() { location.reload(); },
+  async 'issue-export'() { await actions['backup-export'](); go('#/reglages'); },
   'backup-mode'(m) { bk.ask = m === 'replace' ? 'replace' : 'merge'; refresh(); },
   'backup-no'() { bk.ask = null; refresh(); },
   'backup-cancel'() { Object.assign(bk, { preview: null, ask: null }); refresh(); },

@@ -1,6 +1,6 @@
 // Mise à jour de l'appli (lot 2 ; Playwright, sauté s'il est absent) : une version A, installée avec son service worker
 // (adresse localhost, comme en https), a des joueurs et une partie en cours ; on publie une version B dont la base
-// passe en version 2 (une migration de plus). Une page de A reste ouverte pendant que B s'ouvre ailleurs. Rien n'est
+// gagne une version (une migration de plus). Une page de A reste ouverte pendant que B s'ouvre ailleurs. Rien n'est
 // perdu ni cassé : B relit tout à l'identique (partie en cours comprise), la page de A se recharge en B, le service
 // worker de B remplace celui de A et n'efface que les anciennes copies de fichiers.
 import { test } from 'node:test';
@@ -13,7 +13,7 @@ import { ready, readDb, settle, snapshot, throwDarts, validate, createPlayer, ne
 
 const pw = await loadPlaywright();
 
-/** Copie du site, version `tag` ; `v2` : la base gagne une migration (index des parties par date). */
+/** Copie du site, version `tag` ; `v2` : la base gagne une migration (index des parties par date), version N + 1. */
 function publish(dir, tag, { v2 = false } = {}) {
   for (const d of ['assets', 'src']) cpSync(join(ROOT, d), join(dir, d), { recursive: true });
   cpSync(join(ROOT, 'manifest.webmanifest'), join(dir, 'manifest.webmanifest'));
@@ -22,15 +22,15 @@ function publish(dir, tag, { v2 = false } = {}) {
   if (v2) {
     const file = join(dir, 'src/data/db.js');
     const src = readFileSync(file, 'utf8');
-    const end = "    db.createObjectStore('settings');\n  },\n]);";
+    const end = '\n]);\n\nexport const DB_VERSION';
     assert.ok(src.includes(end), 'fin de la liste des migrations repérée');
-    writeFileSync(file, src.replace(end, "    db.createObjectStore('settings');\n  },\n  (db, tx) => { tx.objectStore('games').createIndex('startedAt', 'startedAt'); },\n]);"));
+    writeFileSync(file, src.replace(end, "\n  (db, tx) => { tx.objectStore('games').createIndex('startedAt', 'startedAt'); },\n]);\n\nexport const DB_VERSION"));
   }
 }
 
 const cacheKeys = page => page.evaluate(() => caches.keys());
 
-test('mise à jour (service worker et base v2) : aucune donnée perdue ni cassée', { skip: !pw && 'Playwright absent', timeout: 120e3 }, async () => {
+test('mise à jour (service worker et base N + 1) : aucune donnée perdue ni cassée', { skip: !pw && 'Playwright absent', timeout: 120e3 }, async () => {
   const dir = mkdtempSync(join(tmpdir(), 'strela-maj-'));
   const srv = await serve(dir);
   const url = srv.url.replace('127.0.0.1', 'localhost'); // service worker autorisé (contexte sûr)
@@ -55,7 +55,8 @@ test('mise à jour (service worker et base v2) : aucune donnée perdue ni cassé
     await settle(pageA);
     const before = await readDb(pageA);
     const screen = await snapshot(pageA);
-    assert.equal(before.version, 1);
+    const { DB_VERSION } = await import('../src/data/db.js');
+    assert.equal(before.version, DB_VERSION);
 
     // Version B publiée ; la page de A reste ouverte (elle sera prévenue et se rechargera).
     publish(dir, 'maj-B', { v2: true });
@@ -67,8 +68,8 @@ test('mise à jour (service worker et base v2) : aucune donnée perdue ni cassé
     assert.equal(await pageB.innerText('.home-ver'), 'vmaj-B');
     assert.equal(await pageB.locator('a.resume').getAttribute('href'), '#/jeu', 'REPRENDRE la partie en cours');
     const after = await readDb(pageB);
-    assert.equal(after.version, 2, 'base mise à niveau');
-    assert.deepEqual({ ...after, version: 1 }, before, 'joueurs, parties, partie en cours et réglages identiques');
+    assert.equal(after.version, DB_VERSION + 1, 'base mise à niveau');
+    assert.deepEqual({ ...after, version: DB_VERSION }, before, 'joueurs, parties, partie en cours et réglages identiques');
     await pageB.click('a.resume');
     await pageB.waitForSelector('.game');
     assert.deepEqual(await snapshot(pageB), screen, 'partie retrouvée à l’identique');

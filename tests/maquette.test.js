@@ -58,7 +58,7 @@ describe('maquette', () => {
     assert.equal(m.display, 'fullscreen');
     assert.equal(m.orientation, 'any', 'portrait et paysage (saisie sur la cible)');
     assert.equal(m.background_color.toUpperCase(), '#0A0C0E');
-    assert.equal(m.short_name, 'СТРЕЛА');
+    assert.equal(m.short_name, 'Strela');
     for (const i of m.icons) assert.ok(existsSync(new URL(i.src, root)), i.src);
     assert.ok(m.icons.some(i => i.purpose === 'maskable'));
     const sw = read('sw.js');

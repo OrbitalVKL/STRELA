@@ -23,7 +23,7 @@ export const store = {
   settings: { theme: 'auto', night: false, vibrate: true, anim: true, sound: true, voice: true },
   maquette: false,
   // Base du téléphone : version, erreur éventuelle, stockage persistant (affichés dans le diagnostic des Réglages)
-  db: { version: null, error: null, persisted: null, unreadable: 0 },
+  db: { version: null, error: null, persisted: null, unreadable: 0, openCode: null, writeFail: null },
 };
 
 // ------------------------------------------------------------------ base du téléphone
@@ -32,13 +32,47 @@ let db = null; // null : rien n'est écrit (maquette, ou base indisponible)
 /** Écritures en cours (les tests attendent qu'elles soient finies). */
 export const saving = { pending: 0, done: 0 };
 
+/** Appelé quand une écriture échoue ou réussit de nouveau (l'appli redessine l'écran : alerte d'enregistrement). */
+let onStorageChange = () => {};
+export const setStorageListener = fn => { onStorageChange = fn; };
+
 function write(ops) {
   if (!db || !ops.length) return Promise.resolve();
   saving.pending++;
   return db.write(ops).then(
-    () => { store.db.error = null; },
-    e => { store.db.error = `écriture refusée (${(e && e.name) || e})`; },
+    () => { const was = store.db.writeFail; store.db.error = null; store.db.writeFail = null; if (was) onStorageChange(); },
+    e => {
+      // Stockage plein (QuotaExceededError) ou écriture refusée : l'état en mémoire est gardé, l'écran le dit.
+      const name = (e && e.name) || String(e);
+      store.db.error = `écriture refusée (${name})`;
+      store.db.writeFail = { full: /Quota/i.test(name) || /quota|space|full/i.test((e && e.message) || ''), name, at: Date.now() };
+      onStorageChange();
+    },
   ).finally(() => { saving.pending--; saving.done++; });
+}
+
+/**
+ * Problème d'enregistrement à montrer (lot 4), ou null : 'newer' (base d'une version plus récente), 'open' (base
+ * inaccessible : rien ne sera gardé), 'full' (stockage plein), 'write' (écriture refusée).
+ */
+export function storageIssue() {
+  if (store.maquette && !store.mockIssue) return null;
+  if (store.db.openCode === 'NEWER') return { kind: 'newer' };
+  if (store.db.openCode) return { kind: 'open', detail: store.db.error };
+  if (store.db.writeFail) return { kind: store.db.writeFail.full ? 'full' : 'write', detail: store.db.writeFail.name };
+  return null;
+}
+
+/** RÉESSAYER après un stockage plein : tout ce qui est en mémoire est réécrit, en une seule transaction. */
+export function resaveAll() {
+  const ops = [
+    ...store.players.map(p => ({ store: 'players', put: playerRecord(p) })),
+    ...store.games.map(g => ({ store: 'games', put: g })),
+    ...(store.current ? [{ store: 'games', put: currentRecord(store.current) }] : []),
+    { store: 'settings', key: 'display', put: { ...store.settings } },
+    ...(store.lastSetup ? [{ store: 'settings', key: 'lastSetup', put: store.lastSetup }] : []),
+  ];
+  return write(ops);
 }
 
 /** La base peut-elle relire cette partie ? (une partie illisible est gardée dans la base, pas affichée) */

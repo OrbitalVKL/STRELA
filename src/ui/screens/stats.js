@@ -6,7 +6,8 @@ import { esc, ico, topBar, avg, pct, int, shortDate, plural, when, OUT_SHORT } f
 import { avatarHtml } from '../avatars.js';
 import { playerStats, inPeriod, faceToFace } from '../../engine/stats.js';
 import { boardSvg } from '../board.js';
-import { refresh } from '../nav.js';
+import { refresh, go } from '../nav.js';
+import { isDeletedId } from '../../engine/players.js';
 
 let period = '30j';
 let picked = { board: null, point: null };
@@ -65,8 +66,14 @@ export function statsScreen(id) {
   const head = `${chips}<div class="pad" style="margin-top:10px"><div class="seg">${seg('7j', '7 jours')}${seg('30j', '30 jours')}${seg('tout', 'Tout')}</div></div>`;
 
   if (!st.played) {
+    // Écran vide (lot 4) : ce qui manque, et quoi faire — élargir la période s'il a joué avant, sinon lancer une partie.
+    const ever = playerStats(store.games, pid).played;
+    const action = ever && period !== 'tout'
+      ? `<button type="button" class="btn primary" data-act="period" data-arg="tout">VOIR DEPUIS TOUJOURS</button>`
+      : '<a class="btn primary" href="#/nouvelle">NOUVELLE PARTIE</a>';
+    const why = ever ? 'n\'a pas joué sur cette période.' : 'n\'a encore terminé aucune partie : ses statistiques apparaîtront après la première.';
     return `<div class="screen">${topBar('Stats', '#/')}${head}
-      <div class="empty"><div class="big">AUCUNE PARTIE</div><p><span class="nm">${esc(p.name)}</span> n'a pas joué sur cette période.</p></div></div>`;
+      <div class="empty"><div class="big">AUCUNE PARTIE</div><p><span class="nm">${esc(p.name)}</span> ${why}</p>${action}</div></div>`;
   }
 
   // Face-à-face : bilan en toutes lettres, un appui ouvre le détail (lot 3)
@@ -125,7 +132,21 @@ function faceRow(r, me, op) {
   </a></li>`;
 }
 
+/** Face-à-face sans partie commune (lot 4) : élargir la période, ou lancer une partie entre eux. */
+function faceEmpty(pid, oid, f) {
+  const ever = faceToFace(store.games, pid, oid).games.length;
+  const can = !isDeletedId(oid) && !isDeletedId(pid) && [pid, oid].every(id => !playerById(id).archived);
+  const action = ever && period !== 'tout'
+    ? '<button type="button" class="btn primary" data-act="period" data-arg="tout">VOIR DEPUIS TOUJOURS</button>'
+    : can ? `<button type="button" class="btn primary" data-act="face-play" data-arg="${esc(pid)}|${esc(oid)}">JOUER UNE PARTIE ENTRE EUX</button>` : '';
+  const why = ever ? 'Pas de partie terminée entre eux sur cette période.'
+    : `Ils n'ont encore terminé aucune partie ensemble${f.abandoned.length ? ' (les abandonnées ne comptent pas)' : ''}.`;
+  return `<div class="empty" style="padding-top:24px"><div class="big">AUCUNE PARTIE</div><p>${why}</p>${action}</div>`;
+}
+
 export function faceScreen(pid, oid) {
+  const known = id => isDeletedId(id) || store.players.some(p => p.id === id);
+  if (!known(pid) || !known(oid)) { go(known(pid) ? `#/stats/${pid}` : '#/stats', { replace: true }); return ''; }
   const me = playerById(pid), op = playerById(oid);
   const f = faceToFace(inPeriod(store.games, period), pid, oid);
   const seg = (v, l) => `<button type="button" data-act="period" data-arg="${v}" aria-pressed="${period === v}">${l}</button>`;
@@ -137,7 +158,7 @@ export function faceScreen(pid, oid) {
         <span class="fl">MANCHES : <b>${words(f.legsWon, 'GAGNÉE', 'GAGNÉES')} · ${words(f.legsLost, 'PERDUE', 'PERDUES')}</b></span></div>
        <div class="sec">Parties communes <span class="n">${played}</span></div>
        <ul class="flist">${f.games.map(r => faceRow(r, me, op)).join('')}</ul>`
-    : `<div class="empty" style="padding-top:24px"><div class="big">AUCUNE PARTIE</div><p>Pas de partie terminée entre eux sur cette période.</p></div>`;
+    : faceEmpty(pid, oid, f);
   const ab = f.abandoned.length
     ? `<div class="sec">Abandonnées <span class="n">${f.abandoned.length}</span></div><p class="note" style="margin:0 0 10px">Elles ne comptent pas dans le bilan.</p>
        <ul class="flist">${f.abandoned.map(r => faceRow(r, me, op)).join('')}</ul>`
@@ -152,6 +173,13 @@ export function faceScreen(pid, oid) {
 
 export const actions = {
   period(v) { period = v; picked = { board: null, point: null }; refresh(); },
+  // Nouvelle partie préparée avec les deux joueurs du face-à-face (derniers réglages de départ et de sortie).
+  'face-play'(arg) {
+    const players = String(arg).split('|');
+    const last = store.lastSetup || {};
+    store.setupDraft = { startScore: last.startScore || 501, outMode: last.outMode || 'double', legsToWin: last.legsToWin || 1, players, confirm: false };
+    go('#/nouvelle');
+  },
   board(arg) { picked.board = picked.board === arg ? null : arg; refresh(); },
   point(i) { picked.point = picked.point === Number(i) ? null : Number(i); refresh(); },
 };

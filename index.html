@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-<title>СТРЕЛА · Strela</title>
-<meta name="description" content="Strela (СТРЕЛА) — compteur de fléchettes X01 hors ligne, enregistré sur le téléphone.">
+<title>STRELA</title>
+<meta name="description" content="Strela — compteur de fléchettes X01 hors ligne, enregistré sur le téléphone.">
 <meta name="theme-color" content="#0A0C0E">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
@@ -12,10 +12,11 @@
 <link rel="apple-touch-icon" href="assets/icon-192.png">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preload" href="assets/fonts/martian-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="assets/fonts/martian-mono-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="assets/theme.css">
 <link rel="stylesheet" href="assets/app.css">
 <link rel="modulepreload" href="src/ui/app.js">
+<!-- Écran de secours (lot 4) : script classique, chargé avant l'appli, pour ne jamais laisser une page vide. -->
+<script src="src/ui/rescue.js"></script>
 <script>
   // Thème choisi (Auto / Sombre / Clair) et mode nuit, appliqués avant l'affichage pour éviter un éclair.
   try {
@@ -27,7 +28,7 @@
 </script>
 </head>
 <body>
-<div id="app"><div class="screen"><div class="home-head inv"><h1 class="home-title">СТРЕЛА</h1></div></div></div>
+<div id="app"><div class="screen home v-bande"><div class="home-head"><h1 class="home-title">STRELA</h1></div></div></div>
 <noscript><p style="padding:16px">Strela a besoin de JavaScript.</p></noscript>
 <!-- Informations du build, remplies par tools/build-site.mjs (lues par src/ui/build.js). -->
 <div id="build" hidden>

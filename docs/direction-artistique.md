@@ -29,6 +29,21 @@ Aucune couleur n'est interdite dans une partie : deux joueurs peuvent garder la 
 rouge prend le rouge de base `#9E4A4A` (5,1:1). `#F6ECEC` vient de Grafit (REDINK).
 Le discret (`--faint`) sert aux filets et aux éléments vraiment secondaires, pas à du texte à lire.
 
+## Titre et rouge d'accent (lot 4)
+
+- Le titre de l'appli s'écrit en lettres latines : **STRELA** (plus de titre russe), partout : accueil, titre de la
+  page, manifeste (« Strela »), appli Android (« Strela »). L'icône ne porte pas de texte.
+- **Rouge d'accent**, réservé aux écrans hors jeu (en jeu, le rouge ne sert qu'au bust) et utilisé avec retenue :
+  seulement sur l'accueil (et l'écran de secours). Jetons existants : aplat `--red`, texte `--red-ink` (5,8:1, mêmes
+  valeurs en sombre et en clair), texte rouge `--red-text`.
+- Deux variantes comparées au sommaire de maquette ; **retenue : A « bande »** — bande de titre en aplat rouge (STRELA
+  en `--red-ink`), action principale de l'accueil en aplat rouge (NOUVELLE PARTIE, ou CRÉER LES JOUEURS au premier
+  lancement) ; derrière REPRENDRE, NOUVELLE PARTIE n'a plus qu'un filet rouge (une seule action forte à l'écran).
+  B « filet » : titre en texte rouge sur le fond, filet rouge de 4 px dessous et filet rouge au-dessus du pied, même
+  bouton. A gagne : on reconnaît l'appli au premier coup d'œil, de loin, et le reste de l'accueil reste sobre (tuiles
+  neutres) ; en B, le titre rouge sur fond clair perd de sa force et les filets se voient à peine.
+- Alertes d'enregistrement (stockage plein, base inaccessible) : encadré à filet rouge, titre en `--red-text`.
+
 ## Thème
 
 `<html data-theme="auto|dark|light">`. Auto (défaut) suit le réglage du téléphone
