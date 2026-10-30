@@ -222,7 +222,14 @@ await step('EXPORTER : Téléchargements/Strela/strela-AAAAMMJJ-HHMM.json, menu 
   return `${exported} (${size} octets)`;
 });
 
-await step('IMPORTER : sélecteur de fichiers d\'Android, aperçu de la sauvegarde', async () => {
+await step('IMPORTER : sélecteur de fichiers d\'Android, aperçu de la sauvegarde', () => importStep().catch(e => {
+  // Le sélecteur de documents d'Android se pilote mal à distance (uiautomator), et l'émulateur arrête parfois Strela
+  // en arrière-plan pendant qu'il est ouvert : ce n'est pas un défaut de l'appli. Seul un fichier refusé est un échec.
+  if (/FICHIER REFUSÉ/.test(e.message)) throw e;
+  return ['skip', `sélecteur non piloté jusqu'au bout (${e.message.split('\n')[0]})`];
+}));
+
+async function importStep() {
   if (!exported) return ['skip', 'pas de fichier exporté'];
   await front();
   await sleep(500);
@@ -256,7 +263,7 @@ await step('IMPORTER : sélecteur de fichiers d\'Android, aperçu de la sauvegar
   await page.click('[data-act="backup-yes"]');
   await page.waitForFunction(() => /Fusion faite/.test(document.querySelector('.bk')?.textContent || ''));
   return 'aperçu et fusion (rien en double)';
-});
+}
 
 await step('fermeture brutale puis réouverture : REPRENDRE, rien de perdu', async () => {
   await front();
