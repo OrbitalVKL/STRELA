@@ -113,7 +113,13 @@ function voiceBlock() {
 // ------------------------------------------------------------------ appli Android (lot 5)
 // État de la mise à jour, envoyé par la coquille (Updater.java) : { current, latest, available, state, progress, msg }.
 let upd = null;
-onNative(d => { if (d.update) { upd = d.update; if (location.hash === '#/reglages') refresh(); } });
+onNative(d => {
+  if (d.update) { upd = d.update; if (location.hash === '#/reglages') refresh(); }
+  // Sauvegarde choisie pendant qu'Android avait fermé l'appli (sélecteur de fichiers) : relue par la coquille.
+  if (d.importFile && typeof d.importFile.text === 'string') {
+    onBackupFile(new File([d.importFile.text], String(d.importFile.name || 'sauvegarde.json'), { type: 'application/json' }));
+  }
+});
 
 /** Données de l'APK (désinstallation) et mise à jour depuis l'appli ; rien dans le navigateur. */
 function apkBlock() {

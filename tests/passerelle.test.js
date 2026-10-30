@@ -81,6 +81,14 @@ test('APK (passerelle simulée) : vibreur, voix, export, écran, gestes, retour,
     assert.deepEqual(db.players.map(p => p.name).sort(), ['Alpha', 'Bravo']);
     assert.equal(db.games.length, 1);
 
+    // Sauvegarde relue par la coquille après une fermeture par Android pendant le sélecteur : aperçu proposé
+    await page.evaluate(() => { location.hash = '#/'; });
+    await page.waitForSelector('.home-main');
+    await page.evaluate(text => window.dispatchEvent(new CustomEvent('strela-native', { detail: { importFile: { name: 'strela-20261030-2118.json', text } } })), JSON.stringify(web));
+    await page.waitForSelector('[data-act="backup-mode"][data-arg="merge"]');
+    assert.match(await page.textContent('.bk-prev'), /strela-20261030-2118\.json/);
+    await page.click('[data-act="backup-cancel"]');
+
     // Réglages : vibreur natif, voix d'Android, diagnostic, avertissement, mise à jour
     await clear(page);
     await page.click('[data-act="test-vibrate"]');

@@ -57,6 +57,7 @@ public class MainActivity extends Activity {
     volatile int backs = 0;                 // retours reçus (diagnostic, vérification sur émulateur)
     int gestureCss = 0;                     // zone des gestes en bas, en px CSS, au-delà de la marge déjà laissée
     ValueCallback<Uri[]> fileCallback;      // sélecteur de fichiers de la page en attente
+    JSONObject pendingImport;               // sauvegarde choisie pendant que l'appli était recréée (voir onActivityResult)
     Uri photoUri;                           // photo en cours de prise de vue
 
     @Override
@@ -125,6 +126,9 @@ public class MainActivity extends Activity {
             public void onPageFinished(WebView v, String url) {
                 pageReady = true;
                 pushGesture();
+                if (pendingImport != null) {
+                    try { JSONObject d = new JSONObject(); d.put("importFile", pendingImport); pendingImport = null; push(d); } catch (Exception e) { /* */ }
+                }
             }
         });
         web.setWebChromeClient(new WebChromeClient() {
@@ -211,7 +215,13 @@ public class MainActivity extends Activity {
     protected void onActivityResult(int req, int res, Intent data) {
         super.onActivityResult(req, res, data);
         Log.i("Strela", "fichier choisi : " + res + " " + (data != null ? data.getData() : null) + (fileCallback == null ? " (page perdue)" : ""));
-        if (req != REQ_FILE || fileCallback == null) return;
+        if (req != REQ_FILE) return;
+        if (fileCallback == null) {
+            // Android a fermé l'appli pendant le sélecteur (mémoire) : la page n'attend plus rien. Une sauvegarde choisie
+            // n'est pas perdue pour autant : relue ici et remise à la page dès qu'elle est prête (événement importFile).
+            if (res == RESULT_OK && data != null && data.getData() != null) readPendingImport(data.getData());
+            return;
+        }
         Uri[] out = null;
         if (res == RESULT_OK) {
             if (data != null && data.getData() != null) out = new Uri[]{data.getData()};
@@ -220,6 +230,30 @@ public class MainActivity extends Activity {
         }
         fileCallback.onReceiveValue(out);
         fileCallback = null;
+    }
+
+    void readPendingImport(Uri u) {
+        new Thread(() -> {
+            try {
+                String name = "sauvegarde.json";
+                try (android.database.Cursor c = getContentResolver().query(u, new String[]{android.provider.OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+                    if (c != null && c.moveToFirst() && c.getString(0) != null) name = c.getString(0);
+                }
+                if (!name.toLowerCase(java.util.Locale.ROOT).endsWith(".json")) return; // une photo : la page la redemandera
+                java.io.ByteArrayOutputStream bo = new java.io.ByteArrayOutputStream();
+                try (java.io.InputStream in = getContentResolver().openInputStream(u)) {
+                    byte[] b = new byte[65536]; int n;
+                    while (in != null && (n = in.read(b)) > 0) { bo.write(b, 0, n); if (bo.size() > 200 * 1048576) throw new IllegalStateException("trop lourd"); }
+                }
+                JSONObject f = new JSONObject();
+                f.put("name", name);
+                f.put("text", bo.toString("UTF-8"));
+                runOnUiThread(() -> {
+                    if (pageReady) { try { JSONObject d = new JSONObject(); d.put("importFile", f); push(d); } catch (Exception e) { /* */ } }
+                    else pendingImport = f;
+                });
+            } catch (Exception e) { Log.w("Strela", "sauvegarde illisible : " + e.getMessage()); }
+        }).start();
     }
 
     // ------------------------------------------------------------------ écran (pilotés par la page)

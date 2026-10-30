@@ -91,6 +91,18 @@ await step('voix et vibreur natifs (état rapporté par Android)', async () => {
   return `voix ${v[0]} · vibreur ${v[1]}`;
 });
 
+await step('bouton retour hors partie : Réglages → accueil', async () => {
+  await page.evaluate(() => { location.hash = '#/reglages'; });
+  await page.waitForSelector('#diag');
+  const focus = (await sh('dumpsys window | grep -m1 -E "mCurrentFocus"')).replace(/\s+/g, ' ');
+  const before = await page.evaluate(() => window.strelaNative.backCount());
+  await sh('input keyevent KEYCODE_BACK');
+  const ok = await page.waitForSelector('.home-main', { timeout: 6e3 }).then(() => true, () => false);
+  const got = (await page.evaluate(() => window.strelaNative.backCount())) - before;
+  if (!ok) throw new Error(`toujours dans les Réglages (retour reçu par la coquille ${got} fois ; ${focus})`);
+  return `retour reçu par la coquille ${got} fois`;
+});
+
 await step('une partie : joueurs, fléchettes, VALIDER, enregistrées dans la base', async () => {
   await createPlayer(page, 'Alpha');
   await createPlayer(page, 'Bravo');
@@ -144,7 +156,7 @@ await step('bouton retour en partie : menu pause, pas de sortie', async () => {
   if (!(await page.evaluate(() => location.hash)).includes('jeu')) { await page.evaluate(() => { location.hash = '#/jeu'; }); await page.waitForSelector('.game'); }
   await page.evaluate(() => { const f = window.strelaBack; window.__backs = 0; window.strelaBack = () => { window.__backs++; return f(); }; });
   const ime = await sh('dumpsys input_method | grep -m1 -oE "mInputShown=[a-z]+"');
-  const focus = await sh('dumpsys window | grep -m1 -E "mCurrentFocus"');
+  const focus = (await sh('dumpsys window | grep -m1 -E "mCurrentFocus"')).replace(/\s+/g, ' ');
   const before = Number(await page.evaluate(() => window.strelaNative.backCount ? window.strelaNative.backCount() : -1));
   // Deux façons d'appuyer sur retour : adb (input keyevent), puis le pilote de Playwright (injection d'événement).
   await sh('input keyevent KEYCODE_BACK');
