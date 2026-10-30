@@ -9,6 +9,8 @@ import android.graphics.Insets;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.util.Log;
+import android.view.KeyEvent;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
@@ -60,6 +62,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        Log.i("Strela", "onCreate" + (state != null ? " (activité recréée)" : ""));
         speech = new Speech(this);
         updater = new Updater(this);
         bridge = new Bridge(this);
@@ -112,6 +115,11 @@ public class MainActivity extends Activity {
                 if (HOST.equals(u.getHost())) return false;
                 try { startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (Exception e) { /* aucun navigateur */ }
                 return true;
+            }
+            // Touche retour : jamais confiée à la page web (la WebView la garderait pour elle) ; l'activité la traite.
+            @Override
+            public boolean shouldOverrideKeyEvent(WebView v, KeyEvent e) {
+                return e.getKeyCode() == KeyEvent.KEYCODE_BACK || super.shouldOverrideKeyEvent(v, e);
             }
             @Override
             public void onPageFinished(WebView v, String url) {
@@ -202,6 +210,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int req, int res, Intent data) {
         super.onActivityResult(req, res, data);
+        Log.i("Strela", "fichier choisi : " + res + " " + (data != null ? data.getData() : null) + (fileCallback == null ? " (page perdue)" : ""));
         if (req != REQ_FILE || fileCallback == null) return;
         Uri[] out = null;
         if (res == RESULT_OK) {
@@ -270,12 +279,27 @@ public class MainActivity extends Activity {
     @SuppressWarnings("deprecation")
     public void onBackPressed() { goBack(); }
 
+    /** Touche retour (clavier, adb, navigation à 3 boutons) prise avant la WebView, qui sinon la garde pour elle. */
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent e) {
+        if (e.getKeyCode() == KeyEvent.KEYCODE_BACK) {
+            if (e.getAction() == KeyEvent.ACTION_UP && !e.isCanceled()) goBack();
+            return true;
+        }
+        return super.dispatchKeyEvent(e);
+    }
+
+    long lastBack = 0;
+
     void goBack() {
+        long now = android.os.SystemClock.uptimeMillis();
+        if (now - lastBack < 250) return;   // le même retour arrivé par deux chemins (touche et geste)
+        lastBack = now;
         backs++;
-        android.util.Log.i("Strela", "retour (page prête : " + pageReady + ")");
+        Log.i("Strela", "retour (page prête : " + pageReady + ")");
         if (!pageReady) { moveTaskToBack(true); return; }
         web.evaluateJavascript("window.strelaBack ? window.strelaBack() : false", v -> {
-            android.util.Log.i("Strela", "retour traité par la page : " + v);
+            Log.i("Strela", "retour traité par la page : " + v);
             if (!"true".equals(v)) moveTaskToBack(true);
         });
     }

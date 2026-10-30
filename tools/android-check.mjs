@@ -208,7 +208,10 @@ await step('IMPORTER : sélecteur de fichiers d\'Android, aperçu de la sauvegar
     await sh('input keyevent KEYCODE_BACK');
     return ['skip', `fichier introuvable dans le sélecteur (automatisation) ; à l'écran : ${seen.join(' / ')}`];
   }
-  await page.waitForSelector('[data-act="backup-mode"][data-arg="merge"]', { timeout: 15e3 });
+  await sleep(1500);
+  await front(); // la page a pu être recréée pendant le sélecteur : on la reprend
+  const preview = await page.waitForSelector('[data-act="backup-mode"][data-arg="merge"]', { timeout: 15e3 }).then(() => true, () => false);
+  if (!preview) { await shot('6-apres-selecteur'); throw new Error(`pas d'aperçu après le choix du fichier ; à l'écran : ${(await screenTexts()).join(' / ')}`); }
   await shot('6-apercu-import');
   await page.click('[data-act="backup-mode"][data-arg="merge"]');
   await page.click('[data-act="backup-yes"]');
