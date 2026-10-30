@@ -70,27 +70,56 @@ function render() {
 setRenderer(render);
 
 // ------------------------------------------------------------------ événements (délégués)
-// Un clic ne compte que si le doigt s'est posé sur la même commande : après une touche du pavé (qui agit dès
-// l'appui et redessine l'écran), le clic qui suit tomberait sinon sur ce qui est apparu dessous (VALIDER).
+// Un clic ne compte que si le doigt s'est posé sur la même commande : après une touche du pavé (qui redessine
+// l'écran), le clic qui suit tomberait sinon sur ce qui est apparu dessous.
 let downAct = null;
 const actKey = el => (el ? `${el.dataset.act}|${el.dataset.arg ?? ''}` : null);
 app.addEventListener('pointerdown', ev => { downAct = actKey(ev.target.closest('[data-act]')); }, true);
 app.addEventListener('click', ev => {
   const el = ev.target.closest('[data-act]');
   if (!el || el.disabled) return;
+  if (ev.detail !== 0 && el.matches('[data-press]')) return; // déjà traité au relâcher (ci-dessous)
   if (ev.detail !== 0 && actKey(el) !== downAct) return; // detail 0 : clavier ou clic programmé
   const fn = ACTIONS[el.dataset.act];
   if (!fn) return;
   if (el.tagName === 'A') ev.preventDefault();
   fn(el.dataset.arg, el, ev);
 });
-// Pavé de jeu : la touche agit dès l'appui (pas d'attente du relâchement).
+
+// Touches « au relâcher » (lot 3) : pavé (data-key), VALIDER, pause et petite cible du jeu (data-press). Retour
+// visuel dès l'appui (classe hit) ; l'action part au relâcher, seulement si le doigt n'a pas glissé de plus de
+// PRESS_SLOP px et qu'aucun pointercancel n'est arrivé : Android en envoie un quand il prend le geste (remonter du bas
+// de l'écran pour les applis récentes), et rien n'est alors saisi. La saisie reste immédiate au relâcher.
+export const PRESS_SLOP = 10;
+const presses = new Map(); // pointerId → { el, sel, x, y }
+const pressSel = el => (el.dataset.key !== undefined ? `[data-key="${el.dataset.key}"]`
+  : `[data-act="${el.dataset.act}"]${el.dataset.arg !== undefined ? `[data-arg="${el.dataset.arg}"]` : ''}`);
+const drop = id => {
+  const p = presses.get(id);
+  if (p) { p.el.classList.remove('hit'); presses.delete(id); }
+  return p;
+};
 app.addEventListener('pointerdown', ev => {
-  const el = ev.target.closest('[data-key]');
+  const el = ev.target.closest('[data-key], [data-press]');
   if (!el || el.disabled || (ev.pointerType === 'mouse' && ev.button !== 0)) return;
   ev.preventDefault();
-  key(el.dataset.key);
+  drop(ev.pointerId);
+  presses.set(ev.pointerId, { el, sel: pressSel(el), x: ev.clientX, y: ev.clientY });
+  el.classList.add('hit');
 });
+const moved = (p, ev) => Math.hypot(ev.clientX - p.x, ev.clientY - p.y) > PRESS_SLOP;
+window.addEventListener('pointermove', ev => { const p = presses.get(ev.pointerId); if (p && moved(p, ev)) drop(ev.pointerId); }, true);
+window.addEventListener('pointercancel', ev => { drop(ev.pointerId); }, true);
+window.addEventListener('pointerup', ev => {
+  const p = drop(ev.pointerId);
+  if (!p || moved(p, ev)) return;
+  // L'écran a pu être redessiné entre l'appui et le relâcher (fin de l'annonce « À TOI ») : même commande, nouvel élément.
+  const el = p.el.isConnected ? p.el : app.querySelector(p.sel);
+  if (!el || el.disabled) return;
+  if (el.dataset.key !== undefined) { key(el.dataset.key); return; }
+  const fn = ACTIONS[el.dataset.act];
+  if (fn) fn(el.dataset.arg, el, null);
+}, true);
 app.addEventListener('keydown', ev => {
   const el = ev.target.closest('[data-key]');
   if (el && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); key(el.dataset.key); }

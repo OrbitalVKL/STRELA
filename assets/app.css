@@ -1,6 +1,11 @@
 /* Strela — styles des écrans (lot 1, maquette). Uniquement les jetons de theme.css : aucune couleur en dur.
    Console Soyuz : filets de 1 px, angles droits, capitales espacées, vidéo inverse pour l'état actif. */
 
+/* Marge basse du jeu : au moins la zone des gestes système d'Android (remonter du bas de l'écran). La page web ne
+   peut pas la mesurer (env(safe-area-inset-bottom) vaut souvent 0 en plein écran avec la navigation par gestes) :
+   16 px au moins ; l'APK (lot 5) pourra lire les vrais encarts (getMandatorySystemGestureInsets). */
+:root { --gesture-bottom: max(env(safe-area-inset-bottom, 0px), 16px); }
+
 html, body { min-height: 100%; }
 body {
   font-size: 15px;
@@ -238,7 +243,7 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 .game {
   height: 100vh; height: 100dvh; max-width: 560px; margin: 0 auto;
   display: flex; flex-direction: column; overflow: hidden;
-  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) max(env(safe-area-inset-bottom, 0px), 12px) env(safe-area-inset-left, 0px);
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) var(--gesture-bottom) env(safe-area-inset-left, 0px);
   position: relative;
 }
 /* Haut de l'écran (bandeau + reste) : c'est là que s'affiche l'annonce « À TOI » */
@@ -418,7 +423,7 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 /* ---------------------------------------------------------------- JEU en paysage : tableau à gauche, cible à droite */
 .game.land {
   max-width: none; flex-direction: row; gap: 10px;
-  padding: max(env(safe-area-inset-top, 0px), 6px) max(env(safe-area-inset-right, 0px), 6px) max(env(safe-area-inset-bottom, 0px), 6px) max(env(safe-area-inset-left, 0px), 6px);
+  padding: max(env(safe-area-inset-top, 0px), 6px) max(env(safe-area-inset-right, 0px), 6px) var(--gesture-bottom) max(env(safe-area-inset-left, 0px), 6px);
 }
 .land .lcol { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .land .gband { min-height: 70px; }

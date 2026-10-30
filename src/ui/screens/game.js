@@ -88,7 +88,7 @@ function band(v, slide) {
       ${avatarHtml(player, 56)}
       <div class="who"><span class="nm" data-shrink>${esc(player.name)}</span>
         <span class="legs" data-fit="4">${state}<span class="mn"><span class="lg">MANCHE </span><span class="sh">M</span>${s.legNumber}</span>${legs}</span></div>
-      <button type="button" class="pause" data-act="pause" aria-label="Pause">${ico('pause')}</button>
+      <button type="button" class="pause" data-act="pause" data-press aria-label="Pause">${ico('pause')}</button>
     </header>`;
 }
 
@@ -151,8 +151,8 @@ function others(v) {
 // permet. Le joueur suivant n'est indiqué qu'une fois : dans la bande des autres (« SUIVANT »).
 function validateButton(v, cls = '') {
   const over = cls.includes('over');
-  if (!v.pend) return `<button type="button" class="validate ${cls}" data-act="validate"${over ? ' data-layer' : ' data-shrink'} disabled>VALIDER<small>après 3 fléchettes</small></button>`;
-  return `<button type="button" class="validate go ${cls}" data-act="validate"${over ? ' data-layer' : ''} style="--pc:${colorOf(v.player)}"><span class="vl" data-shrink>VALIDER</span></button>`;
+  if (!v.pend) return `<button type="button" class="validate ${cls}" data-act="validate" data-press${over ? ' data-layer' : ' data-shrink'} disabled>VALIDER<small>après 3 fléchettes</small></button>`;
+  return `<button type="button" class="validate go ${cls}" data-act="validate" data-press${over ? ' data-layer' : ''} style="--pc:${colorOf(v.player)}"><span class="vl" data-shrink>VALIDER</span></button>`;
 }
 
 function announce(v) {
@@ -167,7 +167,7 @@ function announce(v) {
 // Petite cible : seulement la volée en cours (marques rondes 1, 2, 3) ; elle se vide à chaque nouvelle volée.
 function smallBoard(v) {
   const impacts = impactsFor(v.g, v.s, v.visitIdx, { previous: false });
-  return `<button type="button" class="mini-board" data-act="open-board" aria-label="Agrandir la cible">${boardSvg({ size: 104, impacts, label: 'Impacts de la volée' })}</button>`;
+  return `<button type="button" class="mini-board" data-act="open-board" data-press aria-label="Agrandir la cible">${boardSvg({ size: 104, impacts, label: 'Impacts de la volée' })}</button>`;
 }
 
 // ------------------------------------------------------------------ écran
@@ -453,7 +453,7 @@ export function validate() {
   refresh();
 }
 
-/** Touche du pavé (appelée au pointerdown, pour une saisie sans délai). */
+/** Touche du pavé (appelée au relâcher, si le doigt n'a pas glissé : app.js). */
 export function key(k) {
   const g = store.current;
   if (!g || g.ui.pause || g.ui.panel) return;
