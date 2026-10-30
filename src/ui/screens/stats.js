@@ -20,7 +20,7 @@ function board(seg) {
   let max = 1;
   for (let s = 1; s <= 20; s++) max = Math.max(max, ...seg[s]);
   max = Math.max(max, seg[25][0], seg[25][1]);
-  const op = c => 0.07 + 0.93 * Math.pow(c / max, 0.6);
+  const op = c => Math.pow(c / max, 0.6); // 0 : zone jamais touchée, 1 : la plus touchée
   return boardSvg({ size: 380, heat: key => op(countOf(seg, key)), act: 'board', selected: picked.board, cls: 'board', label: 'Carte des segments touchés' });
 }
 
@@ -98,7 +98,7 @@ export function statsScreen(id) {
       ${h2h ? `<div class="sec">Face-à-face</div><ul class="h2h">${h2h}</ul>` : ''}
       <div class="sec">Segments touchés <span class="n">${st.segments.total} fl.</span></div>
       ${board(st.segments)}
-      <div class="legend"><span>peu</span><i style="opacity:.1"></i><i style="opacity:.4"></i><i style="opacity:.7"></i><i></i><span>souvent</span> · à côté : ${st.segments.miss}</div>
+      <div class="legend"><span>peu</span><i style="--k:8%"></i><i style="--k:35%"></i><i style="--k:65%"></i><i></i><span>souvent</span> · à côté : ${st.segments.miss}</div>
       <p class="note center">${readBoard}</p>
       <div class="sec">Évolution de la moyenne</div>
       ${chart(tl, st.average)}

@@ -7,7 +7,7 @@ import { esc, avg, int, OUT_LABEL, maquetteButtons } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
 import { formatDart } from '../../engine/darts.js';
 import { playerSummary } from '../../engine/stats.js';
-import { boardSvg, impactsFor } from '../board.js';
+import { boardSvg, impactsFor, markIcon } from '../board.js';
 import { go } from '../nav.js';
 import { undo } from './game.js';
 
@@ -46,7 +46,7 @@ export function legEnd() {
       <button type="button" class="btn ghost" style="margin-top:14px" data-act="undo-end">ANNULER LA DERNIÈRE FLÉCHETTE</button>
       ${store.maquette ? `<div class="mq-row">${maquetteButtons('mq')}</div>` : ''}
     </div>
-    <div class="dock"><button type="button" class="btn primary big" data-act="next-leg">MANCHE SUIVANTE</button></div>
+    <div class="dock" data-layer><button type="button" class="btn primary big" data-act="next-leg">MANCHE SUIVANTE</button></div>
   </div>`;
 }
 
@@ -75,7 +75,7 @@ export function matchEnd() {
       <button type="button" class="btn ghost" style="margin-top:14px" data-act="undo-end">ANNULER LA DERNIÈRE FLÉCHETTE</button>
       ${store.maquette ? `<div class="mq-row">${maquetteButtons('mq')}</div>` : ''}
     </div>
-    <div class="dock btns">
+    <div class="dock btns" data-layer>
       <button type="button" class="btn primary big" data-act="rematch">REVANCHE <small>${g.config.players.length > 1 ? `${esc(nextFirst.name).toUpperCase()} COMMENCE` : 'MÊMES RÉGLAGES'}</small></button>
       <button type="button" class="btn" data-act="finish-home">ACCUEIL</button>
     </div>
@@ -88,7 +88,7 @@ function finishBoard(g, s, fin, p) {
   if (idx < 0) return '';
   return `<div class="pad"><div class="sec">Cible · manche ${fin.leg}</div>
     <div class="fin-board">${boardSvg({ size: 200, impacts: impactsFor(g, s, idx), label: 'Impacts du vainqueur' })}
-      <p class="note"><span class="nm">${esc(p.name)}</span><br><b class="sq"></b> volée de la finition<br><b class="sq old"></b> ses volées précédentes</p></div></div>`;
+      <p class="note"><span class="nm">${esc(p.name)}</span><br>${markIcon(true)}volée de la finition<br>${markIcon(false)}ses volées précédentes</p></div></div>`;
 }
 
 export const actions = {

@@ -12,6 +12,8 @@ import { statsScreen, actions as statsActions } from './screens/stats.js';
 import { settingsScreen, applyTheme, actions as settingsActions } from './screens/settings.js';
 import { sommaire, actions as sommaireActions } from './screens/sommaire.js';
 import { animateRolls, rollScope } from './roll.js';
+import { fitAll } from './fit.js';
+import { SCENES } from './screens/sommaire.js';
 
 const ROUTES = [
   [/^\/?$/, home],
@@ -56,6 +58,7 @@ function render() {
   // Chiffres en rouleau (reste, total, autres joueurs) : animés depuis la valeur affichée au rendu précédent.
   rollScope(store.current ? store.current.id : null);
   animateRolls(app, animationsOn());
+  fitAll(app); // blocs compactés ou rapetissés s'ils ne tiennent pas (taille d'affichage, police du téléphone)
   if (path === '/jeu') mountGame();
   app.querySelector('[data-reveal]')?.scrollIntoView({ block: 'center' });
   keepAwake(path === '/jeu');
@@ -99,6 +102,13 @@ app.addEventListener('keydown', ev => {
 window.addEventListener('hashchange', render);
 // Rotation : l'écran de jeu change de mise en page (pavé en portrait, cible en paysage), l'état reste.
 try { matchMedia('(orientation: landscape)').addEventListener('change', () => { if (location.hash === '#/jeu') render(); }); } catch (e) { /* vieux navigateur */ }
+// Taille de la fenêtre (barres de Chrome, clavier, police) : l'écran de jeu se redessine, les autres se réajustent.
+let resizeFrame = 0;
+window.addEventListener('resize', () => {
+  cancelAnimationFrame(resizeFrame);
+  resizeFrame = requestAnimationFrame(() => { if (location.hash === '#/jeu') render(); else fitAll(app); });
+});
+try { document.fonts.ready.then(() => fitAll(app)); } catch (e) { /* vieux navigateur */ }
 try { matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { applyTheme(); render(); }); } catch (e) { /* vieux navigateur */ }
 
 // ------------------------------------------------------------------ démarrage
@@ -107,6 +117,15 @@ applyTheme();
 resetMock();
 if (new URLSearchParams(location.search).has('maquette')) {
   store.maquette = true;
+  // Accès des scripts de vérification (tools/) : états du sommaire et réajustement après un changement de police.
+  window.__strela = {
+    scene(name) { const target = SCENES[name] ? SCENES[name]() : null; if (target) { history.replaceState(null, '', target); render(); } return target; },
+    scenes: () => Object.keys(SCENES),
+    reset: () => resetMock(),
+    darts: () => (store.current ? store.current.darts.map(d => ({ ...d })) : null),
+    fit: () => fitAll(app),
+    render,
+  };
   if (!location.hash || location.hash === '#/' || location.hash === '#') history.replaceState(null, '', '#/sommaire');
 }
 render();

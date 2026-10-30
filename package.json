@@ -1,6 +1,6 @@
 {
   "name": "strela",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Strela (СТРЕЛА) — compteur de fléchettes X01 hors ligne, Android",
   "private": true,
   "type": "module",

@@ -1,5 +1,6 @@
-# Strela : tests du moteur (node --test) sur chaque demande de fusion et sur main.
-# Aucune dépendance à installer : le projet n'utilise que Node.
+# Strela : tests (node --test) sur chaque demande de fusion et sur main.
+# Le projet n'a aucune dépendance ; seul le test de chevauchement (tests/chevauchement.test.js) a besoin de Playwright
+# et de Chromium, installés ici sans toucher à package.json (grille complète : CI=true).
 name: ci
 on:
   pull_request:
@@ -19,5 +20,9 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
+      - name: Playwright (test de chevauchement)
+        run: |
+          npm install --no-save --no-package-lock playwright@1.63.0
+          npx playwright install --with-deps chromium
       - name: Tests
         run: node --test --test-reporter=spec

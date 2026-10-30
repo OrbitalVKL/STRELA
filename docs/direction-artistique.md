@@ -18,6 +18,12 @@ Atténué = 62 % du texte mélangé au fond ; discret = 30 % (même calcul que `
 | `--red-text` | texte rouge | `#C26A6A` | `#9E4A4A` (*) |
 | `--red-ink` | texte sur aplat rouge (bandeau BUST) | `#F6ECEC` | `#F6ECEC` |
 | `--inv-fg` / `--inv-bg` | vidéo inverse | `#0C0F12` sur `#CFD2D4` | `#ECEDEE` sur `#14171A` |
+| `--av-0` … `--av-7` | fonds d'avatar (les deux thèmes) : ardoise `#234870`, sapin `#3F7352`, olive `#464415`, ocre `#8B6135`, brique `#6D312C`, prune `#57385E`, pétrole `#0D7281`, graphite `#69686B` | | |
+
+Fonds d'avatar (lot 1.2) : retouchés pour que deux d'entre eux ne se confondent jamais, y compris de loin sur le
+bandeau du joueur : écart CIEDE2000 d'au moins 20 entre deux fonds (`deltaE()` de theme.js, testé), contre 6,4 pour
+l'ancien couple ardoise / graphite et 9,3 pour sapin / pétrole ; encre `#ECEDEE` lisible sur chacun (4,6:1 au moins).
+Aucune couleur n'est interdite dans une partie : deux joueurs peuvent garder la même.
 
 (*) En clair, `#C26A6A` sur `#ECEDEE` ne donne que 3,2:1 de contraste (illisible de loin) ; le texte
 rouge prend le rouge de base `#9E4A4A` (5,1:1). `#F6ECEC` vient de Grafit (REDINK).
@@ -41,8 +47,31 @@ les réglages de l'appli). La balise `theme-color` suit le fond.
 - Joueur actif (lot 1.1) : bandeau en **aplat de la couleur de fond de son avatar** (`--av-0` … `--av-7`, encre
   `--av-ink`), pour reconnaître le joueur de loin ; même aplat pour l'annonce « À TOI » et filet de cette couleur
   sur le joueur suivant. Pseudo en Martian Mono étroite (`font-stretch: 75 %`).
-- Cible : filets fins `--faint`, simples alternés fond / `--fg` à 10 %, double et triple alternés `--red` / `--fg`
-  à 40 %, numéros `--dim`. Impacts en carrés (rien d'arrondi) ; la loupe de saisie est carrée elle aussi.
+- Cible (lot 1.2) : voir ci-dessous. Seule exception au « rien d'arrondi » : la cible elle-même et ses marques
+  d'impact, rondes pour être lues comme des fléchettes plantées. La loupe de saisie reste carrée.
+
+## Cible (lot 1.2)
+
+Couleurs d'une cible réglementaire, légèrement désaturées pour rester dans la DA mais franchement rouge et vert.
+La cible est un objet physique : **mêmes couleurs en sombre et en clair** (jetons `--board-*`, définis une seule
+fois dans `:root` ; source : `BOARD_COLORS` de `src/ui/theme.js`, testé par `tests/cible.test.js`).
+
+| Jeton | Rôle | Valeur |
+|---|---|---|
+| `--board-black` | simples du 20 et d'un secteur sur deux | `#1E2022` |
+| `--board-cream` | autres simples | `#E4D9BC` |
+| `--board-red` | doubles et triples des secteurs noirs, 50 | `#B0443D` |
+| `--board-green` | doubles et triples des secteurs crème, 25 | `#2F7D50` |
+| `--board-ring` | couronne des numéros | `#151719` |
+| `--board-num` | numéros (blancs) | `#F2F0EA` |
+| `--board-wire` | fils métalliques fins entre les zones | `#A2A7AC` |
+| `--board-mark` / `--board-mark-ink` | marque d'impact : disque clair, cercle et numéro sombres | `#FAF8F2` / `#0E1012` |
+
+Ordre des numéros : 20 en haut, puis 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5 dans le sens
+horaire (`SECTORS`, `zoneTone()` de `src/engine/board.js`). Anneaux élargis (0,15 du rayon) pour la saisie au doigt.
+Marque de la volée en cours : disque clair cerclé de sombre, numéro 1, 2, 3 (lisible sur le noir comme sur le crème) ;
+volées précédentes : petit point sombre cerclé de clair. Carte des segments des stats : la cible assombrie, chaque
+zone éclairée d'autant plus qu'elle a été touchée.
 
 ## Rappel Grafit (pour les lots 4-5)
 

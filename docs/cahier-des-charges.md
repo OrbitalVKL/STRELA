@@ -88,12 +88,23 @@ L'appli accepte les deux orientations ; l'écran de jeu suit la rotation du tél
 - **Chiffres en rouleau** : quand un nombre change (reste, total de la volée, restes des autres), chaque chiffre roule
   verticalement vers sa nouvelle valeur (~300 ms), dans un sens quand le nombre baisse, dans l'autre quand il monte
   (ANNULER). Une saisie rapide interrompt l'animation et n'est jamais retardée.
-- **Cible** (SVG, DA de l'appli) : impacts de la volée en cours numérotés 1, 2, 3 ; en plus discret, ceux des volées
-  précédentes du joueur actif dans la manche. Une fléchette saisie au pavé est placée au centre de son segment ; le 0
-  n'est pas marqué. La même cible sert au détail de l'historique et aux écrans de fin de manche et de partie.
-- **Historique de la partie en cours** (menu pause, ou depuis la cible agrandie) : manche par manche, volée par volée,
-  chaque fléchette et le reste après chaque volée ; on le ferme pour revenir exactement où on en était.
-- Retours : vibration courte à chaque fléchette ; bust = zone du reste en aplat rouge + vibration longue.
+- **Cible** (SVG, lot 1.2) : aux couleurs d'une cible réglementaire (simples noir / crème, doubles et triples rouge /
+  vert, 25 vert, 50 rouge, couronne noire et numéros blancs, fils métalliques), les mêmes en sombre et en clair.
+  La petite cible ne montre que la volée en cours, en marques rondes numérotées 1, 2, 3, et se vide à chaque volée ;
+  la cible agrandie bascule entre VOLÉE et MANCHE (volées précédentes du joueur en discret). Une fléchette saisie au
+  pavé est placée au centre de son segment ; le 0 n'est pas marqué. La même cible sert partout (saisie en paysage,
+  historique, fins de manche et de partie, stats).
+- **Historique** (partie en cours : menu pause ou cible agrandie ; parties terminées : détail) : pour chaque manche,
+  un tableau avec une colonne par joueur (avatar et pseudo en tête) et une ligne par tour ; chaque case donne le total
+  de la volée en gros et le reste en petit, un bust en rouge avec BUST, une finition en valeur ; le tour en cours est
+  repéré ; un appui sur une case montre ses 3 fléchettes sur la cible. De 5 à 8 joueurs, le tableau défile de côté,
+  la colonne des tours reste fixe. On le ferme pour revenir exactement où on en était.
+- Retours : vibration courte à chaque fléchette ; bust = zone du reste en aplat rouge + vibration longue. Sur le web,
+  Chrome ne vibre ni en mode silencieux ni quand le retour haptique d'Android est coupé ; l'APK (lot 5) utilisera le
+  vibreur natif d'Android. Réglages : TESTER LA VIBRATION et ligne de diagnostic (lot 1.2).
+- **Robustesse** (lot 1.2) : rien ne se chevauche ni ne sort de l'écran, quels que soient la taille de l'écran et les
+  réglages de taille d'affichage et de police (Android, Chrome) ; un texte trop long se coupe avec « … », un bloc trop
+  chargé se compacte. Vérifié automatiquement en CI.
 - Écran toujours allumé pendant la partie (Wake Lock sur le web, `FLAG_KEEP_SCREEN_ON` dans l'APK).
 - Enregistrement à chaque fléchette : un appel ou une fermeture de l'appli ne fait rien perdre.
 
@@ -162,6 +173,7 @@ Détail : [direction-artistique.md](direction-artistique.md).
 | 0 | Fondations : cahier des charges, moteur X01 testé, intégration continue, page d'attente sur Pages | — |
 | 1 | Maquette de tous les écrans, en sombre et en clair | validation du design |
 | 1.1 | Corrections de la maquette : suppression des joueurs, validation des volées, chiffres en rouleau, cible, historique en cours, joueur actif plus visible, paysage avec saisie sur la cible | validation du design |
+| 1.2 | Corrections : rotation de l'appli installée, vibrations (test et diagnostic), mini-cible de la volée en cours, historique en tableau, cible aux vraies couleurs, superpositions (test automatique), palette d'avatar | validation du design |
 | 2 | Partie jouable, joueurs et avatars | |
 | 3 | Historique et statistiques | |
 | 4 | Finitions : propositions de finition, mode nuit, vibrations, export / import | validation des fonctions |

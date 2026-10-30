@@ -1,6 +1,7 @@
 // Strela — construit le site GitHub Pages dans _site/ :
 //   1. lance les tests (node --test, sortie TAP) et en tire le résumé (réussis / total, durée, échecs) ;
-//   2. recopie index.html en remplaçant les marques <!--@clé-->…<!--/@--> (version, tests, date, commit) ;
+//   2. recopie index.html en remplaçant les marques <!--@clé-->…<!--/@--> (version, tests, date, commit) et en datant
+//      l'adresse du manifeste (?v=version-commit) ;
 //   3. recopie assets/, src/, le manifeste et le service worker (cache nommé par build), écrit _site/tests.json.
 // Le site est construit même si des tests échouent : la page affiche alors les échecs en rouge.
 // Le blocage d'une fusion sur test rouge est le rôle de .github/workflows/ci.yml.
@@ -71,7 +72,10 @@ function build() {
 
   rmSync(OUT, { recursive: true, force: true });
   mkdirSync(OUT, { recursive: true });
-  writeFileSync(join(OUT, 'index.html'), render(readFileSync(join(ROOT, 'index.html'), 'utf8'), values));
+  // Adresse du manifeste propre à chaque build : Chrome relit le manifeste (orientation, icônes) au lieu d'une copie.
+  const page = render(readFileSync(join(ROOT, 'index.html'), 'utf8'), values)
+    .replace('href="manifest.webmanifest"', `href="manifest.webmanifest?v=${encodeURIComponent(`${pkg.version}-${commit}`)}"`);
+  writeFileSync(join(OUT, 'index.html'), page);
   cpSync(join(ROOT, 'assets'), join(OUT, 'assets'), { recursive: true });
   cpSync(join(ROOT, 'src'), join(OUT, 'src'), { recursive: true });
   cpSync(join(ROOT, 'manifest.webmanifest'), join(OUT, 'manifest.webmanifest'));

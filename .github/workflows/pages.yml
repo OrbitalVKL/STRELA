@@ -20,6 +20,11 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
+      # Playwright : pour que le test de chevauchement compte aussi dans le résumé affiché sur la page
+      - name: Playwright
+        run: |
+          npm install --no-save --no-package-lock playwright@1.63.0
+          npx playwright install --with-deps chromium
       - name: Site
         run: node tools/build-site.mjs
       # Pages doit être activé à la main (source : GitHub Actions) : le jeton des Actions ne peut pas le faire.

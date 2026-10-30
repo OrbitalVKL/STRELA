@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
-import { THEMES, mix, contrast, AVATAR_COLORS, AVATAR_INK, NIGHT_FILTER } from '../src/ui/theme.js';
+import { THEMES, mix, contrast, deltaE, AVATAR_COLORS, AVATAR_INK, NIGHT_FILTER } from '../src/ui/theme.js';
 
 const root = new URL('../', import.meta.url);
 const css = readFileSync(new URL('assets/theme.css', root), 'utf8');
@@ -73,4 +73,17 @@ test('avatars : 8 fonds sourds dans theme.css, pictogramme lisible sur chacun', 
   });
   assert.equal(vars['av-ink'], AVATAR_INK);
   assert.equal(vars.night, NIGHT_FILTER);
+});
+
+test('avatars : deux fonds ne se confondent jamais (écart CIEDE2000 ≥ 20, ardoise / graphite et sapin / pétrole compris)', () => {
+  // valeurs de référence de la formule (Sharma et al., 2005)
+  assert.ok(Math.abs(deltaE('#FFFFFF', '#FFFFFF')) < 1e-9);
+  assert.ok(Math.abs(deltaE('#3D4A5A', '#4A4E52') - 6.44) < 0.05, 'ancien couple ardoise / graphite : 6,4');
+  for (let i = 0; i < AVATAR_COLORS.length; i++) {
+    for (let j = i + 1; j < AVATAR_COLORS.length; j++) {
+      const d = deltaE(AVATAR_COLORS[i], AVATAR_COLORS[j]);
+      assert.ok(d >= 20, `--av-${i} / --av-${j} : ${d.toFixed(1)}`);
+    }
+    assert.ok(deltaE(AVATAR_COLORS[i], THEMES.dark.red) >= 12, `--av-${i} loin du rouge d'alerte`);
+  }
 });
