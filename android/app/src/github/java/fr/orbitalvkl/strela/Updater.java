@@ -35,6 +35,7 @@ import java.net.URL;
 class Updater {
     static final String API = "https://api.github.com/repos/OrbitalVKL/STRELA/releases/latest";
     static final String DOWNLOADS = "https://github.com/OrbitalVKL/STRELA/releases/download/";
+    static final String LATEST_PAGE = "https://github.com/OrbitalVKL/STRELA/releases/latest";
     static final String ACTION = "fr.orbitalvkl.strela.INSTALL_STATUS";
     static final long DAY = 24L * 3600 * 1000;
     final MainActivity act;
@@ -114,24 +115,26 @@ class Updater {
         busy = true; state = "checking"; msg = ""; report();
         new Thread(() -> {
             try {
-                HttpURLConnection c = open(API);
-                c.setRequestProperty("Accept", "application/vnd.github+json");
-                int code = c.getResponseCode();
-                if (code == 404) throw new Exception("aucune version publiée");
-                if (code != 200) throw new Exception("GitHub a répondu " + code);
-                StringBuilder sb = new StringBuilder();
-                try (InputStream in = c.getInputStream()) {
-                    byte[] b = new byte[8192]; int n;
-                    while ((n = in.read(b)) > 0) sb.append(new String(b, 0, n, "UTF-8"));
+                // 1. API de GitHub (version, adresse et taille du fichier). Sans compte, GitHub n'en permet que 60 par heure
+                //    et par adresse IP : sur le réseau mobile, l'adresse est partagée et la limite vite atteinte (403).
+                // 2. Sinon, la page web « dernière release » (non limitée de la même façon) : sa redirection donne
+                //    l'étiquette apk-vX.Y.Z, d'où l'adresse du fichier (lot 6.1).
+                String[] found = null;
+                String why = null;
+                boolean limited = false;
+                try { found = fromApi(); }
+                catch (RateLimited e) { limited = true; why = e.getMessage(); }
+                catch (Exception e) { why = e.getMessage(); }
+                if (found == null) {
+                    try { found = fromWeb(); }
+                    catch (Exception e) {
+                        throw new Exception(limited
+                            ? "GitHub limite les recherches depuis ce réseau (trop de demandes) : réessaie dans une heure, ou en Wi-Fi"
+                            : (why != null ? why : e.getMessage()));
+                    }
                 }
-                JSONObject r = new JSONObject(sb.toString());
-                String tag = r.optString("tag_name", "");
-                JSONArray as = r.optJSONArray("assets");
-                String u = null; long sz = 0;
-                if (as != null) for (int i = 0; i < as.length(); i++) {
-                    JSONObject a = as.getJSONObject(i);
-                    if ("strela.apk".equals(a.optString("name"))) { u = a.optString("browser_download_url"); sz = a.optLong("size"); }
-                }
+                String tag = found[0], u = found[1];
+                long sz = found[2] == null ? 0 : Long.parseLong(found[2]);
                 // seule source admise : les releases du dépôt Strela
                 if (u != null && !u.startsWith(DOWNLOADS)) u = null;
                 latest = tag.startsWith("apk-v") ? tag.substring(5) : tag;
@@ -142,12 +145,67 @@ class Updater {
             } catch (Exception e) {
                 // Recherche automatique sans réseau : rien à dire (pas d'alerte au lancement) ; on réessaiera au suivant.
                 state = silent ? "idle" : "error";
-                msg = silent ? "" : "Recherche impossible : " + e.getMessage() + ". Connexion Internet ?";
+                String m = String.valueOf(e.getMessage());
+                msg = silent ? "" : m.startsWith("GitHub limite") ? m + "." : "Recherche impossible : " + m + ". Connexion Internet ?";
             }
             auto = false;
             busy = false;
             report();
         }).start();
+    }
+
+    /** Limite de l'API de GitHub atteinte (403 ou 429, X-RateLimit-Remaining à 0). */
+    static class RateLimited extends Exception { RateLimited(String m) { super(m); } }
+
+    /** Dernière release par l'API : { étiquette, adresse de strela.apk, taille } ; null si la release n'a pas d'APK. */
+    static String[] fromApi() throws Exception {
+        HttpURLConnection c = open(API);
+        c.setRequestProperty("Accept", "application/vnd.github+json");
+        int code = c.getResponseCode();
+        if (code == 404) throw new Exception("aucune version publiée");
+        if (code == 403 || code == 429) {
+            String left = c.getHeaderField("X-RateLimit-Remaining");
+            if ("0".equals(left) || code == 429) throw new RateLimited("GitHub a répondu " + code + " (limite de l'API)");
+        }
+        if (code != 200) throw new Exception("GitHub a répondu " + code);
+        StringBuilder sb = new StringBuilder();
+        try (InputStream in = c.getInputStream()) {
+            byte[] b = new byte[8192]; int n;
+            while ((n = in.read(b)) > 0) sb.append(new String(b, 0, n, "UTF-8"));
+        }
+        JSONObject r = new JSONObject(sb.toString());
+        String tag = r.optString("tag_name", "");
+        JSONArray as = r.optJSONArray("assets");
+        if (as != null) for (int i = 0; i < as.length(); i++) {
+            JSONObject a = as.getJSONObject(i);
+            if ("strela.apk".equals(a.optString("name"))) return new String[]{tag, a.optString("browser_download_url"), String.valueOf(a.optLong("size"))};
+        }
+        return null;
+    }
+
+    /**
+     * Dernière release par la page web : https://github.com/OrbitalVKL/STRELA/releases/latest redirige vers
+     * …/releases/tag/apk-vX.Y.Z ; le fichier est alors …/releases/download/apk-vX.Y.Z/strela.apk (taille inconnue).
+     */
+    static String[] fromWeb() throws Exception {
+        HttpURLConnection c = (HttpURLConnection) new URL(LATEST_PAGE).openConnection();
+        c.setConnectTimeout(15000);
+        c.setReadTimeout(30000);
+        c.setRequestProperty("User-Agent", "StrelaAPK");
+        c.setInstanceFollowRedirects(false);
+        int code = c.getResponseCode();
+        String loc = c.getHeaderField("Location");
+        c.disconnect();
+        String tag = tagFromLocation(loc);
+        if (code / 100 != 3 || tag == null) throw new Exception("GitHub a répondu " + code);
+        return new String[]{tag, DOWNLOADS + tag + "/strela.apk", null};
+    }
+
+    /** Étiquette apk-vX.Y.Z tirée de l'adresse …/OrbitalVKL/STRELA/releases/tag/apk-vX.Y.Z ; null sinon. */
+    static String tagFromLocation(String loc) {
+        if (loc == null) return null;
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("/OrbitalVKL/STRELA/releases/tag/(apk-v\\d+\\.\\d+\\.\\d+)/?$").matcher(loc);
+        return m.find() ? m.group(1) : null;
     }
 
     void install() {

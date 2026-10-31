@@ -125,6 +125,12 @@ dernière recherche et résultat gardés dans les préférences de l'appli) ; sa
 récente : repère « MISE À JOUR vX.Y.Z DISPONIBLE » à l'accueil et en haut des Réglages. Rien n'est téléchargé sans
 appui sur INSTALLER.
 
+**Limite de l'API de GitHub** (v0.6.1, vu sur le Pixel en 0.5.0 : « GitHub a répondu 403 ») : sans compte, l'API
+n'accepte que 60 demandes par heure et par adresse IP, et sur le réseau mobile l'adresse est partagée. Si l'API refuse
+(ou ne répond pas), Strela lit la page web `github.com/OrbitalVKL/STRELA/releases/latest`, dont la redirection donne
+l'étiquette `apk-vX.Y.Z` ; le fichier est alors `…/releases/download/apk-vX.Y.Z/strela.apk`. Si les deux échouent pour
+cause de limite : « GitHub limite les recherches depuis ce réseau : réessaie dans une heure, ou en Wi-Fi. »
+
 Réglages › Appli Android › RECHERCHER UNE MISE À JOUR : API GitHub (dernière release de OrbitalVKL/STRELA
 seulement, fichier `strela.apk` téléchargé depuis `github.com/OrbitalVKL/STRELA/releases/download/` seulement),
 INSTALLER LA VERSION X.Y.Z, téléchargement (progression), PackageInstaller ; Android demande d'autoriser « Installer

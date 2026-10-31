@@ -49,6 +49,16 @@ test('mise à jour intégrée : code dans la variante github seulement', () => {
   assert.match(read(`${APP}/src/github/java/fr/orbitalvkl/strela/Updater.java`), /24L \* 3600 \* 1000/, 'au plus une recherche automatique par 24 h');
 });
 
+test('mise à jour : API de GitHub limitée (403) → page web de la dernière release (v0.6.1)', () => {
+  const u = read(`${APP}/src/github/java/fr/orbitalvkl/strela/Updater.java`);
+  assert.match(u, /LATEST_PAGE = "https:\/\/github\.com\/OrbitalVKL\/STRELA\/releases\/latest"/);
+  assert.match(u, /try \{ found = fromApi\(\); \}[\s\S]*found = fromWeb\(\)/, 'repli sur la page web quand l\'API refuse');
+  assert.match(u, /X-RateLimit-Remaining/);
+  assert.match(u, /setInstanceFollowRedirects\(false\)/, 'étiquette lue dans la redirection, sans la suivre');
+  assert.match(u, /\/OrbitalVKL\/STRELA\/releases\/tag\/\(apk-v/, 'seules les releases du dépôt Strela');
+  assert.match(u, /réessaie dans une heure, ou en Wi-Fi/);
+});
+
 /** Manifestes fusionnés de la variante play (debug, release), s'ils ont été produits par une compilation. */
 function mergedPlay() {
   const base = join(ROOT, `${APP}/build/intermediates/merged_manifests`);
