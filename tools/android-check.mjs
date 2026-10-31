@@ -98,6 +98,13 @@ console.log(`Appareil : ${device.model()} · Android ${await sh('getprop ro.buil
 await sh('settings put global hide_error_dialogs 1');
 await sh('settings put system accelerometer_rotation 0');
 await sh('settings put system user_rotation 0');
+/**
+ * Lance Strela comme le lanceur d'Android (MAIN + LAUNCHER) : l'activité est alors la racine d'une tâche du lanceur,
+ * qu'Android met en arrière-plan (sans la fermer) sur un retour depuis l'accueil. La classe de l'activité garde le nom
+ * du tronc commun (fr.orbitalvkl.strela.MainActivity) quelle que soit la variante.
+ */
+const launch = (pkg = PKG) => sh(`am start -W -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n ${pkg}/fr.orbitalvkl.strela.MainActivity`);
+
 let page = null;
 const ready = async (pkg = PKG) => {
   const web = await device.webView({ pkg }, { timeout: 60e3 });
@@ -111,7 +118,7 @@ if (OLD && APK) {
   await step('mise à jour en place depuis la version précédente : joueurs et partie gardés', async () => {
     await sh(`pm uninstall ${PKG}`);
     await device.installApk(OLD);
-    await sh(`am start -W -n ${PKG}/.MainActivity`);
+    await launch();
     await ready();
     const before = await version();
     await createPlayer(page, 'Ancien');
@@ -123,7 +130,7 @@ if (OLD && APK) {
     await settle(page);
     await sh(`am force-stop ${PKG}`);
     await device.installApk(APK); // adb install -r : même paquet, même clé, version plus récente
-    await sh(`am start -W -n ${PKG}/.MainActivity`);
+    await launch();
     await ready();
     const after = await version();
     await page.waitForSelector('.resume');
@@ -145,10 +152,10 @@ if (OLD && APK) {
 
 if (APK) { await device.installApk(APK); console.log(`installé : ${APK}`); }
 await sh(`pm clear ${PKG}`);
-await sh(`am start -W -n ${PKG}/.MainActivity`);
+await launch();
 /** Strela au premier plan et page joignable (après un écran d'Android, une sortie, une fermeture). */
 const front = async () => {
-  if (!(await topActivity()).includes(PKG)) await sh(`am start -W -n ${PKG}/.MainActivity`);
+  if (!(await topActivity()).includes(PKG)) await launch();
   try { await page.evaluate(() => 1); } catch (e) { await ready(); }
 };
 
@@ -213,10 +220,14 @@ await step('retour prédictif : Réglages → la page traite le retour ; accueil
   let out = false;
   for (let i = 0; i < 10 && !out; i++) { await sleep(500); out = !(await topActivity()).includes(PKG); }
   const top = await topActivity();
-  await sh(`am start -W -n ${PKG}/.MainActivity`);
-  try { await page.evaluate(() => 1); } catch (e) { await ready(); }
+  const marked = await page.evaluate(() => { window.__avantRetour = 1; return true; }).catch(() => false);
+  await launch();
+  await sleep(1000);
+  // La page d'avant est-elle toujours là (appli mise en arrière-plan) ou a-t-elle été recréée ?
+  const kept = marked && await page.evaluate(() => window.__avantRetour === 1).catch(() => false);
+  await ready();
   if (!out) throw new Error(`Strela toujours au premier plan (${top})`);
-  return 'sortie vers l\'écran d\'accueil du téléphone, appli gardée en mémoire';
+  return `sortie vers l'écran d'accueil du téléphone ; au retour, page ${kept ? 'gardée en mémoire' : 'rechargée'}`;
 });
 
 await step('une partie : joueurs, fléchettes, VALIDER, enregistrées dans la base', async () => {
@@ -357,7 +368,7 @@ await step('fermeture brutale puis réouverture : REPRENDRE, rien de perdu', asy
   await front();
   await settle(page);
   await sh(`am force-stop ${PKG}`);
-  await sh(`am start -W -n ${PKG}/.MainActivity`);
+  await launch();
   await ready();
   await page.waitForSelector('.resume');
   await page.click('.resume');
@@ -384,7 +395,7 @@ if (PLAY) {
   await step('variante play installée à côté : page servie, sans mise à jour intégrée', async () => {
     const PPKG = `${PKG}.play`;
     await device.installApk(PLAY);
-    await sh(`am start -W -n ${PPKG}/.MainActivity`);
+    await launch(PPKG);
     await ready(PPKG);
     const r = await page.evaluate(() => ({ info: JSON.parse(window.strelaNative.info()), upd: typeof window.strelaNative.checkUpdate, url: location.href }));
     await page.evaluate(() => { location.hash = '#/reglages'; });
