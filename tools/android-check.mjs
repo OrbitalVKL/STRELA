@@ -107,9 +107,19 @@ const launch = (pkg = PKG) => sh(`am start -W -a android.intent.action.MAIN -c a
 
 let page = null;
 const ready = async (pkg = PKG) => {
-  const web = await device.webView({ pkg }, { timeout: 60e3 });
-  page = await web.page();
-  await page.waitForSelector('body[data-ready]', { timeout: 60e3 });
+  // Après une fermeture de l'activité, l'ancienne WebView peut encore être listée un instant : on réessaie jusqu'à
+  // trouver une page vivante et prête.
+  let last = null;
+  for (let i = 0; i < 15; i++) {
+    try {
+      const web = await device.webView({ pkg }, { timeout: 60e3 });
+      const p = await web.page();
+      await p.waitForSelector('body[data-ready]', { timeout: 10e3 });
+      page = p;
+      return;
+    } catch (e) { last = e; await sleep(1000); }
+  }
+  throw last;
 };
 const version = () => page.evaluate(() => JSON.parse(window.strelaNative.info()).version);
 
@@ -227,7 +237,10 @@ await step('retour prédictif : Réglages → la page traite le retour ; accueil
   const kept = marked && await page.evaluate(() => window.__avantRetour === 1).catch(() => false);
   await ready();
   if (!out) throw new Error(`Strela toujours au premier plan (${top})`);
-  return `sortie vers l'écran d'accueil du téléphone ; au retour, page ${kept ? 'gardée en mémoire' : 'rechargée'}`;
+  await page.waitForSelector('.home-main');
+  // Android, sans rappel de la page, joue son retour vers le téléphone et ferme l'activité (ou la garde en
+  // arrière-plan) : les deux sont admis, rien n'est perdu (tout est enregistré à chaque fléchette).
+  return `sortie vers l'écran d'accueil du téléphone ; à la relance, accueil ${kept ? '(page gardée en mémoire)' : '(activité recréée par Android)'}`;
 });
 
 await step('une partie : joueurs, fléchettes, VALIDER, enregistrées dans la base', async () => {

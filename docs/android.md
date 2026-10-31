@@ -59,7 +59,10 @@ La page cherche `window.strelaNative` ; sans elle (navigateur), elle garde les A
   prend la vue (avec sa propre permission) ; rien n'est donc demandé à Strela, ni au lancement ni ensuite.
 - **Retour prédictif (lot 6, Android 16)** : le rappel `OnBackInvokedCallback` n'est enregistré que lorsque la page a
   quelque chose à faire du retour (`setBackHandled`) ; à l'accueil, il est retiré : Android joue son animation de
-  retour à l'écran d'accueil du téléphone et met Strela en arrière-plan. Avec targetSdk 36, Android 16 n'appelle plus
+  retour à l'écran d'accueil du téléphone et, sur l'émulateur (Android 14 et 16), **ferme** l'activité (au lot 5,
+  Strela passait en arrière-plan) : la relance rouvre l'accueil, rien n'est perdu (tout est enregistré à chaque
+  fléchette). Si Guillaume préfère garder l'appli en mémoire, il suffit de laisser le rappel enregistré à l'accueil,
+  au prix de l'animation. Avec targetSdk 36, Android 16 n'appelle plus
   `onBackPressed` ni ne transmet la touche retour : tout passe par ce rappel (Android 13 et plus) ; `onBackPressed` et
   `dispatchKeyEvent` restent pour Android 11 et 12 (lint `GestureBackNavigation` mis en sourdine, expliqué).
 - **Bord à bord** : imposé depuis Android 15, sans échappatoire en Android 16 : le cadre laisse la place des barres et
