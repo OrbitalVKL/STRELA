@@ -219,37 +219,6 @@ await step('bord à bord : la page ne passe ni sous la barre d\'état ni sous la
   return `page de ${v.y} à ${bottom} px sur ${H} px de haut`;
 });
 
-await step('retour prédictif : Réglages → la page traite le retour ; accueil → Android fait sortir Strela', async () => {
-  const inSettings = await page.evaluate(() => window.strelaNative.backHandled());
-  if (!inSettings) throw new Error('rappel de retour absent dans les Réglages');
-  await page.evaluate(() => { location.hash = '#/'; });
-  await page.waitForSelector('.home-main');
-  await page.waitForFunction(() => window.strelaNative.backHandled() === false, null, { timeout: 5e3 });
-  await ensureFocus('.home-title');
-  await sh('input keyevent KEYCODE_BACK');
-  let out = false;
-  for (let i = 0; i < 10 && !out; i++) { await sleep(500); out = !(await topActivity()).includes(PKG); }
-  const top = await topActivity();
-  // L'activité est-elle gardée en arrière-plan ou fermée par Android ? (dumpsys, avant tout relancement)
-  const alive = (await sh(`dumpsys activity activities | grep -c "ActivityRecord.*${PKG}/" || true`)).trim() !== '0';
-  // Relance d'un nouveau processus : une activité recréée dans le même processus garderait la même adresse de
-  // débogage, et Playwright y verrait encore l'ancienne page (fermée).
-  // La transition de retour vers l'écran d'accueil du téléphone doit être finie avant la relance : sinon le lanceur
-  // d'Android repasse devant et garde le focus des touches (vu sur Android 14).
-  await sleep(2000);
-  await sh(`am force-stop ${PKG}`);
-  for (let i = 0; i < 3; i++) {
-    await launch();
-    await sleep(1000);
-    if ((await topActivity()).includes(PKG) && (await focusLine()).includes(PKG)) break;
-  }
-  await ready();
-  if (!out) throw new Error(`Strela toujours au premier plan (${top})`);
-  await page.waitForSelector('.home-main');
-  // Android, sans rappel de la page, joue son retour vers le téléphone et ferme l'activité (ou la garde en
-  // arrière-plan) : les deux sont admis, rien n'est perdu (tout est enregistré à chaque fléchette).
-  return `sortie vers l'écran d'accueil du téléphone (activité ${alive ? 'gardée en arrière-plan' : 'fermée par Android'}) ; relance : accueil`;
-});
 
 await step('une partie : joueurs, fléchettes, VALIDER, enregistrées dans la base', async () => {
   await createPlayer(page, 'Alpha');
@@ -409,6 +378,42 @@ await step('plein écran en partie (Android 16) : barres masquées, retour = men
   await shot('8-plein-ecran');
   if (!handled) throw new Error('retour non traité en partie');
   return `page à y = ${v.y} px (barres masquées), retour traité par la page`;
+});
+
+await step('retour prédictif : Réglages → la page traite le retour ; accueil → Android fait sortir Strela', async () => {
+  // En dernier : sortir de l'appli puis la relancer perturbe le focus des touches de l'émulateur pour la suite.
+  await front();
+  await page.evaluate(() => { location.hash = '#/reglages'; });
+  await page.waitForSelector('#diag');
+  const inSettings = await page.evaluate(() => window.strelaNative.backHandled());
+  if (!inSettings) throw new Error('rappel de retour absent dans les Réglages');
+  await page.evaluate(() => { location.hash = '#/'; });
+  await page.waitForSelector('.home-main');
+  await page.waitForFunction(() => window.strelaNative.backHandled() === false, null, { timeout: 5e3 });
+  await ensureFocus('.home-title');
+  await sh('input keyevent KEYCODE_BACK');
+  let out = false;
+  for (let i = 0; i < 10 && !out; i++) { await sleep(500); out = !(await topActivity()).includes(PKG); }
+  const top = await topActivity();
+  // L'activité est-elle gardée en arrière-plan ou fermée par Android ? (dumpsys, avant tout relancement)
+  const alive = (await sh(`dumpsys activity activities | grep -c "ActivityRecord.*${PKG}/" || true`)).trim() !== '0';
+  // Relance d'un nouveau processus : une activité recréée dans le même processus garderait la même adresse de
+  // débogage, et Playwright y verrait encore l'ancienne page (fermée).
+  // La transition de retour vers l'écran d'accueil du téléphone doit être finie avant la relance : sinon le lanceur
+  // d'Android repasse devant et garde le focus des touches (vu sur Android 14).
+  await sleep(2000);
+  await sh(`am force-stop ${PKG}`);
+  for (let i = 0; i < 3; i++) {
+    await launch();
+    await sleep(1000);
+    if ((await topActivity()).includes(PKG) && (await focusLine()).includes(PKG)) break;
+  }
+  await ready();
+  if (!out) throw new Error(`Strela toujours au premier plan (${top})`);
+  await page.waitForSelector('.home-main');
+  // Android, sans rappel de la page, joue son retour vers le téléphone et ferme l'activité (ou la garde en
+  // arrière-plan) : les deux sont admis, rien n'est perdu (tout est enregistré à chaque fléchette).
+  return `sortie vers l'écran d'accueil du téléphone (activité ${alive ? 'gardée en arrière-plan' : 'fermée par Android'}) ; relance : accueil`;
 });
 
 // Lot 6 : variante play, à côté de la variante github (deux paquets), sans mise à jour intégrée.
