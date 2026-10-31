@@ -230,17 +230,18 @@ await step('retour prédictif : Réglages → la page traite le retour ; accueil
   let out = false;
   for (let i = 0; i < 10 && !out; i++) { await sleep(500); out = !(await topActivity()).includes(PKG); }
   const top = await topActivity();
-  const marked = await page.evaluate(() => { window.__avantRetour = 1; return true; }).catch(() => false);
+  // L'activité est-elle gardée en arrière-plan ou fermée par Android ? (dumpsys, avant tout relancement)
+  const alive = (await sh(`dumpsys activity activities | grep -c "ActivityRecord.*${PKG}/" || true`)).trim() !== '0';
+  // Relance d'un nouveau processus : une activité recréée dans le même processus garderait la même adresse de
+  // débogage, et Playwright y verrait encore l'ancienne page (fermée).
+  await sh(`am force-stop ${PKG}`);
   await launch();
-  await sleep(1000);
-  // La page d'avant est-elle toujours là (appli mise en arrière-plan) ou a-t-elle été recréée ?
-  const kept = marked && await page.evaluate(() => window.__avantRetour === 1).catch(() => false);
   await ready();
   if (!out) throw new Error(`Strela toujours au premier plan (${top})`);
   await page.waitForSelector('.home-main');
   // Android, sans rappel de la page, joue son retour vers le téléphone et ferme l'activité (ou la garde en
   // arrière-plan) : les deux sont admis, rien n'est perdu (tout est enregistré à chaque fléchette).
-  return `sortie vers l'écran d'accueil du téléphone ; à la relance, accueil ${kept ? '(page gardée en mémoire)' : '(activité recréée par Android)'}`;
+  return `sortie vers l'écran d'accueil du téléphone (activité ${alive ? 'gardée en arrière-plan' : 'fermée par Android'}) ; relance : accueil`;
 });
 
 await step('une partie : joueurs, fléchettes, VALIDER, enregistrées dans la base', async () => {
