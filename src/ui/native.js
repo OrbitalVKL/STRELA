@@ -44,3 +44,29 @@ export function nativeTheme(isDark) {
   dark = isDark;
   call('setDark', isDark);
 }
+
+// ------------------------------------------------------------------ variante, mise à jour, retour (lot 6)
+let infoCache;
+/** { version, variant, package, sdk, model } de la coquille, ou null dans le navigateur. */
+export function nativeInfo() {
+  if (infoCache === undefined || (infoCache === null && isApk())) infoCache = callJson('info');
+  return infoCache;
+}
+
+/** Variante : 'web' (navigateur), 'github' (APK publié en release GitHub) ou 'play' (Google Play). */
+export function variant() {
+  if (!isApk()) return 'web';
+  const v = nativeInfo() && nativeInfo().variant;
+  return v === 'play' ? 'play' : 'github'; // APK du lot 5 (sans variante) : github
+}
+
+/** La coquille sait-elle se mettre à jour (variante github) ? La variante play n'a ni code ni bouton pour cela. */
+export const hasUpdater = () => { const b = bridge(); return !!b && typeof b.checkUpdate === 'function'; };
+
+let back = null;
+/** Retour prédictif : la page dit à la coquille si elle a quelque chose à faire du retour (appel au changement). */
+export function nativeBackHandled(on) {
+  if (!isApk() || back === on) return;
+  back = on;
+  call('setBackHandled', on);
+}

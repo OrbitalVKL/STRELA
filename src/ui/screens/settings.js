@@ -7,7 +7,7 @@ import { esc, topBar, plural } from '../dom.js';
 import { BUILD } from '../build.js';
 import { refresh, buzz, BUZZ, go } from '../nav.js';
 import { say, sound, voiceInfo } from '../feedback.js';
-import { isApk, call, callJson, onNative, nativeTheme } from '../native.js';
+import { isApk, call, callJson, onNative, nativeTheme, hasUpdater, nativeInfo } from '../native.js';
 
 const prefersLight = () => { try { return matchMedia('(prefers-color-scheme: light)').matches; } catch (e) { return false; } };
 export const isDark = () => store.settings.theme === 'dark' || (store.settings.theme === 'auto' && !prefersLight());
@@ -54,7 +54,7 @@ const VIBE_TEXT = {
 };
 
 function displayMode() {
-  if (isApk()) { const i = callJson('info'); return `appli Android${i ? ` ${i.version} · Android SDK ${i.sdk} · ${i.model}` : ''}`; }
+  if (isApk()) { const i = nativeInfo(); return `appli Android${i ? ` ${i.version}${i.variant ? ` (${i.variant})` : ''} · Android SDK ${i.sdk} · ${i.model}` : ''}`; }
   const m = ['fullscreen', 'standalone', 'minimal-ui'].find(d => { try { return matchMedia(`(display-mode: ${d})`).matches; } catch (e) { return false; } });
   return m ? `appli installée (${m === 'fullscreen' ? 'plein écran' : m})` : 'onglet du navigateur';
 }
@@ -121,23 +121,55 @@ onNative(d => {
   }
 });
 
+/** Mise à jour depuis l'appli possible (APK « github », ou sommaire de maquette : mockApk = true) ? */
+const updatable = () => hasUpdater() || store.mockApk === true;
+/** Dernier état de la mise à jour : envoyé par la coquille, ou demandé ; dans la maquette, store.mockUpdate. */
+export function updateInfo() {
+  if (!updatable()) return {};
+  return upd || (store.maquette ? store.mockUpdate : callJson('updateState')) || {};
+}
+const updateBusy = u => u.state === 'checking' || u.state === 'downloading' || u.state === 'installing';
+let revealUpdate = false; // repère de l'accueil touché : les Réglages s'ouvrent sur la mise à jour
+
+/**
+ * Repère discret « MISE À JOUR vX.Y.Z DISPONIBLE » (lot 6) : accueil et haut des Réglages ; mène à la section Appli
+ * Android. Rien n'est téléchargé sans appui sur INSTALLER.
+ */
+export function updateBadge() {
+  const u = updateInfo();
+  if (!u.available || updateBusy(u)) return '';
+  return `<button type="button" class="upd-badge" data-act="show-update"><span data-shrink>MISE À JOUR v${esc(u.latest || '')} DISPONIBLE</span><span aria-hidden="true">›</span></button>`;
+}
+
 /** Données de l'APK (désinstallation) et mise à jour depuis l'appli ; rien dans le navigateur. */
 function apkBlock() {
-  if (!isApk() && !store.mockApk) return ''; // mockApk : sommaire de maquette (scène reglages-apk)
-  const u = upd || callJson('updateState') || {};
-  const busy = u.state === 'checking' || u.state === 'downloading' || u.state === 'installing';
-  const status = u.state === 'checking' ? 'Recherche en cours…'
-    : u.state === 'downloading' ? `Téléchargement : ${u.progress || 0} %`
-    : u.state === 'installing' ? 'Installation : confirme dans la fenêtre d\'Android.'
-    : u.msg || '';
-  const btn = u.available && !busy
-    ? `<button type="button" class="btn primary" data-act="update-install">INSTALLER LA VERSION ${esc(u.latest || '')}</button>`
-    : `<button type="button" class="btn" data-act="update-check" ${busy ? 'disabled' : ''}>RECHERCHER UNE MISE À JOUR</button>`;
-  return `<div class="sec">Appli Android</div>
-    <div class="kv"><span>Version installée</span><b>${esc(u.current || BUILD.version)}</b></div>
+  if (!isApk() && !store.mockApk) return ''; // mockApk : sommaire de maquette (scènes reglages-apk, reglages-play…)
+  let update;
+  if (updatable()) {
+    const u = updateInfo();
+    const busy = updateBusy(u);
+    const status = u.state === 'checking' ? 'Recherche en cours…'
+      : u.state === 'downloading' ? `Téléchargement : ${u.progress || 0} %`
+      : u.state === 'installing' ? 'Installation : confirme dans la fenêtre d\'Android.'
+      : u.msg || '';
+    const btn = u.available && !busy
+      ? `<button type="button" class="btn primary" data-act="update-install">INSTALLER LA VERSION ${esc(u.latest || '')}</button>`
+      : `<button type="button" class="btn" data-act="update-check" ${busy ? 'disabled' : ''}>RECHERCHER UNE MISE À JOUR</button>`;
+    const reveal = revealUpdate ? ' data-reveal' : '';
+    revealUpdate = false;
+    update = `<div class="kv"><span>Version installée</span><b>${esc(u.current || BUILD.version)}</b></div>
+    ${u.available && !busy ? `<p class="upd-line" role="status"${reveal}>MISE À JOUR v${esc(u.latest || '')} DISPONIBLE</p>` : ''}
     ${btn}
-    ${status ? `<p class="note${u.state === 'error' ? ' red' : ''}" role="status">${esc(status)}</p>` : ''}
-    <p class="note">Dernière version publiée sur GitHub (OrbitalVKL/STRELA), installée par-dessus : joueurs, parties et réglages sont gardés.</p>
+    ${status && !(u.available && /disponible/.test(status)) ? `<p class="note${u.state === 'error' ? ' red' : ''}" role="status">${esc(status)}</p>` : ''}
+    <div class="row"><div class="lbl"><b>Recherche automatique</b><small>Au lancement, une fois par jour au plus, jamais pendant une partie. Rien n'est téléchargé sans ton appui.</small></div>${toggle('auto-update', store.settings.autoUpdate)}</div>
+    <p class="note">Dernière version publiée sur GitHub (OrbitalVKL/STRELA), installée par-dessus : joueurs, parties et réglages sont gardés.</p>`;
+  } else {
+    // Variante Google Play (lot 6) : pas de mise à jour intégrée, c'est le Play Store qui s'en charge.
+    update = `<div class="kv"><span>Version installée</span><b>${esc((nativeInfo() || {}).version || BUILD.version)}</b></div>
+    <p class="note">Version Google Play : les mises à jour arrivent par le Play Store.</p>`;
+  }
+  return `<div class="sec" id="maj">Appli Android</div>
+    ${update}
     <div class="issue warn"><b>DÉSINSTALLER EFFACE LES DONNÉES</b><span>Joueurs, parties et réglages sont dans l'appli : désinstaller Strela les efface. Exporte une sauvegarde avant (elle va dans Téléchargements/Strela).</span>
       <div class="btns"><button type="button" class="btn ghost" data-act="backup-export">EXPORTER LA SAUVEGARDE</button></div></div>`;
 }
@@ -237,6 +269,7 @@ export function settingsScreen() {
   return `<div class="screen">${topBar('Réglages', '#/')}
     <div class="pad">
       ${storageBanner()}
+      ${updateBadge()}
       <div class="sec">Affichage</div>
       ${themeControls()}
       <p class="note">Auto suit le réglage du téléphone. Le mode nuit ne s'applique qu'en sombre.</p>
@@ -251,9 +284,8 @@ export function settingsScreen() {
       ${apkBlock()}
       <div class="sec">À propos</div>
       <div class="kv"><span>Version</span><b>${esc(BUILD.version)}</b></div>
-      <div class="kv"><span>Tests du moteur</span><b>${esc(BUILD.pass)} / ${esc(BUILD.total)}</b></div>
-      <div class="kv"><span>Construit le</span><b class="small" style="white-space:normal;text-align:right">${esc(BUILD.date)}</b></div>
-      <div class="kv"><span>Commit</span><b>${esc(BUILD.commit)}</b></div>
+      <a class="btn" href="#/apropos" style="margin-top:10px">À PROPOS DE STRELA</a>
+      <p class="note">Version, licences, confidentialité (rien ne quitte le téléphone) et contact.</p>
       <p class="note">${store.maquette
         ? 'Maquette : joueurs et parties fictifs, en mémoire. Rien n\'est enregistré, et les vraies données du téléphone ne sont pas touchées.'
         : 'Joueurs, parties et réglages sont enregistrés sur ce téléphone, à chaque fléchette. Le sommaire de maquette montre des données fictives sans toucher aux tiennes.'}</p>
@@ -311,6 +343,11 @@ export const actions = {
   async 'issue-export'() { await actions['backup-export'](); go('#/reglages'); },
   'update-check'() { call('checkUpdate'); upd = { ...(upd || {}), state: 'checking', msg: '' }; refresh(); },
   'update-install'() { call('installUpdate'); },
+  'auto-update'(v) { saveSetting('autoUpdate', v === '1'); refresh(); },
+  'show-update'() {
+    revealUpdate = true;
+    if (location.hash !== '#/reglages') go('#/reglages'); else refresh();
+  },
   'backup-mode'(m) { bk.ask = m === 'replace' ? 'replace' : 'merge'; refresh(); },
   'backup-no'() { bk.ask = null; refresh(); },
   'backup-cancel'() { Object.assign(bk, { preview: null, ask: null }); refresh(); },

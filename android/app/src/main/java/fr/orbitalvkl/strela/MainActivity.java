@@ -3,7 +3,6 @@ package fr.orbitalvkl.strela;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.pm.ApplicationInfo;
 import android.graphics.Insets;
 import android.net.Uri;
@@ -23,7 +22,6 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 
-import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 import androidx.webkit.WebSettingsCompat;
 import androidx.webkit.WebViewAssetLoader;
@@ -44,14 +42,15 @@ public class MainActivity extends Activity {
     static final String HOST = "appassets.androidplatform.net";
     static final String ORIGIN = "https://" + HOST;
     static final String START = ORIGIN + "/assets/www/index.html";
-    static final String AUTHORITY = "fr.orbitalvkl.strela.files";
+    // FileProvider : propre à chaque variante (github, play), pour que les deux puissent coexister sur un téléphone.
+    static final String AUTHORITY = BuildConfig.APPLICATION_ID + ".files";
     static final int REQ_FILE = 11;
 
     WebView web;
     FrameLayout root;
     Bridge bridge;
     Speech speech;
-    Updater updater;
+    Flavor flavor;                          // ce qui est propre à la variante (github : mise à jour ; play : rien)
     boolean pageReady = false;
     boolean immersive = false;
     volatile int backs = 0;                 // retours reçus (diagnostic, vérification sur émulateur)
@@ -66,8 +65,8 @@ public class MainActivity extends Activity {
         super.onCreate(state);
         Log.i("Strela", "onCreate" + (state != null ? " (activité recréée)" : ""));
         speech = new Speech(this);
-        updater = new Updater(this);
-        bridge = new Bridge(this);
+        flavor = new Flavor(this);
+        bridge = flavor.bridge();
 
         root = new FrameLayout(this);
         root.setBackgroundColor(getColor(R.color.bg));
@@ -88,11 +87,11 @@ public class MainActivity extends Activity {
 
         createWeb();
         // Retour d'Android 13 et plus (OnBackInvokedDispatcher, déclaré dans le manifeste) ; avant : onBackPressed().
-        if (android.os.Build.VERSION.SDK_INT >= 33) {
-            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::goBack);
-        }
-        IntentFilter f = new IntentFilter(Updater.ACTION);
-        ContextCompat.registerReceiver(this, updater.receiver, f, ContextCompat.RECEIVER_NOT_EXPORTED);
+        // Lot 6, retour prédictif (Android 16, targetSdk 36) : la page dit si elle a quelque chose à faire du retour
+        // (setBackHandled) ; à l'accueil, rien : le rappel est retiré et Android joue son animation de retour à l'écran
+        // d'accueil du téléphone, puis met Strela en arrière-plan (comme moveTaskToBack).
+        setBackHandled(true);
+        flavor.start();
         // Activité recréée (thème du téléphone changé) : la page revient où elle était ; sinon, l'accueil.
         if (state == null || web.restoreState(state) == null) web.loadUrl(START);
     }
@@ -151,6 +150,7 @@ public class MainActivity extends Activity {
                 root.removeView(v);
                 v.destroy();
                 pageReady = false;
+                setBackHandled(true);
                 createWeb();
                 web.loadUrl(START);
                 return true;
@@ -330,12 +330,19 @@ public class MainActivity extends Activity {
      * remonte d'un écran ; en partie, elle ouvre le menu pause. Elle répond false seulement à l'accueil : Strela passe
      * alors en arrière-plan (jamais de sortie directe en pleine partie).
      */
+    // Android 11 et 12 seulement (avant OnBackInvokedDispatcher) ; à partir d'Android 13, le retour passe par le rappel
+    // enregistré à la demande (setBackHandled), et Android 16 n'appelle plus onBackPressed : lint le signale, à tort ici.
     @Override
     @SuppressWarnings("deprecation")
+    @android.annotation.SuppressLint("GestureBackNavigation")
     public void onBackPressed() { goBack(); }
 
-    /** Touche retour (clavier, adb, navigation à 3 boutons) prise avant la WebView, qui sinon la garde pour elle. */
+    /**
+     * Touche retour (clavier, adb, navigation à 3 boutons) prise avant la WebView, qui sinon la garde pour elle (vu sur
+     * l'émulateur, lot 5). Quand Android la transforme en retour prédictif (Android 13 et plus), elle n'arrive plus ici.
+     */
     @Override
+    @android.annotation.SuppressLint("GestureBackNavigation")
     public boolean dispatchKeyEvent(KeyEvent e) {
         if (e.getKeyCode() == KeyEvent.KEYCODE_BACK) {
             if (e.getAction() == KeyEvent.ACTION_UP && !e.isCanceled()) goBack();
@@ -345,6 +352,25 @@ public class MainActivity extends Activity {
     }
 
     long lastBack = 0;
+    boolean backHandled = false;
+    android.window.OnBackInvokedCallback backCallback;
+
+    /**
+     * La page a-t-elle quelque chose à faire du retour ? Oui partout sauf à l'accueil sans rien d'ouvert. Android 13 et
+     * plus : le rappel n'est enregistré que dans ce cas, pour que le retour prédictif montre la bonne animation (retour
+     * dans la page, ou sortie vers l'écran d'accueil du téléphone).
+     */
+    void setBackHandled(boolean on) {
+        runOnUiThread(() -> {
+            if (android.os.Build.VERSION.SDK_INT < 33 || on == backHandled) { backHandled = on; return; }
+            backHandled = on;
+            android.window.OnBackInvokedDispatcher d = getOnBackInvokedDispatcher();
+            if (on) {
+                if (backCallback == null) backCallback = this::goBack;
+                d.registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, backCallback);
+            } else if (backCallback != null) d.unregisterOnBackInvokedCallback(backCallback);
+        });
+    }
 
     void goBack() {
         long now = android.os.SystemClock.uptimeMillis();
@@ -375,7 +401,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
-        try { unregisterReceiver(updater.receiver); } catch (Exception e) { /* */ }
+        flavor.stop();
         speech.shutdown();
         web.destroy();
         super.onDestroy();

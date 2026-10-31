@@ -33,7 +33,7 @@ vient d'apparaître dessous). Les clics clavier ou programmés (`detail === 0`) 
 | `src/ui/table.js` | historique en tableau (pur, testé) : `legTable()` = colonnes par joueur, lignes par tour ; `cellView()` / `cellHtml()` = contenu d'une case (fléchettes, total, reste) |
 | `src/ui/fit.js` | après chaque rendu : `data-fit` (compaction par paliers `fit1…n`), `data-shrink` (texte qui rapetisse pour tenir), `data-fit-same` (même palier pour tout un groupe) |
 | `src/ui/mock.js` | données fictives (sommaire et tests seulement) : 5 joueurs (+1 archivé), 15 parties **jouées par le vrai moteur** (lanceur simulé, tirage reproductible) |
-| `src/ui/avatars.js` | banque de 24 pictogrammes SVG (grille 48, trait 3, `currentColor`), initiales, avatar neutre du joueur supprimé, `avatarHtml()` |
+| `src/ui/avatars.js` | banque de 40 pictogrammes SVG (grille 48, trait 3, `currentColor`) rangés par thème (`ICON_GROUPS`, lot 6), 16 fonds (`AVATAR_COLOR_NAMES`, `colorIndex()`), initiales, avatar neutre du joueur supprimé, `avatarHtml()` |
 | `src/ui/dom.js` | échappement, nombres et dates en français, pictogrammes d'interface, barre du haut |
 | `src/ui/build.js` | version / tests / date / commit lus dans `<div id="build">` (rempli par le build) |
 | `src/ui/screens/*.js` | un module par écran (accueil, joueurs, nouvelle partie, jeu, résultats, historique, stats, réglages, sommaire) |
@@ -394,6 +394,33 @@ Détail de la coquille, de la passerelle et de la chaîne de publication : [andr
 `src/ui/native.js` (passerelle, repli web), `src/ui/back.js` (retour d'Android), `buzz()` / `keepAwake()` de nav.js,
 `say()` / `voiceInfo()` de feedback.js, EXPORTER et section « Appli Android » de settings.js, premier lancement de
 l'APK dans home.js (scène `premier-lancement-apk`). Pas de service worker dans l'APK. Tests : `tests/passerelle.test.js`.
+
+## Lot 6 : icône, avatars, mise à jour, À propos
+
+- **Avatars** : 16 fonds (`--av-0` … `--av-15`) et 40 pictogrammes, banque rangée par thème (`ICON_GROUPS` :
+  Tir et jeu, Espace, Animaux, Bar et objets), étiquettes `data-shrink` (police à 130 %). Fiche : 16 nuanciers, 4 par
+  ligne. Indice de fond ramené dans 0 … 15 par `colorIndex()` (graphite par défaut). Scènes : `banque-carabine`,
+  `fiche-fonds` ; `volee-8` prend un rang `k` de 0 à 15 (k ≥ 8 : les 8 joueurs sur les fonds 8 à 15), et
+  `tests/couleurs.test.js` fait passer VALIDER par les 16 fonds.
+- **Recherche de mise à jour automatique** (APK « github ») : `app.js` appelle `autoCheckUpdate()` de la passerelle
+  une fois par lancement, au premier écran hors partie (`/jeu`, `/manche`, `/fin`, `/recadrage` exclus), si le
+  réglage `autoUpdate` (OUI par défaut, base et `strela.autoUpdate`) le permet ; la coquille n'interroge GitHub qu'une
+  fois par 24 h et garde le résultat (`Updater.java`). Repère `updateBadge()` (settings.js) : accueil et haut des
+  Réglages, « MISE À JOUR vX.Y.Z DISPONIBLE », mène à la section Appli Android (`data-reveal`). Rien n'est téléchargé
+  sans INSTALLER. Variante play : `hasUpdater()` faux (fonctions absentes de la passerelle) : ni bouton, ni repère, ni
+  réglage ; « Version Google Play : les mises à jour arrivent par le Play Store. »
+- **Retour prédictif** (Android 16) : après chaque rendu, `nativeBackHandled(backHandled())` (back.js) dit à la
+  coquille si la page a quelque chose à faire du retour (faux seulement à l'accueil sans rien d'ouvert, et sur
+  l'écran de secours) ; la coquille retire alors son rappel et Android joue son animation de sortie.
+- **À propos** (`#/apropos`, `screens/about.js`, depuis Réglages › À PROPOS DE STRELA) : version, variante (web,
+  Appli Android · GitHub, Appli Android · Google Play), paquet, tests, build, confidentialité (résumé + lien vers
+  `confidentialite.html` ; dans l'APK, l'adresse publique, ouverte dans le navigateur), licences (Martian Mono, OFL,
+  texte lisible dans l'appli ; AndroidX, Apache 2.0), contact (`strela.contact` de package.json, rempli au build ;
+  « [E-MAIL DE CONTACT] » tant qu'il est vide). Scènes : `apropos-apk`, `apropos-play` ; adresse `#/apropos`.
+- Scènes de mise à jour : `maj-disponible` (accueil), `reglages-maj`, `reglages-maj-telechargement`, `reglages-play`.
+- Tests : `tests/passerelle.test.js` (variante github : recherche au lancement, pas en partie, réglage, repère, retour
+  prédictif, À propos ; variante play : rien de la mise à jour), `tests/android.test.js`, `tests/icone.test.js`,
+  `tests/play.test.js`.
 
 ## Pour le lot 4
 

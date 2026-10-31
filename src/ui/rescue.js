@@ -50,6 +50,8 @@
     fresh.innerHTML = html(msg);
     app.parentNode.replaceChild(fresh, app);
     document.body.dataset.rescue = '1';
+    // APK (lot 6) : le retour n'a plus rien à faire dans la page ; Android peut faire sortir (retour prédictif).
+    try { if (window.strelaNative && window.strelaNative.setBackHandled) window.strelaNative.setBackHandled(false); } catch (e) { /* rien */ }
     window.scrollTo(0, 0);
   }
 

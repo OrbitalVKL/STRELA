@@ -1,13 +1,17 @@
-// Strela — avatars : banque de 24 pictogrammes originaux (dessinés pour Strela, DA « console Soyuz » :
-// traits droits, angles vifs, monochromes), 8 fonds sourds, initiales par défaut.
+// Strela — avatars : banque de 40 pictogrammes originaux (dessinés pour Strela, DA « console Soyuz » :
+// traits droits, angles vifs, monochromes), rangés par thème, 16 fonds sourds, initiales par défaut.
 // Grille 48 × 48, trait de 3 (lisible de 40 px à 96 px). Tout est en `currentColor`.
 //
-// Un avatar = { kind: 'icon' | 'initials' | 'photo', icon?: clé de ICONS, color: 0..7, photo?: URL (data: JPEG
+// Un avatar = { kind: 'icon' | 'initials' | 'photo', icon?: clé de ICONS, color: 0..15, photo?: URL (data: JPEG
 // 256 × 256, lot 2) }
 // (et { kind: 'deleted' } pour un joueur supprimé, affiché neutre).
 
-// Fonds : jetons --av-0 … --av-7 de assets/theme.css (mêmes valeurs que AVATAR_COLORS de theme.js).
-export const AVATAR_COLOR_NAMES = Object.freeze(['ARDOISE', 'SAPIN', 'OLIVE', 'OCRE', 'BRIQUE', 'PRUNE', 'PÉTROLE', 'GRAPHITE']);
+// Fonds : jetons --av-0 … --av-15 de assets/theme.css (mêmes valeurs que AVATAR_COLORS de theme.js).
+export const AVATAR_COLOR_NAMES = Object.freeze(['ARDOISE', 'SAPIN', 'OLIVE', 'OCRE', 'BRIQUE', 'PRUNE', 'PÉTROLE', 'GRAPHITE',
+  'LAVANDE', 'FRAMBOISE', 'KAKI', 'FORÊT', 'ABYSSE', 'CAFÉ', 'CHARBON', 'BORDEAUX']);
+export const AVATAR_COUNT = AVATAR_COLOR_NAMES.length;
+/** Indice de fond d'un avatar, ramené dans 0 … 15 ; graphite (7) par défaut. */
+export const colorIndex = c => (Number.isInteger(c) ? ((c % AVATAR_COUNT) + AVATAR_COUNT) % AVATAR_COUNT : 7);
 
 // Chaque pictogramme : [nom affiché, contenu SVG]. `s` = trait, `f` = plein.
 const P = (d, extra = '') => `<path d="${d}"${extra}/>`;
@@ -38,9 +42,34 @@ export const ICONS = Object.freeze({
   flamme: ['FLAMME', `${P('M24 3L33 17L36 29L31 40L24 45L17 40L12 29L15 19L21 26Z')}${P('M24 26L28 33L24 39L20 33Z', ' stroke-width="2"')}`],
   planete: ['PLANÈTE', `<circle cx="24" cy="24" r="11"/>${P('M3 33L45 15', ' stroke-width="3"')}${F('M38 4H42V8H38ZM6 38H9V41H6Z')}`],
   pique: ['PIQUE', `${P('M24 4L40 22L35 31H28L24 26L20 31H13L8 22Z')}${P('M24 26L28 43H20Z')}`],
+  // Lot 6 : 16 pictogrammes de plus (tir et précision, espace, animaux, bar et jeu).
+  carabine: ['CARABINE', `${P('M27 20H46')}${F('M41 15H45V18H41Z')}${P('M2 14L27 18V25H20L17 33H12L13 27L2 33Z')}${F('M15 10H20V16H15Z')}${P('M20 25V30H24', ' stroke-width="2"')}`],
+  viseur: ['VISEUR', `<circle cx="24" cy="24" r="19"/>${P('M24 5V16M24 32V43M5 24H16M32 24H43', ' stroke-width="4"')}${P('M24 16V21M24 27V32M16 24H21M27 24H32', ' stroke-width="1.5"')}`],
+  arc: ['ARC', `${P('M14 3L26 13V35L14 45')}${P('M14 3V45', ' stroke-width="1.5"')}${P('M4 24H42', ' stroke-width="2.5"')}${F('M46 24L38 19V29Z')}${P('M4 24L8 19M4 24L8 29', ' stroke-width="2"')}`],
+  medaille: ['MÉDAILLE', `${P('M13 3L20 18M35 3L28 18M13 3H21M27 3H35', ' stroke-width="2.5"')}<circle cx="24" cy="30" r="13"/>${F('M24 22L27 28H33L28 32L30 38L24 34L18 38L20 32L15 28H21Z')}`],
+  bille: ['BILLE', `<circle cx="24" cy="24" r="20"/><circle cx="24" cy="24" r="10"/><circle cx="24" cy="20.5" r="3" stroke-width="2"/><circle cx="24" cy="27.5" r="4" stroke-width="2"/>`],
+  coeur: ['CŒUR', P('M24 42L5 23V12L11 6H18L24 12L30 6H37L43 12V23Z')],
+  trefle: ['TRÈFLE', `<circle cx="24" cy="12" r="8"/><circle cx="13" cy="27" r="8"/><circle cx="35" cy="27" r="8"/>${P('M24 22L28 44H20Z')}`],
+  satellite: ['SATELLITE', `<g transform="rotate(-30 24 24)">${P('M19 19H29V29H19Z')}${P('M3 20H15V28H3ZM33 20H45V28H33Z')}${P('M9 20V28M39 20V28M15 24H19M29 24H33', ' stroke-width="2"')}${P('M24 19V11M18 7L24 11L30 7', ' stroke-width="2.5"')}</g>`],
+  casque: ['CASQUE', `${P('M12 5H36L43 13V33L36 40H12L5 33V13Z')}${P('M12 15H36V27L31 32H17L12 27Z')}${P('M9 45H39', ' stroke-width="4"')}${F('M22 8H26V12H22Z')}`],
+  antenne: ['ANTENNE', `${P('M6 6A22 22 0 0 0 32 32Z')}${P('M19 19L32 6', ' stroke-width="2"')}${F('M30 3H36V9H30Z')}${P('M20 26L14 45M20 26L28 45M9 45H33')}`],
+  lune: ['LUNE', `${P('M28 4A20 20 0 1 0 44 32A16 16 0 0 1 28 4Z')}${F('M37 8L39 12L43 13L39 15L37 19L35 15L31 13L35 12Z')}`],
+  loup: ['LOUP', `${P('M10 3L17 15H31L38 3L41 22L34 29V37L24 44L14 37V29L7 22Z')}${P('M15 22L20 24M33 22L28 24')}${F('M21 33H27L24 37Z')}`],
+  aigle: ['AIGLE', `${P('M24 15L4 9L8 17L4 19L10 25L6 28L16 31L24 27L32 31L42 28L38 25L44 19L40 17L44 9Z')}${P('M20 31L18 43H30L28 31', ' stroke-width="2.5"')}${F('M21 5H27V12H21Z')}${F('M27 8H31L27 11Z')}`],
+  sanglier: ['SANGLIER', `${P('M4 10L14 16H34L44 10L40 24L34 32H14L8 24Z')}${P('M17 29H31V41H17Z')}${F('M20 34H23V37H20ZM25 34H28V37H25Z')}${P('M16 38L9 28M32 38L39 28')}${P('M17 22V23M31 22V23', ' stroke-width="4"')}`],
+  belier: ['BÉLIER', `${P('M17 9H6V25H15V17H11M31 9H42V25H33V17H37')}${P('M17 7H31L33 24L28 42H20L15 24Z')}${P('M20 22V23M28 22V23', ' stroke-width="4"')}${P('M21 36H27', ' stroke-width="2.5"')}`],
+  verre: ['VERRE', `${P('M5 6H43L24 26Z')}${P('M24 26V42M13 43H35')}${P('M15 15H33', ' stroke-width="2"')}${F('M28 9H33V14H28Z')}${P('M31 11L38 3', ' stroke-width="2"')}`],
 });
 
 export const ICON_KEYS = Object.freeze(Object.keys(ICONS));
+
+// Banque rangée par thème (lot 6) : chaque pictogramme dans un seul groupe (vérifié par tests/maquette.test.js).
+export const ICON_GROUPS = Object.freeze([
+  ['Tir et jeu', ['flechette', 'cible', 'carabine', 'viseur', 'arc', 'medaille', 'de', 'bille', 'pique', 'coeur', 'trefle', 'couronne']],
+  ['Espace', ['rocket', 'spoutnik', 'satellite', 'casque', 'antenne', 'planete', 'lune', 'etoile']],
+  ['Animaux', ['renard', 'loup', 'ours', 'sanglier', 'cerf', 'belier', 'lievre', 'chat', 'hibou', 'aigle', 'corbeau', 'poisson', 'tortue']],
+  ['Bar et objets', ['chope', 'verre', 'ancre', 'boussole', 'montagne', 'flamme', 'eclair']],
+].map(([title, keys]) => Object.freeze({ title, keys: Object.freeze(keys) })));
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
@@ -86,7 +115,7 @@ export function avatarHtml(player, size = 40, extra = '') {
   const av = (player && player.avatar) || {};
   // Joueur supprimé : avatar neutre (filet et barre oblique, sans couleur).
   if (av.kind === 'deleted') return `<span class="av gone ${extra}" style="--s:${size}px" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 36L36 12"/></svg></span>`;
-  const color = Number.isInteger(av.color) ? ((av.color % 8) + 8) % 8 : 7;
+  const color = colorIndex(av.color);
   // « mono » : avatar sans sa couleur (bande des autres joueurs en jeu, où seule la couleur du joueur en cours se voit).
   const style = /\bmono\b/.test(extra) ? `--s:${size}px` : `--s:${size}px;background:var(--av-${color})`;
   let inner;

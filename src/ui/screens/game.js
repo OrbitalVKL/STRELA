@@ -11,7 +11,7 @@
 // À la validation, « À TOI, PSEUDO » occupe le haut de l'écran ~0,8 s, puis le bandeau du joueur glisse en place.
 import { store, currentState, playerById, archiveCurrent, deleteCurrent, animationsOn, saveCurrent, legEndPending } from '../store.js';
 import { esc, ico, avg, OUT_SHORT, maquetteButtons } from '../dom.js';
-import { avatarHtml } from '../avatars.js';
+import { avatarHtml, colorIndex } from '../avatars.js';
 import { throwDart, undoDart } from '../../engine/x01.js';
 import { makeDart, formatDart } from '../../engine/darts.js';
 import { suggestCheckout } from '../../engine/checkout.js';
@@ -38,7 +38,7 @@ const dartLabel = d => {
   const f = formatDart(d);
   return f === '0' ? '0' : f.replace(/^S/, '');
 };
-const colorOf = p => `var(--av-${Number.isInteger(p.avatar?.color) ? ((p.avatar.color % 8) + 8) % 8 : 7})`;
+const colorOf = p => `var(--av-${colorIndex(p.avatar?.color)})`;
 
 /** Retour visuel : la touche appuyée passe en inverse un court instant (même après redessin). */
 function flash(key) {

@@ -18,7 +18,7 @@ Atténué = 62 % du texte mélangé au fond ; discret = 30 % (même calcul que `
 | `--red-text` | texte rouge | `#C26A6A` | `#9E4A4A` (*) |
 | `--red-ink` | texte sur aplat rouge (bandeau BUST) | `#F6ECEC` | `#F6ECEC` |
 | `--inv-fg` / `--inv-bg` | vidéo inverse | `#0C0F12` sur `#CFD2D4` | `#ECEDEE` sur `#14171A` |
-| `--av-0` … `--av-7` | fonds d'avatar (les deux thèmes) : ardoise `#234870`, sapin `#3F7352`, olive `#464415`, ocre `#8B6135`, brique `#6D312C`, prune `#57385E`, pétrole `#0D7281`, graphite `#69686B` | | |
+| `--av-0` … `--av-15` | fonds d'avatar (les deux thèmes) : ardoise `#234870`, sapin `#3F7352`, olive `#464415`, ocre `#8B6135`, brique `#6D312C`, prune `#57385E`, pétrole `#0D7281`, graphite `#69686B` ; lot 6 : lavande `#63649F`, framboise `#964F74`, kaki `#6C6B4C`, forêt `#043312`, abysse `#163D3F`, café `#3E2A14`, charbon `#3C363C`, bordeaux `#4F0827` | | |
 
 Fonds d'avatar (lot 1.2) : retouchés pour que deux d'entre eux ne se confondent jamais, y compris de loin sur le
 bandeau du joueur : écart CIEDE2000 d'au moins 20 entre deux fonds (`deltaE()` de theme.js, testé), contre 6,4 pour
@@ -69,7 +69,7 @@ les réglages de l'appli). La balise `theme-color` suit le fond.
   couleur qu'après VALIDER, à l'annonce. Vérifié par `tests/couleurs.test.js`. Hors du jeu (historique, résultats,
   stats, joueurs), chaque avatar garde sa couleur.
 - **VALIDER** (lot 1.3) : aplat de la couleur du joueur qui vient de lancer, encre `--av-ink` (contraste ≥ 4,5:1 sur
-  les 8 fonds, testé) ; « VALIDER » en gros, « suivant : PSEUDO » en dessous, plus petit (« suivant : » s'efface si la
+  les 16 fonds, testé) ; « VALIDER » en gros, « suivant : PSEUDO » en dessous, plus petit (« suivant : » s'efface si la
   place manque, le pseudo reste) ; en solo, « VALIDER » seul. Hors attente (paysage), bouton éteint.
 - Cible (lot 1.2) : voir ci-dessous. Seule exception au « rien d'arrondi » : la cible elle-même et ses marques
   d'impact, rondes pour être lues comme des fléchettes plantées. La loupe de saisie reste carrée.
@@ -120,3 +120,22 @@ zone éclairée d'autant plus qu'elle a été touchée.
 - `.github/workflows/apk.yml` : copie la page dans `android/app/src/main/assets/www/`, version lue dans la
   page, clé de signature chiffrée dans le dépôt (`android/signing.p12.enc`, AES-256 PBKDF2), phrase de passe
   en secret GitHub, `gradle assembleRelease`, release `apk-vX.Y.Z`.
+
+## Icône « Soyouz » et avatars (lot 6)
+
+- **Icône** (choisie par Guillaume) : fléchette verticale, pointe en haut, fût clair strié (`#CFD2D4`), ailettes
+  rouges (`#9E4A4A`), sur le fond sombre (`#0A0C0E`). Source : `assets/icon.svg`, grille d'icône adaptative d'Android
+  (108), dessin dans la zone sûre centrale (66) ; formes pleines seulement (les stries sont des encoches du fût, pour
+  que la silhouette monochrome les garde). Affinée pour 48 px : pointe effilée, fût de 11, encoches de 1,4.
+  Déclinaisons par `tools/make-icons.mjs` : PWA (192, 512 recadrées ; 512 « maskable » sur la grille entière), icône
+  adaptative d'Android en vecteurs (premier plan, monochrome pour les icônes à thème d'Android 13+), icône de la fiche
+  Play (512). Aperçu en grand, en petit, découpée et à thème : sommaire de maquette, section « Icône d'appli ».
+- **16 fonds d'avatar** : les 8 d'origine, inchangés, et 8 nouveaux aux teintes libres (claires là où les premières
+  sont foncées, foncées là où elles sont claires). Écart CIEDE2000 : ≥ 20 entre les 8 d'origine, ≥ 14 entre les 16
+  (20 entre 16 fonds sourds sous l'encre `--av-ink` à 4,5:1 est impossible sans changer les 8 premiers : maximum
+  calculé 15,5, avec des fonds presque noirs) ; ≥ 12 du rouge d'alerte et des deux fonds d'écran. Contraste ≥ 4,5:1 de
+  `--av-ink` sur chacun (tests/theme.test.js, tests/couleurs.test.js).
+- **40 pictogrammes** (16 de plus) au même style : grille 48, trait 3, angles vifs, monochromes (`currentColor`),
+  lisibles de 28 à 96 px. Nouveaux : carabine (profil sobre, tir sportif), viseur, arc, médaille, bille, cœur, trèfle,
+  satellite, casque de cosmonaute, antenne, lune, loup, aigle, sanglier, bélier, verre. Rangés en 4 thèmes dans la
+  banque : Tir et jeu, Espace, Animaux, Bar et objets.

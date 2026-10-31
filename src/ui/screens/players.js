@@ -4,7 +4,7 @@
 // Photo : appareil photo ou galerie (sélecteur d'images d'Android), puis recadrage carré (screens/photo.js).
 import { store, newId, inCurrentGame, deletionPreview, deletePlayer, savePlayer, setArchived } from '../store.js';
 import { esc, ico, topBar, avg, plural } from '../dom.js';
-import { avatarHtml, iconSvg, ICONS, ICON_KEYS, AVATAR_COLOR_NAMES } from '../avatars.js';
+import { avatarHtml, iconSvg, ICONS, ICON_KEYS, ICON_GROUPS, AVATAR_COLOR_NAMES, colorIndex } from '../avatars.js';
 import { playerStats } from '../../engine/stats.js';
 import { checkoutPrefs, suggestCheckout } from '../../engine/checkout.js';
 import { formatDart } from '../../engine/darts.js';
@@ -47,7 +47,7 @@ export function openDraft(id) {
   if (store.draft && store.draft.forId === id) return store.draft;
   const p = id === 'nouveau' ? null : store.players.find(q => q.id === id);
   const usedColors = store.players.map(q => q.avatar && q.avatar.color);
-  const freeColor = [0, 1, 2, 3, 4, 5, 6, 7].find(c => !usedColors.includes(c)) ?? 0;
+  const freeColor = AVATAR_COLOR_NAMES.map((n, i) => i).find(c => !usedColors.includes(c)) ?? 0;
   store.draft = {
     forId: id,
     id: p ? p.id : null,
@@ -66,7 +66,7 @@ export function openDraft(id) {
 const previewHtml = d => {
   const shown = { name: d.name || '?', avatar: d.avatar };
   return `${avatarHtml(shown, 96)}<div class="who"><b class="nm">${esc(d.name || 'Pseudo')}</b>
-    <small>${d.avatar.kind === 'icon' ? esc(ICONS[d.avatar.icon]?.[0] || '') : d.avatar.kind === 'photo' ? 'PHOTO' : 'INITIALES'} · FOND ${AVATAR_COLOR_NAMES[d.avatar.color]}</small>
+    <small>${d.avatar.kind === 'icon' ? esc(ICONS[d.avatar.icon]?.[0] || '') : d.avatar.kind === 'photo' ? 'PHOTO' : 'INITIALES'} · FOND ${AVATAR_COLOR_NAMES[colorIndex(d.avatar.color)]}</small>
     <div class="mini">${avatarHtml(shown, 56)}${avatarHtml(shown, 40)}${avatarHtml(shown, 28)}</div></div>`;
 };
 
@@ -108,8 +108,8 @@ export function playerForm(id) {
       <div class="sec">Avatar</div>
       <div class="seg">${segBtn('initials', 'Initiales')}${segBtn('icon', 'Icône')}${segBtn('photo', 'Photo')}</div>
       <div style="margin-top:10px">${source}</div>
-      <div class="sec">Fond</div>
-      <div class="swatches">${AVATAR_COLOR_NAMES.map((n, i) => `<button type="button" class="swatch" style="background:var(--av-${i})" data-act="avcolor" data-arg="${i}" aria-pressed="${d.avatar.color === i}" aria-label="${n}">${n}</button>`).join('')}</div>
+      <div class="sec">Fond <span class="n">${AVATAR_COLOR_NAMES.length}</span></div>
+      <div class="swatches">${AVATAR_COLOR_NAMES.map((n, i) => `<button type="button" class="swatch" style="background:var(--av-${i})" data-act="avcolor" data-arg="${i}" aria-pressed="${d.avatar.color === i}" aria-label="${n}"><span data-shrink>${n}</span></button>`).join('')}</div>
       <div class="sec">Finition</div>
       ${finishHtml(d)}
       ${archiveBlock || deleteBlock ? `<div class="sec">Archiver ou supprimer</div><div class="btns">${archiveBlock}${deleteBlock}</div>` : ''}
@@ -163,18 +163,21 @@ function deleteHtml(d) {
 }
 
 // ------------------------------------------------------------------ banque d'avatars
+// Lot 6 : 40 pictogrammes rangés par thème (ICON_GROUPS), sur le fond choisi ; l'écran défile.
 export function avatarBank() {
   const d = store.draft || { name: 'Exemple', avatar: { kind: 'icon', icon: 'flechette', color: 0 }, forId: null };
   const back = d.forId ? `#/joueur/${d.forId}` : '#/';
-  const color = d.avatar.color ?? 0;
+  const color = colorIndex(d.avatar.color ?? 0);
   const cur = d.avatar.kind === 'icon' ? d.avatar.icon : null;
+  const groups = ICON_GROUPS.map(g => `<div class="sec">${esc(g.title)} <span class="n">${g.keys.length}</span></div>
+      <div class="bank">${g.keys.map(k => `<button type="button" data-act="pick-icon" data-arg="${k}" aria-pressed="${k === cur}">
+        ${avatarHtml({ avatar: { kind: 'icon', icon: k, color } }, 56)}<i data-shrink>${esc(ICONS[k][0])}</i></button>`).join('')}</div>`).join('');
   return `<div class="screen">${topBar('Banque d\'avatars', back)}
     <div class="preview">${avatarHtml({ avatar: { kind: 'icon', icon: cur || 'flechette', color } }, 96)}
-      <div class="who"><b>${esc(cur ? ICONS[cur][0] : 'CHOISIS UNE ICÔNE')}</b><small>24 pictogrammes dessinés pour Strela · fond ${AVATAR_COLOR_NAMES[color]}</small>
+      <div class="who"><b>${esc(cur ? ICONS[cur][0] : 'CHOISIS UNE ICÔNE')}</b><small>${ICON_KEYS.length} pictogrammes dessinés pour Strela · fond ${AVATAR_COLOR_NAMES[color]}</small>
       <div class="mini">${avatarHtml({ avatar: { kind: 'icon', icon: cur || 'flechette', color } }, 40)}</div></div></div>
-    <div class="pad" style="margin-top:14px">
-      <div class="bank">${ICON_KEYS.map(k => `<button type="button" data-act="pick-icon" data-arg="${k}" aria-pressed="${k === cur}">
-        ${avatarHtml({ avatar: { kind: 'icon', icon: k, color } }, 56)}<i>${esc(ICONS[k][0])}</i></button>`).join('')}</div>
+    <div class="pad bank-groups">
+      ${groups}
       <p class="note">Touchez une icône pour la choisir. Le fond se règle sur la fiche du joueur.</p>
     </div></div>`;
 }

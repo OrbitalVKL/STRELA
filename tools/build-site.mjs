@@ -2,7 +2,8 @@
 //   1. lance les tests (node --test, sortie TAP) et en tire le résumé (réussis / total, durée, échecs) ;
 //   2. recopie index.html en remplaçant les marques <!--@clé-->…<!--/@--> (version, tests, date, commit) et en datant
 //      l'adresse du manifeste (?v=version-commit) ;
-//   3. recopie assets/, src/, le manifeste et le service worker (cache nommé par build), écrit _site/tests.json.
+//   3. recopie assets/, src/, le manifeste et le service worker (cache nommé par build), écrit _site/tests.json ;
+//   4. (lot 6) écrit confidentialite.html (politique de confidentialité) avec les mêmes marques.
 // Le site est construit même si des tests échouent : la page affiche alors les échecs en rouge.
 // STRELA_SANS_TESTS=1 : sans lancer les tests (compilation de l'APK de test d'une demande de fusion, où ci.yml les lance
 // déjà ; la page affiche alors « TESTS NON LANCÉS »). La page de l'APK publié, elle, est construite avec les tests.
@@ -69,6 +70,8 @@ function build() {
     bar: `<div class="bar" aria-hidden="true"><i style="flex:${pass}"></i>${fail ? `<i class="ko" style="flex:${fail}"></i>` : ''}</div>`,
     date: `${esc(date)} (heure de Paris)`,
     commit: esc(commit),
+    // Lot 6 : contact (écran À propos, politique de confidentialité) ; marque à remplacer tant qu'il n'est pas défini.
+    contact: esc((pkg.strela && pkg.strela.contact) || '[E-MAIL DE CONTACT]'),
     duration: `${(tests.durationMs / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} s`,
     fails: tests.fails.length
       ? `<ul class="fails red">${tests.fails.slice(0, 12).map(f => `<li>✕ ${esc(f)}</li>`).join('')}</ul>` : '',
@@ -80,6 +83,8 @@ function build() {
   const page = render(readFileSync(join(ROOT, 'index.html'), 'utf8'), values)
     .replace('href="manifest.webmanifest"', `href="manifest.webmanifest?v=${encodeURIComponent(`${pkg.version}-${commit}`)}"`);
   writeFileSync(join(OUT, 'index.html'), page);
+  // Lot 6 : politique de confidentialité (GitHub Pages, adresse donnée à Google Play), mêmes marques.
+  writeFileSync(join(OUT, 'confidentialite.html'), render(readFileSync(join(ROOT, 'confidentialite.html'), 'utf8'), values));
   cpSync(join(ROOT, 'assets'), join(OUT, 'assets'), { recursive: true });
   cpSync(join(ROOT, 'src'), join(OUT, 'src'), { recursive: true });
   cpSync(join(ROOT, 'manifest.webmanifest'), join(OUT, 'manifest.webmanifest'));

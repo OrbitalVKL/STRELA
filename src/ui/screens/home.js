@@ -8,7 +8,7 @@
 import { store, activePlayers, currentState, playerById, resumeRoute } from '../store.js';
 import { esc, ico, plural, OUT_SHORT, maquetteButtons } from '../dom.js';
 import { BUILD } from '../build.js';
-import { storageBanner } from './settings.js';
+import { storageBanner, updateBadge } from './settings.js';
 import { isApk } from '../native.js';
 
 function resumeButton() {
@@ -64,7 +64,7 @@ export function home() {
       <p class="home-sub">Compteur de fléchettes X01</p>
     </header>
     <main class="home-main">
-      ${storageBanner()}${welcome}${resume}${newGame}
+      ${storageBanner()}${updateBadge()}${welcome}${resume}${newGame}
       <nav class="tiles" aria-label="Menu">
         <a class="tile" href="#/joueurs">${ico('players')}<div><b data-shrink>Joueurs</b><br><span data-shrink="2">${n ? plural(n, 'joueur', 'joueurs') : 'aucun joueur'}</span></div></a>
         <a class="tile" href="#/historique">${ico('history')}<div><b data-shrink>Historique</b><br><span data-shrink="2">${g ? plural(g, 'partie', 'parties') : 'aucune partie'}</span></div></a>

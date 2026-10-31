@@ -26,12 +26,24 @@ export const THEMES = Object.freeze({
   light: build({ bg: '#ECEDEE', fg: '#14171A', redText: '#9E4A4A', invFg: '#ECEDEE', invBg: '#14171A' }),
 });
 
-// Fonds d'avatar : 8 couleurs sourdes, identiques en sombre et en clair (l'avatar est une identité),
-// pictogramme ou initiales en AVATAR_INK par-dessus. Jetons --av-0 … --av-7 et --av-ink de theme.css.
-// Lot 1.2 : retouchées pour que deux couleurs ne se confondent jamais (écart CIEDE2000 d'au moins 20 entre deux
-// fonds, contre 6,4 avant pour ardoise / graphite et 9,3 pour sapin / pétrole) ; ordre : ardoise, sapin, olive,
-// ocre, brique, prune, pétrole, graphite.
-export const AVATAR_COLORS = Object.freeze(['#234870', '#3F7352', '#464415', '#8B6135', '#6D312C', '#57385E', '#0D7281', '#69686B']);
+// Fonds d'avatar : 16 couleurs sourdes, identiques en sombre et en clair (l'avatar est une identité),
+// pictogramme ou initiales en AVATAR_INK par-dessus. Jetons --av-0 … --av-15 et --av-ink de theme.css.
+// Lot 1.2 : les 8 premières retouchées pour que deux couleurs ne se confondent jamais (écart CIEDE2000 d'au moins 20
+// entre deux fonds, contre 6,4 avant pour ardoise / graphite et 9,3 pour sapin / pétrole) ; ordre : ardoise, sapin,
+// olive, ocre, brique, prune, pétrole, graphite.
+// Lot 6 : 8 de plus (lavande, framboise, kaki, forêt, abysse, café, charbon, bordeaux), choisies par calcul. Avec les
+// 8 premières gardées telles quelles (les joueurs existants ne changent pas de couleur), un écart de 20 entre les 16
+// est impossible pour des fonds sourds lisibles sous l'encre (contraste 4,5:1, donc clarté L* ≤ 45) : le maximum
+// trouvé est 15,5, avec des fonds presque noirs. Retenu : au moins 14 entre deux fonds quelconques (on ne confond
+// plus deux fonds au-dessus de 10), toujours 20 entre les 8 premières, 12 au moins du rouge d'alerte et du fond
+// sombre. Les nouvelles prennent les teintes libres : claires (L* ≈ 44) là où les premières sont foncées, foncées
+// (L* ≈ 16-24) là où elles sont claires.
+export const AVATAR_COLORS = Object.freeze([
+  '#234870', '#3F7352', '#464415', '#8B6135', '#6D312C', '#57385E', '#0D7281', '#69686B',
+  '#63649F', '#964F74', '#6C6B4C', '#043312', '#163D3F', '#3E2A14', '#3C363C', '#4F0827',
+]);
+/** Nombre de fonds d'avatar (un indice de couleur est ramené dans 0 … AVATAR_COUNT − 1). */
+export const AVATAR_COUNT = AVATAR_COLORS.length;
 export const AVATAR_INK = '#ECEDEE';
 
 // Cible (lot 1.2) : couleurs d'une cible réglementaire, légèrement désaturées mais franchement rouge et vert.

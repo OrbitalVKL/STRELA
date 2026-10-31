@@ -1,17 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Strela : cible carrée (filets fins, angles droits), flèche plantée au centre. Couleurs = sombre de la DA. -->
-  <rect width="512" height="512" fill="#0A0C0E"/>
-  <g transform="translate(-26 26)">
-  <g fill="none" stroke="#CFD2D4" stroke-width="10" stroke-linecap="square" stroke-linejoin="miter">
-    <rect x="96" y="96" width="320" height="320"/>
-    <rect x="156" y="156" width="200" height="200" stroke="#848789"/>
-  </g>
-  <rect x="226" y="226" width="60" height="60" fill="#9E4A4A"/>
-  <g transform="rotate(-45 256 256)">
-    <path d="M256 256H332" stroke="#CFD2D4" stroke-width="10"/>
-    <rect x="332" y="241" width="74" height="30" fill="#CFD2D4"/>
-    <path d="M406 256H452" stroke="#CFD2D4" stroke-width="12"/>
-    <path d="M440 256L486 214H520L500 256L520 298H486Z" fill="#CFD2D4"/>
-  </g>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108">
+  <!-- Strela (lot 6), icône « Soyouz » : fléchette verticale, pointe en haut, fût clair strié, ailettes rouges, sur le
+       fond sombre de la DA. Grille d'icône adaptative d'Android (108), dessin dans la zone sûre centrale (66).
+       Formes pleines seulement (stries = encoches du fût) : tools/make-icons.mjs en tire les icônes PWA, l'icône
+       adaptative et monochrome d'Android (vecteurs) et l'icône de la fiche Play. Le fond porte id="fond". -->
+  <path id="fond" d="M0 0H108V108H0Z" fill="#0A0C0E"/>
+  <path d="M54 20L55.4 25V34H52.6V25Z" fill="#CFD2D4"/>
+  <path d="M48.5 34H59.5V38H48.5ZM48.5 39.6H59.5V42.4H48.5ZM48.5 44H59.5V46.8H48.5ZM48.5 48.4H59.5V51.2H48.5ZM48.5 52.8H59.5V56H48.5Z" fill="#CFD2D4"/>
+  <path d="M52.6 56H55.4V66H52.6Z" fill="#CFD2D4"/>
+  <path d="M54 63L41 77V86L54 79.5L67 86V77Z" fill="#9E4A4A"/>
 </svg>

@@ -1,6 +1,6 @@
 // Une seule couleur de joueur à l'écran pendant la partie (lot 1.3) : celle du joueur en cours (bandeau, VALIDER,
 // annonce). Les autres joueurs, le suivant compris, restent neutres. VALIDER prend la couleur du joueur qui vient de
-// lancer, avec un texte lisible sur chacune des 8 couleurs d'avatar, et ne dit que « VALIDER », sur une ligne (lot 2 :
+// lancer, avec un texte lisible sur chacune des 16 couleurs d'avatar (lot 6), et ne dit que « VALIDER », sur une ligne (lot 2 :
 // le suivant n'est montré que dans la bande des autres). Playwright (sauté s'il est absent).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -25,7 +25,7 @@ function scan(palette) {
   };
   const colorsIn = str => (str.match(/rgba?\([^)]+\)/g) || []).map(hex).filter(Boolean);
   const band = document.querySelector('.gband');
-  const cur = band ? Number(/--av-(\d)/.exec(band.getAttribute('style'))?.[1]) : null;
+  const cur = band ? Number(/--av-(\d+)/.exec(band.getAttribute('style'))?.[1]) : null;
   const found = [];
   for (const el of document.querySelectorAll('#app *')) {
     if (!el.getClientRects().length) continue;
@@ -72,9 +72,9 @@ test('en jeu, seule la couleur du joueur en cours est à l’écran ; VALIDER à
           assert.deepEqual(others, [], `${scene} ${at} : couleur d’un autre joueur à l’écran`);
           assert.ok(r.found.some(f => f.where.startsWith('header.gband')), `${scene} ${at} : bandeau à la couleur du joueur`);
         }
-        // VALIDER : volée en attente à 8 joueurs, lancée tour à tour par chacun (les 8 couleurs d'avatar)
+        // VALIDER : volée en attente à 8 joueurs, lancée tour à tour par chacun, sur les 16 couleurs d'avatar
         const seen = new Set();
-        for (let k = 0; k < 8; k++) {
+        for (let k = 0; k < 16; k++) {
           await show(page, { scene: 'volee-8', arg: k });
           const r = await page.evaluate(scan, [...AVATAR_COLORS]);
           assert.ok(r.validate, `VALIDER ${k} ${at}`);
@@ -85,7 +85,7 @@ test('en jeu, seule la couleur du joueur en cours est à l’écran ; VALIDER à
           assert.ok(r.validate.size >= (width > height ? 20 : 40), `VALIDER en grand (${r.validate.size} px)`);
           seen.add(r.cur);
         }
-        assert.equal(seen.size, 8, 'les 8 couleurs d’avatar passées');
+        assert.equal(seen.size, 16, 'les 16 couleurs d’avatar passées');
         await show(page, { scene: 'solo-attente' });
         const solo = await page.evaluate(scan, [...AVATAR_COLORS]);
         assert.equal(solo.validate.text, 'VALIDER', 'en solo, VALIDER seul');

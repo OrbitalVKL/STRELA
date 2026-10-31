@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="fr" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Strela — politique de confidentialité</title>
+<meta name="description" content="Politique de confidentialité de Strela, compteur de fléchettes X01 : aucune donnée collectée, transmise ni partagée.">
+<meta name="theme-color" content="#0A0C0E">
+<link rel="icon" type="image/svg+xml" href="assets/icon.svg">
+<link rel="stylesheet" href="assets/theme.css">
+<!-- Strela (lot 6) : politique de confidentialité, publiée sur GitHub Pages (https://orbitalvkl.github.io/STRELA/
+     confidentialite.html), adresse à donner à Google Play ; liée depuis l'écran À propos. Version et contact (champ
+     strela.contact de package.json) remplis par tools/build-site.mjs. -->
+<style>
+  main { max-width: 680px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 22px; letter-spacing: 0.1em; margin: 0 0 4px; }
+  h2 { font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); margin: 28px 0 8px; padding-top: 10px; border-top: var(--rule); font-weight: 600; }
+  p, li { font-size: 14px; line-height: 1.6; }
+  ul { padding-left: 20px; }
+  .lead { font-size: 16px; font-weight: 700; }
+  .band { background: var(--red); color: var(--red-ink); padding: 12px 16px; font-weight: 800; letter-spacing: 0.2em; }
+  a { color: inherit; }
+  small { color: var(--dim); }
+</style>
+</head>
+<body>
+<div class="band">STRELA</div>
+<main>
+  <h1>Politique de confidentialité</h1>
+  <small>Strela — compteur de fléchettes X01 · version <!--@version-->dev<!--/@--> · mise à jour le 31 octobre 2026</small>
+
+  <p class="lead" style="margin-top:20px">Strela ne collecte, ne transmet ni ne partage aucune donnée personnelle.</p>
+
+  <h2>Ce que Strela enregistre</h2>
+  <p>Pour compter les parties, Strela garde sur le téléphone, et seulement là :</p>
+  <ul>
+    <li>les joueurs que tu crées : pseudo, avatar (initiales, pictogramme ou photo recadrée), préférences de finition ;</li>
+    <li>les parties : chaque fléchette jouée, les manches, les vainqueurs, et les statistiques qui en découlent ;</li>
+    <li>les réglages : thème, sons, voix, vibrations, recherche de mise à jour.</li>
+  </ul>
+  <p>Ces données sont dans le stockage privé de l'appli (ou du navigateur, pour la version web). Aucun compte, aucun
+    identifiant, aucune publicité, aucun outil de mesure d'audience ni de suivi. Personne d'autre que toi n'y a accès,
+    pas même l'auteur de Strela.</p>
+
+  <h2>Photos</h2>
+  <p>Une photo d'avatar est prise par l'appareil photo d'Android ou choisie dans la galerie, puis recadrée et réduite
+    dans l'appli ; seule cette image réduite est gardée, sur le téléphone. Strela ne demande pas l'accès à l'appareil
+    photo ni aux fichiers : c'est Android qui ouvre son appareil photo ou son sélecteur.</p>
+
+  <h2>Sauvegarde</h2>
+  <p>EXPORTER crée un fichier de sauvegarde (Téléchargements/Strela) que tu ranges où tu veux ; Strela ne l'envoie
+    nulle part d'elle-même. IMPORTER relit un tel fichier, choisi par toi.</p>
+
+  <h2>Réseau</h2>
+  <ul>
+    <li><b>Version Google Play</b> : aucun accès à Internet (l'appli ne déclare pas la permission INTERNET).</li>
+    <li><b>Version GitHub (APK)</b> : la seule connexion est la recherche de mise à jour, auprès de l'API de GitHub
+      (dernière version publiée de Strela), au plus une fois par jour au lancement, ou quand tu touches RECHERCHER UNE
+      MISE À JOUR ; elle se désactive dans les Réglages. Le téléchargement d'une nouvelle version, depuis GitHub, ne se
+      fait que sur ton appui. Aucune de tes données n'est envoyée : GitHub ne reçoit que la demande elle-même (comme
+      toute visite d'un site, avec l'adresse IP du téléphone).</li>
+    <li><b>Version web</b> : la page est servie par GitHub Pages ; tes données restent dans le navigateur.</li>
+  </ul>
+
+  <h2>Suppression</h2>
+  <p>Supprimer un joueur ou une partie l'efface du téléphone. Désinstaller l'appli efface toutes ses données
+    (exporte une sauvegarde avant si tu veux les garder).</p>
+
+  <h2>Enfants</h2>
+  <p>Strela ne recueille aucune donnée, de personne, quel que soit son âge.</p>
+
+  <h2>Contact</h2>
+  <p>Une question sur cette politique : <!--@contact-->[E-MAIL DE CONTACT]<!--/@-->.</p>
+  <p><small>Si cette politique change, la nouvelle version sera publiée à cette adresse, avec sa date.</small></p>
+</main>
+</body>
+</html>

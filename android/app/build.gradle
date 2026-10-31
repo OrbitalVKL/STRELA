@@ -2,6 +2,12 @@
 // « strelaNative » vers ce qu'une WebView ne donne pas bien (vibreur, voix, fichiers, mise à jour).
 // Version : une seule source, package.json (champ « version ») ; la tâche GitHub peut la forcer (-PstrelaVersion).
 // Signature de la release : variables d'environnement fournies par apk.yml (clé chiffrée dans le dépôt).
+// Lot 6 : deux variantes (docs/android.md) :
+//   github : fr.orbitalvkl.strela (inchangé : mise à jour en place, données gardées), APK publié en release GitHub,
+//            mise à jour intégrée (src/github : Updater, INTERNET, REQUEST_INSTALL_PACKAGES) ;
+//   play   : fr.orbitalvkl.strela.play, Android App Bundle (.aab) pour Google Play, sans mise à jour intégrée ni
+//            accès réseau (src/play). Les deux peuvent être installées ensemble sur un téléphone.
+// Android 16 : compileSdk et targetSdk 36 (bord à bord imposé, retour prédictif par défaut).
 plugins { id 'com.android.application' }
 
 def pkg = new groovy.json.JsonSlurper().parse(rootProject.file('../package.json'))
@@ -10,13 +16,24 @@ def code = ver.tokenize('.').collect { it as int }.inject(0) { a, b -> a * 100 +
 
 android {
     namespace 'fr.orbitalvkl.strela'
-    compileSdk 35
+    compileSdk 36
     defaultConfig {
         applicationId 'fr.orbitalvkl.strela'
         minSdk 30
-        targetSdk 35
+        targetSdk 36
         versionCode code
         versionName ver
+    }
+    buildFeatures { buildConfig true }   // BuildConfig.FLAVOR (variante, lue par la page) et APPLICATION_ID
+    flavorDimensions 'distribution'
+    productFlavors {
+        github {
+            dimension 'distribution'
+        }
+        play {
+            dimension 'distribution'
+            applicationId 'fr.orbitalvkl.strela.play'
+        }
     }
     signingConfigs {
         release {

@@ -1,5 +1,5 @@
-# Strela : tests (node --test) sur chaque demande de fusion et sur main ; APK de test compilé et essayé sur un
-# émulateur Android (lot 5).
+# Strela : tests (node --test) sur chaque demande de fusion et sur main ; APK de test (variantes github et play)
+# compilés et essayés sur émulateur Android 14 et 16 (lots 5 et 6).
 # Le projet n'a aucune dépendance ; seuls les tests de chevauchement et de parcours ont besoin de Playwright et de
 # Chromium, installés ici sans toucher à package.json (grille complète : CI=true).
 name: ci
@@ -28,11 +28,15 @@ jobs:
       - name: Tests
         run: node --test --test-reporter=spec
 
-  # APK de test (non signé pour la publication, non publié) : la coquille compile avec la page du commit.
+  # APK de test (non signé pour la publication, non publiés) : les deux variantes compilent avec la page du commit
+  # (lot 6 : github et play, Android 16) ; manifeste fusionné de la variante play vérifié ; et la version 0.5.0
+  # (release apk-v0.5.0) compilée avec la même clé de test, pour essayer la mise à jour en place sur l'émulateur.
   apk:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
@@ -42,30 +46,54 @@ jobs:
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.11.1'
-      - name: SDK Android
-        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" > /dev/null
+          gradle-version: '8.14.3'
+      - name: SDK Android (35 pour la version 0.5.0, 36 pour celle-ci)
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "platforms;android-36" "build-tools;35.0.0" "build-tools;36.0.0" > /dev/null
       - name: Page embarquée (tests lancés par le job « tests »)
         run: STRELA_SANS_TESTS=1 node tools/build-site.mjs && sh tools/apk-page.sh
-      - name: "Compilation (APK de test) et lint (API d'Android 11 au moins, minSdk 30)"
+      - name: "Compilation des deux variantes (APK github et play, .aab play) et lint (Android 11 au moins, minSdk 30)"
         working-directory: android
         run: |
-          gradle --no-daemon assembleDebug lintDebug
-          grep -E "Error: " app/build/reports/lint-results-debug.txt && exit 1 || echo "lint : aucune erreur"
-          grep -E "^[0-9]+ errors?, [0-9]+ warnings?" app/build/reports/lint-results-debug.txt || true
-      - run: cp android/app/build/outputs/apk/debug/app-debug.apk strela-test.apk
+          gradle --no-daemon assembleGithubDebug assemblePlayDebug bundlePlayDebug lintGithubDebug lintPlayDebug
+          for f in app/build/reports/lint-results-githubDebug.txt app/build/reports/lint-results-playDebug.txt; do
+            grep -E "Error: " "$f" && exit 1
+            grep -E "^[0-9]+ errors?, [0-9]+ warnings?" "$f" || true
+          done
+          echo "lint : aucune erreur"
+      - name: "Variante play : ni INTERNET ni REQUEST_INSTALL_PACKAGES (manifeste fusionné)"
+        run: STRELA_ANDROID_BUILT=1 node --test --test-reporter=spec tests/android.test.js
+      - name: Version 0.5.0 (release apk-v0.5.0), même clé de test
+        run: |
+          git worktree add "$RUNNER_TEMP/v050" apk-v0.5.0
+          cd "$RUNNER_TEMP/v050"
+          STRELA_SANS_TESTS=1 node tools/build-site.mjs && sh tools/apk-page.sh
+          cd android && gradle --no-daemon assembleDebug
+      - run: |
+          cp android/app/build/outputs/apk/github/debug/app-github-debug.apk strela-test.apk
+          cp android/app/build/outputs/apk/play/debug/app-play-debug.apk strela-play-test.apk
+          cp android/app/build/outputs/bundle/playDebug/app-play-debug.aab strela-play-test.aab
+          cp "$RUNNER_TEMP/v050/android/app/build/outputs/apk/debug/app-debug.apk" strela-0.5.0-test.apk
       - uses: actions/upload-artifact@v4
         with:
           name: strela-test-apk
-          path: strela-test.apk
+          path: |
+            strela-test.apk
+            strela-play-test.apk
+            strela-play-test.aab
+            strela-0.5.0-test.apk
           retention-days: 14
 
-  # Essai de l'APK de test sur un émulateur (tools/android-check.mjs) : premier lancement, partie, rotation, retour,
-  # export, import, reprise.
+  # Essai des APK de test sur émulateur (tools/android-check.mjs), Android 14 et Android 16 : mise à jour en place depuis
+  # 0.5.0, premier lancement, bord à bord, retour prédictif, partie, rotation, retour, export, import, reprise, plein
+  # écran, variante play à côté.
   emulateur:
     needs: apk
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [34, 36]
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -83,17 +111,17 @@ jobs:
       - name: Émulateur et vérification
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 34
+          api-level: ${{ matrix.api-level }}
           target: google_apis
           arch: x86_64
           profile: pixel_7
           ram-size: 4096M
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
-          script: node tools/android-check.mjs strela-test.apk
+          script: node tools/android-check.mjs strela-test.apk --ancienne=strela-0.5.0-test.apk --play=strela-play-test.apk
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: captures-emulateur
+          name: captures-emulateur-android-${{ matrix.api-level }}
           path: captures/android/
           retention-days: 14

@@ -16,8 +16,9 @@ import { cropScreen, mountCrop, onPhotoFile, actions as photoActions } from './s
 import { animateRolls, rollScope } from './roll.js';
 import { fitAll } from './fit.js';
 import { sayLog, soundLog } from './feedback.js';
-import { handleBack } from './back.js';
-import { isApk } from './native.js';
+import { handleBack, backHandled } from './back.js';
+import { isApk, nativeBackHandled, hasUpdater, call } from './native.js';
+import { aboutScreen, actions as aboutActions } from './screens/about.js';
 
 const ROUTES = [
   [/^\/?$/, home],
@@ -34,11 +35,12 @@ const ROUTES = [
   [/^\/face\/([^/]+)\/(.+)$/, faceScreen],
   [/^\/reglages$/, settingsScreen],
   [/^\/recadrage$/, cropScreen],
+  [/^\/apropos$/, aboutScreen],
 ];
 
 const ACTIONS = {
   ...playerActions, ...newGameActions, ...gameActions, ...resultActions,
-  ...statsActions, ...settingsActions, ...historyActions, ...photoActions,
+  ...statsActions, ...settingsActions, ...historyActions, ...photoActions, ...aboutActions,
 };
 const INPUTS = { ...playerInputs };
 
@@ -78,6 +80,18 @@ function draw() {
   app.querySelector('[data-reveal]')?.scrollIntoView({ block: 'center' });
   keepAwake(path === '/jeu' || path === '/manche'); // écran allumé pendant la partie, relâché en la quittant
   document.title = path === '/jeu' ? 'STRELA · partie' : 'STRELA';
+  nativeBackHandled(backHandled(app)); // APK : retour prédictif (lot 6)
+  autoUpdateCheck(path);
+}
+
+// Recherche automatique de mise à jour (lot 6, APK « github ») : une fois par lancement, au premier écran hors partie,
+// si le réglage le permet ; la coquille n'interroge GitHub qu'une fois par 24 h au plus (sinon, état gardé).
+let autoChecked = false;
+const IN_GAME = new Set(['/jeu', '/manche', '/fin', '/recadrage']);
+function autoUpdateCheck(path) {
+  if (autoChecked || store.maquette || !hasUpdater() || IN_GAME.has(path)) return;
+  autoChecked = true;
+  if (store.settings.autoUpdate) call('autoCheckUpdate');
 }
 setRenderer(render);
 setStorageListener(() => render());

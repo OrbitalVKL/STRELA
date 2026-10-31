@@ -4,6 +4,7 @@ import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageInstaller;
 import android.net.Uri;
 import android.os.Build;
@@ -23,22 +24,42 @@ import java.net.URL;
 /**
  * Mise à jour depuis l'appli (sur le modèle de Grafit) : dernière release de OrbitalVKL/STRELA (API GitHub, HTTPS),
  * téléchargement de strela.apk dans le cache, installation par PackageInstaller. Android refuse toute mise à jour qui
- * ne porte pas la même signature que l'appli installée ; les données (base de la page) sont gardées. Rien ne part sans
- * un appui sur RECHERCHER UNE MISE À JOUR (Réglages).
+ * ne porte pas la même signature que l'appli installée ; les données (base de la page) sont gardées.
+ * Recherche : sur appui (RECHERCHER UNE MISE À JOUR), ou automatique (lot 6) au lancement, hors partie, si le réglage
+ * le permet, au plus une fois par 24 h (heure de la dernière recherche gardée) ; le résultat est gardé (version,
+ * adresse) pour que le repère « mise à jour disponible » reste d'un lancement à l'autre. Rien n'est téléchargé sans
+ * appui sur INSTALLER. Variante « github » seulement (src/github).
  * Envoie à la page : { update: { current, latest, available, state: idle|checking|downloading|installing|error,
- * progress, size, msg } }.
+ * progress, size, msg, checkedAt, auto } }.
  */
 class Updater {
     static final String API = "https://api.github.com/repos/OrbitalVKL/STRELA/releases/latest";
     static final String DOWNLOADS = "https://github.com/OrbitalVKL/STRELA/releases/download/";
     static final String ACTION = "fr.orbitalvkl.strela.INSTALL_STATUS";
+    static final long DAY = 24L * 3600 * 1000;
     final MainActivity act;
+    final SharedPreferences prefs;
     String latest = null, url = null, state = "idle", msg = "";
-    long size = 0;
+    long size = 0, checkedAt = 0;
     int progress = 0;
-    boolean busy = false;
+    boolean busy = false, auto = false;
 
-    Updater(MainActivity a) { act = a; }
+    Updater(MainActivity a) {
+        act = a;
+        prefs = a.getSharedPreferences("updates", Context.MODE_PRIVATE);
+        latest = prefs.getString("latest", null);
+        url = prefs.getString("url", null);
+        size = prefs.getLong("size", 0);
+        checkedAt = prefs.getLong("checkedAt", 0);
+    }
+
+    /** Recherche automatique : GitHub au plus une fois par 24 h ; sinon l'état gardé est renvoyé tel quel. */
+    void autoCheck() {
+        long now = System.currentTimeMillis();
+        if (busy || (checkedAt > 0 && now - checkedAt < DAY && now >= checkedAt)) { report(); return; }
+        auto = true;
+        check();
+    }
 
     String current() { return act.version(); }
 
@@ -67,6 +88,8 @@ class Updater {
             u.put("progress", progress);
             if (size > 0) u.put("size", size);
             if (!msg.isEmpty()) u.put("msg", msg);
+            if (checkedAt > 0) u.put("checkedAt", checkedAt);
+            u.put("auto", auto);
         } catch (Exception e) { /* */ }
         return u;
     }
@@ -84,8 +107,10 @@ class Updater {
         return c;
     }
 
+    /** Recherche sur appui (auto = false) ou automatique (autoCheck). */
     void check() {
         if (busy) return;
+        boolean silent = auto;
         busy = true; state = "checking"; msg = ""; report();
         new Thread(() -> {
             try {
@@ -111,10 +136,15 @@ class Updater {
                 if (u != null && !u.startsWith(DOWNLOADS)) u = null;
                 latest = tag.startsWith("apk-v") ? tag.substring(5) : tag;
                 url = u; size = sz; state = "idle";
+                checkedAt = System.currentTimeMillis();
+                prefs.edit().putString("latest", latest).putString("url", url).putLong("size", size).putLong("checkedAt", checkedAt).apply();
                 msg = available() ? "Version " + latest + " disponible." : "Strela est à jour.";
             } catch (Exception e) {
-                state = "error"; msg = "Recherche impossible : " + e.getMessage() + ". Connexion Internet ?";
+                // Recherche automatique sans réseau : rien à dire (pas d'alerte au lancement) ; on réessaiera au suivant.
+                state = silent ? "idle" : "error";
+                msg = silent ? "" : "Recherche impossible : " + e.getMessage() + ". Connexion Internet ?";
             }
+            auto = false;
             busy = false;
             report();
         }).start();

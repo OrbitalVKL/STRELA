@@ -27,7 +27,8 @@ export function resetMock() {
   store.crop = null;
   // Lot 4 : problème d'enregistrement simulé et variante de l'accueil remis à zéro
   store.mockIssue = false;
-  store.mockApk = false;
+  store.mockApk = false; // true : APK « github » simulé ; 'play' : variante Google Play (lot 6)
+  store.mockUpdate = null; // état de mise à jour simulé (lot 6)
   Object.assign(store.db, { openCode: null, writeFail: null, error: null });
   setHomeVariant('bande');
   // Derniers réglages : ceux de la partie la plus récente.
