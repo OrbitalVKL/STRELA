@@ -27,7 +27,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const [device] = await _android.devices();
 if (!device) { console.error('aucun appareil Android (adb devices)'); process.exit(2); }
-const sh = async cmd => String(await device.shell(cmd)).trim();
+/** Promesse bornée : un émulateur qui cale fait échouer l'étape au lieu de figer tout le job (lot 6). */
+const within = (ms, what, promise) => Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error(`${what} : rien après ${Math.round(ms / 1000)} s`)), ms))]);
+const sh = async cmd => String(await within(120e3, `adb shell ${cmd.split(' ').slice(0, 3).join(' ')}`, device.shell(cmd))).trim();
 /** Commande de la console de l'émulateur (adb emu …), côté poste. */
 const emu = (...args) => { try { return execFileSync('adb', ['-s', device.serial(), 'emu', ...args], { encoding: 'utf8' }).trim(); } catch (e) { return `échec : ${e.message}`; } };
 /** Textes visibles à l'écran (uiautomator), pour comprendre un écran d'Android. */
@@ -88,7 +90,7 @@ const shot = name => device.screenshot({ path: join(OUT, `${name}.png`) }).catch
 
 async function step(name, fn) {
   try {
-    const r = await fn();
+    const r = await within(6 * 60e3, 'étape', fn());
     if (r === 'skip' || (Array.isArray(r) && r[0] === 'skip')) note(name, 'NON VÉRIFIÉ', Array.isArray(r) ? r[1] : '');
     else note(name, 'OK', typeof r === 'string' ? r : '');
   } catch (e) {
@@ -163,7 +165,7 @@ if (OLD && APK) {
   });
 }
 
-if (APK) { await device.installApk(APK); console.log(`installé : ${APK}`); }
+if (APK) { await within(180e3, "installation de l'APK", device.installApk(APK)); console.log(`installé : ${APK}`); }
 await sh(`pm clear ${PKG}`);
 await launch();
 /** Strela au premier plan et page joignable (après un écran d'Android, une sortie, une fermeture). */
