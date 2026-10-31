@@ -137,7 +137,8 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 
 ## État (fin du lot 6)
 
-- Version 0.6.0. Base toujours en version 2 (aucune migration : le réglage `autoUpdate` s'ajoute aux réglages
+- Version 0.6.1 (6.1 : recherche de mise à jour qui passe par la page web des releases quand l'API de GitHub refuse,
+  limite de 60 demandes par heure et par IP, vu sur le Pixel : « GitHub a répondu 403 »). Avant : 0.6.0. Base toujours en version 2 (aucune migration : le réglage `autoUpdate` s'ajoute aux réglages
   d'affichage avec sa valeur par défaut, et une couleur d'avatar 8 à 15 tient dans le même champ). Sauvegarde au format 1.
 - Décisions prises sur le lot 5 : vibreur en usage MEDIA ; photo perdue si le moteur de rendu meurt pendant la prise de
   vue (accepté) ; diagnostic des Réglages gardé ; accueil variante A.
