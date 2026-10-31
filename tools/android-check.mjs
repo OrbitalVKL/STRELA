@@ -234,8 +234,15 @@ await step('retour prédictif : Réglages → la page traite le retour ; accueil
   const alive = (await sh(`dumpsys activity activities | grep -c "ActivityRecord.*${PKG}/" || true`)).trim() !== '0';
   // Relance d'un nouveau processus : une activité recréée dans le même processus garderait la même adresse de
   // débogage, et Playwright y verrait encore l'ancienne page (fermée).
+  // La transition de retour vers l'écran d'accueil du téléphone doit être finie avant la relance : sinon le lanceur
+  // d'Android repasse devant et garde le focus des touches (vu sur Android 14).
+  await sleep(2000);
   await sh(`am force-stop ${PKG}`);
-  await launch();
+  for (let i = 0; i < 3; i++) {
+    await launch();
+    await sleep(1000);
+    if ((await topActivity()).includes(PKG) && (await focusLine()).includes(PKG)) break;
+  }
   await ready();
   if (!out) throw new Error(`Strela toujours au premier plan (${top})`);
   await page.waitForSelector('.home-main');
