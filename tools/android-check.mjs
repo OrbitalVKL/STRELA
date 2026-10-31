@@ -73,6 +73,9 @@ const ensureFocus = async sel => {
     const texts = await screenTexts();
     if (texts.some(t => /isn.t responding|ne répond pas/i.test(t))) await tapText(/^(Wait|Attendre)$/i, 2);
     else if (/Immersive/i.test(before)) await tapText(/^(Got it|OK|J'ai compris|Compris)$/i, 2);
+    // Lot 6 : le lanceur d'Android garde le focus (ou personne ne l'a) alors que Strela est à l'écran : on la ramène
+    // au premier plan comme par un appui sur son icône (même activité, singleTask : la page et la partie restent).
+    else if (/launcher|mCurrentFocus=null/i.test(before.split(' → ').pop())) { await launch(); await sleep(800); }
     await touch(sel);
     before = `${before} → ${await focusLine()}`;
     if (before.includes(`${PKG}/`)) break;
