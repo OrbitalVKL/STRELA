@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Produit par tools/make-icons.mjs à partir de assets/icon.svg (ne pas modifier à la main) : premier plan de l'icône adaptative (fond : @color/icon_bg). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#FFCFD2D4" android:pathData="M54 20L55.4 25V34H52.6V25Z" />
+    <path android:fillColor="#FFCFD2D4" android:pathData="M48.5 34H59.5V38H48.5ZM48.5 39.6H59.5V42.4H48.5ZM48.5 44H59.5V46.8H48.5ZM48.5 48.4H59.5V51.2H48.5ZM48.5 52.8H59.5V56H48.5Z" />
+    <path android:fillColor="#FFCFD2D4" android:pathData="M52.6 56H55.4V66H52.6Z" />
+    <path android:fillColor="#FF9E4A4A" android:pathData="M54 63L41 77V86L54 79.5L67 86V77Z" />
+</vector>

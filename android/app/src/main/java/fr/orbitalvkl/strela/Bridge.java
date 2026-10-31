@@ -39,10 +39,11 @@ public class Bridge {
         return o.toString();
     }
 
-    /** Version de l'appli et du téléphone (diagnostic). */
+    /** Version de l'appli, variante (github, play) et téléphone (diagnostic, écran À propos). */
     @JavascriptInterface
     public String info() {
-        return json("version", act.version(), "sdk", Build.VERSION.SDK_INT, "model", Build.MANUFACTURER + " " + Build.MODEL);
+        return json("version", act.version(), "variant", BuildConfig.FLAVOR, "package", BuildConfig.APPLICATION_ID,
+            "sdk", Build.VERSION.SDK_INT, "model", Build.MANUFACTURER + " " + Build.MODEL);
     }
 
     // ------------------------------------------------------------------ vibreur
@@ -183,13 +184,13 @@ public class Bridge {
     @JavascriptInterface
     public int backCount() { return act.backs; }
 
-    // ------------------------------------------------------------------ mise à jour (Updater)
+    /** Retour prédictif (lot 6) : la page a-t-elle quelque chose à faire du retour ? Non seulement à l'accueil. */
     @JavascriptInterface
-    public void checkUpdate() { act.updater.check(); }
+    public void setBackHandled(boolean on) { act.setBackHandled(on); }
 
+    /** État du retour (vérification sur émulateur) : le rappel de retour est-il enregistré ? */
     @JavascriptInterface
-    public void installUpdate() { act.updater.install(); }
+    public boolean backHandled() { return act.backHandled; }
 
-    @JavascriptInterface
-    public String updateState() { return act.updater.state().toString(); }
+    // Mise à jour depuis l'appli : variante github seulement (UpdateBridge, src/github) ; absente de la variante play.
 }

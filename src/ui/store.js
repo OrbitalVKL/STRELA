@@ -20,7 +20,8 @@ export const store = {
   draft: null,       // fiche joueur en cours de modification
   setupDraft: null,  // écran « Nouvelle partie » en cours
   crop: null,        // photo en cours de recadrage (screens/photo.js)
-  settings: { theme: 'auto', night: false, vibrate: true, anim: true, sound: true, voice: true },
+  // autoUpdate (lot 6) : recherche automatique de mise à jour (APK « github » seulement), OUI par défaut
+  settings: { theme: 'auto', night: false, vibrate: true, anim: true, sound: true, voice: true, autoUpdate: true },
   maquette: false,
   // Base du téléphone : version, erreur éventuelle, stockage persistant (affichés dans le diagnostic des Réglages)
   db: { version: null, error: null, persisted: null, unreadable: 0, openCode: null, writeFail: null },
@@ -286,7 +287,7 @@ export function deletePlayer(id) {
 // ------------------------------------------------------------------ réglages
 // La base fait foi ; une copie de thème et mode nuit reste dans localStorage, lue par index.html avant l'affichage
 // (pas d'éclair de la mauvaise couleur au lancement). Sommaire de maquette : lus là, jamais écrits.
-const KEYS = { theme: 'strela.theme', night: 'strela.night', vibrate: 'strela.vibrate', anim: 'strela.anim', sound: 'strela.sound', voice: 'strela.voice' };
+const KEYS = { theme: 'strela.theme', night: 'strela.night', vibrate: 'strela.vibrate', anim: 'strela.anim', sound: 'strela.sound', voice: 'strela.voice', autoUpdate: 'strela.autoUpdate' };
 
 export function loadSettings() {
   try {
@@ -297,12 +298,13 @@ export function loadSettings() {
     store.settings.anim = localStorage.getItem(KEYS.anim) !== '0';
     store.settings.sound = localStorage.getItem(KEYS.sound) !== '0';
     store.settings.voice = localStorage.getItem(KEYS.voice) !== '0';
+    store.settings.autoUpdate = localStorage.getItem(KEYS.autoUpdate) !== '0';
   } catch (e) { /* stockage indisponible : réglages par défaut */ }
 }
 
 function mirrorSettings() {
   try {
-    for (const [k, v] of Object.entries(store.settings)) localStorage.setItem(KEYS[k], typeof v === 'boolean' ? (v ? '1' : '0') : v);
+    for (const [k, v] of Object.entries(store.settings)) if (KEYS[k]) localStorage.setItem(KEYS[k], typeof v === 'boolean' ? (v ? '1' : '0') : v);
   } catch (e) { /* tant pis : seul l'éclair au lancement en dépend */ }
 }
 

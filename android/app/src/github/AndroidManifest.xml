@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Variante « github » (APK publié en release GitHub, lot 6) : en plus du manifeste commun, ce qu'il faut à la mise à
+     jour depuis l'appli. INTERNET : API GitHub (dernière release de OrbitalVKL/STRELA, au plus une fois par jour au
+     lancement, ou sur demande) et téléchargement de strela.apk ; REQUEST_INSTALL_PACKAGES : installer cette mise à
+     jour (Android exige la même signature). -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+</manifest>

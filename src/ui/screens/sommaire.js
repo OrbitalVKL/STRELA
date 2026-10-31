@@ -14,7 +14,7 @@ import { computeState } from '../../engine/x01.js';
 import { correctDart } from '../../engine/correct.js';
 import { topBar, ico } from '../dom.js';
 import { parseDart } from '../../engine/darts.js';
-import { simulateGame } from '../mock.js';
+import { simulateGame, MOCK_PLAYERS, EXTRA_PLAYERS } from '../mock.js';
 import { go } from '../nav.js';
 import { isDark, applyTheme, presetBackup } from './settings.js';
 import { makeBackup, parseBackup } from '../../data/backup.js';
@@ -86,11 +86,17 @@ export const SCENES = {
   bust: () => { setGame(cfg(['p1', 'p2'], 301), 'T20 T20 T20 20 20 20 T19 S20 S12 20 20 20 S20 S16', {}, true); return '#/jeu'; },
   volee: () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S1 S20 S20 S20 T20 T20 S20', {}, true); return '#/jeu'; },
   // Volée en attente à 4 et à 8 joueurs ; `k` (8 joueurs) = rang de la volée en attente, donc du joueur qui vient de
-  // lancer (k % 8) : le test des couleurs fait passer VALIDER par les 8 couleurs d'avatar.
+  // lancer (k % 8) : le test des couleurs fait passer VALIDER par les 16 couleurs d'avatar (k de 8 à 15 : les 8 joueurs
+  // prennent les fonds 8 à 15, lot 6 ; sinon leurs fonds d'origine, 0 à 7).
   'volee-4': () => { setGame(cfg(['p1', 'p2', 'p3', 'p4']), 'T20 S20 S1  S20 S5 S20  T19 S7 S3  S20 S1 S20  T20 T20 S5', {}, true); return '#/jeu'; },
   'volee-8': (k = 3) => {
     const visits = ['T20 S20 S1', 'S20 S5 S20', 'T19 S7 0', 'S20 S1 S20', 'S5 S5 S1', 'T20 S20 S5', 'S1 0 S1', 'S20 S5 S20'];
-    setGame(cfg(EIGHT), Array.from({ length: k + 1 }, (_, i) => visits[i % 8]).join(' '), {}, true);
+    setGame(cfg(EIGHT), Array.from({ length: (k % 8) + 1 }, (_, i) => visits[i % 8]).join(' '), {}, true);
+    EIGHT.forEach((id, i) => {
+      const p = store.players.find(q => q.id === id);
+      const orig = [...MOCK_PLAYERS, ...EXTRA_PLAYERS].find(q => q.id === id);
+      if (p && p.avatar.kind !== 'photo') p.avatar.color = k >= 8 ? 8 + i : orig.avatar.color;
+    });
     return '#/jeu';
   },
   annonce: () => { setGame(cfg(['p1', 'p2', 'p3']), 'T20 S20 S1 S20 S20 S20 T20 T20 S20', { announce: 0, frozen: true }); return '#/jeu'; },
@@ -193,6 +199,9 @@ export const SCENES = {
   'histo-selection-confirmer': () => { presetHistory({ ids: store.games.slice(0, 3).map(g => g.id), ask: true }); return '#/historique'; },
   'partie-supprimer': () => { presetHistory({ detail: 'g1' }); return '#/partie/g1'; },
   'fiche-new': () => { store.draft = null; return '#/joueur/nouveau'; },
+  // Lot 6 : banque de 40 pictogrammes (carabine choisie, sur un des nouveaux fonds) et fiche avec les 16 fonds
+  'banque-carabine': () => { store.draft = null; Object.assign(openDraft('p2').avatar, { kind: 'icon', icon: 'carabine', color: 15 }); return '#/avatars'; },
+  'fiche-fonds': () => { store.draft = null; Object.assign(openDraft('p3').avatar, { color: 8 }); return '#/joueur/p3'; },
   'fiche-edit': () => { store.draft = null; return '#/joueur/p2'; },
   suppression: () => { store.current = null; store.draft = null; Object.assign(openDraft('p4'), { del: 'ask', reveal: true }); return '#/joueur/p4'; },
   'suppression-refus': () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S5'); store.draft = null; Object.assign(openDraft('p1'), { del: 'refused', reveal: true }); return '#/joueur/p1'; },
@@ -209,7 +218,15 @@ export const SCENES = {
   'accueil-filet-reprendre': () => { setHomeVariant('filet'); setGame(cfg(['p1', 'p2']), 'T20 S20 S5 S20 T19 S1 T20'); return '#/'; },
   // Lot 5 : premier lancement de l'APK (import de la sauvegarde de la version web, ou à zéro)
   'premier-lancement-apk': () => { store.players = []; store.games = []; store.current = null; store.lastSetup = null; store.mockApk = true; return '#/'; },
-  'reglages-apk': () => { store.mockApk = true; return '#/reglages'; },
+  'reglages-apk': () => { store.mockApk = true; store.mockUpdate = { current: '0.6.0', latest: '0.6.0', available: false, state: 'idle', msg: 'Strela est à jour.' }; return '#/reglages'; },
+  // Lot 6 : mise à jour trouvée par la recherche automatique (repère à l'accueil et dans les Réglages), variante Play,
+  // écran À propos (web, APK GitHub, Google Play)
+  'maj-disponible': () => { store.mockApk = true; store.mockUpdate = { current: '0.6.0', latest: '0.6.1', available: true, state: 'idle', msg: 'Version 0.6.1 disponible.', auto: true }; return '#/'; },
+  'reglages-maj': () => { store.mockApk = true; store.mockUpdate = { current: '0.6.0', latest: '0.6.1', available: true, state: 'idle', msg: 'Version 0.6.1 disponible.' }; return '#/reglages'; },
+  'reglages-maj-telechargement': () => { store.mockApk = true; store.mockUpdate = { current: '0.6.0', latest: '0.6.1', available: true, state: 'downloading', progress: 42 }; return '#/reglages'; },
+  'reglages-play': () => { store.mockApk = 'play'; store.mockUpdate = null; return '#/reglages'; },
+  'apropos-apk': () => { store.mockApk = true; return '#/apropos'; },
+  'apropos-play': () => { store.mockApk = 'play'; return '#/apropos'; },
   'premier-lancement': () => { store.players = []; store.games = []; store.current = null; store.lastSetup = null; return '#/'; },
   'reprendre-manche': () => { setGame(cfg(['p1', 'p2'], 301, 'double', 2), 'T20 T20 T20 20 1 5 T20 T11 D14'); store.current.validated = 6; return '#/'; },
   'reprendre-fin': () => { setGame(cfg(['p1', 'p2', 'p3'], 301), 'T20 T20 T20 20 1 5 T19 S7 S3 T20 T11 D14'); return '#/'; },
@@ -278,7 +295,9 @@ export function sommaire() {
       ${L('suppression', '2 · Supprimer un joueur', 'confirmation')}
       ${L('suppression-refus', '2 · Supprimer pendant une partie', 'refusé')}
       ${L('joueur-supprime', '8 · Partie avec un joueur supprimé', 'Sacha supprimé')}
-      ${H('#/avatars', '3 · Banque d\'avatars', '24 icônes')}
+      ${H('#/avatars', '3 · Banque d\'avatars', '40 icônes par thème')}
+      ${L('banque-carabine', '3 · Banque : carabine choisie', 'fond bordeaux')}
+      ${L('fiche-fonds', '2 · Fiche : 16 fonds', 'fond lavande')}
       ${H('#/nouvelle', '4 · Nouvelle partie', 'derniers réglages')}
       ${L('nouvelle-en-cours', '4 · Nouvelle partie', 'une partie en cours')}
       ${L('nouvelle-confirmer', '4 · LANCER pendant une partie', 'confirmation')}
@@ -298,6 +317,13 @@ export function sommaire() {
       ${H('#/face/p3/p1', '9 · Face-à-face', 'à 3 et 4 joueurs')}
       ${H('#/reglages', '10 · Réglages')}
       ${L('reglages-apk', '10 · Réglages de l\'appli Android', 'mise à jour, désinstallation')}
+      ${L('maj-disponible', '1 · Accueil : mise à jour disponible', 'repère discret')}
+      ${L('reglages-maj', '10 · Réglages : mise à jour disponible', 'INSTALLER')}
+      ${L('reglages-maj-telechargement', '10 · Réglages : téléchargement', '42 %')}
+      ${L('reglages-play', '10 · Réglages de la version Google Play', 'sans mise à jour intégrée')}
+      ${H('#/apropos', '11 · À propos', 'version web')}
+      ${L('apropos-apk', '11 · À propos : appli Android', 'GitHub')}
+      ${L('apropos-play', '11 · À propos : version Google Play')}
       ${L('sauvegarde-apercu', '10 · Importer : aperçu', 'REMPLACER / FUSIONNER')}
       ${L('sauvegarde-remplacer', '10 · Importer : tout remplacer ?', 'confirmation')}
       ${L('sauvegarde-fusionner', '10 · Importer : fusionner ?', 'confirmation')}
@@ -366,8 +392,15 @@ export function sommaire() {
       ${H('./', 'Quitter la maquette', 'vraies données')}
     </nav>
     <div class="pad"><div class="sec">Icône d'appli</div>
-      <div style="display:flex;gap:16px;align-items:flex-end"><img src="assets/icon.svg" width="96" height="96" alt="Icône Strela"><img src="assets/icon-maskable-512.png" width="72" height="72" alt="" style="clip-path:circle(50%)"><img src="assets/icon.svg" width="40" height="40" alt=""></div>
-      <p class="note">Carré de cible, flèche plantée au centre (стрела = flèche). Version ronde : découpe d'Android.</p>
+      <div class="icon-show" aria-label="Icône Strela en grand et en petit">
+        <figure><img src="assets/icon-512.png" width="160" height="160" alt="Icône Strela"><figcaption>160 px</figcaption></figure>
+        <figure><span class="ic-adaptive" style="--s:72px"><img src="assets/icon-maskable-512.png" alt=""></span><figcaption>Android</figcaption></figure>
+        <figure><span class="ic-adaptive mono" style="--s:72px"><i style="-webkit-mask-image:url(assets/icon-mono.svg);mask-image:url(assets/icon-mono.svg)"></i></span><figcaption>à thème</figcaption></figure>
+        <figure><img src="assets/icon-192.png" width="48" height="48" alt=""><figcaption>48 px</figcaption></figure>
+        <figure><img src="assets/icon-192.png" width="24" height="24" alt=""><figcaption>24 px</figcaption></figure>
+      </div>
+      <p class="note">« Soyouz » : fléchette verticale, pointe en haut, fût clair strié, ailettes rouges (стрела = flèche).
+        Android découpe l'icône (ici en rond) ; l'icône à thème d'Android 13 et plus en garde la silhouette, teintée.</p>
     </div>
   </div>`;
 }

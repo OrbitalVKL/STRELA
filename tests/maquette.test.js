@@ -2,7 +2,8 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { MOCK_PLAYERS, EXTRA_PLAYERS, mockGames, simulateGame } from '../src/ui/mock.js';
-import { ICONS, ICON_KEYS, initials, avatarHtml, iconSvg } from '../src/ui/avatars.js';
+import { ICONS, ICON_KEYS, ICON_GROUPS, AVATAR_COLOR_NAMES, initials, avatarHtml, iconSvg } from '../src/ui/avatars.js';
+import { AVATAR_COLORS } from '../src/ui/theme.js';
 import { computeState } from '../src/engine/x01.js';
 import { gameWinner } from '../src/engine/stats.js';
 
@@ -38,8 +39,14 @@ describe('maquette', () => {
     assert.equal(computeState(config, simulateGame(config, new Array(8).fill(0.3), 1)).status, 'finished');
   });
 
-  test('banque d’avatars : 24 pictogrammes, noms en français, SVG monochrome', () => {
-    assert.equal(ICON_KEYS.length, 24);
+  test('banque d’avatars : 40 pictogrammes (carabine comprise), noms en français, SVG monochrome, rangés par thème', () => {
+    assert.equal(ICON_KEYS.length, 40);
+    assert.ok(ICONS.carabine, 'carabine');
+    const grouped = ICON_GROUPS.flatMap(g => g.keys);
+    assert.deepEqual([...grouped].sort(), [...ICON_KEYS].sort(), 'chaque pictogramme dans un seul groupe');
+    assert.equal(new Set(ICON_KEYS.map(k => ICONS[k][0])).size, ICON_KEYS.length, 'noms sans doublon');
+    assert.equal(new Set(ICON_KEYS.map(k => ICONS[k][1])).size, ICON_KEYS.length, 'dessins sans doublon');
+    assert.equal(AVATAR_COLOR_NAMES.length, AVATAR_COLORS.length, 'un nom par fond');
     for (const k of ICON_KEYS) {
       const svg = iconSvg(k);
       assert.match(svg, /^<svg viewBox="0 0 48 48"/);
@@ -50,7 +57,9 @@ describe('maquette', () => {
     assert.equal(initials('Jean-Christophe de La Tour'), 'JC');
     assert.equal(initials('  '), '?');
     assert.match(avatarHtml({ name: '<b>', avatar: { kind: 'initials', color: 3 } }), /&lt;B|&lt;b/i);
-    assert.match(avatarHtml({ name: 'X', avatar: { kind: 'icon', icon: 'renard', color: 9 } }), /var\(--av-1\)/);
+    assert.match(avatarHtml({ name: 'X', avatar: { kind: 'icon', icon: 'renard', color: 9 } }), /var\(--av-9\)/);
+    assert.match(avatarHtml({ name: 'X', avatar: { kind: 'icon', icon: 'renard', color: 17 } }), /var\(--av-1\)/);
+    assert.match(avatarHtml({ name: 'X', avatar: { kind: 'initials' } }), /var\(--av-7\)/);
   });
 
   test('PWA : manifeste plein écran, deux orientations, icônes présentes, service worker réseau d’abord', () => {

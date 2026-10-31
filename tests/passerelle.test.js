@@ -9,7 +9,7 @@ import { writeFileSync, mkdtempSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { serve, loadPlaywright } from '../tools/lib/serve.mjs';
-import { openApp, readDb, settle, throwDarts, validate, createPlayer, newGame } from '../tools/lib/app.mjs';
+import { openApp, readDb, settle, throwDarts, validate, createPlayer, newGame, reload } from '../tools/lib/app.mjs';
 import { makeBackup, parseBackup } from '../src/data/backup.js';
 import { ds } from './helpers.js';
 
@@ -17,8 +17,13 @@ const pw = await loadPlaywright();
 const VIEW = { viewport: { width: 410, height: 914 }, isMobile: true, hasTouch: true, reducedMotion: 'reduce' };
 const skip = !pw && 'Playwright absent';
 
-/** Passerelle simulée : chaque appel est noté dans window.__calls ; réponses comme Bridge.java. */
+/**
+ * Passerelle simulée : chaque appel est noté dans window.__calls ; réponses comme Bridge.java (+ UpdateBridge.java de
+ * la variante github ; sessionStorage « variant » = 'play' avant le chargement : sans les fonctions de mise à jour,
+ * comme la variante play, lot 6).
+ */
 function fakeBridge() {
+  const play = (() => { try { return sessionStorage.getItem('variant') === 'play'; } catch (e) { return false; } })();
   window.__calls = [];
   const rec = (name, ret) => (...a) => { window.__calls.push([name, ...a]); return typeof ret === 'function' ? ret(...a) : ret; };
   window.__spoken = [];
@@ -26,7 +31,7 @@ function fakeBridge() {
   window.__webVibrate = 0;
   try { navigator.vibrate = () => { window.__webVibrate++; return true; }; } catch (e) { /* rien */ }
   window.strelaNative = {
-    info: rec('info', JSON.stringify({ version: '0.5.0', sdk: 36, model: 'Google Pixel 10 Pro' })),
+    info: rec('info', JSON.stringify({ version: '0.5.0', variant: play ? 'play' : 'github', package: play ? 'fr.orbitalvkl.strela.play' : 'fr.orbitalvkl.strela', sdk: 36, model: 'Google Pixel 10 Pro' })),
     vibrate: rec('vibrate', 'sent'),
     speak: rec('speak', true),
     stopSpeaking: rec('stopSpeaking'),
@@ -37,10 +42,17 @@ function fakeBridge() {
     immersive: rec('immersive'),
     setDark: rec('setDark'),
     gestureInset: rec('gestureInset', 0),
-    checkUpdate: rec('checkUpdate'),
-    installUpdate: rec('installUpdate'),
-    updateState: rec('updateState', JSON.stringify({ current: '0.5.0', available: false, state: 'idle', progress: 0 })),
+    setBackHandled: rec('setBackHandled'),
+    backHandled: rec('backHandled', true),
   };
+  if (!play) {
+    Object.assign(window.strelaNative, {
+      checkUpdate: rec('checkUpdate'),
+      autoCheckUpdate: rec('autoCheckUpdate'),
+      installUpdate: rec('installUpdate'),
+      updateState: rec('updateState', JSON.stringify({ current: '0.5.0', available: false, state: 'idle', progress: 0 })),
+    });
+  }
 }
 
 const calls = (page, name) => page.evaluate(n => window.__calls.filter(c => c[0] === n).map(c => c.slice(1)), name);
@@ -202,6 +214,101 @@ test('navigateur (sans passerelle) : API web, rien de propre à l’APK', { skip
     await newGame(page, ['Alpha']);
     await throwDarts(page, '20');
     assert.deepEqual((await page.evaluate(() => window.__webVibrate)).slice(-1), [25]);
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+    await srv.close();
+  }
+});
+
+// Lot 6 : variante github (recherche automatique, repère « mise à jour disponible », réglage), retour prédictif,
+// À propos ; variante play (ni code ni bouton de mise à jour).
+test('APK github : recherche automatique au lancement, repère, réglage ; retour prédictif ; À propos', { skip, timeout: 120e3 }, async () => {
+  const srv = await serve();
+  const browser = await pw.chromium.launch();
+  try {
+    const ctx = await browser.newContext(VIEW);
+    await ctx.addInitScript(fakeBridge);
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on('pageerror', e => errors.push(e.message));
+    await openApp(page, srv.url);
+    // Accueil : une recherche automatique (la coquille limite GitHub à une fois par 24 h), retour laissé à Android
+    assert.equal((await calls(page, 'autoCheckUpdate')).length, 1, 'recherche automatique au lancement');
+    assert.deepEqual((await calls(page, 'setBackHandled')).at(-1), [false], 'accueil : retour prédictif vers le téléphone');
+    assert.equal(await page.$('.upd-badge'), null, 'pas de repère sans mise à jour');
+    // La coquille trouve une version plus récente : repère discret à l'accueil, qui mène aux Réglages
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('strela-native', { detail: { update: { current: '0.5.0', latest: '0.6.0', available: true, state: 'idle', progress: 0, auto: true } } })));
+    await page.evaluate(() => { location.hash = '#/joueurs'; });
+    await page.waitForSelector('.empty');
+    assert.deepEqual((await calls(page, 'setBackHandled')).at(-1), [true], 'ailleurs, la page traite le retour');
+    await page.evaluate(() => { location.hash = '#/'; });
+    await page.waitForSelector('.home-main .upd-badge');
+    assert.match(await page.textContent('.upd-badge'), /MISE À JOUR v0\.6\.0 DISPONIBLE/);
+    assert.equal((await calls(page, 'installUpdate')).length, 0, 'rien n’est téléchargé sans appui');
+    await page.click('.upd-badge');
+    await page.waitForSelector('[data-act="update-install"]');
+    assert.equal(await hash(page), '#/reglages');
+    assert.match(await page.textContent('#app'), /INSTALLER LA VERSION 0\.6\.0/);
+    assert.match(await page.textContent('.upd-line'), /MISE À JOUR v0\.6\.0 DISPONIBLE/);
+    // Réglage : recherche automatique coupée, gardée au rechargement ; plus aucune recherche au lancement
+    await page.click('[data-act="auto-update"][data-arg="0"]');
+    await settle(page);
+    await reload(page);
+    assert.equal((await calls(page, 'autoCheckUpdate')).length, 0, 'recherche automatique désactivée');
+    await page.evaluate(() => { location.hash = '#/reglages'; });
+    await page.waitForSelector('[data-act="auto-update"][data-arg="0"][aria-pressed="true"]');
+    await page.click('[data-act="auto-update"][data-arg="1"]');
+    await settle(page);
+    // Jamais de recherche pendant une partie : lancement directement en partie
+    await createPlayer(page, 'Alpha');
+    await newGame(page, ['Alpha']);
+    assert.equal(await hash(page), '#/jeu');
+    await reload(page); // la page s'ouvre sur la partie
+    assert.equal((await calls(page, 'autoCheckUpdate')).length, 0, 'aucune recherche en partie');
+    await page.evaluate(() => { location.hash = '#/'; });
+    await page.waitForSelector('.home-main');
+    assert.equal((await calls(page, 'autoCheckUpdate')).length, 1, 'faite en revenant à l’accueil');
+    // À propos : variante, confidentialité, licence de la police
+    await page.evaluate(() => { location.hash = '#/apropos'; });
+    await page.waitForSelector('.about');
+    assert.match(await page.textContent('.about'), /Appli Android · GitHub/);
+    assert.match(await page.textContent('.about'), /fr\.orbitalvkl\.strela/);
+    assert.match(await page.textContent('.about'), /ne collecte, ne transmet ni ne partage aucune donnée/);
+    assert.equal(await page.getAttribute('a.btn[target="_blank"]', 'href'), 'https://orbitalvkl.github.io/STRELA/confidentialite.html');
+    assert.match(await page.textContent('.about'), /\[E-MAIL DE CONTACT\]/);
+    await page.click('[data-act="about-licence"]');
+    await page.waitForFunction(() => /SIL OPEN FONT LICENSE/i.test(document.querySelector('.licence')?.textContent || ''));
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+    await srv.close();
+  }
+});
+
+test('APK play : ni recherche, ni bouton, ni repère de mise à jour', { skip, timeout: 90e3 }, async () => {
+  const srv = await serve();
+  const browser = await pw.chromium.launch();
+  try {
+    const ctx = await browser.newContext(VIEW);
+    await ctx.addInitScript(() => { try { sessionStorage.setItem('variant', 'play'); } catch (e) { /* rien */ } });
+    await ctx.addInitScript(fakeBridge);
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on('pageerror', e => errors.push(e.message));
+    await openApp(page, srv.url);
+    assert.equal(await page.evaluate(() => typeof window.strelaNative.checkUpdate), 'undefined');
+    await page.evaluate(() => { location.hash = '#/reglages'; });
+    await page.waitForSelector('#diag');
+    const text = await page.textContent('#app');
+    assert.doesNotMatch(text, /RECHERCHER UNE MISE À JOUR|Recherche automatique|INSTALLER LA VERSION/);
+    assert.match(text, /Version Google Play/);
+    assert.match(text, /DÉSINSTALLER EFFACE LES DONNÉES/);
+    assert.match(await page.textContent('#diag'), /\(play\)/);
+    await page.evaluate(() => { location.hash = '#/apropos'; });
+    await page.waitForSelector('.about');
+    assert.match(await page.textContent('.about'), /Appli Android · Google Play/);
+    assert.match(await page.textContent('.about'), /aucun accès à Internet/);
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();

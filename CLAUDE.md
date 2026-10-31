@@ -33,12 +33,15 @@ filets fins, angles droits, rien d'arrondi. Utiliser les jetons CSS de `assets/t
 ```
 index.html                l'appli (page unique). Marques <!--@clé-->…<!--/@--> remplies au build (bloc #build)
 manifest.webmanifest      PWA : portrait et paysage, plein écran ; sw.js : service worker « réseau d'abord »
-assets/theme.css          thème (jetons CSS sombre / clair, fonds d'avatar --av-0…7, --night, @font-face)
+assets/theme.css          thème (jetons CSS sombre / clair, fonds d'avatar --av-0…15, --night, @font-face)
 assets/app.css            styles des écrans (jetons uniquement)
 assets/fonts/             Martian Mono woff2 (latin, latin-ext, cyrillique) + OFL.txt
-assets/icon.svg           icône (+ icon-192/512/maskable-512.png générés par tools/make-icons.mjs)
+assets/icon.svg           icône « Soyouz » (lot 6, grille 108) ; tools/make-icons.mjs en tire icon-192/512/maskable-512.png,
+                          icon-mono.svg, les calques vectoriels d'Android (res/drawable) et docs/play/icone-512.png
+confidentialite.html      politique de confidentialité (lot 6), publiée sur Pages ; liée depuis À propos
 android/                  coquille Android (lot 5, docs/android.md) : MainActivity, Bridge (passerelle strelaNative),
-                          Speech (voix), Updater (mise à jour) ; page copiée dans app/src/main/assets/www/ par apk-page.sh
+                          Speech (voix) ; page copiée dans app/src/main/assets/www/ par apk-page.sh. Lot 6 : variantes
+                          src/github (Updater, UpdateBridge, Flavor : mise à jour, INTERNET) et src/play (Flavor vide)
 src/data/db.js            base du téléphone (IndexedDB) : migrations, relecture, écritures en une transaction ; sans DOM
 src/data/backup.js        sauvegarde JSON (lot 3) : format, vérification, REMPLACER TOUT / FUSIONNER ; sans DOM
 src/engine/               moteur de règles, JS pur sans dépendance ni DOM (docs/moteur-x01.md)
@@ -56,7 +59,8 @@ src/ui/                   interface (docs/interface.md) : app.js, nav.js, store.
                           table.js (historique en tableau), fit.js (compaction des blocs trop chargés),
                           feedback.js (sons Web Audio et annonces vocales, lot 3),
                           rescue.js (écran de secours, script classique chargé avant l'appli, lot 4),
-                          native.js (passerelle de l'APK, lot 5), back.js (bouton retour d'Android, lot 5),
+                          native.js (passerelle de l'APK, lot 5 ; variante, retour prédictif, lot 6), back.js (retour),
+                          screens/about.js (À propos, lot 6),
                           mock.js + maquette.js (données fictives : sommaire ?maquette et tests seulement)
 src/ui/theme.js           palette (source de vérité des couleurs), contraste
 tests/                    tests node:test (*.test.js) ; helpers.js = aides (notation ds('T20 D16'))
@@ -65,17 +69,22 @@ tests/                    tests node:test (*.test.js) ; helpers.js = aides (nota
                           lot 3 : saisie (touches au relâcher), suppression, panneau (+ correction), annonces,
                           sauvegarde (aller-retour), chiffres (stats contre un calcul à la main) ;
                           lot 4 : finition (double préféré en vraie appli), secours (écran de secours, stockage plein) ;
-                          lot 5 : passerelle (APK simulé, et navigateur)
+                          lot 5 : passerelle (APK simulé, et navigateur) ; lot 6 : android (variantes, manifeste fusionné
+                          play), icone (calques à jour), play (fiche : longueurs, images)
 tools/build-site.mjs      construit _site/ : lance les tests (sauf STRELA_SANS_TESTS=1), remplit la page, copie assets/ et src/
-tools/apk-page.sh         copie le site construit dans l'APK ; tools/android-check.mjs : essai de l'APK sur émulateur (adb)
+tools/apk-page.sh         copie le site construit dans l'APK ; tools/android-check.mjs : essai de l'APK sur émulateur (adb),
+                          mise à jour en place, variante play ; tools/play-assets.mjs : captures et image de la fiche Play
 tools/check-layout.mjs    test de chevauchement en ligne de commande ; tools/captures.mjs : captures ; tools/geste.mjs :
                           saisie au doigt en paysage ; tools/lib/ : serveur, contrôle de mise en page, geste,
                           app.mjs (pilotage de la vraie appli : saisie, lecture de la base, instantané de l'écran)
 .github/workflows/ci.yml     tests sur chaque demande de fusion et sur main
 .github/workflows/pages.yml  build + déploiement GitHub Pages à chaque push sur main
-.github/workflows/apk.yml    tests, page embarquée, APK signé publié en release apk-vX.Y.Z (strela.apk) à chaque push sur main
-docs/                     cahier des charges, DA, moteur, interface, statistiques (définitions exactes)
-package.json              version de l'appli (champ "version"), scripts ; aucune dépendance
+.github/workflows/apk.yml    tests, page embarquée, APK github signé publié en release apk-vX.Y.Z (strela.apk) à chaque push
+                             sur main ; .aab play signé en artefact (jamais publié) ; signature comparée à la release d'avant
+docs/                     cahier des charges, DA, moteur, interface, statistiques (définitions exactes), android ;
+                          docs/play/ : fiche Google Play prête (textes, formulaires, images, checklist.md)
+package.json              version de l'appli (champ "version"), contact (strela.contact, vide = « [E-MAIL DE CONTACT] »),
+                          scripts ; aucune dépendance
 ```
 
 Les tests sont dans `tests/` (et non `test/`) : avec `node --test`, tout fichier `.js` d'un dossier
@@ -96,9 +105,11 @@ Les tests sont dans `tests/` (et non `test/`) : avec `node --test`, tout fichier
 - Node 22 en CI ; le projet n'a aucune dépendance. La CI (et le build de Pages) installe seulement Playwright et
   Chromium (`npm install --no-save playwright@1.63.0`) pour les tests de chevauchement et de geste.
 - Version : `package.json` → affichée sur la page et lue par l'APK (`android/app/build.gradle`).
-- APK : `STRELA_SANS_TESTS=1 node tools/build-site.mjs && sh tools/apk-page.sh && (cd android && gradle assembleDebug)`
-  (SDK Android 35, Java 17+, Gradle 8.11+ ; présents dans les sessions). Pas d'émulateur dans les sessions (pas de KVM) :
-  la CI l'essaie sur un émulateur (job `emulateur`). Détail : docs/android.md.
+- APK : `STRELA_SANS_TESTS=1 node tools/build-site.mjs && sh tools/apk-page.sh && (cd android && gradle assembleGithubDebug
+  assemblePlayDebug bundlePlayDebug)` (lot 6 : SDK Android 36 — `sdkmanager "platforms;android-36" "build-tools;36.0.0"`
+  si absent —, Java 17+, Gradle 8.13+ ; Maven Central répond parfois 429 : relancer). Pas d'émulateur dans les sessions
+  (pas de KVM) : la CI l'essaie sur émulateur Android 14 et 16 (job `emulateur`). Détail : docs/android.md.
+- Icône : `node tools/make-icons.mjs` ; images de la fiche Play : `node tools/play-assets.mjs`.
 
 ## Page publiée
 
@@ -120,10 +131,37 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 2 | Partie jouable et enregistrée (IndexedDB, reprise), vrais joueurs et photo d'avatar, VALIDER sans le suivant — **fait** |
 | 3 | Corrections de jeu, historique, stats et sauvegarde (touches au relâcher, suppression de parties, face-à-face, panneau cible + historique, finition dans les cases, voix, célébrations, sons, correction d'une fléchette, export / import, chiffres vérifiés) — **fait** |
 | 4 | Finitions : titre STRELA + rouge d'accent (accueil), finition au double préféré (base v2), écrans vides et erreurs, écran de secours — **fait** |
-| 5 | APK (coquille Java WebView `fr.orbitalvkl.strela`, minSdk 30, passerelle native, release signée, mise à jour dans l'appli) — **fait, en attente de validation sur le Pixel** |
-| 6 | Recette |
+| 5 | APK (coquille Java WebView `fr.orbitalvkl.strela`, minSdk 30, passerelle native, release signée, mise à jour dans l'appli) — **fait, validé sur le Pixel** |
+| 6 | Icône « Soyouz », 16 fonds et 40 pictogrammes d'avatar, recherche de mise à jour automatique, variantes github / play (Android 16), À propos et confidentialité, fiche Play prête (v0.6.0) — **fait, en attente de validation sur le Pixel** |
+| 7 | Recette |
 
-## État (fin du lot 5)
+## État (fin du lot 6)
+
+- Version 0.6.0. Base toujours en version 2 (aucune migration : le réglage `autoUpdate` s'ajoute aux réglages
+  d'affichage avec sa valeur par défaut, et une couleur d'avatar 8 à 15 tient dans le même champ). Sauvegarde au format 1.
+- Décisions prises sur le lot 5 : vibreur en usage MEDIA ; photo perdue si le moteur de rendu meurt pendant la prise de
+  vue (accepté) ; diagnostic des Réglages gardé ; accueil variante A.
+- Lot 6 :
+  - **Icône « Soyouz »** (assets/icon.svg, grille 108) déclinée en PWA, icône adaptative et monochrome d'Android
+    (vecteurs), icône Play ; aperçu au sommaire (section « Icône d'appli »).
+  - **Avatars** : 16 fonds (≥ 14 de CIEDE2000 entre les 16, ≥ 20 entre les 8 d'origine : 20 sur 16 est impossible,
+    voir theme.js), 40 pictogrammes dont la carabine, banque rangée par thème.
+  - **Mise à jour automatique** (APK github) : au lancement, hors partie, au plus une fois par 24 h, réglage pour la
+    couper ; repère à l'accueil et dans les Réglages ; rien n'est téléchargé sans appui.
+  - **Variantes** github (`fr.orbitalvkl.strela`, APK, release) et play (`fr.orbitalvkl.strela.play`, .aab en
+    artefact, sans mise à jour ni INTERNET) ; compileSdk / targetSdk 36 ; retour prédictif (rappel retiré à l'accueil) ;
+    plugin Android 8.11.1, Gradle 8.14.3 en CI.
+  - **À propos** (`#/apropos`) et **confidentialite.html** ; **docs/play/** (fiche, sécurité des données,
+    classification, captures, image de présentation, icône, checklist).
+- CI : émulateur Android 14 et 16, mise à jour en place 0.5.0 → 0.6.0 (APK de test, même clé), variante play à côté.
+  apk.yml compare le certificat de la nouvelle release à celui de la précédente avant de publier.
+- Ouvert : e-mail de contact à fournir (package.json `strela.contact`) ; nom Play limité à 30 caractères (proposé :
+  « Strela, compteur de fléchettes ») ; pictogrammes chope et verre = « références à l'alcool » au questionnaire IARC.
+- Pour la suite : tout nouvel écran ou état va dans `SCENES` ; une fonction native nouvelle va dans `Bridge.java` (ou
+  `UpdateBridge.java` si propre à la variante github), `src/ui/native.js` et la passerelle simulée de
+  `tests/passerelle.test.js`.
+
+## État (fin du lot 5, pour mémoire)
 
 - Version 0.5.0. Base en version 2 (inchangée au lot 5). APK : docs/android.md.
 - Lot 5 : coquille `android/` (WebView, page embarquée sur appassets.androidplatform.net, rotation sans rechargement,

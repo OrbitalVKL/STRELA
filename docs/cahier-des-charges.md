@@ -52,8 +52,9 @@ ordonnée de ses fléchettes. Détail du moteur : [moteur-x01.md](moteur-x01.md)
   (oui / non) ; la finition conseillée en jeu en tient compte (détail : [moteur-x01.md](moteur-x01.md)).
 - **Avatar**, au choix :
   - une photo (caméra ou galerie), recadrée au carré ;
-  - une icône tirée d'une banque d'environ 24 pictogrammes SVG monochromes dessinés pour Strela dans la DA
-    (fléchette, cible, animaux, objets ; rien de copié de Dartsmind), sur un fond choisi parmi 8 couleurs sourdes ;
+  - une icône tirée d'une banque de 40 pictogrammes SVG monochromes dessinés pour Strela dans la DA (24 au lot 1,
+    16 de plus au lot 6 dont une carabine ; rangés par thème : tir et jeu, espace, animaux, bar et objets ; rien de
+    copié), sur un fond choisi parmi 16 couleurs sourdes (8 au lot 1, 8 de plus au lot 6) ;
   - à défaut, les initiales.
 
 ## 4. Écrans
@@ -212,11 +213,25 @@ Détail : [direction-artistique.md](direction-artistique.md).
 
 ## 8 bis. Appli Android (lot 5)
 
-Coquille Java WebView (`fr.orbitalvkl.strela`, minSdk 30, targetSdk 35, « Strela ») : page embarquée, hors ligne ;
+Coquille Java WebView (`fr.orbitalvkl.strela`, minSdk 30, targetSdk 36 depuis le lot 6, « Strela ») : page embarquée, hors ligne ;
 passerelle native (vibreur, voix d'Android, export dans Téléchargements/Strela et partage, import et photo par les
 sélecteurs d'Android) ; bouton retour (jamais de sortie en pleine partie) ; plein écran et écran allumé en partie ;
 premier lancement : import de la sauvegarde de la version web ; APK signé publié en release `apk-vX.Y.Z`, mise à jour
 depuis l'appli. La version web reste sur GitHub Pages (aperçu, tests). Détail : [android.md](android.md).
+
+## 8 ter. Lot 6 : icône, avatars, mise à jour, préparation de Google Play
+
+- Icône « Soyouz » (fléchette verticale, ailettes rouges) ; 16 fonds d'avatar et 40 pictogrammes (détail :
+  [direction-artistique.md](direction-artistique.md)).
+- Recherche de mise à jour automatique (APK GitHub) : au lancement, au plus une fois par 24 h, jamais pendant une
+  partie ; repère « MISE À JOUR vX.Y.Z DISPONIBLE » à l'accueil et dans les Réglages ; rien n'est téléchargé sans appui ;
+  réglage « Recherche automatique » (OUI par défaut).
+- Deux variantes : « github » (`fr.orbitalvkl.strela`, APK publié, mise à jour intégrée) et « play »
+  (`fr.orbitalvkl.strela.play`, .aab, sans mise à jour intégrée ni accès réseau) ; Android 16 (targetSdk 36).
+- Écran À propos (version, variante, licences, confidentialité, contact) ; politique de confidentialité publiée
+  (`confidentialite.html`) ; fiche Play prête dans `docs/play/` (rien n'est envoyé).
+- Écart : 20 de CIEDE2000 entre les 16 fonds est hors d'atteinte ; retenu ≥ 14 entre les 16, ≥ 20 entre les 8 d'origine.
+  Nom Play : 30 caractères au plus (le titre demandé en fait 31, voir `docs/play/fiche.md`).
 
 ## 9. Lots
 
@@ -231,4 +246,5 @@ depuis l'appli. La version web reste sur GitHub Pages (aperçu, tests). Détail 
 | 3 | Corrections de jeu (touches au relâcher, fléchettes et finition dans les cases, correction d'une fléchette, panneau cible + historique), suppression de parties, face-à-face, annonces vocales, sons, célébrations, export / import, chiffres vérifiés | validation des fonctions |
 | 4 | Finitions : titre STRELA et rouge d'accent de l'accueil, finition au double préféré, écrans vides et erreurs, écran de secours | validation des fonctions |
 | 5 | APK Android (coquille, passerelle native : vibreur, voix, fichiers, photo ; mise à jour depuis l'appli) | |
-| 6 | Recette | |
+| 6 | Icône « Soyouz », 16 fonds et 40 pictogrammes d'avatar, recherche de mise à jour automatique, variantes github / play, Android 16, À propos et confidentialité, fiche Play prête (v0.6.0) | |
+| 7 | Recette | |

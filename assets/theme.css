@@ -50,6 +50,15 @@
   --av-5: #57385E;
   --av-6: #0D7281;
   --av-7: #69686B;
+  /* Lot 6 : lavande, framboise, kaki, forêt, abysse, café, charbon, bordeaux */
+  --av-8: #63649F;
+  --av-9: #964F74;
+  --av-10: #6C6B4C;
+  --av-11: #043312;
+  --av-12: #163D3F;
+  --av-13: #3E2A14;
+  --av-14: #3C363C;
+  --av-15: #4F0827;
   --av-ink: #ECEDEE;
   --night: #B21400;
   /* Cible : mêmes couleurs dans les deux thèmes (objet physique) ; voir BOARD_COLORS de theme.js */

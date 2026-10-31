@@ -9,4 +9,5 @@ export const BUILD = Object.freeze({
   total: read('total') || '—',
   date: read('date') || '—',
   commit: read('commit') || 'local',
+  contact: read('contact'), // lot 6 : e-mail de contact (package.json, strela.contact) ; vide = « [E-MAIL DE CONTACT] »
 });

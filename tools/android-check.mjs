@@ -1,5 +1,7 @@
 // Strela — vérification de l'APK de test sur un émulateur Android (lot 5), lancée par ci.yml (job « emulateur ») :
-//   node tools/android-check.mjs chemin/vers/strela-test.apk
+//   node tools/android-check.mjs chemin/vers/strela-test.apk [--ancienne=strela-0.5.0.apk] [--play=strela-play.apk]
+// Lot 6 : --ancienne : mise à jour en place depuis cette version (même clé de test) : joueurs et partie gardés ;
+// bord à bord et retour prédictif (Android 16) ; --play : la variante play installée à côté, sans mise à jour intégrée.
 // Pilote la vraie appli (WebView de l'APK, débogage ouvert sur l'APK de test seulement) avec Playwright pour Android
 // et adb : premier lancement, passerelle présente, une partie, rotation en pleine partie (sans rechargement), bouton
 // retour (menu pause), export dans Téléchargements/Strela, import par le sélecteur de fichiers d'Android. Chaque étape
@@ -12,7 +14,9 @@ import { ROOT } from './lib/serve.mjs';
 import { createPlayer, newGame, throwDarts, validate, settle } from './lib/app.mjs';
 
 const { _android } = createRequire(import.meta.url)('playwright');
-const APK = process.argv[2];
+const APK = process.argv.slice(2).find(a => !a.startsWith('--'));
+const opt = k => process.argv.find(a => a.startsWith(`--${k}=`))?.split('=')[1];
+const OLD = opt('ancienne'), PLAY = opt('play');
 const PKG = 'fr.orbitalvkl.strela';
 const OUT = join(ROOT, 'captures', 'android');
 mkdirSync(OUT, { recursive: true });
@@ -94,16 +98,54 @@ console.log(`Appareil : ${device.model()} · Android ${await sh('getprop ro.buil
 await sh('settings put global hide_error_dialogs 1');
 await sh('settings put system accelerometer_rotation 0');
 await sh('settings put system user_rotation 0');
-if (APK) { await device.installApk(APK); console.log(`installé : ${APK}`); }
-await sh(`pm clear ${PKG}`);
-await sh(`am start -W -n ${PKG}/.MainActivity`);
-
 let page = null;
-const ready = async () => {
-  const web = await device.webView({ pkg: PKG }, { timeout: 60e3 });
+const ready = async (pkg = PKG) => {
+  const web = await device.webView({ pkg }, { timeout: 60e3 });
   page = await web.page();
   await page.waitForSelector('body[data-ready]', { timeout: 60e3 });
 };
+const version = () => page.evaluate(() => JSON.parse(window.strelaNative.info()).version);
+
+// Lot 6 : mise à jour en place (version précédente installée, des données, puis la nouvelle par-dessus).
+if (OLD && APK) {
+  await step('mise à jour en place depuis la version précédente : joueurs et partie gardés', async () => {
+    await sh(`pm uninstall ${PKG}`);
+    await device.installApk(OLD);
+    await sh(`am start -W -n ${PKG}/.MainActivity`);
+    await ready();
+    const before = await version();
+    await createPlayer(page, 'Ancien');
+    await createPlayer(page, 'Fidèle');
+    await newGame(page, ['Ancien', 'Fidèle'], { startScore: 301 });
+    await throwDarts(page, 'T20 S20 S5');
+    await validate(page);
+    await throwDarts(page, 'T19');
+    await settle(page);
+    await sh(`am force-stop ${PKG}`);
+    await device.installApk(APK); // adb install -r : même paquet, même clé, version plus récente
+    await sh(`am start -W -n ${PKG}/.MainActivity`);
+    await ready();
+    const after = await version();
+    await page.waitForSelector('.resume');
+    const names = await page.evaluate(() => new Promise((res, rej) => {
+      const r = indexedDB.open('strela');
+      r.onerror = () => rej(r.error);
+      r.onsuccess = () => { const q = r.result.transaction('players').objectStore('players').getAll(); q.onsuccess = () => res(q.result.map(p => p.name).sort()); };
+    }));
+    await page.click('.resume');
+    await page.waitForSelector('.game');
+    const rest = await remaining();
+    await shot('0-mise-a-jour');
+    if (names.join(',') !== 'Ancien,Fidèle') throw new Error(`joueurs : ${names.join(', ')}`);
+    if (rest !== '244') throw new Error(`reste ${rest}`);
+    if (before === after) throw new Error(`même version (${after})`);
+    return `${before} → ${after} : 2 joueurs, partie reprise (Fidèle : reste ${rest})`;
+  });
+}
+
+if (APK) { await device.installApk(APK); console.log(`installé : ${APK}`); }
+await sh(`pm clear ${PKG}`);
+await sh(`am start -W -n ${PKG}/.MainActivity`);
 /** Strela au premier plan et page joignable (après un écran d'Android, une sortie, une fermeture). */
 const front = async () => {
   if (!(await topActivity()).includes(PKG)) await sh(`am start -W -n ${PKG}/.MainActivity`);
@@ -145,6 +187,36 @@ await step('bouton retour hors partie : Réglages → accueil', async () => {
   const got = (await page.evaluate(() => window.strelaNative.backCount())) - before;
   if (!ok) throw new Error(`toujours dans les Réglages (retour reçu par la coquille ${got} fois ; ${focus})`);
   return `retour reçu par la coquille ${got} fois`;
+});
+
+// Lot 6 (Android 16, targetSdk 36) : bord à bord et retour prédictif.
+await step('bord à bord : la page ne passe ni sous la barre d\'état ni sous la barre de navigation', async () => {
+  await page.evaluate(() => { location.hash = '#/reglages'; });
+  await page.waitForSelector('#diag');
+  const v = await page.evaluate(() => ({ ...JSON.parse(window.strelaNative.viewport()), h: innerHeight, w: innerWidth }));
+  const size = (await sh('wm size')).match(/(\d+)x(\d+)\s*$/);
+  const H = size ? Number(size[2]) : 0;
+  const bottom = Math.round(v.y + v.h * v.density);
+  if (v.y <= 0) throw new Error(`page collée en haut (y = ${v.y})`);
+  if (H && bottom >= H) throw new Error(`page jusqu'en bas de l'écran (${bottom} / ${H} px)`);
+  return `page de ${v.y} à ${bottom} px sur ${H} px de haut`;
+});
+
+await step('retour prédictif : Réglages → la page traite le retour ; accueil → Android fait sortir Strela', async () => {
+  const inSettings = await page.evaluate(() => window.strelaNative.backHandled());
+  if (!inSettings) throw new Error('rappel de retour absent dans les Réglages');
+  await page.evaluate(() => { location.hash = '#/'; });
+  await page.waitForSelector('.home-main');
+  await page.waitForFunction(() => window.strelaNative.backHandled() === false, null, { timeout: 5e3 });
+  await ensureFocus('.home-title');
+  await sh('input keyevent KEYCODE_BACK');
+  let out = false;
+  for (let i = 0; i < 10 && !out; i++) { await sleep(500); out = !(await topActivity()).includes(PKG); }
+  const top = await topActivity();
+  await sh(`am start -W -n ${PKG}/.MainActivity`);
+  try { await page.evaluate(() => 1); } catch (e) { await ready(); }
+  if (!out) throw new Error(`Strela toujours au premier plan (${top})`);
+  return 'sortie vers l\'écran d\'accueil du téléphone, appli gardée en mémoire';
 });
 
 await step('une partie : joueurs, fléchettes, VALIDER, enregistrées dans la base', async () => {
@@ -295,6 +367,39 @@ await step('fermeture brutale puis réouverture : REPRENDRE, rien de perdu', asy
   await shot('7-reprise');
   return 'reste 276';
 });
+
+await step('plein écran en partie (Android 16) : barres masquées, retour = menu pause', async () => {
+  await front();
+  if (!(await page.evaluate(() => location.hash)).includes('jeu')) { await page.evaluate(() => { location.hash = '#/jeu'; }); await page.waitForSelector('.game'); }
+  await sleep(800);
+  const v = await page.evaluate(() => JSON.parse(window.strelaNative.viewport()));
+  const handled = await page.evaluate(() => window.strelaNative.backHandled());
+  await shot('8-plein-ecran');
+  if (!handled) throw new Error('retour non traité en partie');
+  return `page à y = ${v.y} px (barres masquées), retour traité par la page`;
+});
+
+// Lot 6 : variante play, à côté de la variante github (deux paquets), sans mise à jour intégrée.
+if (PLAY) {
+  await step('variante play installée à côté : page servie, sans mise à jour intégrée', async () => {
+    const PPKG = `${PKG}.play`;
+    await device.installApk(PLAY);
+    await sh(`am start -W -n ${PPKG}/.MainActivity`);
+    await ready(PPKG);
+    const r = await page.evaluate(() => ({ info: JSON.parse(window.strelaNative.info()), upd: typeof window.strelaNative.checkUpdate, url: location.href }));
+    await page.evaluate(() => { location.hash = '#/reglages'; });
+    await page.waitForSelector('#diag');
+    const text = await page.textContent('#app');
+    await shot('9-play-reglages');
+    const both = (await sh(`pm list packages ${PKG}`)).split(/\s+/).filter(Boolean).sort();
+    await sh(`pm uninstall ${PPKG}`);
+    if (r.info.variant !== 'play') throw new Error(`variante ${r.info.variant}`);
+    if (r.upd !== 'undefined') throw new Error('fonction de mise à jour présente');
+    if (/RECHERCHER UNE MISE À JOUR/.test(text) || !/Version Google Play/.test(text)) throw new Error('Réglages de la variante play');
+    if (both.length !== 2) throw new Error(`paquets : ${both.join(' ')}`);
+    return `${r.info.package} ${r.info.version} à côté de ${PKG} (${both.join(', ')})`;
+  });
+}
 
 finish();
 

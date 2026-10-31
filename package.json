@@ -1,6 +1,6 @@
 {
   "name": "strela",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Strela — compteur de fléchettes X01 hors ligne, Android",
   "private": true,
   "type": "module",
@@ -11,5 +11,8 @@
   "scripts": {
     "test": "node --test",
     "build": "node tools/build-site.mjs"
+  },
+  "strela": {
+    "contact": ""
   }
 }
