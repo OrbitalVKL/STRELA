@@ -108,7 +108,9 @@ export async function newGame(page, names, { startScore = 501, legsToWin = 1, sh
   for (const n of names) await page.click(`.pool button[data-act="add"]:has(.nm:text-is("${n}"))`);
   await page.click(`[data-act="score"][data-arg="${startScore}"]`);
   // Lot 7 : ordre tiré au sort (non par défaut dans les tests : ordre connu) ; jouer jusqu'au bout (3 joueurs et plus).
-  await page.click(`[data-act="shuffle"][data-arg="${shuffle ? 'oui' : 'non'}"]`);
+  // Absents des versions d'avant le lot 7 (essai de mise à jour en place sur émulateur : la partie est créée dans
+  // l'ancienne version) : seulement s'ils existent.
+  if (await page.locator('[data-act="shuffle"]').count()) await page.click(`[data-act="shuffle"][data-arg="${shuffle ? 'oui' : 'non'}"]`);
   if (playOn !== null) await page.click(`[data-act="playon"][data-arg="${playOn ? 'oui' : 'non'}"]`);
   for (let i = await page.evaluate(() => Number(/\d+/.exec(document.querySelector('.stepper output').textContent)?.[0] || 1)); i < legsToWin; i++) {
     await page.click('[data-act="legs"][data-arg="1"]');
