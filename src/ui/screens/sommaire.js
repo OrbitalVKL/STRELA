@@ -10,6 +10,7 @@ import { isDeletedId } from '../../engine/players.js';
 import { openDraft } from './players.js';
 import { selectLogCell, presetHistory } from './history.js';
 import { celebrate } from './game.js';
+import { resetVowels } from '../vowels.js';
 import { computeState } from '../../engine/x01.js';
 import { correctDart } from '../../engine/correct.js';
 import { topBar, ico } from '../dom.js';
@@ -99,6 +100,9 @@ export const SCENES = {
     });
     return '#/jeu';
   },
+  // Lot 7 : Tsia lance, les voyelles de l'écran tombent (au sommaire, la chute se rejoue à chaque ouverture)
+  tsia: () => { setGame(cfg(['p1', 'p11']), 'T20 S20 S5 S20'); resetVowels(); return '#/jeu'; },
+  'tsia-volee': () => { setGame(cfg(['p1', 'p11']), 'T20 S20 S5 S20 S5 S1', {}, true); resetVowels(); return '#/jeu'; },
   annonce: () => { setGame(cfg(['p1', 'p2', 'p3']), 'T20 S20 S1 S20 S20 S20 T20 T20 S20', { announce: 0, frozen: true }); return '#/jeu'; },
   cible: () => { setGame(cfg(['p1', 'p2']), LIVE()); return '#/jeu'; },
   'cible-tour1': () => { setGame(cfg(['p1', 'p2']), LIVE().slice(0, 2)); return '#/jeu'; },
@@ -338,6 +342,8 @@ export function sommaire() {
       ${L('volee-8', 'Volée en attente : 8 joueurs', 'VALIDER')}
       ${L('bust', 'Bust en attente de validation', 'ANNULER possible')}
       ${L('annonce', 'Annonce « À TOI »', 'figée')}
+      ${L('tsia', 'Tsia lance', 'les voyelles tombent')}
+      ${L('tsia-volee', 'Volée de Tsia en attente', 'voyelles déjà tombées')}
       ${L('cible-tour1', 'Petite cible au 1er tour', 'volée en cours seule')}
       ${L('cible', 'Petite cible au 2e tour', 'vidée à chaque volée')}
       ${L('cible-grande', 'Cible agrandie', 'VOLÉE')}

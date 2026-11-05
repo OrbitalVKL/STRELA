@@ -25,6 +25,7 @@ import { themeControls, storageBanner } from './settings.js';
 import { gameLog, selectLogCell, selectedLogCell } from './history.js';
 import { sound, dartSound, say, SPEECH } from '../feedback.js';
 import { correctDart, locateDart, visitStart, CORRECT_ERRORS } from '../../engine/correct.js';
+import { isTsia } from '../vowels.js';
 
 export const ANNOUNCE_MS = 800;
 const LENS = { size: 150, zoom: 2.5, gap: 26 };
@@ -68,6 +69,18 @@ function view() {
     visitIdx: pend ? s.visits.length - 1 : 'open',
     totalKey: pend ? s.visits.length - 1 : s.visits.length,
   };
+}
+
+/** Voyelles qui tombent (lot 7) : clé de la volée de Tsia montrée à l'écran (en cours ou en attente de VALIDER), sinon
+ *  null. La volée en attente garde la clé qu'elle avait ouverte (son rang dans `visits`). */
+export function vowelKey() {
+  const g = store.current;
+  if (!g) return null;
+  const s = currentState();
+  if (s.status === 'finished') return null;
+  const v = view();
+  if (!v.player || !isTsia(v.player.name)) return null;
+  return `${g.id}:${v.pend ? s.visits.length - 1 : s.visits.length}`;
 }
 
 // ------------------------------------------------------------------ morceaux communes aux deux mises en page

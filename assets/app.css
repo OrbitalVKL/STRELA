@@ -626,6 +626,22 @@ label.btn { cursor: pointer; }
 @keyframes cele-in { from { transform: translateY(-100%); } to { transform: none; } }
 @keyframes cele-pop { from { transform: scale(0.4); } to { transform: none; } }
 
+/* Voyelles qui tombent (lot 7, vowels.js) : quand Tsia lance. L'originale garde sa place pendant la chute, puis
+   disparaît (le mot se resserre) ; la chute se joue dans un calque fixe hors de #app, qui ne capte aucun appui. */
+.vw.vhold { visibility: hidden; }
+.vw.vgone { display: none; }
+#vfall { position: fixed; inset: 0; z-index: 40; pointer-events: none; overflow: hidden; }
+#vfall .vf {
+  position: absolute; display: block; text-align: center; white-space: pre; will-change: transform;
+  animation-name: vfall; animation-timing-function: cubic-bezier(.5, 0, .95, .55); animation-fill-mode: both;
+}
+@keyframes vfall {
+  0% { transform: none; }
+  16% { transform: translateY(-0.15em) rotate(var(--wob)); }
+  26% { transform: translateY(0.05em) rotate(calc(var(--wob) * -0.6)); }
+  100% { transform: translate(var(--dx), var(--fall)) rotate(var(--rot)); }
+}
+
 /* Animations coupées (réglage ou demande du téléphone) */
 html.still .gband.slide, html.still .announce, html.still .cele, html.still .cele b { animation: none; }
 @media (prefers-reduced-motion: reduce) { .gband.slide, .announce, .cele, .cele b { animation: none; } }

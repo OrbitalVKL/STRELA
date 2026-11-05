@@ -7,7 +7,8 @@ import { setRenderer, noteRoute, keepAwake, go } from './nav.js';
 import { home } from './screens/home.js';
 import { playersList, playerForm, avatarBank, actions as playerActions, inputs as playerInputs } from './screens/players.js';
 import { newGame, actions as newGameActions } from './screens/newgame.js';
-import { game, key, mountGame, actions as gameActions } from './screens/game.js';
+import { game, key, mountGame, vowelKey, actions as gameActions } from './screens/game.js';
+import { applyVowels } from './vowels.js';
 import { legEnd, matchEnd, actions as resultActions } from './screens/results.js';
 import { historyList, historyDetail, leaveHistory, actions as historyActions } from './screens/history.js';
 import { statsScreen, faceScreen, actions as statsActions } from './screens/stats.js';
@@ -75,7 +76,11 @@ function draw() {
   rollScope(store.current ? store.current.id : null);
   animateRolls(app, animationsOn());
   fitAll(app); // blocs compactés ou rapetissés s'ils ne tiennent pas (taille d'affichage, police du téléphone)
-  if (path === '/jeu') mountGame();
+  if (path === '/jeu') {
+    // Lot 7 : quand Tsia lance, les voyelles tombent (vowels.js) ; retirées d'emblée, le texte raccourci est remis à l'échelle.
+    if (applyVowels(app, vowelKey(), animationsOn()) === 'gone') fitAll(app);
+    mountGame();
+  }
   if (path === '/recadrage') mountCrop();
   app.querySelector('[data-reveal]')?.scrollIntoView({ block: 'center' });
   keepAwake(path === '/jeu' || path === '/manche'); // écran allumé pendant la partie, relâché en la quittant
