@@ -100,13 +100,18 @@ export async function createPlayer(page, name, { icon = null, color = null } = {
 }
 
 /** Lance une partie depuis l'écran « Nouvelle partie » : joueurs (pseudos, dans l'ordre), départ, manches. */
-export async function newGame(page, names, { startScore = 501, legsToWin = 1 } = {}) {
+export async function newGame(page, names, { startScore = 501, legsToWin = 1, shuffle = false, playOn = null } = {}) {
   await page.evaluate(() => { location.hash = '#/nouvelle'; });
   await page.waitForSelector('[data-act="launch"]');
   // Derniers réglages repris : on retire d'abord les joueurs déjà choisis.
   while (await page.locator('.order [data-act="remove"]').count()) await page.click('.order [data-act="remove"] >> nth=0');
   for (const n of names) await page.click(`.pool button[data-act="add"]:has(.nm:text-is("${n}"))`);
   await page.click(`[data-act="score"][data-arg="${startScore}"]`);
+  // Lot 7 : ordre tiré au sort (non par défaut dans les tests : ordre connu) ; jouer jusqu'au bout (3 joueurs et plus).
+  // Absents des versions d'avant le lot 7 (essai de mise à jour en place sur émulateur : la partie est créée dans
+  // l'ancienne version) : seulement s'ils existent.
+  if (await page.locator('[data-act="shuffle"]').count()) await page.click(`[data-act="shuffle"][data-arg="${shuffle ? 'oui' : 'non'}"]`);
+  if (playOn !== null) await page.click(`[data-act="playon"][data-arg="${playOn ? 'oui' : 'non'}"]`);
   for (let i = await page.evaluate(() => Number(/\d+/.exec(document.querySelector('.stepper output').textContent)?.[0] || 1)); i < legsToWin; i++) {
     await page.click('[data-act="legs"][data-arg="1"]');
   }

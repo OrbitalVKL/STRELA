@@ -9,7 +9,7 @@
 //   hors de la cible ne compte rien).
 // Après la 3e fléchette ou un bust, la volée reste affichée jusqu'à VALIDER (turn.js) ; ANNULER reste possible.
 // À la validation, « À TOI, PSEUDO » occupe le haut de l'écran ~0,8 s, puis le bandeau du joueur glisse en place.
-import { store, currentState, playerById, archiveCurrent, deleteCurrent, animationsOn, saveCurrent, legEndPending } from '../store.js';
+import { store, currentState, playerById, archiveCurrent, deleteCurrent, animationsOn, saveCurrent, legEndPending, addDrink, removeDrink, drinksHere, playerBac } from '../store.js';
 import { esc, ico, avg, OUT_SHORT, maquetteButtons } from '../dom.js';
 import { avatarHtml, colorIndex } from '../avatars.js';
 import { throwDart, undoDart } from '../../engine/x01.js';
@@ -25,6 +25,9 @@ import { themeControls, storageBanner } from './settings.js';
 import { gameLog, selectLogCell, selectedLogCell } from './history.js';
 import { sound, dartSound, say, SPEECH } from '../feedback.js';
 import { correctDart, locateDart, visitStart, CORRECT_ERRORS } from '../../engine/correct.js';
+import { isTsia } from '../vowels.js';
+import { leader, flop, lastPlaces } from '../../engine/ranking.js';
+import { formatBac, bacLevel, DRIVE_LIMIT, YOUNG_LIMIT } from '../../engine/alcohol.js';
 
 export const ANNOUNCE_MS = 800;
 const LENS = { size: 150, zoom: 2.5, gap: 26 };
@@ -49,6 +52,15 @@ function flash(key) {
   setTimeout(() => el.classList.remove('hit'), 140);
 }
 
+/** Joueur suivant après `i`, en sautant ceux qui ont déjà fini (jouer jusqu'au bout, lot 7). */
+function nextActive(s, i) {
+  const n = s.config.players.length;
+  const done = new Set(s.placing ? s.finishOrder : []);
+  let k = (i + 1) % n;
+  for (let j = 0; j < n && done.has(k); j++) k = (k + 1) % n;
+  return k;
+}
+
 /** Ce que l'écran montre : le joueur qui vient de lancer tant que sa volée attend VALIDER, sinon le joueur actif. */
 function view() {
   const g = store.current;
@@ -64,15 +76,28 @@ function view() {
     darts: pend ? pend.darts : s.visit.darts,
     total: pend ? (pend.bust ? 0 : pend.total) : s.visit.total,
     bust: !!(pend && pend.bust),
-    next: pend ? s.currentPlayer : (s.currentPlayer + 1) % n,
+    next: pend ? s.currentPlayer : nextActive(s, s.currentPlayer),
     visitIdx: pend ? s.visits.length - 1 : 'open',
     totalKey: pend ? s.visits.length - 1 : s.visits.length,
   };
 }
 
+/** Voyelles qui tombent (lot 7) : clé de la volée de Tsia montrée à l'écran (en cours ou en attente de VALIDER), sinon
+ *  null. La volée en attente garde la clé qu'elle avait ouverte (son rang dans `visits`). */
+export function vowelKey() {
+  const g = store.current;
+  if (!g) return null;
+  const s = currentState();
+  if (s.status === 'finished') return null;
+  const v = view();
+  if (!v.player || !isTsia(v.player.name)) return null;
+  return `${g.id}:${v.pend ? s.visits.length - 1 : s.visits.length}`;
+}
+
 // ------------------------------------------------------------------ morceaux communes aux deux mises en page
 // Bandeau : la ligne sous le pseudo se compacte par paliers si elle ne tient pas (fit.js) : manches gagnées en
-// « 1/2 », « MANCHE 2 » en « M2 », carrés de fléchettes retirés, « FLÉCHETTE 2/3 » en « FL. 2/3 ».
+// « 1/2 », « MANCHE 2 » en « M2 », carrés de fléchettes retirés, « FLÉCHETTE 2/3 » en « FL. 2/3 » ;
+// lot 7 : « EN TÊTE » devient « 1ER » dès le palier 1 et disparaît au palier 5.
 function band(v, slide) {
   const { s, cfg, player, pend } = v;
   const won = s.legsWon[v.shown];
@@ -83,13 +108,14 @@ function band(v, slide) {
   // Compteur de fléchettes lisible de loin : 3 carrés, pleins pour les fléchettes lancées, encadré pour la prochaine.
   const thrown = pend ? pend.darts.length : s.dartNumber - 1;
   const squares = [0, 1, 2].map(i => `<i class="${i < thrown ? 'on' : !pend && i === thrown ? 'now' : ''}"></i>`).join('');
+  const place = pend && pend.finish ? s.finishOrder.indexOf(v.shown) + 1 : 0;
   const state = `<span class="dn" aria-hidden="true">${squares}</span>`
-    + (pend ? (pend.bust ? '<b>BUST</b>' : '<b><span class="lg">VOLÉE </span>TERMINÉE</b>')
+    + (pend ? (pend.bust ? '<b>BUST</b>' : place ? `<b>${placeLabel(place)}</b>` : '<b><span class="lg">VOLÉE </span>TERMINÉE</b>')
       : `<b><span class="lg">FLÉCHETTE</span><span class="sh">FL.</span> ${s.dartNumber}/3</b>`);
   return `<header class="gband${slide ? ' slide' : ''}" style="--pc:${colorOf(player)};--n:${[...player.name].length}">
       ${avatarHtml(player, 56)}
       <div class="who"><span class="nm" data-shrink>${esc(player.name)}</span>
-        <span class="legs" data-fit="4">${state}<span class="mn"><span class="lg">MANCHE </span><span class="sh">M</span>${s.legNumber}</span>${legs}</span></div>
+        <span class="legs" data-fit="5">${leader(s) === v.shown && !pend ? '<b class="ld"><span class="lg">EN TÊTE</span><span class="sh">1ER</span></b>' : ''}${state}<span class="mn"><span class="lg">MANCHE </span><span class="sh">M</span>${s.legNumber}</span>${legs}</span></div>
       <button type="button" class="pause" data-act="pause" data-press aria-label="Pause">${ico('pause')}</button>
     </header>`;
 }
@@ -103,8 +129,11 @@ function rest(v) {
     </section>`;
   }
   const legAvg = playerSummary(s, shown, s.legNumber).average;
+  // Lot 7 : alcoolémie estimée du joueur, dès son premier verre (le détail et les verres sont au menu pause).
+  const level = playerBac(cfg.players[shown]);
+  const alc = bacLevel(level) === 'zero' ? '' : `<span class="bac ${bacLevel(level)}">≈ ${formatBac(level)} G/L</span> · `;
   return `<section class="rest" aria-label="Reste à faire">
-      <div class="meta"><span class="ell">${cfg.startScore} · ${OUT_SHORT[cfg.outMode]}</span><span>MOY. ${avg(legAvg)}</span></div>
+      <div class="meta"><span class="ell">${cfg.startScore} · ${OUT_SHORT[cfg.outMode]}</span><span>${alc}MOY. ${avg(legAvg)}</span></div>
       <div class="big" id="remaining" aria-label="${remaining}" data-shrink>${rollHtml(`r:${s.legNumber}:${shown}`, remaining)}</div>
     </section>`;
 }
@@ -151,13 +180,23 @@ function others(v) {
   const many = n > 4;
   const order = [];
   for (let k = 1; k < n; k++) order.push((shown + k) % n);
+  // Lot 7 : le joueur en tête a son reste en vidéo inverse ; un joueur qui a fini (jouer jusqu'au bout) montre sa place.
+  const lead = leader(s);
+  const placed = s.placing ? s.finishOrder : [];
   return `<section class="others${many ? ' many' : ''}" aria-label="Autres joueurs">${order.map(i => {
     const p = playerById(cfg.players[i]);
     const isNext = i === next;
-    return `<div class="op${isNext ? ' next' : ''}"${isNext ? ' aria-label="Joueur suivant"' : ''}>${avatarHtml(p, many ? 20 : 34, 'mono')}
-      <div class="col"><span class="l1"><span class="nm ell"${isNext ? ' data-fit="1"' : ''}>${esc(p.name)}</span>${isNext ? `<span class="tag-next"><span class="lg">SUIVANT</span><span class="sh">${ico('chev')}</span></span>` : ''}</span><span class="r" data-shrink>${rollHtml(`o:${s.legNumber}:${i}`, s.remaining[i])}</span></div></div>`;
+    const pl = placed.indexOf(i) + 1;
+    const label = isNext ? 'Joueur suivant' : i === lead ? 'En tête' : pl ? `Fini, ${placeLabel(pl).toLowerCase()}` : '';
+    const score = pl ? `<span class="r place">${placeLabel(pl)}</span>`
+      : `<span class="r" data-shrink>${rollHtml(`o:${s.legNumber}:${i}`, s.remaining[i])}</span>`;
+    return `<div class="op${isNext ? ' next' : ''}${i === lead ? ' lead' : ''}${pl ? ' out' : ''}"${label ? ` aria-label="${label}"` : ''}>${avatarHtml(p, many ? 20 : 34, 'mono')}
+      <div class="col"><span class="l1"><span class="nm ell"${isNext ? ' data-fit="1"' : ''}>${esc(p.name)}</span>${isNext ? `<span class="tag-next"><span class="lg">SUIVANT</span><span class="sh">${ico('chev')}</span></span>` : ''}</span>${score}</div></div>`;
   }).join('')}</section>`;
 }
+
+/** « 1ER », « 2E »… */
+export const placeLabel = n => (n === 1 ? '1ER' : `${n}E`);
 
 // VALIDER (lot 2) : aplat de la couleur du joueur qui vient de lancer (le joueur en cours, encore au bandeau), encre
 // --av-ink (contraste vérifié sur les 8 couleurs) ; « VALIDER » seul, sur une ligne, aussi grand que la place le
@@ -373,6 +412,7 @@ function pauseSheet() {
       ${storageBanner()}
       <button type="button" class="btn primary big" data-act="resume">${ico('play')} REPRENDRE</button>
       <button type="button" class="btn" data-act="open-history">${ico('history')} HISTORIQUE DE LA PARTIE</button>
+      ${drinksSection(store.current.config.players)}
       <div class="sec" style="margin-bottom:0">Réglages rapides</div>
       ${themeControls()}
       <div class="sec" style="margin-bottom:0">Partie</div>
@@ -381,6 +421,27 @@ function pauseSheet() {
       ${del}
       <p class="note" style="margin:0">Abandonner : la partie reste dans l'historique et compte dans les moyennes. Supprimer (partie d'essai) : elle disparaît complètement.</p>
     </div></div></div>`;
+}
+
+/**
+ * Verres et alcoolémie (lot 7) : pour chaque joueur, ses verres dans la partie (− / + VERRE) et son alcoolémie estimée
+ * (verres des 24 dernières heures, toutes parties confondues). Aussi sur l'écran de fin de partie (sans les boutons).
+ */
+export function drinksSection(ids, { edit = true } = {}) {
+  const rows = ids.map(id => {
+    const p = playerById(id);
+    const n = drinksHere(id);
+    const level = playerBac(id);
+    const lv = bacLevel(level);
+    const tag = lv === 'over' ? '<b class="drive alert">NE CONDUIS PAS</b>' : lv === 'young' ? '<b class="drive">PAS DE VOLANT EN PROBATOIRE</b>' : '';
+    const buttons = edit ? `<button type="button" class="mv" data-act="drink-minus" data-arg="${esc(id)}" ${n ? '' : 'disabled'} aria-label="Retirer un verre à ${esc(p.name)}">${ico('minus')}</button>
+        <button type="button" class="mv add" data-act="drink-plus" data-arg="${esc(id)}" aria-label="Un verre de plus pour ${esc(p.name)}">${ico('plus')}${ico('glass')}</button>` : '';
+    return `<li>${avatarHtml(p, 32)}<div class="col"><span class="nm ell">${esc(p.name)}</span>
+        <span class="small"><b class="cnt">${n} ${n > 1 ? 'VERRES' : 'VERRE'}</b> · <span class="bac ${lv}">≈ ${formatBac(level)} G/L</span></span>${tag}</div>${buttons}</li>`;
+  }).join('');
+  return `<div class="sec" style="margin-bottom:0">Verres · alcoolémie estimée</div>
+    <ul class="drinks">${rows}</ul>
+    <p class="note" style="margin:0">Estimation pour rire, pas une mesure : verre standard (10 g d'alcool : un demi, un verre de vin, un shot), 70 kg, 0,15 g/L éliminés par heure. Au volant : ${formatBac(DRIVE_LIMIT)} g/L au plus, ${formatBac(YOUNG_LIMIT)} en permis probatoire ; dans le doute, on ne conduit pas.</p>`;
 }
 
 // ------------------------------------------------------------------ après le rendu : annonce, saisie sur la cible
@@ -518,20 +579,45 @@ function play(dart, key, pos = null) {
   const st = r.state;
   const v = st.lastVisit;
   const name = i => playerById(g.config.players[i]).name;
+  // Lot 7 : célébration des nuls (volée à 0, sous 10, bust, série de mauvaises volées), ironique : bandeau, son de
+  // trombone, annonce moqueuse à la place du total.
+  const f = flop(st);
   switch (st.lastEvent) {
     case 'visit_end':
       buzz(BUZZ.dart);
-      sound(v.total === 180 ? 'max' : dartSound(dart));
-      later(() => say(SPEECH.total(v.total), { strong: v.total === 180 }));
+      sound(v.total === 180 ? 'max' : f ? 'flop' : dartSound(dart));
+      later(() => say(f ? SPEECH.flop(f.kind, name(v.player), f.value) : SPEECH.total(v.total), { strong: v.total === 180 }));
       if (v.total >= 100) celebrate(v.total === 180 ? 'max' : v.total >= 140 ? 'ton40' : 'ton', v.total, v.player);
+      else if (f) celebrate(`nul-${f.kind}`, f.kind === 'serie' ? f.value : v.total, v.player);
       break;
-    case 'bust': buzz(BUZZ.bust); sound('bust'); later(() => say(SPEECH.bust())); break;
+    case 'bust':
+      buzz(BUZZ.bust);
+      sound('bust');
+      later(() => say(f ? SPEECH.flop(f.kind, name(v.player), f.value) : SPEECH.bust()));
+      if (f) celebrate(`nul-${f.kind}`, f.kind === 'serie' ? f.value : 'BUST', v.player);
+      break;
+    case 'placed': { // jouer jusqu'au bout (lot 7) : une place gagnée, la volée attend VALIDER, la partie continue
+      const place = st.finishOrder.length;
+      buzz(BUZZ.leg);
+      sound('finish');
+      celebrate(place === 1 ? (v.startRemaining >= 100 ? 'finish-big' : 'finish') : 'place', place === 1 ? v.startRemaining : placeLabel(place), v.player);
+      later(() => say(place === 1 ? SPEECH.match(name(v.player)) : SPEECH.place(place, name(v.player))));
+      break;
+    }
     case 'leg_won':
     case 'match_won':
       buzz(BUZZ.leg);
       sound('finish');
       celebrate(v.startRemaining >= 100 ? 'finish-big' : 'finish', v.startRemaining, v.player);
-      later(() => say(st.lastEvent === 'leg_won' ? SPEECH.leg(name(v.player)) : SPEECH.match(name(v.player))));
+      if (st.lastEvent === 'leg_won') later(() => say(SPEECH.leg(name(v.player))));
+      else {
+        // Lot 7 : en jouant jusqu'au bout, la dernière finition donne une place (le gagnant est déjà connu) ; puis le
+        // dernier paie sa tournée.
+        const place = st.finishOrder.indexOf(v.player) + 1;
+        later(() => say(place > 1 ? SPEECH.place(place, name(v.player)) : SPEECH.match(name(v.player))));
+        const payers = lastPlaces(st).map(name);
+        if (payers.length) setTimeout(() => say(SPEECH.lastPays(payers)), 2600);
+      }
       go(st.lastEvent === 'leg_won' ? '#/manche' : '#/fin');
       return;
     default: buzz(BUZZ.dart); sound(dartSound(dart));
@@ -548,8 +634,12 @@ const later = fn => setTimeout(fn, 0);
 // la moitié haute de l'écran pour 180 ; un bandeau pour chaque finition (à la couleur du joueur si elle fait 100 ou
 // plus). Jamais le rouge (réservé au bust). Il ne capte aucun appui (la saisie continue dessous) et le premier appui le
 // ferme. Sans animation si le réglage Animations est sur NON ou si le téléphone demande moins d'animations.
-export const CELE_MS = Object.freeze({ ton: 1200, ton40: 1400, max: 1600, finish: 1500, 'finish-big': 1700 });
-const CELE_TEXT = { ton: '100 +', ton40: '140 +', max: 'CENT QUATRE-VINGTS', finish: 'FINITION', 'finish-big': 'GROSSE FINITION' };
+export const CELE_MS = Object.freeze({ ton: 1200, ton40: 1400, max: 1600, finish: 1500, 'finish-big': 1700, place: 1500,
+  'nul-zero': 1700, 'nul-low': 1600, 'nul-bust': 1700, 'nul-serie': 1900 });
+// Lot 7 : les nuls ont aussi leur bandeau (vidéo inverse, chiffre qui tangue) ; jamais le rouge non plus.
+const CELE_TEXT = { ton: '100 +', ton40: '140 +', max: 'CENT QUATRE-VINGTS', finish: 'FINITION', 'finish-big': 'GROSSE FINITION',
+  place: 'FINI · PLACE', 'nul-zero': 'BRAVO ! ZÉRO POINT', 'nul-low': 'QUEL TALENT', 'nul-bust': 'BUST · ON APPLAUDIT',
+  'nul-serie': 'VOLÉES NULLES D\'AFFILÉE' };
 let celeTimer = null;
 
 export function celebrate(kind, value, player, { frozen = false } = {}) {
@@ -577,7 +667,8 @@ export function celebrationHtml() {
   const p = playerById(g.config.players[c.player]);
   const enter = c.fresh && animationsOn() ? ' enter' : '';
   c.fresh = false;
-  return `<div class="cele ${c.kind}${enter}" role="status" aria-live="polite" data-layer style="--pc:${colorOf(p)}">
+  const nul = c.kind.startsWith('nul-') ? ' nul' : '';
+  return `<div class="cele ${c.kind}${nul}${enter}" role="status" aria-live="polite" data-layer style="--pc:${colorOf(p)}">
     <small>${CELE_TEXT[c.kind]}</small><b data-shrink>${c.value}</b><span class="nm ell">${esc(p.name)}</span></div>`;
 }
 
@@ -689,6 +780,8 @@ export const actions = {
     buzz(BUZZ.dart);
     refresh();
   },
+  'drink-plus'(id) { addDrink(id); buzz(BUZZ.dart); refresh(); },
+  'drink-minus'(id) { removeDrink(id); buzz(BUZZ.undo); refresh(); },
   abandon() { store.current.ui.confirm = 'abandon'; refresh(); },
   'delete-current'() { store.current.ui.confirm = 'delete'; refresh(); },
   'delete-current-yes'() { stopAnnounce(); deleteCurrent(); go('#/'); },

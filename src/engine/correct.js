@@ -42,7 +42,8 @@ export function visitStart(state, visitIdx) {
 }
 
 const sameFlow = (a, b) => a.status === b.status && a.currentPlayer === b.currentPlayer && a.legNumber === b.legNumber
-  && a.visits.length === b.visits.length && a.dartNumber === b.dartNumber && a.winner === b.winner;
+  && a.visits.length === b.visits.length && a.dartNumber === b.dartNumber && a.winner === b.winner
+  && a.finishOrder.join() === b.finishOrder.join();
 
 /**
  * Corrige la fléchette n° `index` (0 = la première) : { ok: true, darts (nouvelle liste), before, after (états),

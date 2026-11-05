@@ -8,7 +8,8 @@ import { EVENTS } from '../engine/x01.js';
 /** Volée close qui attend VALIDER, ou null. */
 export function pendingVisit(state, validated) {
   if (!state || state.status !== 'playing') return null;
-  const closed = state.lastEvent === EVENTS.VISIT_END || state.lastEvent === EVENTS.BUST;
+  // Lot 7 : une place gagnée en jouant jusqu'au bout attend aussi VALIDER (la partie continue pour les autres).
+  const closed = state.lastEvent === EVENTS.VISIT_END || state.lastEvent === EVENTS.BUST || state.lastEvent === EVENTS.PLACED;
   return closed && validated !== state.dartCount ? state.lastVisit : null;
 }
 

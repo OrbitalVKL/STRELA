@@ -26,6 +26,7 @@ export const EXTRA_PLAYERS = Object.freeze([
   { id: 'p8', name: 'Paulo', avatar: { kind: 'icon', icon: 'chope', color: 7 }, skill: 0.25 },
   { id: 'p9', name: 'Nadia', avatar: { kind: 'icon', icon: 'rocket', color: 4 }, skill: 0.35 },
   { id: 'p10', name: 'Jean-Christophe de La Tour-Maubourg', avatar: { kind: 'icon', icon: 'couronne', color: 6 }, skill: 0.3 },
+  { id: 'p11', name: 'Tsia', avatar: { kind: 'icon', icon: 'etoile', color: 5 }, skill: 0.3 }, // lot 7 : voyelles qui tombent
 ]);
 
 /** Tirage reproductible (mulberry32). */

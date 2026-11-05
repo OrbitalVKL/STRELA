@@ -63,6 +63,9 @@ src/ui/                   interface (docs/interface.md) : app.js, nav.js, store.
                           screens/about.js (À propos, lot 6),
                           mock.js + maquette.js (données fictives : sommaire ?maquette et tests seulement)
 src/ui/theme.js           palette (source de vérité des couleurs), contraste
+src/ui/vowels.js          voyelles qui tombent quand Tsia lance (lot 7)
+src/engine/ranking.js     classement, joueur en tête, derniers (tournée), célébrations des nuls (lot 7)
+src/engine/alcohol.js     alcoolémie estimée à partir des verres (lot 7)
 tests/                    tests node:test (*.test.js) ; helpers.js = aides (notation ds('T20 D16'))
                           Playwright (sautés s'il est absent) : chevauchement, couleurs, geste, stockage (base),
                           parcours (vraie appli, rechargements), photo, miseajour (service worker + base v2) ;
@@ -133,9 +136,29 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 4 | Finitions : titre STRELA + rouge d'accent (accueil), finition au double préféré (base v2), écrans vides et erreurs, écran de secours — **fait** |
 | 5 | APK (coquille Java WebView `fr.orbitalvkl.strela`, minSdk 30, passerelle native, release signée, mise à jour dans l'appli) — **fait, validé sur le Pixel** |
 | 6 | Icône « Soyouz », 16 fonds et 40 pictogrammes d'avatar, recherche de mise à jour automatique, variantes github / play (Android 16), À propos et confidentialité, fiche Play prête (v0.6.0) — **fait, en attente de validation sur le Pixel** |
-| 7 | Recette |
+| 7 | Soirée : voyelles qui tombent (Tsia), ordre tiré au sort, joueur en tête, célébrations des nuls, jouer jusqu'au bout, classement, tournée du dernier, verres et alcoolémie estimée (v0.7.0) — **fait, en attente de validation sur le Pixel** |
+| 8 | Recette |
 
-## État (fin du lot 6)
+## État (fin du lot 7)
+
+- Version 0.7.0. Base toujours en version 2, sauvegarde au format 1 : **aucune migration** (demande de Guillaume : les
+  données de l'appli doivent survivre à la mise à jour). Nouveaux champs facultatifs : `config.playOn`,
+  `games.drinks`, `lastSetup.shuffle` / `playOn`.
+- Lot 7 (détail : docs/interface.md « Lot 7 », moteur : docs/moteur-x01.md « Jouer jusqu'au bout ») :
+  - **Voyelles qui tombent** quand le joueur au pseudo Tsia lance (`src/ui/vowels.js`, tout l'écran de jeu).
+  - **Ordre tiré au sort** au lancement (Nouvelle partie, OUI par défaut).
+  - **Joueur en tête** (reste en vidéo inverse dans la bande, « EN TÊTE » au bandeau).
+  - **Célébrations des nuls** : 0, sous 10, bust, série (`src/engine/ranking.js` › `flop`), son de trombone, annonce moqueuse.
+  - **Jouer jusqu'au bout** (option à partir de 3 joueurs) : moteur X01 (`playOn`, événement `placed`, `finishOrder`).
+  - **Classement** en fin de partie et **le dernier paie sa tournée**.
+  - **Verres** (menu pause) et **alcoolémie estimée** (`src/engine/alcohol.js`, Widmark simplifié, 24 h).
+- Choix (réponses de Guillaume) : alcoolémie = compteur de verres (pas de gag calculé) ; nuls = 0, sous 10, bust, série ;
+  voyelles = pseudo Tsia, tout l'écran ; jusqu'au bout = option au lancement.
+- Ouvert : poids et sexe par joueur pour une estimation plus juste (pas demandé : 70 kg pour tous) ; e-mail de contact
+  (package.json `strela.contact`) ; ligne de la fiche Play sur l'alcool (le compteur de verres s'ajoute aux pictogrammes
+  chope et verre pour le questionnaire IARC).
+
+## État (fin du lot 6, pour mémoire)
 
 - Version 0.6.1 (6.1 : recherche de mise à jour qui passe par la page web des releases quand l'API de GitHub refuse,
   limite de 60 demandes par heure et par IP, vu sur le Pixel : « GitHub a répondu 403 »). Avant : 0.6.0. Base toujours en version 2 (aucune migration : le réglage `autoUpdate` s'ajoute aux réglages

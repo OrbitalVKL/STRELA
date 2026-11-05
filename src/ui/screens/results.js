@@ -10,7 +10,8 @@ import { formatDart } from '../../engine/darts.js';
 import { playerSummary } from '../../engine/stats.js';
 import { boardSvg, impactsFor, markIcon } from '../board.js';
 import { go } from '../nav.js';
-import { undo, celebrationHtml } from './game.js';
+import { undo, celebrationHtml, placeLabel, drinksSection } from './game.js';
+import { standings, lastPlaces } from '../../engine/ranking.js';
 
 const route = v => v.darts.map(d => formatDart(d).replace(/^S/, '')).join(' · ');
 
@@ -60,7 +61,12 @@ export function matchEnd() {
   if (s.status !== 'finished') { go('#/jeu', { replace: true }); return ''; }
   const w = s.winner;
   const p = playerById(g.config.players[w]);
-  const rows = g.config.players.map((id, i) => ({ i, p: playerById(id), sum: playerSummary(s, i) }));
+  // Lot 7 : résumé dans l'ordre du classement (place en première colonne) et le dernier, qui paie sa tournée.
+  const ranked = standings(s);
+  const rows = ranked.map(r => ({ i: r.player, place: r.place, p: playerById(g.config.players[r.player]), sum: playerSummary(s, r.player) }));
+  const multi = g.config.players.length > 1;
+  const payers = lastPlaces(s).map(i => playerById(g.config.players[i]));
+  const winVisit = [...s.visits].reverse().find(v => v.finish && v.player === w);
   const legsTxt = g.config.legsToWin > 1 ? `${s.legsWon[w]} MANCHES À ${Math.max(...s.legsWon.filter((_, i) => i !== w), 0)}` : '';
   const nextFirst = playerById(g.config.players[1 % g.config.players.length]);
   return `<div class="screen has-dock">
@@ -68,13 +74,15 @@ export function matchEnd() {
       <b class="caps" style="letter-spacing:.12em">Partie terminée</b><span class="small b">${g.config.startScore} · ${OUT_LABEL[g.config.outMode]}</span></div>
     <div class="result-head">${avatarHtml(p, 88)}<div style="min-width:0"><span class="t dim">VAINQUEUR</span><span class="nm">${esc(p.name)}</span>
       ${legsTxt ? `<span class="small b">${legsTxt}</span>` : ''}</div></div>
-    ${finishBoard(g, s, s.visits[s.visits.length - 1], p)}
+    ${payers.length ? tourneeHtml(payers) : ''}
+    ${finishBoard(g, s, winVisit, p)}
     <div class="pad">
-      <div class="sec" style="margin-top:6px">Résumé</div>
-      <table class="score-table"><thead><tr><th>Joueur</th><th>Man.</th><th>Moy.</th><th>Fl.</th><th>Meil.</th><th>Fin.</th></tr></thead>
-      <tbody>${rows.map(r => `<tr${r.i === w ? ' class="win"' : ''}><td><div class="pl">${avatarHtml(r.p, 28)}<span class="nm">${esc(r.p.name)}</span></div></td>
+      <div class="sec" style="margin-top:6px">${multi ? 'Classement' : 'Résumé'}</div>
+      <table class="score-table rank-table"><thead><tr><th>${multi ? 'Place · joueur' : 'Joueur'}</th><th>Man.</th><th>Moy.</th><th>Fl.</th><th>Meil.</th><th>Fin.</th></tr></thead>
+      <tbody>${rows.map(r => `<tr${r.i === w ? ' class="win"' : ''}><td><div class="pl">${multi ? `<b class="plc">${placeLabel(r.place)}</b>` : avatarHtml(r.p, 28)}<span class="nm">${esc(r.p.name)}</span></div></td>
         <td>${s.legsWon[r.i]}</td><td>${avg(r.sum.average)}</td><td>${r.sum.darts}</td><td>${r.sum.best}</td><td>${int(r.sum.bestFinish)}</td></tr>`).join('')}</tbody></table>
       <p class="note">Man. = manches gagnées · Moy. = moyenne sur 3 fléchettes · Meil. = meilleure volée · Fin. = plus grosse finition.</p>
+      ${g.drinks && Object.values(g.drinks).some(l => l.length) ? drinksSection(rows.map(r => g.config.players[r.i]), { edit: false }) : ''}
       <button type="button" class="btn ghost" style="margin-top:14px" data-act="undo-end">ANNULER LA DERNIÈRE FLÉCHETTE</button>
       ${store.maquette ? `<div class="mq-row">${maquetteButtons('mq')}</div>` : ''}
     </div>
@@ -83,6 +91,15 @@ export function matchEnd() {
       <button type="button" class="btn" data-act="finish-home">ACCUEIL</button>
     </div>
     ${celebrationHtml()}
+  </div>`;
+}
+
+/** Le dernier paie sa tournée (lot 7) ; à égalité, ils la partagent. */
+function tourneeHtml(payers) {
+  const one = payers.length === 1;
+  return `<div class="tournee inv" role="note">
+    <span class="t">${one ? 'LE DERNIER PAIE SA TOURNÉE' : 'DERNIERS À ÉGALITÉ : ILS PARTAGENT LA TOURNÉE'}</span>
+    <div class="who">${payers.map(q => `<span class="pl">${avatarHtml(q, 40)}<b class="nm">${esc(q.name)}</b></span>`).join('')}</div>
   </div>`;
 }
 
@@ -112,7 +129,7 @@ export const actions = {
     archiveCurrent(false);
     // Mêmes réglages ; le premier à lancer passe au joueur suivant.
     const players = [...c.players.slice(1), c.players[0]];
-    startGame({ players, startScore: c.startScore, outMode: c.outMode, legsToWin: c.legsToWin });
+    startGame({ players, startScore: c.startScore, outMode: c.outMode, legsToWin: c.legsToWin, playOn: !!c.playOn });
     go('#/jeu', { replace: true });
   },
   'finish-home'() { archiveCurrent(false); go('#/'); },

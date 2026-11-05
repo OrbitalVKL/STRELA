@@ -7,16 +7,18 @@
 //
 // Magasins (forme des données : docs/interface.md, « Enregistrement ») :
 //   players   { id, name, avatar: { kind, icon?, color, photo? }, archived, checkout: { double, avoidBull } (v2, lot 4) }
-//   games     { id, startedAt, endedAt, config, darts[], validated, abandoned }
-//             darts[] : { segment, multiplier, pos? } ; la partie en cours est celle dont endedAt vaut null
+//   games     { id, startedAt, endedAt, config, darts[], validated, abandoned, drinks? (lot 7) }
+//             darts[] : { segment, multiplier, pos? } ; la partie en cours est celle dont endedAt vaut null ;
+//             config.playOn (lot 7, jouer jusqu'au bout) et drinks { [joueur]: [instants] } facultatifs : aucune migration
 //   settings  clés « display » { theme, night, vibrate, anim, sound, voice (lot 3, OUI si absents) }, « lastSetup » { players, startScore, outMode,
-//             legsToWin }, « storage » { asked, persisted } (demande de stockage persistant)
+//             legsToWin, shuffle?, playOn? (lot 7) }, « storage » { asked, persisted } (demande de stockage persistant)
 //
 // Toutes les écritures passent par write(ops) : une seule transaction pour la liste d'opérations, durabilité
 // « strict » (écrite sur le disque avant d'être annoncée faite). Les transactions sont exécutées dans l'ordre où
 // elles sont créées : enregistrer la partie à chaque fléchette garde donc l'ordre des fléchettes.
 
 import { checkoutPrefs } from '../engine/checkout.js';
+import { cleanDrinks } from '../engine/alcohol.js';
 
 export const DB_NAME = 'strela';
 export const STORES = Object.freeze(['players', 'games', 'settings']);
@@ -156,12 +158,19 @@ export function splitGames(records) {
 }
 
 /** Enregistrement d'une partie en cours (sans l'état d'affichage `ui`). */
-export const currentRecord = g => ({
+export const currentRecord = g => withDrinks(g, {
   id: g.id, startedAt: g.startedAt, endedAt: null, config: g.config, darts: g.darts, validated: g.validated, abandoned: false,
 });
 
+/** Lot 7 : verres de la partie (champ facultatif, absent s'il n'y en a pas : aucune migration). */
+export function withDrinks(g, rec) {
+  const drinks = cleanDrinks(g.drinks);
+  if (drinks) rec.drinks = drinks;
+  return rec;
+}
+
 /** Enregistrement d'une partie close (terminée ou abandonnée). */
-export const closedRecord = (g, abandoned, endedAt) => ({
+export const closedRecord = (g, abandoned, endedAt) => withDrinks(g, {
   id: g.id, startedAt: g.startedAt, endedAt, config: g.config, darts: g.darts, validated: g.validated ?? g.darts.length, abandoned: !!abandoned,
 });
 

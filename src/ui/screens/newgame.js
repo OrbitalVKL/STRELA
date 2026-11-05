@@ -8,7 +8,7 @@ import { go, refresh } from '../nav.js';
 
 function draft() {
   if (store.setupDraft) return store.setupDraft;
-  const last = store.lastSetup || { players: [], startScore: 501, outMode: 'double', legsToWin: 1 };
+  const last = { shuffle: true, playOn: false, ...(store.lastSetup || { players: [], startScore: 501, outMode: 'double', legsToWin: 1 }) };
   const active = new Set(activePlayers().map(p => p.id));
   store.setupDraft = { ...last, players: last.players.filter(id => active.has(id)), confirm: false };
   return store.setupDraft;
@@ -27,7 +27,7 @@ export function newGame() {
         <button type="button" class="mv" data-act="move-up" data-arg="${i}" ${i === 0 ? 'disabled' : ''} aria-label="Monter">${ico('up')}</button>
         <button type="button" class="mv" data-act="move-down" data-arg="${i}" ${i === chosen.length - 1 ? 'disabled' : ''} aria-label="Descendre">${ico('down')}</button>
         <button type="button" class="mv" data-act="remove" data-arg="${i}" aria-label="Retirer">${ico('close')}</button></li>`).join('')}</ol>`
-    : '<p class="note" style="margin:0">Touchez les joueurs dans l\'ordre où ils vont lancer.</p>';
+    : `<p class="note" style="margin:0">${d.shuffle ? 'Touchez les joueurs de la partie.' : 'Touchez les joueurs dans l\'ordre où ils vont lancer.'}</p>`;
 
   const poolHtml = !store.players.some(p => !p.archived)
     ? (store.players.length
@@ -58,8 +58,9 @@ export function newGame() {
   return `<div class="screen has-dock">${topBar('Nouvelle partie', '#/')}
     <div class="pad">
       ${busyNote}
-      <div class="sec">Ordre de passage <span class="n">${d.players.length}/${MAX_PLAYERS}</span></div>
+      <div class="sec">${d.shuffle ? 'Joueurs' : 'Ordre de passage'} <span class="n">${d.players.length}/${MAX_PLAYERS}</span></div>
       ${order}
+      <div class="seg" style="margin-top:12px">${seg('shuffle', 'oui', 'Tiré au sort', d.shuffle ? 'oui' : 'non')}${seg('shuffle', 'non', 'Dans cet ordre', d.shuffle ? 'oui' : 'non')}</div>
       ${pool.length || !activePlayers().length ? `<div class="sec">${chosen.length ? 'Ajouter' : 'Joueurs'}</div>${poolHtml}` : ''}
       ${full ? '<p class="note">8 joueurs au plus.</p>' : ''}
       <div class="sec">Jeu</div>
@@ -71,6 +72,9 @@ export function newGame() {
         <output>${legs === 1 ? '1 MANCHE' : `PREMIER À ${legs} MANCHES`}</output>
         <button type="button" data-act="legs" data-arg="1" ${legs >= 9 ? 'disabled' : ''} aria-label="Plus">+</button></div>
       <p class="note">Le premier à lancer change à chaque manche.</p>
+      ${d.players.length > 2 ? `<div class="sec">Jouer jusqu'au bout</div>
+      <div class="seg">${seg('playon', 'non', 'Non', d.playOn ? 'oui' : 'non')}${seg('playon', 'oui', 'Oui', d.playOn ? 'oui' : 'non')}</div>
+      <p class="note">Oui : après le gagnant, les autres finissent pour les places ; le dernier paie sa tournée.</p>` : ''}
     </div>
     <div class="dock" data-layer>${launch}</div>
   </div>`;
@@ -83,6 +87,8 @@ export const actions = {
   'move-down'(i) { const p = draft().players; i = Number(i); if (i < p.length - 1) [p[i + 1], p[i]] = [p[i], p[i + 1]]; refresh(); },
   score(v) { draft().startScore = Number(v); refresh(); },
   out(v) { draft().outMode = v; refresh(); },
+  shuffle(v) { draft().shuffle = v === 'oui'; refresh(); },
+  playon(v) { draft().playOn = v === 'oui'; refresh(); },
   legs(delta) { const d = draft(); d.legsToWin = Math.min(9, Math.max(1, d.legsToWin + Number(delta))); refresh(); },
   launch() {
     const d = draft();

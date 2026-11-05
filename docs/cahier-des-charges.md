@@ -233,6 +233,19 @@ depuis l'appli. La version web reste sur GitHub Pages (aperçu, tests). Détail 
 - Écart : 20 de CIEDE2000 entre les 16 fonds est hors d'atteinte ; retenu ≥ 14 entre les 16, ≥ 20 entre les 8 d'origine.
   Nom Play : 30 caractères au plus (le titre demandé en fait 31, voir `docs/play/fiche.md`).
 
+## 8 quater. Lot 7 : soirée
+
+- Ordre des joueurs tiré au sort au lancement (réglage de Nouvelle partie, OUI par défaut).
+- Joueur en tête repéré pendant la partie.
+- Célébrations (ironiques) des nuls : volée à 0, volée sous 10, bust, série de 3 mauvaises volées ou plus.
+- Jouer jusqu'au bout (réglage de Nouvelle partie, NON par défaut, 3 joueurs ou plus) : après le gagnant, les autres
+  finissent pour les places.
+- Fin de partie : classement complet ; le dernier paie sa tournée.
+- Compteur de verres par joueur (menu pause) et alcoolémie estimée (verres et temps), avec avertissement : ce n'est
+  pas une mesure, rappel des limites pour conduire.
+- Quand Tsia lance, les voyelles du texte de l'écran de jeu tombent ; elles reviennent au joueur suivant.
+- Les données de l'appli (joueurs, parties, réglages) sont conservées à la mise à jour : aucune migration.
+
 ## 9. Lots
 
 | Lot | Contenu | Validation |
@@ -247,4 +260,5 @@ depuis l'appli. La version web reste sur GitHub Pages (aperçu, tests). Détail 
 | 4 | Finitions : titre STRELA et rouge d'accent de l'accueil, finition au double préféré, écrans vides et erreurs, écran de secours | validation des fonctions |
 | 5 | APK Android (coquille, passerelle native : vibreur, voix, fichiers, photo ; mise à jour depuis l'appli) | |
 | 6 | Icône « Soyouz », 16 fonds et 40 pictogrammes d'avatar, recherche de mise à jour automatique, variantes github / play, Android 16, À propos et confidentialité, fiche Play prête (v0.6.0) | |
-| 7 | Recette | |
+| 7 | Soirée : voyelles qui tombent (Tsia), ordre tiré au sort, joueur en tête, célébrations des nuls, jouer jusqu'au bout, classement, tournée du dernier, verres et alcoolémie estimée (v0.7.0) | |
+| 8 | Recette | |

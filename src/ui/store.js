@@ -11,6 +11,7 @@ import { computeState, STATUS, EVENTS } from '../engine/x01.js';
 import { deletePlayer as removePlayer, deletionImpact, isDeletedId } from '../engine/players.js';
 import { openDb, currentRecord, closedRecord, playerRecord, deletionOps, gameDeletionOps, DB_VERSION } from '../data/db.js';
 import { makeBackup, importPlan } from '../data/backup.js';
+import { bac, drinkTimes } from '../engine/alcohol.js';
 
 export const store = {
   players: [],
@@ -162,12 +163,48 @@ export function saveCurrent() {
   if (store.current) write([{ store: 'games', put: currentRecord(store.current) }]);
 }
 
+// ------------------------------------------------------------------ verres (lot 7)
+/** Ajoute un verre (maintenant) au joueur `id` dans la partie en cours. */
+export function addDrink(id, now = Date.now()) {
+  const g = store.current;
+  if (!g) return;
+  g.drinks = { ...(g.drinks || {}) };
+  g.drinks[id] = [...(g.drinks[id] || []), now];
+  saveCurrent();
+}
+
+/** Retire le dernier verre du joueur `id` dans la partie en cours (ceux des parties d'avant ne bougent pas). */
+export function removeDrink(id) {
+  const g = store.current;
+  const list = g && g.drinks && g.drinks[id];
+  if (!list || !list.length) return;
+  g.drinks = { ...g.drinks, [id]: list.slice(0, -1) };
+  saveCurrent();
+}
+
+/** Verres du joueur dans la partie en cours. */
+export const drinksHere = id => (store.current && store.current.drinks && store.current.drinks[id] ? store.current.drinks[id].length : 0);
+
+/** Alcoolémie estimée (g/L) du joueur maintenant : ses verres des 24 dernières heures, toutes parties confondues. */
+export function playerBac(id, now = Date.now()) {
+  return bac(drinkTimes([...(store.current ? [store.current] : []), ...store.games], id, now), now);
+}
+
 /** Démarre une partie (la précédente, s'il y en a une, est d'abord rangée : abandonnée si elle n'était pas finie). */
 export function startGame(setup) {
   if (store.current) archiveCurrent(currentState().status !== STATUS.FINISHED);
-  const config = { startScore: setup.startScore, outMode: setup.outMode, legsToWin: setup.legsToWin, players: [...setup.players] };
-  store.lastSetup = { players: [...setup.players], startScore: setup.startScore, outMode: setup.outMode, legsToWin: setup.legsToWin };
+  // Lot 7 : ordre tiré au sort au lancement (`shuffle`) et jouer jusqu'au bout (`playOn`, 3 joueurs ou plus). Les derniers
+  // réglages gardent l'ordre choisi ; seule la partie prend l'ordre tiré. Rien à migrer : réglages absents = valeurs par
+  // défaut (tirage OUI, jusqu'au bout NON).
+  const players = setup.shuffle ? shuffled(setup.players) : [...setup.players];
+  const config = { startScore: setup.startScore, outMode: setup.outMode, legsToWin: setup.legsToWin, players };
+  if (setup.playOn && players.length > 2) config.playOn = true;
+  store.lastSetup = { players: [...setup.players], startScore: setup.startScore, outMode: setup.outMode, legsToWin: setup.legsToWin,
+    // REVANCHE (ni l'un ni l'autre donné) garde les préférences d'avant
+    shuffle: setup.shuffle ?? store.lastSetup?.shuffle ?? true, playOn: setup.playOn ?? store.lastSetup?.playOn ?? false };
   store.current = { id: newId('g'), config, darts: [], startedAt: Date.now(), validated: 0, ui: freshUi() };
+  // Ordre tiré : « À TOI, PSEUDO » annonce le premier à lancer.
+  if (setup.shuffle && players.length > 1) store.current.ui.announce = 0;
   write([{ store: 'games', put: currentRecord(store.current) }, { store: 'settings', key: 'lastSetup', put: store.lastSetup }]);
   return store.current;
 }
@@ -177,6 +214,16 @@ export function startGame(setup) {
  * panneau cible + historique ouvert ('board' | null), correction d'une fléchette en cours (`fix`), vue de la cible agrandie ('visit' | 'leg'), annonce du joueur suivant (rang), glissement du bandeau,
  * loupe figée du sommaire ({ x, y }), `frozen` : annonce figée (sommaire de maquette).
  */
+/** Copie mélangée (Fisher-Yates ; hasard du téléphone si disponible). */
+export function shuffled(list) {
+  const out = [...list];
+  const rnd = k => {
+    try { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % k; } catch (e) { return Math.floor(Math.random() * k); }
+  };
+  for (let i = out.length - 1; i > 0; i--) { const j = rnd(i + 1); [out[i], out[j]] = [out[j], out[i]]; }
+  return out;
+}
+
 export const freshUi = () => ({ mult: 1, pause: false, confirm: false, panel: null, boardView: 'visit', announce: null, slide: false, loupe: null, frozen: false, fix: null, cele: null });
 
 export const currentState = () => (store.current ? computeState(store.current.config, store.current.darts) : null);

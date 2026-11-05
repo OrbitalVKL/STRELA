@@ -48,6 +48,8 @@ export const SOUNDS = Object.freeze({
   validate: (ac, t) => { tone(ac, 'triangle', 660, t, 0.07, 0.22); tone(ac, 'triangle', 990, t + 0.075, 0.1, 0.22); },
   finish: (ac, t) => [523, 659, 784, 1047].forEach((f, i) => tone(ac, 'triangle', f, t + i * 0.09, i === 3 ? 0.35 : 0.1, 0.24)),
   max: (ac, t) => [784, 988, 1175, 1568].forEach((f, i) => tone(ac, 'square', f, t + i * 0.07, i === 3 ? 0.4 : 0.08, 0.1)),
+  // Lot 7 : trombone triste des nuls (« wah wah wah waaah »), la dernière note glisse vers le bas.
+  flop: (ac, t) => [[392, 380], [370, 358], [349, 338], [330, 262]].forEach(([a, b], i) => tone(ac, 'sawtooth', [a, b], t + i * 0.26, i === 3 ? 0.7 : 0.22, 0.1)),
 });
 
 /** Joue un son (si le réglage « Sons » est sur OUI, ou `force` pour le test). Renvoie false si Web Audio manque. */
@@ -139,4 +141,13 @@ export const SPEECH = Object.freeze({
   checkout: (name, rest) => `${name}, il reste ${rest}`,
   leg: name => `Manche, ${name} !`,
   match: name => `Partie, ${name} !`,
+  // Lot 7
+  place: (n, name) => `${name}, ${['premier', 'deuxième', 'troisième', 'quatrième', 'cinquième', 'sixième', 'septième', 'huitième'][n - 1]} !`,
+  flop: (kind, name, value) => ({
+    zero: `Zéro ! Bravo ${name} !`,
+    low: `Quel talent, ${name} !`,
+    bust: `Bust ! On applaudit ${name} !`,
+    serie: `${value} volées ratées d'affilée. Bravo ${name} !`,
+  })[kind],
+  lastPays: names => (names.length === 1 ? `${names[0]} paie sa tournée !` : `${names.join(' et ')} paient leur tournée !`),
 });

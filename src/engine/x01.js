@@ -11,6 +11,9 @@
 // Bust : la volée s'arrête, le joueur revient au reste du début de volée, la main passe.
 // Manche gagnée : manche suivante, le premier à lancer tourne d'un cran à chaque manche.
 // Partie gagnée dès qu'un joueur atteint N manches.
+// Jouer jusqu'au bout (lot 7, `playOn`) : quand la partie est gagnée, les autres finissent la dernière manche pour
+// les places. Le gagnant reste le premier ; chaque joueur qui finit sort du tour (on le saute) ; la partie se termine
+// quand il ne reste qu'un joueur, le dernier.
 
 import { dartError, dartValue, isDouble, makeDart } from './darts.js';
 
@@ -30,7 +33,8 @@ export const EVENTS = Object.freeze({
   VISIT_END: 'visit_end', // 3e fléchette sans bust ni finition : la main passe
   BUST: 'bust',           // bust : retour au reste du début de volée, la main passe
   LEG_WON: 'leg_won',     // finition : manche gagnée, manche suivante commencée
-  MATCH_WON: 'match_won', // finition qui donne la partie
+  MATCH_WON: 'match_won', // finition qui termine la partie
+  PLACED: 'placed',       // jouer jusqu'au bout : finition qui donne une place, la partie continue pour les autres
 });
 
 export const X01_ERRORS = Object.freeze({
@@ -59,7 +63,7 @@ export class X01Error extends Error {
  */
 export function normalizeConfig(config) {
   if (config === null || typeof config !== 'object') throw new X01Error(X01_ERRORS.CONFIG_INVALID);
-  const { startScore, outMode, legsToWin = 1, players } = config;
+  const { startScore, outMode, legsToWin = 1, players, playOn = false } = config;
   if (!START_SCORES.includes(startScore)) throw new X01Error(X01_ERRORS.START_SCORE_INVALID, `score de départ ${startScore}`);
   if (outMode !== OUT_SINGLE && outMode !== OUT_DOUBLE) throw new X01Error(X01_ERRORS.OUT_MODE_INVALID, `sortie ${outMode}`);
   if (!Number.isInteger(legsToWin) || legsToWin < 1) throw new X01Error(X01_ERRORS.LEGS_INVALID, `manches ${legsToWin}`);
@@ -67,7 +71,9 @@ export function normalizeConfig(config) {
       || new Set(players).size !== players.length) {
     throw new X01Error(X01_ERRORS.PLAYERS_INVALID, 'joueurs : 1 à 8, sans doublon');
   }
-  return Object.freeze({ startScore, outMode, legsToWin, players: Object.freeze([...players]) });
+  // playOn n'apparaît que s'il est vrai : les parties d'avant le lot 7 gardent exactement leur configuration.
+  const base = { startScore, outMode, legsToWin, players: Object.freeze([...players]) };
+  return Object.freeze(playOn === true && players.length > 2 ? { ...base, playOn: true } : base);
 }
 
 /** Vrai si, depuis `remaining`, la fléchette provoque un bust. */
@@ -114,6 +120,10 @@ export function computeState(config, darts = []) {
   let lastEvent = EVENTS.NONE;
   let lastDart = null;
   let lastVisit = null;
+  const finishOrder = []; // dernière manche : rangs dans l'ordre où ils ont fini (le gagnant en premier)
+  const out = new Array(n).fill(false); // jouer jusqu'au bout : joueurs qui ont fini, sautés
+  let over = false; // partie terminée (plus aucune fléchette acceptée)
+  const nextFrom = i => { let k = (i + 1) % n; while (out[k]) k = (k + 1) % n; return k; };
 
   const close = (bust, finish) => {
     const total = open.darts.reduce((sum, d) => sum + dartValue(d), 0);
@@ -135,7 +145,7 @@ export function computeState(config, darts = []) {
   };
 
   darts.forEach((raw, i) => {
-    if (winner !== null) throw new X01Error(X01_ERRORS.MATCH_OVER, `fléchette n° ${i + 1} après la fin de partie`);
+    if (over) throw new X01Error(X01_ERRORS.MATCH_OVER, `fléchette n° ${i + 1} après la fin de partie`);
     const err = dartError(raw);
     if (err) throw new X01Error(err, `fléchette n° ${i + 1} invalide`);
     const dart = makeDart(raw.segment, raw.multiplier);
@@ -146,21 +156,44 @@ export function computeState(config, darts = []) {
     if (isBust(remaining[current], dart, cfg.outMode)) {
       remaining[current] = open.startRemaining;
       close(true, false);
-      current = (current + 1) % n;
+      current = nextFrom(current);
       lastEvent = EVENTS.BUST;
       return;
     }
     remaining[current] -= dartValue(dart);
     if (remaining[current] === 0) {
       close(false, true);
+      if (winner !== null) { // jouer jusqu'au bout : une place de plus
+        finishOrder.push(current);
+        out[current] = true;
+        if (out.filter(x => !x).length <= 1) {
+          finishOrder.push(out.indexOf(false)); // le dernier
+          leg.finalRemaining = Object.freeze([...remaining]);
+          over = true;
+          lastEvent = EVENTS.MATCH_WON;
+          return;
+        }
+        current = nextFrom(current);
+        lastEvent = EVENTS.PLACED;
+        return;
+      }
       legsWon[current] += 1;
       leg.winner = current;
-      leg.finalRemaining = Object.freeze([...remaining]);
       if (legsWon[current] >= cfg.legsToWin) {
         winner = current;
+        finishOrder.push(current);
+        if (cfg.playOn) {
+          out[current] = true;
+          current = nextFrom(current);
+          lastEvent = EVENTS.PLACED;
+          return;
+        }
+        leg.finalRemaining = Object.freeze([...remaining]);
+        over = true;
         lastEvent = EVENTS.MATCH_WON;
         return;
       }
+      leg.finalRemaining = Object.freeze([...remaining]);
       leg = openLeg(legs, leg.number + 1, leg.number % n);
       remaining.fill(cfg.startScore);
       current = leg.starter;
@@ -169,14 +202,14 @@ export function computeState(config, darts = []) {
     }
     if (open.darts.length === DARTS_PER_VISIT) {
       close(false, false);
-      current = (current + 1) % n;
+      current = nextFrom(current);
       lastEvent = EVENTS.VISIT_END;
       return;
     }
     lastEvent = EVENTS.DART;
   });
 
-  const finished = winner !== null;
+  const finished = over;
   const visitDarts = open ? [...open.darts] : [];
   return {
     config: cfg,
@@ -198,6 +231,8 @@ export function computeState(config, darts = []) {
     lastDart,
     lastVisit,
     visits,
+    finishOrder: [...finishOrder],
+    placing: winner !== null && !over,
     legs: legs.map(l => ({ ...l, visits: [...l.visits] })),
     dartCount: darts.length,
   };

@@ -264,6 +264,20 @@ label.btn { cursor: pointer; }
 .order .mv { flex: 0 0 48px; height: 48px; border: var(--rule); display: grid; place-items: center; font-size: 18px; }
 .order .mv:disabled { color: var(--faint); }
 .order .mv + .mv { margin-left: -13px; }
+/* Lot 7 : verres et alcoolémie estimée (menu pause, fin de partie) */
+.drinks { list-style: none; margin: 0; padding: 0; border-top: var(--rule); }
+.drinks li { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 6px 0; border-bottom: var(--rule); }
+.drinks .col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.drinks .nm { font-weight: 700; font-size: 16px; }
+.drinks .cnt { font-weight: 800; }
+.drinks .drive { align-self: flex-start; font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; padding: 2px 5px 1px; border: 1.5px solid currentColor; }
+.drinks .drive.alert { border-color: var(--red); }
+.drinks .mv { flex: 0 0 48px; height: 48px; border: var(--rule); display: grid; place-items: center; }
+.drinks .mv:disabled { color: var(--faint); }
+.drinks .mv.add { flex-basis: 72px; display: flex; justify-content: center; gap: 2px; background: var(--inv-bg); color: var(--inv-fg); }
+.drinks .mv.add svg { width: 20px; height: 20px; }
+.drinks .mv + .mv { margin-left: -13px; }
+.bac.over { font-weight: 800; }
 .pool { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
 .pool button { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 6px 10px; min-height: 104px; font-size: 12.5px; font-weight: 700; }
 .pool button span { max-width: 100%; }
@@ -303,6 +317,11 @@ label.btn { cursor: pointer; }
 .gband .dn { display: flex; gap: 3px; }
 /* Paliers de compaction (fit.js) : manches gagnées en « 1/2 », « M2 », sans carrés de fléchettes, « FL. 2/3 » */
 .gband .legs .sh, .gband .legs .wn { display: none; }
+/* Lot 7 : « EN TÊTE » (le joueur qui lance mène la partie), en vidéo inverse de l'encre du bandeau ; « 1ER » au palier 2 */
+.gband .legs .ld { padding: 1px 4px 0; background: var(--av-ink); color: var(--pc); }
+.gband .legs.fit1 .ld .lg { display: none; }
+.gband .legs.fit1 .ld .sh { display: inline; }
+.gband .legs.fit5 .ld { display: none; } /* dernier recours (petit écran, grande police) : le reste en vidéo inverse suffit */
 .gband .legs .wn { padding: 0 3px; border: 1.5px solid var(--av-ink); font-weight: 800; }
 .gband .legs.fit1 .won { display: none; }
 .gband .legs.fit1 .wn { display: inline-block; }
@@ -393,6 +412,12 @@ label.btn { cursor: pointer; }
 .op .l1 { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
 .op .l1 .nm { flex: 0 1 auto; }
 .op.next { box-shadow: inset 0 3px 0 var(--fg); }
+/* Lot 7 : joueur en tête (reste en vidéo inverse) ; joueur qui a fini en jouant jusqu'au bout (sa place, atténué) */
+.op.lead .r { align-self: flex-start; padding: 2px 4px 0; background: var(--fg); color: var(--bg); }
+.others.many .op.lead .r { align-self: center; }
+.op.out { color: var(--dim); }
+.op .r.place { font-size: 17px; font-weight: 800; letter-spacing: 0.04em; }
+.others.many .op .r.place { font-size: 13px; }
 .tag-next { flex: 0 0 auto; margin-left: auto; font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; color: var(--fg); }
 .tag-next .sh { display: none; }
 /* Pseudo coupé par l'étiquette : « SUIVANT » devient une flèche (palier fit1 du pseudo) */
@@ -626,12 +651,41 @@ label.btn { cursor: pointer; }
 @keyframes cele-in { from { transform: translateY(-100%); } to { transform: none; } }
 @keyframes cele-pop { from { transform: scale(0.4); } to { transform: none; } }
 
+/* Lot 7 : célébration des nuls (vidéo inverse comme 100+, le chiffre tangue) et place gagnée en jouant jusqu'au bout */
+.cele.nul, .cele.place { min-height: 72px; box-shadow: 0 1px 0 var(--bg); }
+.cele.nul b { font-size: 52px; display: inline-block; transform-origin: 50% 80%; }
+.cele.nul.enter b { animation: cele-wob 900ms ease-in-out 2; }
+@keyframes cele-wob { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-9deg); } 75% { transform: rotate(9deg); } }
+
+/* Voyelles qui tombent (lot 7, vowels.js) : quand Tsia lance. L'originale garde sa place pendant la chute, puis
+   disparaît (le mot se resserre) ; la chute se joue dans un calque fixe hors de #app, qui ne capte aucun appui. */
+.vw.vhold { visibility: hidden; }
+.vw.vgone { display: none; }
+#vfall { position: fixed; inset: 0; z-index: 40; pointer-events: none; overflow: hidden; }
+#vfall .vf {
+  position: absolute; display: block; text-align: center; white-space: pre; will-change: transform;
+  animation-name: vfall; animation-timing-function: cubic-bezier(.5, 0, .95, .55); animation-fill-mode: both;
+}
+@keyframes vfall {
+  0% { transform: none; }
+  16% { transform: translateY(-0.15em) rotate(var(--wob)); }
+  26% { transform: translateY(0.05em) rotate(calc(var(--wob) * -0.6)); }
+  100% { transform: translate(var(--dx), var(--fall)) rotate(var(--rot)); }
+}
+
 /* Animations coupées (réglage ou demande du téléphone) */
 html.still .gband.slide, html.still .announce, html.still .cele, html.still .cele b { animation: none; }
 @media (prefers-reduced-motion: reduce) { .gband.slide, .announce, .cele, .cele b { animation: none; } }
 
 /* ---------------------------------------------------------------- fins de manche / de partie */
 .result-head { padding: 18px 16px; display: flex; align-items: center; gap: 16px; }
+/* Lot 7 : le dernier paie sa tournée (vidéo inverse, sous le vainqueur) ; place en tête du classement */
+.tournee { margin: 0 16px 6px; padding: 12px 14px 14px; }
+.tournee .t { display: block; font-size: 12px; font-weight: 800; letter-spacing: 0.12em; }
+.tournee .who { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 10px; }
+.tournee .pl { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.tournee .nm { font-size: 22px; font-weight: 800; line-height: 1.15; overflow-wrap: anywhere; }
+.rank-table .plc { flex: 0 0 auto; min-width: 2.6em; font-weight: 800; white-space: nowrap; }
 .result-head .t { font-size: 12px; font-weight: 700; letter-spacing: 0.12em; }
 .result-head .nm { display: block; font-size: 30px; font-weight: 800; line-height: 1.1; overflow-wrap: anywhere; }
 .bigstats { display: grid; grid-template-columns: 1fr 1fr; border-top: var(--rule); border-left: var(--rule); }
