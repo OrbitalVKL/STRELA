@@ -11,6 +11,7 @@ import { computeState, STATUS, EVENTS } from '../engine/x01.js';
 import { deletePlayer as removePlayer, deletionImpact, isDeletedId } from '../engine/players.js';
 import { openDb, currentRecord, closedRecord, playerRecord, deletionOps, gameDeletionOps, DB_VERSION } from '../data/db.js';
 import { makeBackup, importPlan } from '../data/backup.js';
+import { bac, drinkTimes } from '../engine/alcohol.js';
 
 export const store = {
   players: [],
@@ -160,6 +161,33 @@ export function setArchived(id, archived) {
 /** Enregistre la partie en cours telle quelle (à chaque fléchette, ANNULER, VALIDER, fin de manche validée). */
 export function saveCurrent() {
   if (store.current) write([{ store: 'games', put: currentRecord(store.current) }]);
+}
+
+// ------------------------------------------------------------------ verres (lot 7)
+/** Ajoute un verre (maintenant) au joueur `id` dans la partie en cours. */
+export function addDrink(id, now = Date.now()) {
+  const g = store.current;
+  if (!g) return;
+  g.drinks = { ...(g.drinks || {}) };
+  g.drinks[id] = [...(g.drinks[id] || []), now];
+  saveCurrent();
+}
+
+/** Retire le dernier verre du joueur `id` dans la partie en cours (ceux des parties d'avant ne bougent pas). */
+export function removeDrink(id) {
+  const g = store.current;
+  const list = g && g.drinks && g.drinks[id];
+  if (!list || !list.length) return;
+  g.drinks = { ...g.drinks, [id]: list.slice(0, -1) };
+  saveCurrent();
+}
+
+/** Verres du joueur dans la partie en cours. */
+export const drinksHere = id => (store.current && store.current.drinks && store.current.drinks[id] ? store.current.drinks[id].length : 0);
+
+/** Alcoolémie estimée (g/L) du joueur maintenant : ses verres des 24 dernières heures, toutes parties confondues. */
+export function playerBac(id, now = Date.now()) {
+  return bac(drinkTimes([...(store.current ? [store.current] : []), ...store.games], id, now), now);
 }
 
 /** Démarre une partie (la précédente, s'il y en a une, est d'abord rangée : abandonnée si elle n'était pas finie). */

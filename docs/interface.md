@@ -422,6 +422,48 @@ l'APK dans home.js (scène `premier-lancement-apk`). Pas de service worker dans 
   prédictif, À propos ; variante play : rien de la mise à jour), `tests/android.test.js`, `tests/icone.test.js`,
   `tests/play.test.js`.
 
+## Lot 7 : soirée (voyelles, classement, verres)
+
+- **Voyelles qui tombent** (`src/ui/vowels.js`) : quand le joueur montré au bandeau s'appelle Tsia (casse, accents et
+  espaces ignorés), `app.js` met chaque voyelle de l'écran de jeu (y compris Y et voyelles accentuées ; dessins SVG
+  exclus) dans un `span.vw`. À la première vue d'une volée (`vowelKey()` : partie + rang de la volée, la volée en attente
+  garde la clé qu'elle avait ouverte), chaque voyelle visible est doublée dans un calque fixe `#vfall` hors de `#app`
+  (pas d'appui capté, coupé au bord de l'écran) et tombe (léger décrochage, puis chute en accélérant, rotation et dérive
+  au hasard, 0,85 à 1,45 s, départs étalés sur 0,65 s) ; l'originale garde sa place puis disparaît (le mot se resserre).
+  Aux rendus suivants de la même volée, les voyelles sont retirées d'emblée et la mise à l'échelle refaite. Animations
+  coupées : retirées d'emblée. Au joueur suivant (VALIDER), elles reviennent. Scènes `tsia`, `tsia-volee`.
+- **Ordre tiré au sort** : Nouvelle partie › TIRÉ AU SORT / DANS CET ORDRE (tiré par défaut ; `lastSetup.shuffle`).
+  `startGame` mélange (Fisher-Yates, `crypto.getRandomValues`) l'ordre de la partie seulement ; « À TOI, PSEUDO »
+  annonce le premier. REVANCHE garde la rotation d'un cran (pas de nouveau tirage) et les préférences.
+- **Joueur en tête** (`leader`) : son reste en vidéo inverse dans la bande des autres ; s'il lance, « EN TÊTE » en vidéo
+  inverse de l'encre dans la ligne du bandeau (« 1ER » dès le palier 1, retiré au palier 5). Scènes `en-tete`,
+  `en-tete-autre`.
+- **Célébrations des nuls** (`flop`) : bandeau `.cele.nul` (vidéo inverse, chiffre qui tangue), textes « BRAVO ! ZÉRO
+  POINT », « QUEL TALENT », « BUST · ON APPLAUDIT », « VOLÉES NULLES D'AFFILÉE » ; son `flop` (trombone triste) ;
+  annonce moqueuse (`SPEECH.flop`) à la place du total. Un 100+ l'emporte. Scènes `nul-zero`, `nul-bas`, `nul-bust`,
+  `nul-serie`.
+- **Jouer jusqu'au bout** : Nouvelle partie › Jouer jusqu'au bout (NON par défaut, montré à partir de 3 joueurs ;
+  `lastSetup.playOn`, `config.playOn`). Une place gagnée est une volée qui attend VALIDER (`pendingVisit` : événement
+  `placed`) ; bandeau « FINITION » pour le gagnant, « FINI · PLACE » ensuite ; annonce « Partie, X ! » puis « X,
+  deuxième ! »… Le bandeau du joueur montre « 1ER / 2E… » ; dans la bande des autres, un joueur fini montre sa place et
+  est sauté (« SUIVANT » aussi). Scènes `jusquau-bout`, `jusquau-bout-place`.
+- **Fin de partie** : tableau « Classement » dans l'ordre de `standings` (place à la place de l'avatar) ; encart « LE
+  DERNIER PAIE SA TOURNÉE » (vidéo inverse) sous le vainqueur, « DERNIERS À ÉGALITÉ : ILS PARTAGENT LA TOURNÉE » en cas
+  d'égalité ; annonce « X paie sa tournée ! » 2,6 s après la fin. La cible montre la finition du vainqueur (pas la
+  dernière volée). Scènes `fin-tournee`, `fin-egalite`.
+- **Verres** : menu pause › « Verres · alcoolémie estimée » : pour chaque joueur, ses verres dans la partie (− et
+  + VERRE) et son alcoolémie estimée (24 h, toutes parties), « PAS DE VOLANT EN PROBATOIRE » dès 0,2 g/L, « NE CONDUIS
+  PAS » (rouge) dès 0,5 g/L, et une note qui dit que ce n'est pas une mesure. En jeu, « ≈ 0,51 G/L · MOY. » dans la
+  ligne au-dessus du reste dès le premier verre. Fin de partie : la même liste, sans les boutons, s'il y a eu des
+  verres. Enregistrement : `games.drinks { [joueur]: [instants] }`, facultatif (absent sans verre), aussi dans la
+  sauvegarde ; un joueur supprimé passe à `~rang` comme dans `config.players`. Scènes `verres`, `verres-jeu`,
+  `fin-verres`.
+- **Données conservées** : aucune migration (base toujours en version 2, sauvegarde au format 1) ; les nouveaux champs
+  sont facultatifs avec une valeur par défaut, les parties d'avant se relisent à l'identique.
+- Tests : `tests/voyelles.test.js`, `tests/classement.test.js`, `tests/alcool.test.js`, `tests/soiree.test.js` (vraie
+  appli : tirage, en tête, nul, jusqu'au bout avec rechargement, verres, classement, tournée, REVANCHE).
+  `tools/lib/app.mjs` › `newGame` choisit DANS CET ORDRE par défaut (option `shuffle`) et `playOn`.
+
 ## Pour le lot 4
 
 - Les écrans Historique et Stats lisent `store.games` (parties closes) ; la partie en cours est à part (`store.current`).

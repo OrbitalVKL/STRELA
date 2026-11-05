@@ -264,6 +264,20 @@ label.btn { cursor: pointer; }
 .order .mv { flex: 0 0 48px; height: 48px; border: var(--rule); display: grid; place-items: center; font-size: 18px; }
 .order .mv:disabled { color: var(--faint); }
 .order .mv + .mv { margin-left: -13px; }
+/* Lot 7 : verres et alcoolémie estimée (menu pause, fin de partie) */
+.drinks { list-style: none; margin: 0; padding: 0; border-top: var(--rule); }
+.drinks li { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 6px 0; border-bottom: var(--rule); }
+.drinks .col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.drinks .nm { font-weight: 700; font-size: 16px; }
+.drinks .cnt { font-weight: 800; }
+.drinks .drive { align-self: flex-start; font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; padding: 2px 5px 1px; border: 1.5px solid currentColor; }
+.drinks .drive.alert { border-color: var(--red); }
+.drinks .mv { flex: 0 0 48px; height: 48px; border: var(--rule); display: grid; place-items: center; }
+.drinks .mv:disabled { color: var(--faint); }
+.drinks .mv.add { flex-basis: 72px; display: flex; justify-content: center; gap: 2px; background: var(--inv-bg); color: var(--inv-fg); }
+.drinks .mv.add svg { width: 20px; height: 20px; }
+.drinks .mv + .mv { margin-left: -13px; }
+.bac.over { font-weight: 800; }
 .pool { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
 .pool button { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 6px 10px; min-height: 104px; font-size: 12.5px; font-weight: 700; }
 .pool button span { max-width: 100%; }

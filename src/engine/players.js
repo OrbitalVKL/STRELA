@@ -44,7 +44,13 @@ export function deletePlayer(players, games, playerId) {
     if (rank < 0) { out.push(g); continue; }
     const ids = [...g.config.players];
     ids[rank] = deletedId(rank);
-    out.push({ ...g, config: { ...g.config, players: ids } });
+    const next = { ...g, config: { ...g.config, players: ids } };
+    // Lot 7 : ses verres (s'il y en a) ne gardent pas son identifiant non plus.
+    if (g.drinks && g.drinks[playerId]) {
+      const { [playerId]: mine, ...rest } = g.drinks;
+      next.drinks = { ...rest, [deletedId(rank)]: mine };
+    }
+    out.push(next);
   }
   return { players: players.filter(p => p.id !== playerId), games: out, kept, removed };
 }

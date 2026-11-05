@@ -129,6 +129,25 @@ partie, `computeState` reste valide) ; une partie où il ne reste aucun joueur c
 vainqueur, moyennes des autres) est inchangé. `deletionImpact()` donne les deux listes sans rien changer
 (texte de la confirmation).
 
+## Jouer jusqu'au bout, classement, nuls (lot 7)
+
+- **`config.playOn`** (facultatif, gardé seulement s'il vaut `true` et qu'il y a 3 joueurs ou plus : à 2, le second est
+  forcément dernier). Quand un joueur gagne la partie, il sort du tour au lieu d'arrêter la partie : événement
+  `placed`, `status` reste `playing`, `winner` est connu, `placing` vaut `true`. Chaque finition suivante dans cette
+  manche donne la place suivante (`placed`) ; le joueur qui a fini est sauté. Quand il ne reste qu'un joueur, il est
+  ajouté dernier et la partie se termine (`match_won`, `status: 'finished'`). Les places ne donnent pas de manche ;
+  `legs[k].finalRemaining` est rempli à la vraie fin. Avec plusieurs manches, seule la manche qui donne la partie se joue
+  jusqu'au bout.
+- **`finishOrder[]`** (état) : rangs dans l'ordre où ils ont fini la dernière manche (`[gagnant]` sans `playOn`, tout le
+  monde avec). `correct.js` refuse une correction qui change cet ordre.
+- **`ranking.js`** : `standings(état)` (ceux qui ont fini dans l'ordre, puis manches gagnées, puis reste ; égalité =
+  même place), `leader(état)` (seul premier, tant que personne n'a gagné ; personne au départ ni en solo),
+  `lastPlaces(état)` (le ou les derniers d'une partie finie : ils paient la tournée), `flop(état)` (célébration des
+  nuls après une volée close : `serie` = 3 volées de moins de 20 d'affilée ou plus, `bust`, `zero`, `low` = moins de
+  10 ; sous 60 de reste, seuls bust et 0 comptent).
+- **`alcohol.js`** : alcoolémie estimée (Widmark : verre standard de 10 g, 70 kg, diffusion 0,65, élimination
+  0,15 g/L/h, verres des 24 dernières heures toutes parties confondues), `formatBac`, `bacLevel` (0,2 et 0,5 g/L).
+
 ### Ajouter un jeu
 
 Même forme : un module `src/engine/<jeu>.js` qui prend une configuration et la liste des fléchettes
@@ -137,7 +156,7 @@ et rend un état recalculé ; l'ajouter à `GAMES` dans `index.js`. `darts.js` e
 ## Tests
 
 `tests/darts.test.js`, `tests/x01.test.js`, `tests/checkout.test.js`, `tests/stats.test.js`, `tests/board.test.js`,
-`tests/players.test.js` (aides dans `tests/helpers.js`, notation `ds('T20 T20 0 D16')`). Côté interface (purs) :
+`tests/players.test.js`, `tests/classement.test.js`, `tests/alcool.test.js` (lot 7) (aides dans `tests/helpers.js`, notation `ds('T20 T20 0 D16')`). Côté interface (purs) :
 `tests/turn.test.js` (validation des volées, chiffres en rouleau), `tests/maquette.test.js`, `tests/theme.test.js`.
 Couverts : 3 scores de départ, finitions simple / double / sur 50, bust par dépassement / reste 1 / 0 sans
 double, bust et finition à chaque rang de fléchette, saisies invalides, rotation du premier joueur,

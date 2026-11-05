@@ -9,7 +9,7 @@
 //   hors de la cible ne compte rien).
 // Après la 3e fléchette ou un bust, la volée reste affichée jusqu'à VALIDER (turn.js) ; ANNULER reste possible.
 // À la validation, « À TOI, PSEUDO » occupe le haut de l'écran ~0,8 s, puis le bandeau du joueur glisse en place.
-import { store, currentState, playerById, archiveCurrent, deleteCurrent, animationsOn, saveCurrent, legEndPending } from '../store.js';
+import { store, currentState, playerById, archiveCurrent, deleteCurrent, animationsOn, saveCurrent, legEndPending, addDrink, removeDrink, drinksHere, playerBac } from '../store.js';
 import { esc, ico, avg, OUT_SHORT, maquetteButtons } from '../dom.js';
 import { avatarHtml, colorIndex } from '../avatars.js';
 import { throwDart, undoDart } from '../../engine/x01.js';
@@ -27,6 +27,7 @@ import { sound, dartSound, say, SPEECH } from '../feedback.js';
 import { correctDart, locateDart, visitStart, CORRECT_ERRORS } from '../../engine/correct.js';
 import { isTsia } from '../vowels.js';
 import { leader, flop, lastPlaces } from '../../engine/ranking.js';
+import { formatBac, bacLevel, DRIVE_LIMIT, YOUNG_LIMIT } from '../../engine/alcohol.js';
 
 export const ANNOUNCE_MS = 800;
 const LENS = { size: 150, zoom: 2.5, gap: 26 };
@@ -128,8 +129,11 @@ function rest(v) {
     </section>`;
   }
   const legAvg = playerSummary(s, shown, s.legNumber).average;
+  // Lot 7 : alcoolémie estimée du joueur, dès son premier verre (le détail et les verres sont au menu pause).
+  const level = playerBac(cfg.players[shown]);
+  const alc = bacLevel(level) === 'zero' ? '' : `<span class="bac ${bacLevel(level)}">≈ ${formatBac(level)} G/L</span> · `;
   return `<section class="rest" aria-label="Reste à faire">
-      <div class="meta"><span class="ell">${cfg.startScore} · ${OUT_SHORT[cfg.outMode]}</span><span>MOY. ${avg(legAvg)}</span></div>
+      <div class="meta"><span class="ell">${cfg.startScore} · ${OUT_SHORT[cfg.outMode]}</span><span>${alc}MOY. ${avg(legAvg)}</span></div>
       <div class="big" id="remaining" aria-label="${remaining}" data-shrink>${rollHtml(`r:${s.legNumber}:${shown}`, remaining)}</div>
     </section>`;
 }
@@ -408,6 +412,7 @@ function pauseSheet() {
       ${storageBanner()}
       <button type="button" class="btn primary big" data-act="resume">${ico('play')} REPRENDRE</button>
       <button type="button" class="btn" data-act="open-history">${ico('history')} HISTORIQUE DE LA PARTIE</button>
+      ${drinksSection(store.current.config.players)}
       <div class="sec" style="margin-bottom:0">Réglages rapides</div>
       ${themeControls()}
       <div class="sec" style="margin-bottom:0">Partie</div>
@@ -416,6 +421,27 @@ function pauseSheet() {
       ${del}
       <p class="note" style="margin:0">Abandonner : la partie reste dans l'historique et compte dans les moyennes. Supprimer (partie d'essai) : elle disparaît complètement.</p>
     </div></div></div>`;
+}
+
+/**
+ * Verres et alcoolémie (lot 7) : pour chaque joueur, ses verres dans la partie (− / + VERRE) et son alcoolémie estimée
+ * (verres des 24 dernières heures, toutes parties confondues). Aussi sur l'écran de fin de partie (sans les boutons).
+ */
+export function drinksSection(ids, { edit = true } = {}) {
+  const rows = ids.map(id => {
+    const p = playerById(id);
+    const n = drinksHere(id);
+    const level = playerBac(id);
+    const lv = bacLevel(level);
+    const tag = lv === 'over' ? '<b class="drive alert">NE CONDUIS PAS</b>' : lv === 'young' ? '<b class="drive">PAS DE VOLANT EN PROBATOIRE</b>' : '';
+    const buttons = edit ? `<button type="button" class="mv" data-act="drink-minus" data-arg="${esc(id)}" ${n ? '' : 'disabled'} aria-label="Retirer un verre à ${esc(p.name)}">${ico('minus')}</button>
+        <button type="button" class="mv add" data-act="drink-plus" data-arg="${esc(id)}" aria-label="Un verre de plus pour ${esc(p.name)}">${ico('plus')}${ico('glass')}</button>` : '';
+    return `<li>${avatarHtml(p, 32)}<div class="col"><span class="nm ell">${esc(p.name)}</span>
+        <span class="small"><b class="cnt">${n} ${n > 1 ? 'VERRES' : 'VERRE'}</b> · <span class="bac ${lv}">≈ ${formatBac(level)} G/L</span></span>${tag}</div>${buttons}</li>`;
+  }).join('');
+  return `<div class="sec" style="margin-bottom:0">Verres · alcoolémie estimée</div>
+    <ul class="drinks">${rows}</ul>
+    <p class="note" style="margin:0">Estimation pour rire, pas une mesure : verre standard (10 g d'alcool : un demi, un verre de vin, un shot), 70 kg, 0,15 g/L éliminés par heure. Au volant : ${formatBac(DRIVE_LIMIT)} g/L au plus, ${formatBac(YOUNG_LIMIT)} en permis probatoire ; dans le doute, on ne conduit pas.</p>`;
 }
 
 // ------------------------------------------------------------------ après le rendu : annonce, saisie sur la cible
@@ -754,6 +780,8 @@ export const actions = {
     buzz(BUZZ.dart);
     refresh();
   },
+  'drink-plus'(id) { addDrink(id); buzz(BUZZ.dart); refresh(); },
+  'drink-minus'(id) { removeDrink(id); buzz(BUZZ.undo); refresh(); },
   abandon() { store.current.ui.confirm = 'abandon'; refresh(); },
   'delete-current'() { store.current.ui.confirm = 'delete'; refresh(); },
   'delete-current-yes'() { stopAnnounce(); deleteCurrent(); go('#/'); },

@@ -25,6 +25,7 @@ import { setHomeVariant, homeVariant } from './home.js';
 // Lot 7 : jouer jusqu'au bout à 4 (301, sortie simple) ; après PO1, Guillaume, Mathilde et Karim sont à 80, Sacha à 301.
 const PLAYON = () => ({ ...cfg(['p1', 'p2', 'p3', 'p4'], 301, 'single'), playOn: true });
 const PO1 = 'T20 T20 T20  T20 T20 T20  T20 T20 T20  0 0 0  S20 S20 S1  S20 S20 S1  S20 S20 S1  0 0 0';
+const DRINKS = () => { const h = 3600e3, now = Date.now(); return { p1: [now - 2 * h], p2: [now - h, now - 0.5 * h, now - 0.1 * h] }; };
 const ds = text => text.trim().split(/\s+/).filter(Boolean).map(parseDart);
 const cfg = (players, startScore = 501, outMode = 'double', legsToWin = 1) => ({ players, startScore, outMode, legsToWin });
 
@@ -184,6 +185,10 @@ export const SCENES = {
   'jusquau-bout-place': () => { setGame(PLAYON(), `${PO1} T20 S20  T20 S20`, {}, true); return '#/jeu'; },
   'fin-tournee': () => { setGame(PLAYON(), `${PO1} T20 S20  T20 S20  0 0 0  0 0 0  T20 S20`); return '#/fin'; },
   'fin-egalite': () => { setGame(cfg(['p1', 'p2', 'p3'], 301, 'single'), 'T20 T20 T20  0 0 0  0 0 0  T20 T20 S1'); return '#/fin'; },
+  // Verres : Guillaume 1 verre il y a 2 h, Mathilde 3 en une heure (au-dessus de 0,5 g/L), Karim aucun
+  verres: () => { setGame(cfg(['p1', 'p2', 'p3']), 'T20 S20 S5', { pause: true }); store.current.drinks = DRINKS(); return '#/jeu'; },
+  'verres-jeu': () => { setGame(cfg(['p1', 'p2', 'p3']), 'T20 T20 T20', {}); store.current.drinks = DRINKS(); return '#/jeu'; },
+  'fin-verres': () => { setGame(PLAYON(), `${PO1} T20 S20  T20 S20  0 0 0  0 0 0  T20 S20`); store.current.drinks = DRINKS(); return '#/fin'; },
   'fin-manche': () => { setGame(cfg(['p1', 'p2'], 301, 'double', 2), 'T20 T20 T20 20 1 5 T20 T11 D14'); return '#/manche'; },
   'fin-partie': () => { setGame(cfg(['p1', 'p2', 'p3'], 301), 'T20 T20 T20 20 1 5 T19 S7 S3 T20 T11 D14'); return '#/fin'; },
   huit: () => {
@@ -382,6 +387,9 @@ export function sommaire() {
       ${L('nul-serie', 'Célébration d\'un nul : série')}
       ${L('jusquau-bout', 'Jusqu\'au bout', 'le gagnant a fini')}
       ${L('jusquau-bout-place', 'Jusqu\'au bout : 2e place', 'en attente')}
+      ${L('verres', 'Verres et alcoolémie', 'menu pause')}
+      ${L('verres-jeu', 'Alcoolémie en jeu', 'Mathilde lance')}
+      ${L('fin-verres', 'Fin de partie : verres')}
       ${L('fin-tournee', 'Fin de partie : classement', 'le dernier paie')}
       ${L('fin-egalite', 'Fin de partie : derniers à égalité')}
       ${L('fete-100', 'Célébration 100+', 'discrète')}

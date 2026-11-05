@@ -25,8 +25,11 @@ test('ordre tiré au sort : la partie prend un ordre mélangé, les réglages ga
   const t = await setup();
   try {
     const orders = new Set();
+    let announcedMissed = 0; // l'annonce ne dure que 0,8 s : un poste lent peut la manquer, mais pas à chaque fois
     for (let k = 0; k < 8; k++) {
       await newGame(t.page, ['Alpha', 'Bravo', 'Charlie'], { shuffle: true });
+      const first = await t.page.locator('.gband .nm').textContent();
+      const announced = await t.page.locator('.announce .nm').count() ? await t.page.locator('.announce .nm').textContent() : null;
       await settle(t.page);
       const db = await readDb(t.page);
       const cur = db.current;
@@ -35,8 +38,11 @@ test('ordre tiré au sort : la partie prend un ordre mélangé, les réglages ga
       orders.add(names.join());
       assert.equal(db.settings.lastSetup.shuffle, true);
       assert.deepEqual(db.settings.lastSetup.players.map(id => db.players.find(p => p.id === id).name), ['Alpha', 'Bravo', 'Charlie']);
-      assert.ok(await t.page.locator('.announce').count(), '« À TOI » annonce le premier tiré');
+      assert.equal(first, names[0], 'le premier tiré lance');
+      if (announced !== null) assert.equal(announced, names[0], '« À TOI » annonce le premier tiré');
+      else announcedMissed += 1;
     }
+    assert.ok(announcedMissed < 8, '« À TOI » vu au moins une fois');
     assert.ok(orders.size > 1, `l’ordre change d’une partie à l’autre (${[...orders].join(' / ')})`);
     assert.deepEqual(t.errors, []);
   } finally { await t.close(); }
@@ -68,15 +74,25 @@ test('jouer jusqu’au bout : places, joueur en tête, nul célébré, classemen
     await throwDarts(page, 'S1 S1 S1'); // Charlie
     await validate(page);
     assert.equal(await page.locator('.gband .nm').textContent(), 'Bravo', 'Alpha sauté');
-    // Rechargement en pleine course aux places : rien de perdu.
+    // Verres (menu pause) : deux pour Bravo, un retiré puis remis ; alcoolémie affichée.
+    await page.click('[data-act="pause"]');
+    const bravoId = (await readDb(page)).players.find(p => p.name === 'Bravo').id;
+    for (let k = 0; k < 3; k++) await page.click(`[data-act="drink-plus"][data-arg="${bravoId}"]`);
+    await page.click(`[data-act="drink-minus"][data-arg="${bravoId}"]`);
+    assert.match(await page.locator('.drinks li:has-text("Bravo")').textContent(), /2 VERRES\s*·\s*≈ 0,44 G\/L/);
+    await page.click('.sheet [data-act="resume"] >> nth=0');
+    assert.match(await page.locator('.rest .meta').textContent(), /≈ 0,44 G\/L/, 'alcoolémie de Bravo, qui lance');
+    // Rechargement en pleine course aux places : rien de perdu (verres compris).
     await reload(page);
     assert.equal(await page.locator('.gband .nm').textContent(), 'Bravo');
+    assert.equal((await readDb(page)).current.drinks[bravoId].length, 2, 'verres enregistrés');
     await throwDarts(page, '0 0 0');
     await validate(page);
     await throwDarts(page, 'T20 S20 D19'); // Charlie : 118 → 0, 2e ; Bravo reste seul, dernier
     await page.waitForSelector('.tournee');
     assert.match(await page.locator('.tournee .t').textContent(), /LE DERNIER PAIE SA TOURNÉE/);
     assert.equal(await page.locator('.tournee .nm').textContent(), 'Bravo');
+    assert.match(await page.locator('.drinks li:has-text("Bravo")').textContent(), /2 VERRES/, 'verres en fin de partie');
     const ranks = await page.locator('.rank-table tbody tr').evaluateAll(rows => rows.map(r => r.querySelector('.pl').textContent.replace(/\s+/g, ' ').trim()));
     assert.deepEqual(ranks, ['1ERAlpha', '2ECharlie', '3EBravo']);
     assert.match(await page.locator('.result-head').textContent(), /Alpha/);

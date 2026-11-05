@@ -16,7 +16,7 @@
 // Les écritures d'un import tiennent dans une seule transaction (tout ou rien).
 
 import { computeState } from '../engine/x01.js';
-import { playerRecord } from './db.js';
+import { playerRecord, withDrinks } from './db.js';
 
 export const BACKUP_FORMAT = 'strela-sauvegarde';
 export const BACKUP_VERSION = 1;
@@ -28,7 +28,7 @@ export function backupFileName(date = new Date()) {
 }
 
 /** Enregistrement d'une partie tel qu'exporté (sans état d'affichage). */
-const gameOut = g => ({
+const gameOut = g => withDrinks(g, {
   id: g.id, startedAt: g.startedAt, endedAt: g.endedAt ?? null, config: g.config,
   darts: g.darts.map(d => (Array.isArray(d.pos) ? { segment: d.segment, multiplier: d.multiplier, pos: d.pos } : { segment: d.segment, multiplier: d.multiplier })),
   validated: g.validated ?? g.darts.length, abandoned: !!g.abandoned,
