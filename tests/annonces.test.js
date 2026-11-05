@@ -70,7 +70,7 @@ test('voix, sons et bandeaux pendant une partie ; réglages respectés', { skip:
     assert.equal((await said()).at(-1), 'Alpha, il reste 121', 'Alpha commence son tour avec une finition jouable');
     const before = await page.evaluate(() => window.__speech.length);
     await throwDarts(page, 'T20 T20'); // 121 → 61 → 1 : bust
-    assert.equal((await said()).at(-1), 'Bust');
+    assert.equal((await said()).at(-1), SPEECH.flop('bust', 'Alpha'), 'bust : annonce moqueuse (lot 7)');
     assert.equal((await sounds()).at(-1), 'bust');
     assert.equal(await page.evaluate(n => window.__speech[n], before), 'cancel', 'une nouvelle annonce coupe l’ancienne');
     await validate(page);

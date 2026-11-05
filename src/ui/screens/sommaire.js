@@ -22,6 +22,9 @@ import { makeBackup, parseBackup } from '../../data/backup.js';
 import { saveSetting } from '../store.js';
 import { setHomeVariant, homeVariant } from './home.js';
 
+// Lot 7 : jouer jusqu'au bout à 4 (301, sortie simple) ; après PO1, Guillaume, Mathilde et Karim sont à 80, Sacha à 301.
+const PLAYON = () => ({ ...cfg(['p1', 'p2', 'p3', 'p4'], 301, 'single'), playOn: true });
+const PO1 = 'T20 T20 T20  T20 T20 T20  T20 T20 T20  0 0 0  S20 S20 S1  S20 S20 S1  S20 S20 S1  0 0 0';
 const ds = text => text.trim().split(/\s+/).filter(Boolean).map(parseDart);
 const cfg = (players, startScore = 501, outMode = 'double', legsToWin = 1) => ({ players, startScore, outMode, legsToWin });
 
@@ -170,6 +173,17 @@ export const SCENES = {
   loupe: () => { const [x, y] = at(20, MID_T, 2); setGame(cfg(['p1', 'p2']), LIVE().slice(0, 7), { loupe: { x, y } }); return '#/jeu'; },
   'paysage-attente': () => { setGame(cfg(['p1', 'p2']), LIVE().slice(0, 6), {}, true); return '#/jeu'; },
   finition: () => { setGame(cfg(['p1', 'p2']), 'T20 T20 T20 S5 S1 S20 T20 T20 T20 S20 S20 S20 S20 S20 S1 S19 S3 S17'); return '#/jeu'; },
+  // Lot 7 : joueur en tête, célébrations des nuls, jouer jusqu'au bout, classement et tournée
+  'en-tete': () => { setGame(cfg(['p1', 'p2', 'p3']), 'T20 T20 T20  S20 S5 S1  T19 S7 S3'); return '#/jeu'; },
+  'en-tete-autre': () => { setGame(cfg(['p1', 'p2', 'p3']), 'T20 T20 T20  S20 S5 S1'); return '#/jeu'; },
+  'nul-zero': () => { setGame(cfg(['p1', 'p2']), '0 0 0', {}, true); celebrate('nul-zero', 0, 0, { frozen: true }); return '#/jeu'; },
+  'nul-bas': () => { setGame(cfg(['p1', 'p2']), 'S1 S5 S1', {}, true); celebrate('nul-low', 7, 0, { frozen: true }); return '#/jeu'; },
+  'nul-bust': () => { setGame(cfg(['p1', 'p2'], 301), 'T20 T20 T20 20 20 20 T19 S20 S12 20 20 20 S20 S16', {}, true); celebrate('nul-bust', 'BUST', 0, { frozen: true }); return '#/jeu'; },
+  'nul-serie': () => { setGame(cfg(['p1', 'p2']), 'S5 S5 S5  T20 T20 T20  S1 S1 S1  T20 T20 T20  S2 S2 S2', {}, true); celebrate('nul-serie', 3, 0, { frozen: true }); return '#/jeu'; },
+  'jusquau-bout': () => { setGame(PLAYON(), `${PO1} T20 S20`); return '#/jeu'; },
+  'jusquau-bout-place': () => { setGame(PLAYON(), `${PO1} T20 S20  T20 S20`, {}, true); return '#/jeu'; },
+  'fin-tournee': () => { setGame(PLAYON(), `${PO1} T20 S20  T20 S20  0 0 0  0 0 0  T20 S20`); return '#/fin'; },
+  'fin-egalite': () => { setGame(cfg(['p1', 'p2', 'p3'], 301, 'single'), 'T20 T20 T20  0 0 0  0 0 0  T20 T20 S1'); return '#/fin'; },
   'fin-manche': () => { setGame(cfg(['p1', 'p2'], 301, 'double', 2), 'T20 T20 T20 20 1 5 T20 T11 D14'); return '#/manche'; },
   'fin-partie': () => { setGame(cfg(['p1', 'p2', 'p3'], 301), 'T20 T20 T20 20 1 5 T19 S7 S3 T20 T11 D14'); return '#/fin'; },
   huit: () => {
@@ -360,6 +374,16 @@ export function sommaire() {
       ${L('histo-huit-detail', 'Historique terminé : 8 joueurs', 'finition ouverte')}
       ${L('finition', 'Finition proposée', 'reste 100')}
       ${L('finition-preferee', 'Finition au double préféré', '41 : S9 D16')}
+      ${L('en-tete', 'Joueur en tête', 'il lance')}
+      ${L('en-tete-autre', 'Joueur en tête', 'dans la bande')}
+      ${L('nul-zero', 'Célébration d\'un nul : 0', 'ironique')}
+      ${L('nul-bas', 'Célébration d\'un nul : sous 10')}
+      ${L('nul-bust', 'Célébration d\'un nul : bust')}
+      ${L('nul-serie', 'Célébration d\'un nul : série')}
+      ${L('jusquau-bout', 'Jusqu\'au bout', 'le gagnant a fini')}
+      ${L('jusquau-bout-place', 'Jusqu\'au bout : 2e place', 'en attente')}
+      ${L('fin-tournee', 'Fin de partie : classement', 'le dernier paie')}
+      ${L('fin-egalite', 'Fin de partie : derniers à égalité')}
       ${L('fete-100', 'Célébration 100+', 'discrète')}
       ${L('fete-140', 'Célébration 140+', 'couleur du joueur')}
       ${L('fete-180', 'Célébration 180', 'moitié de l\'écran')}
