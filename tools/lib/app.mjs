@@ -57,12 +57,23 @@ export function keysOf(notation) {
 }
 
 /** Saisit des fléchettes au pavé (portrait). */
-export async function throwDarts(page, notation) {
-  for (const k of keysOf(notation)) await page.click(`[data-key="${k}"]`);
+// Lot 7.1 : une célébration reste jusqu'à ce qu'on l'acquitte, et l'appui qui l'acquitte ne fait rien d'autre. Les aides
+// de saisie l'acquittent d'abord (comme le ferait le joueur) ; tests/annonces.test.js vérifie ce comportement à part.
+export async function ack(page) {
+  // Laisse l'écran se redessiner (une finition change d'écran juste après la fléchette).
+  await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
+  if (await page.locator('.cele').count()) {
+    await page.mouse.click(4, Math.round((page.viewportSize()?.height ?? 600) / 2));
+    await page.waitForSelector('.cele', { state: 'detached' });
+  }
 }
 
-export const validate = page => page.click('.validate.go');
-export const undo = page => page.click('[data-key="undo"]');
+export async function throwDarts(page, notation) {
+  for (const k of keysOf(notation)) { await ack(page); await page.click(`[data-key="${k}"]`); }
+}
+
+export const validate = async page => { await ack(page); await page.click('.validate.go'); };
+export const undo = async page => { await ack(page); await page.click('[data-key="undo"]'); };
 
 /** Ce que montre l'écran (jeu, fin de manche ou de partie), pour comparer avant et après un rechargement. */
 export const snapshot = page => page.evaluate(() => {

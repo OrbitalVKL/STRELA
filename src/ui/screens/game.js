@@ -632,32 +632,53 @@ const later = fn => setTimeout(fn, 0);
 // ------------------------------------------------------------------ célébration 100+ / 140+ / 180 / finition (lot 3)
 // Bandeau en haut de l'écran, gradué : discret en vidéo inverse pour 100+, plus haut à la couleur du joueur pour 140+,
 // la moitié haute de l'écran pour 180 ; un bandeau pour chaque finition (à la couleur du joueur si elle fait 100 ou
-// plus). Jamais le rouge (réservé au bust). Il ne capte aucun appui (la saisie continue dessous) et le premier appui le
-// ferme. Sans animation si le réglage Animations est sur NON ou si le téléphone demande moins d'animations.
-export const CELE_MS = Object.freeze({ ton: 1200, ton40: 1400, max: 1600, finish: 1500, 'finish-big': 1700, place: 1500,
-  'nul-zero': 1700, 'nul-low': 1600, 'nul-bust': 1700, 'nul-serie': 1900 });
+// plus). Jamais le rouge (réservé au bust). Sans animation si le réglage Animations est sur NON ou si le téléphone
+// demande moins d'animations.
+// Lot 7.1 (demande de Guillaume : « on n'a pas le temps de les voir ») : plus de minuterie, le bandeau reste jusqu'à
+// ce qu'on l'acquitte. Le premier appui, n'importe où, le ferme et ne fait rien d'autre (ni fléchette, ni VALIDER, ni
+// ANNULER) : il est avalé de l'appui au relâcher.
 // Lot 7 : les nuls ont aussi leur bandeau (vidéo inverse, chiffre qui tangue) ; jamais le rouge non plus.
 const CELE_TEXT = { ton: '100 +', ton40: '140 +', max: 'CENT QUATRE-VINGTS', finish: 'FINITION', 'finish-big': 'GROSSE FINITION',
   place: 'FINI · PLACE', 'nul-zero': 'BRAVO ! ZÉRO POINT', 'nul-low': 'QUEL TALENT', 'nul-bust': 'BUST · ON APPLAUDIT',
   'nul-serie': 'VOLÉES NULLES D\'AFFILÉE' };
-let celeTimer = null;
 
-export function celebrate(kind, value, player, { frozen = false } = {}) {
+export function celebrate(kind, value, player) {
   const g = store.current;
   if (!g) return;
-  g.ui.cele = { kind, value, player, fresh: true, frozen };
-  clearTimeout(celeTimer);
-  if (!frozen) celeTimer = setTimeout(endCele, CELE_MS[kind]);
+  g.ui.cele = { kind, value, player, fresh: true };
 }
 
 function endCele() {
-  celeTimer = null;
   const g = store.current;
   if (g) g.ui.cele = null;
   document.querySelector('.cele')?.remove();
 }
-// Un appui n'importe où ferme le bandeau (sans rien bloquer : l'appui fait aussi ce qu'il devait faire).
-window.addEventListener('pointerdown', () => { if (store.current && store.current.ui.cele) { clearTimeout(celeTimer); endCele(); } }, true);
+
+// Acquittement : l'appui est arrêté avant l'appli (phase de capture sur window), puis son relâcher et son clic aussi ;
+// le bandeau se ferme au relâcher (rien n'apparaît dessous pendant que le doigt est posé).
+let ackPointer = null;
+const swallowEv = ev => { ev.preventDefault(); ev.stopImmediatePropagation(); };
+window.addEventListener('pointerdown', ev => {
+  if (!(store.current && store.current.ui.cele)) return;
+  if (!document.querySelector('.cele')) { endCele(); return; } // on a quitté l'écran : la fête est passée
+
+  ackPointer = ev.pointerId;
+  swallowEv(ev);
+}, true);
+window.addEventListener('pointerup', ev => {
+  if (ev.pointerId !== ackPointer) return;
+  ackPointer = null;
+  swallowEv(ev);
+  endCele();
+  ackClick = Date.now();
+}, true);
+window.addEventListener('pointercancel', ev => { if (ev.pointerId === ackPointer) { ackPointer = null; endCele(); } }, true);
+let ackClick = 0;
+window.addEventListener('click', ev => { if (Date.now() - ackClick < 600) { ackClick = 0; swallowEv(ev); } }, true);
+// Clavier (ordinateur, tests) : Entrée, Espace ou Échap ferment aussi le bandeau, sans autre effet.
+window.addEventListener('keydown', ev => {
+  if (store.current && store.current.ui.cele && document.querySelector('.cele') && ['Enter', ' ', 'Escape'].includes(ev.key)) { swallowEv(ev); endCele(); }
+}, true);
 
 /** Bandeau en cours (jeu, fin de manche, fin de partie), ou ''. */
 export function celebrationHtml() {
@@ -669,7 +690,8 @@ export function celebrationHtml() {
   c.fresh = false;
   const nul = c.kind.startsWith('nul-') ? ' nul' : '';
   return `<div class="cele ${c.kind}${nul}${enter}" role="status" aria-live="polite" data-layer style="--pc:${colorOf(p)}">
-    <small>${CELE_TEXT[c.kind]}</small><b data-shrink>${c.value}</b><span class="nm ell">${esc(p.name)}</span></div>`;
+    <small>${CELE_TEXT[c.kind]}</small><b data-shrink>${c.value}</b><span class="nm ell">${esc(p.name)}</span>
+    <span class="ok" aria-hidden="true">TOUCHER POUR CONTINUER</span></div>`;
 }
 
 /** ANNULER : retire la dernière fléchette (aussi depuis une volée en attente, une fin de manche ou de partie). */

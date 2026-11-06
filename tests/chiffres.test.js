@@ -29,7 +29,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { serve, loadPlaywright } from '../tools/lib/serve.mjs';
-import { openApp, readDb, settle, throwDarts, validate, createPlayer, newGame } from '../tools/lib/app.mjs';
+import { openApp, readDb, settle, throwDarts, validate, createPlayer, newGame, ack } from '../tools/lib/app.mjs';
 
 const pw = await loadPlaywright();
 
@@ -56,7 +56,7 @@ test('historique et statistiques comparés aux calculs à la main', { skip: !pw 
     await newGame(page, ['Alpha', 'Bravo'], { startScore: 301 });
     await play(page, ['T20 T20 T20', '20 20 20', 'T20 20 20', 'T20 T20 0', '20', 'T20 1 1', '1 D10']);
     await page.waitForSelector('[data-act="finish-home"]');
-    await page.click('[data-act="finish-home"]');
+    await ack(page); await page.click('[data-act="finish-home"]');
 
     await newGame(page, ['Bravo', 'Alpha', 'Charlie'], { startScore: 501 });
     await play(page, ['T20 T20 T20', 'T19 T19 T19', '0 0 0', '20']);
@@ -70,7 +70,7 @@ test('historique et statistiques comparés aux calculs à la main', { skip: !pw 
     await newGame(page, ['Charlie', 'Alpha'], { startScore: 301 });
     await play(page, ['T20 T20 T20', 'T20 T20 T20', '20 20 20', 'T20 T20 1']);
     await page.waitForSelector('[data-act="finish-home"]');
-    await page.click('[data-act="finish-home"]');
+    await ack(page); await page.click('[data-act="finish-home"]');
     await settle(page);
     let db = await readDb(page);
     const id = Object.fromEntries(db.players.map(p => [p.name, p.id]));

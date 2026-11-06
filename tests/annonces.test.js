@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { serve, loadPlaywright } from '../tools/lib/serve.mjs';
-import { openApp, throwDarts, validate, createPlayer, newGame } from '../tools/lib/app.mjs';
+import { openApp, throwDarts, validate, createPlayer, newGame, readDb } from '../tools/lib/app.mjs';
 import { SPEECH } from '../src/ui/feedback.js';
 
 const pw = await loadPlaywright();
@@ -56,8 +56,16 @@ test('voix, sons et bandeaux pendant une partie ; réglages respectés', { skip:
     assert.equal(strong.lang, 'fr-FR');
     assert.equal((await sounds()).at(-1), 'max');
     assert.ok(await page.locator('.cele.max').count(), 'bandeau 180');
-    await page.click('[data-key="undo"]'); // un appui ferme le bandeau (et ANNULER agit quand même)
+    // Lot 7.1 : le bandeau reste jusqu'à ce qu'on l'acquitte ; le premier appui le ferme sans rien faire d'autre.
+    await page.waitForTimeout(2500);
+    assert.ok(await page.locator('.cele.max').count(), 'toujours là après 2,5 s');
+    const darts = async () => (await readDb(page)).current.darts.length;
+    const count = await darts();
+    await page.click('[data-key="undo"]');
     assert.equal(await page.locator('.cele').count(), 0, 'bandeau fermé par l’appui');
+    assert.equal(await darts(), count, 'l’appui d’acquittement n’a pas annulé de fléchette');
+    await page.click('[data-key="undo"]'); // le suivant agit
+    assert.equal(await darts(), count - 1);
     await throwDarts(page, 'T20');
     await validate(page);
     assert.equal((await sounds()).at(-1), 'validate');

@@ -154,16 +154,16 @@ export const SCENES = {
     return '#/jeu';
   },
   // Lot 3 : célébrations (figées jusqu'au prochain appui)
-  'fete-100': () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S20', {}, true); celebrate('ton', 100, 0, { frozen: true }); return '#/jeu'; },
-  'fete-140': () => { setGame(cfg(['p1', 'p2']), 'T20 T20 S20', {}, true); celebrate('ton40', 140, 0, { frozen: true }); return '#/jeu'; },
-  'fete-180': () => { setGame(cfg(['p1', 'p2', 'p3']), 'T20 T20 T20', {}, true); celebrate('max', 180, 0, { frozen: true }); return '#/jeu'; },
-  'fete-180-paysage': () => { setGame(cfg(['p1', 'p2']), 'T20 T20 T20', {}, true); celebrate('max', 180, 0, { frozen: true }); return '#/jeu'; },
+  'fete-100': () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S20', {}, true); celebrate('ton', 100, 0); return '#/jeu'; },
+  'fete-140': () => { setGame(cfg(['p1', 'p2']), 'T20 T20 S20', {}, true); celebrate('ton40', 140, 0); return '#/jeu'; },
+  'fete-180': () => { setGame(cfg(['p1', 'p2', 'p3']), 'T20 T20 T20', {}, true); celebrate('max', 180, 0); return '#/jeu'; },
+  'fete-180-paysage': () => { setGame(cfg(['p1', 'p2']), 'T20 T20 T20', {}, true); celebrate('max', 180, 0); return '#/jeu'; },
   'fete-finition': () => {
     setGame(cfg(['p1', 'p2'], 301, 'double', 2), 'T20 T20 T20  20 1 5  T20 S20 0  1 1 1  S1 D20');
-    celebrate('finish', 41, 0, { frozen: true });
+    celebrate('finish', 41, 0);
     return '#/manche';
   },
-  'fete-finition-100': () => { setGame(cfg(['p1', 'p2'], 301, 'double', 2), 'T20 T20 T20 20 1 5 T20 T11 D14'); celebrate('finish-big', 121, 0, { frozen: true }); return '#/manche'; },
+  'fete-finition-100': () => { setGame(cfg(['p1', 'p2'], 301, 'double', 2), 'T20 T20 T20 20 1 5 T20 T11 D14'); celebrate('finish-big', 121, 0); return '#/manche'; },
   'cible-grande': () => { setGame(cfg(['p1', 'p2']), LIVE(), { panel: 'board' }); return '#/jeu'; },
   'histo-cours': () => {
     const config = cfg(['p1', 'p2'], 301, 'double', 2);
@@ -177,10 +177,10 @@ export const SCENES = {
   // Lot 7 : joueur en tête, célébrations des nuls, jouer jusqu'au bout, classement et tournée
   'en-tete': () => { setGame(cfg(['p1', 'p2', 'p3']), 'T20 T20 T20  S20 S5 S1  T19 S7 S3'); return '#/jeu'; },
   'en-tete-autre': () => { setGame(cfg(['p1', 'p2', 'p3']), 'T20 T20 T20  S20 S5 S1'); return '#/jeu'; },
-  'nul-zero': () => { setGame(cfg(['p1', 'p2']), '0 0 0', {}, true); celebrate('nul-zero', 0, 0, { frozen: true }); return '#/jeu'; },
-  'nul-bas': () => { setGame(cfg(['p1', 'p2']), 'S1 S5 S1', {}, true); celebrate('nul-low', 7, 0, { frozen: true }); return '#/jeu'; },
-  'nul-bust': () => { setGame(cfg(['p1', 'p2'], 301), 'T20 T20 T20 20 20 20 T19 S20 S12 20 20 20 S20 S16', {}, true); celebrate('nul-bust', 'BUST', 0, { frozen: true }); return '#/jeu'; },
-  'nul-serie': () => { setGame(cfg(['p1', 'p2']), 'S5 S5 S5  T20 T20 T20  S1 S1 S1  T20 T20 T20  S2 S2 S2', {}, true); celebrate('nul-serie', 3, 0, { frozen: true }); return '#/jeu'; },
+  'nul-zero': () => { setGame(cfg(['p1', 'p2']), '0 0 0', {}, true); celebrate('nul-zero', 0, 0); return '#/jeu'; },
+  'nul-bas': () => { setGame(cfg(['p1', 'p2']), 'S1 S5 S1', {}, true); celebrate('nul-low', 7, 0); return '#/jeu'; },
+  'nul-bust': () => { setGame(cfg(['p1', 'p2'], 301), 'T20 T20 T20 20 20 20 T19 S20 S12 20 20 20 S20 S16', {}, true); celebrate('nul-bust', 'BUST', 0); return '#/jeu'; },
+  'nul-serie': () => { setGame(cfg(['p1', 'p2']), 'S5 S5 S5  T20 T20 T20  S1 S1 S1  T20 T20 T20  S2 S2 S2', {}, true); celebrate('nul-serie', 3, 0); return '#/jeu'; },
   'jusquau-bout': () => { setGame(PLAYON(), `${PO1} T20 S20`); return '#/jeu'; },
   'jusquau-bout-place': () => { setGame(PLAYON(), `${PO1} T20 S20  T20 S20`, {}, true); return '#/jeu'; },
   'fin-tournee': () => { setGame(PLAYON(), `${PO1} T20 S20  T20 S20  0 0 0  0 0 0  T20 S20`); return '#/fin'; },
