@@ -12,6 +12,7 @@ import { boardSvg, impactsFor, markIcon } from '../board.js';
 import { go } from '../nav.js';
 import { undo, celebrationHtml, placeLabel, drinksSection } from './game.js';
 import { standings, lastPlaces } from '../../engine/ranking.js';
+import { sheetSection } from './printsheet.js';
 
 const route = v => v.darts.map(d => formatDart(d).replace(/^S/, '')).join(' · ');
 
@@ -83,6 +84,7 @@ export function matchEnd() {
         <td>${s.legsWon[r.i]}</td><td>${avg(r.sum.average)}</td><td>${r.sum.darts}</td><td>${r.sum.best}</td><td>${int(r.sum.bestFinish)}</td></tr>`).join('')}</tbody></table>
       <p class="note">Man. = manches gagnées · Moy. = moyenne sur 3 fléchettes · Meil. = meilleure volée · Fin. = plus grosse finition.</p>
       ${g.drinks && Object.values(g.drinks).some(l => l.length) ? drinksSection(rows.map(r => g.config.players[r.i]), { edit: false }) : ''}
+      ${sheetSection(g)}
       <button type="button" class="btn ghost" style="margin-top:14px" data-act="undo-end">ANNULER LA DERNIÈRE FLÉCHETTE</button>
       ${store.maquette ? `<div class="mq-row">${maquetteButtons('mq')}</div>` : ''}
     </div>

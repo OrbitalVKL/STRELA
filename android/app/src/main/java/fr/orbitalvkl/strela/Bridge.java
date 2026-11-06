@@ -103,12 +103,31 @@ public class Bridge {
      */
     @JavascriptInterface
     public String saveBackup(String name, String text, boolean share) {
+        if (!name.matches("strela-[0-9]{8}-[0-9]{4}\\.json")) return json("ok", false, "error", "nom de fichier refusé");
+        return save(name, text.getBytes(StandardCharsets.UTF_8), "application/json", share, "Partager la sauvegarde");
+    }
+
+    /**
+     * Fiche de score (lot 7.1) : image PNG ou PDF reçue en base64, écrite dans Téléchargements/Strela/<name> puis proposée
+     * au menu de partage (Imprimer, Drive…). Nom strela-fiche-AAAAMMJJ-HHMM.png|pdf ; le type suit l'extension.
+     */
+    @JavascriptInterface
+    public String saveFile(String name, String base64, String mime, boolean share) {
         try {
-            if (!name.matches("strela-[0-9]{8}-[0-9]{4}\\.json")) throw new IllegalArgumentException("nom de fichier refusé");
-            byte[] data = text.getBytes(StandardCharsets.UTF_8);
+            if (!name.matches("strela-fiche-[0-9]{8}-[0-9]{4}\\.(png|pdf)")) throw new IllegalArgumentException("nom de fichier refusé");
+            String type = name.endsWith(".pdf") ? "application/pdf" : "image/png";
+            byte[] data = android.util.Base64.decode(base64, android.util.Base64.DEFAULT);
+            return save(name, data, type, share, "Partager la fiche de score");
+        } catch (Exception e) {
+            return json("ok", false, "error", String.valueOf(e.getMessage()));
+        }
+    }
+
+    String save(String name, byte[] data, String mime, boolean share, String title) {
+        try {
             ContentValues v = new ContentValues();
             v.put(MediaStore.Downloads.DISPLAY_NAME, name);
-            v.put(MediaStore.Downloads.MIME_TYPE, "application/json");
+            v.put(MediaStore.Downloads.MIME_TYPE, mime);
             v.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Strela");
             Uri u = act.getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, v);
             if (u == null) throw new IllegalStateException("Téléchargements inaccessibles");
@@ -120,14 +139,14 @@ public class Bridge {
             try (android.database.Cursor c = act.getContentResolver().query(u, new String[]{MediaStore.Downloads.DISPLAY_NAME}, null, null, null)) {
                 if (c != null && c.moveToFirst()) shown = c.getString(0); // Android renomme si le fichier existe déjà
             } catch (Exception e) { /* nom demandé */ }
-            if (share) share(name, data);
+            if (share) share(name, data, mime, title);
             return json("ok", true, "path", "Téléchargements/Strela/" + shown, "shared", share);
         } catch (Exception e) {
             return json("ok", false, "error", String.valueOf(e.getMessage()));
         }
     }
 
-    void share(String name, byte[] data) throws Exception {
+    void share(String name, byte[] data, String mime, String title) throws Exception {
         File dir = new File(act.getCacheDir(), "share");
         dir.mkdirs();
         File[] old = dir.listFiles();
@@ -135,10 +154,10 @@ public class Bridge {
         File f = new File(dir, name);
         try (FileOutputStream os = new FileOutputStream(f)) { os.write(data); }
         Uri uri = FileProvider.getUriForFile(act, MainActivity.AUTHORITY, f);
-        Intent send = new Intent(Intent.ACTION_SEND).setType("application/json")
+        Intent send = new Intent(Intent.ACTION_SEND).setType(mime)
             .putExtra(Intent.EXTRA_STREAM, uri).putExtra(Intent.EXTRA_SUBJECT, name)
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        Intent chooser = Intent.createChooser(send, "Partager la sauvegarde");
+        Intent chooser = Intent.createChooser(send, title);
         act.runOnUiThread(() -> { try { act.startActivity(chooser); } catch (Exception e) { /* aucune appli de partage */ } });
     }
 

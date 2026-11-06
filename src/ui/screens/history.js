@@ -9,6 +9,7 @@ import { formatDart } from '../../engine/darts.js';
 import { boardSvg, impactsFor, markIcon } from '../board.js';
 import { legTable, cellHtml } from '../table.js';
 import { drinksTimeline } from '../../engine/alcohol.js';
+import { sheetSection } from './printsheet.js';
 import { go, refresh } from '../nav.js';
 
 const dl = d => { const f = formatDart(d); return f.replace(/^S/, ''); };
@@ -101,6 +102,7 @@ export function historyDetail(id) {
         <div class="btns two"><button type="button" class="btn" data-act="del-game-no">NON</button><button type="button" class="btn alert" data-act="del-game-yes" data-arg="${esc(id)}">SUPPRIMER</button></div></div>`
     : `<button type="button" class="btn danger" data-act="del-game" data-arg="${esc(id)}">SUPPRIMER CETTE PARTIE</button>`;
   return `<div class="screen">${topBar('Détail de la partie', '#/historique')}${head}${table}${gameLog(g, s, { abandoned: g.abandoned })}
+    <div class="pad" style="margin-top:22px">${sheetSection(g)}</div>
     <div class="pad" style="margin-top:22px">${del}</div></div>`;
 }
 

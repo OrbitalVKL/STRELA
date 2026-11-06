@@ -64,6 +64,7 @@ src/ui/                   interface (docs/interface.md) : app.js, nav.js, store.
                           mock.js + maquette.js (données fictives : sommaire ?maquette et tests seulement)
 src/ui/theme.js           palette (source de vérité des couleurs), contraste
 src/ui/vowels.js          voyelles qui tombent quand Tsia lance (lot 7)
+src/ui/sheet.js           fiche de score : modèle, dessin sur canvas, PDF (lot 7.1) ; screens/printsheet.js : boutons et envoi
 src/engine/ranking.js     classement, joueur en tête, derniers (tournée), célébrations des nuls (lot 7)
 src/engine/alcohol.js     alcoolémie estimée à partir des verres (lot 7)
 tests/                    tests node:test (*.test.js) ; helpers.js = aides (notation ds('T20 D16'))
@@ -137,9 +138,23 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 5 | APK (coquille Java WebView `fr.orbitalvkl.strela`, minSdk 30, passerelle native, release signée, mise à jour dans l'appli) — **fait, validé sur le Pixel** |
 | 6 | Icône « Soyouz », 16 fonds et 40 pictogrammes d'avatar, recherche de mise à jour automatique, variantes github / play (Android 16), À propos et confidentialité, fiche Play prête (v0.6.0) — **fait, en attente de validation sur le Pixel** |
 | 7 | Soirée : voyelles qui tombent (Tsia), ordre tiré au sort, joueur en tête, célébrations des nuls, jouer jusqu'au bout, classement, tournée du dernier, verres et alcoolémie estimée (v0.7.0) — **fait, en attente de validation sur le Pixel** |
+| 7.1 | Célébrations affichées jusqu'à un appui, verres dans l'historique de la partie, fiche de score en image et PDF (v0.7.1) — **fait, en attente de validation sur le Pixel** |
 | 8 | Recette |
 
-## État (fin du lot 7)
+## État (fin du lot 7.1)
+
+- Version 0.7.1. Base v2, sauvegarde v1 : toujours aucune migration. Un verre est maintenant `{ t, at }` (`at` : place
+  dans la partie) ; les verres de la v0.7.0 (instants seuls) restent lus.
+- Lot 7.1 (détail : docs/interface.md « Lot 7.1 ») :
+  - **Célébrations** : restent jusqu'au premier appui, qui ne fait que les fermer (tests : `ack(page)`).
+  - **Verres dans l'historique** : chaque case du tableau (cumul, encadré s'il a bu pendant ce tour) ; le joueur qui
+    lance voit ses verres au-dessus du reste (`drinksTimeline`, alcohol.js).
+  - **Fiche de score** IMAGE / PDF (fin de partie, détail d'une partie) : `src/ui/sheet.js`, `screens/printsheet.js`,
+    `Bridge.saveFile` (Téléchargements/Strela + partage).
+- Ouvert : impression directe par le service d'impression d'Android (aujourd'hui : menu de partage, puis l'appli
+  choisie imprime) ; le reste comme au lot 7.
+
+## État (fin du lot 7, pour mémoire)
 
 - Version 0.7.0. Base toujours en version 2, sauvegarde au format 1 : **aucune migration** (demande de Guillaume : les
   données de l'appli doivent survivre à la mise à jour). Nouveaux champs facultatifs : `config.playOn`,

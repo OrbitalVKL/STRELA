@@ -3,6 +3,12 @@
 Strela pour Android = la page web embarquée dans une coquille Java (WebView), sur le modèle de Grafit
 (OrbitalVKL/GRAFIT, lecture seule). minSdk 30, compileSdk et targetSdk 36 (Android 16, lot 6), nom « Strela ».
 
+## Fichiers (lot 7.1)
+
+`Bridge.saveFile(name, base64, mime, share)` : fiche de score `strela-fiche-AAAAMMJJ-HHMM.png|pdf` (le type suit
+l'extension, le nom est vérifié), écrite dans Téléchargements/Strela par MediaStore, puis menu de partage d'Android.
+`saveBackup` passe par la même écriture (`save`) ; `share` prend le type et le titre du menu.
+
 ## Deux variantes (lot 6)
 
 | | github | play |

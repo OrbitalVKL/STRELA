@@ -20,6 +20,7 @@ import { sayLog, soundLog } from './feedback.js';
 import { handleBack, backHandled } from './back.js';
 import { isApk, nativeBackHandled, hasUpdater, call } from './native.js';
 import { aboutScreen, actions as aboutActions } from './screens/about.js';
+import { actions as sheetActions } from './screens/printsheet.js';
 
 const ROUTES = [
   [/^\/?$/, home],
@@ -41,7 +42,7 @@ const ROUTES = [
 
 const ACTIONS = {
   ...playerActions, ...newGameActions, ...gameActions, ...resultActions,
-  ...statsActions, ...settingsActions, ...historyActions, ...photoActions, ...aboutActions,
+  ...statsActions, ...settingsActions, ...historyActions, ...photoActions, ...aboutActions, ...sheetActions,
 };
 const INPUTS = { ...playerInputs };
 

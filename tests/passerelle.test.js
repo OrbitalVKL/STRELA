@@ -37,6 +37,7 @@ function fakeBridge() {
     stopSpeaking: rec('stopSpeaking'),
     voice: rec('voice', JSON.stringify({ state: 'ok', name: 'Google · fr-fr-x-frc-local', native: true })),
     saveBackup: rec('saveBackup', n => JSON.stringify({ ok: true, path: `Téléchargements/Strela/${n}`, shared: true })),
+    saveFile: rec('saveFile', n => JSON.stringify({ ok: true, path: `Téléchargements/Strela/${n}`, shared: true })),
     storage: rec('storage', JSON.stringify({ dir: '/data/user/0/fr.orbitalvkl.strela/app_webview', bytes: 1258291 })),
     keepScreenOn: rec('keepScreenOn'),
     immersive: rec('immersive'),
@@ -130,6 +131,28 @@ test('APK (passerelle simulée) : vibreur, voix, export, écran, gestes, retour,
     assert.equal(share, true);
     assert.equal(parseBackup(text).players.length, 2);
     assert.match(await page.textContent('.bk'), /Téléchargements\/Strela\/strela-\d{8}-\d{4}\.json enregistré/);
+
+    // Lot 7.1 : fiche de score d'une partie de l'historique, en PDF puis en image : Téléchargements/Strela + partage
+    await page.evaluate(() => { location.hash = '#/partie/gw'; });
+    await page.waitForSelector('[data-act="sheet-export"]');
+    await clear(page);
+    await page.click('[data-act="sheet-export"][data-arg="pdf|gw"]');
+    await page.waitForFunction(() => window.__calls.some(c => c[0] === 'saveFile'));
+    let [[fname, b64, mime, fshare]] = await calls(page, 'saveFile');
+    assert.match(fname, /^strela-fiche-\d{8}-\d{4}\.pdf$/);
+    assert.equal(mime, 'application/pdf');
+    assert.equal(fshare, true);
+    assert.equal(Buffer.from(b64, 'base64').subarray(0, 5).toString(), '%PDF-');
+    await page.waitForFunction(() => /PDF enregistrée : Téléchargements\/Strela\//.test(document.querySelector('.sheet-btns + .note')?.textContent || ''));
+    await clear(page);
+    await page.click('[data-act="sheet-export"][data-arg="png|gw"]');
+    await page.waitForFunction(() => window.__calls.some(c => c[0] === 'saveFile'));
+    [[fname, b64, mime]] = await calls(page, 'saveFile');
+    assert.match(fname, /\.png$/);
+    assert.equal(mime, 'image/png');
+    assert.deepEqual([...Buffer.from(b64, 'base64').subarray(1, 4)], [...Buffer.from('PNG')]);
+    await page.evaluate(() => { location.hash = '#/reglages'; });
+    await page.waitForSelector('[data-act="backup-export"]');
 
     // Retour : remonte d'un écran ; à l'accueil, false (la coquille passe en arrière-plan)
     assert.equal(await page.evaluate(() => window.strelaBack()), true);
