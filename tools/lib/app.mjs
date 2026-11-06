@@ -61,7 +61,8 @@ export function keysOf(notation) {
 // de saisie l'acquittent d'abord (comme le ferait le joueur) ; tests/annonces.test.js vérifie ce comportement à part.
 export async function ack(page) {
   // Laisse l'écran se redessiner (une finition change d'écran juste après la fléchette).
-  await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
+  // Jamais bloquant : une WebView cachée (dialogue d'Android par-dessus, émulateur) peut ne plus donner d'images.
+  await page.evaluate(() => new Promise(r => { requestAnimationFrame(() => requestAnimationFrame(r)); setTimeout(r, 250); }));
   if (await page.locator('.cele').count()) {
     await page.mouse.click(4, Math.round((page.viewportSize()?.height ?? 600) / 2));
     await page.waitForSelector('.cele', { state: 'detached' });
