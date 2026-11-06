@@ -37,7 +37,7 @@ export function sheetModel(g, s, players) {
     return {
       place: r.place && n > 1 ? placeLabel(r.place) : '', name: players[r.player].name, winner: finished && r.player === s.winner,
       legs: String(s.legsWon[r.player]), average: avg(sum.average), darts: String(sum.darts), best: String(sum.best),
-      finish: int(sum.bestFinish), drinks: drinking ? String(timeline.totals[r.player]) : null,
+      finish: int(sum.bestFinish), drinks: drinking ? `x${timeline.totals[r.player]}` : null,
     };
   });
   const legs = s.legs.filter(l => l.visits.length).map(l => {
@@ -190,9 +190,9 @@ function blocks(model, version) {
           text(ctx, v.small, xr, y + 82, { px: 15, w: v.cls === 'fin' ? 800 : 400, align: 'right', max: cw / 2 });
           if (v.drinks) {
             const gx = x0 + 10, gy = y + 66;
-            if (v.drinks.fresh) { ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.strokeRect(gx - 4, gy - 3, 48, 24); }
+            if (v.drinks.fresh) { ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.strokeRect(gx - 4, gy - 3, 60, 24); }
             glass(ctx, gx, gy, 18, INK);
-            text(ctx, String(v.drinks.total), gx + 21, gy + 15, { px: 15, w: 800 });
+            text(ctx, `x${v.drinks.total}`, gx + 21, gy + 15, { px: 15, w: 800 });
           }
         });
         hline(ctx, M, M + W, y + 92);

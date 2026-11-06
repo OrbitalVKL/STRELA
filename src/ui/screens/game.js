@@ -9,7 +9,7 @@
 //   hors de la cible ne compte rien).
 // Après la 3e fléchette ou un bust, la volée reste affichée jusqu'à VALIDER (turn.js) ; ANNULER reste possible.
 // À la validation, « À TOI, PSEUDO » occupe le haut de l'écran ~0,8 s, puis le bandeau du joueur glisse en place.
-import { store, currentState, playerById, archiveCurrent, deleteCurrent, animationsOn, saveCurrent, legEndPending, addDrink, removeDrink, drinksHere, playerBac } from '../store.js';
+import { store, currentState, playerById, archiveCurrent, deleteCurrent, animationsOn, saveCurrent, legEndPending, addDrink, removeDrink, drinksHere } from '../store.js';
 import { esc, ico, avg, OUT_SHORT, maquetteButtons } from '../dom.js';
 import { avatarHtml, colorIndex } from '../avatars.js';
 import { throwDart, undoDart } from '../../engine/x01.js';
@@ -27,7 +27,6 @@ import { sound, dartSound, say, SPEECH } from '../feedback.js';
 import { correctDart, locateDart, visitStart, CORRECT_ERRORS } from '../../engine/correct.js';
 import { isTsia } from '../vowels.js';
 import { leader, flop, lastPlaces } from '../../engine/ranking.js';
-import { formatBac, bacLevel, DRIVE_LIMIT, YOUNG_LIMIT } from '../../engine/alcohol.js';
 
 export const ANNOUNCE_MS = 800;
 const LENS = { size: 150, zoom: 2.5, gap: 26 };
@@ -132,11 +131,10 @@ function rest(v) {
   // Lot 7 : alcoolémie estimée du joueur, dès son premier verre (le détail et les verres sont au menu pause).
   // Lot 7.1 : et ses verres de la partie, dès qu'un joueur en a pris un (on voit aussi « 0 » pour ceux qui n'ont rien bu).
   const id = cfg.players[shown];
-  const level = playerBac(id);
   const drinking = store.current.drinks && Object.values(store.current.drinks).some(l => l.length);
   const n = drinksHere(id);
-  const alc = (drinking ? `<span class="dk" aria-label="${n} verre${n > 1 ? 's' : ''} dans la partie">${ico('glass')}${n}</span> · ` : '')
-    + (bacLevel(level) === 'zero' ? '' : `<span class="bac ${bacLevel(level)}">≈ ${formatBac(level)} G/L</span> · `);
+  // Lot 7.2 (demande de Guillaume) : des verres, pas leur équivalent en alcool : « [verre] x3 ».
+  const alc = drinking ? `${glassCount(n)} · ` : '';
   return `<section class="rest" aria-label="Reste à faire">
       <div class="meta"><span class="ell">${cfg.startScore} · ${OUT_SHORT[cfg.outMode]}</span><span>${alc}MOY. ${avg(legAvg)}</span></div>
       <div class="big" id="remaining" aria-label="${remaining}" data-shrink>${rollHtml(`r:${s.legNumber}:${shown}`, remaining)}</div>
@@ -436,17 +434,19 @@ export function drinksSection(ids, { edit = true } = {}) {
   const rows = ids.map(id => {
     const p = playerById(id);
     const n = drinksHere(id);
-    const level = playerBac(id);
-    const lv = bacLevel(level);
-    const tag = lv === 'over' ? '<b class="drive alert">NE CONDUIS PAS</b>' : lv === 'young' ? '<b class="drive">PAS DE VOLANT EN PROBATOIRE</b>' : '';
     const buttons = edit ? `<button type="button" class="mv" data-act="drink-minus" data-arg="${esc(id)}" ${n ? '' : 'disabled'} aria-label="Retirer un verre à ${esc(p.name)}">${ico('minus')}</button>
         <button type="button" class="mv add" data-act="drink-plus" data-arg="${esc(id)}" aria-label="Un verre de plus pour ${esc(p.name)}">${ico('plus')}${ico('glass')}</button>` : '';
     return `<li>${avatarHtml(p, 32)}<div class="col"><span class="nm ell">${esc(p.name)}</span>
-        <span class="small"><b class="cnt">${n} ${n > 1 ? 'VERRES' : 'VERRE'}</b> · <span class="bac ${lv}">≈ ${formatBac(level)} G/L</span></span>${tag}</div>${buttons}</li>`;
+        ${glassCount(n, 'cnt')}</div>${buttons}</li>`;
   }).join('');
-  return `<div class="sec" style="margin-bottom:0">Verres · alcoolémie estimée</div>
+  return `<div class="sec" style="margin-bottom:0">Verres</div>
     <ul class="drinks">${rows}</ul>
-    <p class="note" style="margin:0">Estimation pour rire, pas une mesure : verre standard (10 g d'alcool : un demi, un verre de vin, un shot), 70 kg, 0,15 g/L éliminés par heure. Au volant : ${formatBac(DRIVE_LIMIT)} g/L au plus, ${formatBac(YOUNG_LIMIT)} en permis probatoire ; dans le doute, on ne conduit pas.</p>`;
+    <p class="note" style="margin:0">Chaque verre est noté dans l'historique de la partie, au tour où il a été pris. Qui a bu ne conduit pas.</p>`;
+}
+
+/** « [verre] x3 » (lot 7.2) : verres du joueur dans la partie. */
+export function glassCount(n, cls = 'dk') {
+  return `<span class="${cls}" aria-label="${n} verre${n > 1 ? 's' : ''}">${ico('glass')}<span class="x">x${n}</span></span>`;
 }
 
 // ------------------------------------------------------------------ après le rendu : annonce, saisie sur la cible

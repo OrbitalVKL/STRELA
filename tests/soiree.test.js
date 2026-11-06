@@ -79,22 +79,23 @@ test('jouer jusqu’au bout : places, joueur en tête, nul célébré, classemen
     const bravoId = (await readDb(page)).players.find(p => p.name === 'Bravo').id;
     for (let k = 0; k < 3; k++) await page.click(`[data-act="drink-plus"][data-arg="${bravoId}"]`);
     await page.click(`[data-act="drink-minus"][data-arg="${bravoId}"]`);
-    assert.match(await page.locator('.drinks li:has-text("Bravo")').textContent(), /2 VERRES\s*·\s*≈ 0,44 G\/L/);
+    assert.equal((await page.locator('.drinks li:has-text("Bravo") .cnt').textContent()).trim(), 'x2', 'verre x2 (lot 7.2)');
+    assert.doesNotMatch(await page.locator('.sheet').first().textContent(), /G\/L/, 'plus d’équivalent en alcool (lot 7.2)');
     await page.click('.sheet [data-act="resume"] >> nth=0');
-    assert.match(await page.locator('.rest .meta').textContent(), /≈ 0,44 G\/L/, 'alcoolémie de Bravo, qui lance');
+    assert.doesNotMatch(await page.locator('.rest .meta').textContent(), /G\/L/);
     // Rechargement en pleine course aux places : rien de perdu (verres compris).
     await reload(page);
     assert.equal(await page.locator('.gband .nm').textContent(), 'Bravo');
     assert.equal((await readDb(page)).current.drinks[bravoId].length, 2, 'verres enregistrés');
     assert.ok((await readDb(page)).current.drinks[bravoId].every(d => Number.isInteger(d.at)), 'avec leur place dans la partie (lot 7.1)');
-    assert.match(await page.locator('.rest .meta .dk').textContent(), /2/, 'verres de Bravo, qui lance (lot 7.1)');
+    assert.equal((await page.locator('.rest .meta .dk').textContent()).trim(), 'x2', 'verres de Bravo, qui lance');
     await throwDarts(page, '0 0 0');
     await validate(page);
     await throwDarts(page, 'T20 S20 D19'); // Charlie : 118 → 0, 2e ; Bravo reste seul, dernier
     await page.waitForSelector('.tournee');
     assert.match(await page.locator('.tournee .t').textContent(), /LE DERNIER PAIE SA TOURNÉE/);
     assert.equal(await page.locator('.tournee .nm').textContent(), 'Bravo');
-    assert.match(await page.locator('.drinks li:has-text("Bravo")').textContent(), /2 VERRES/, 'verres en fin de partie');
+    assert.equal((await page.locator('.drinks li:has-text("Bravo") .cnt').textContent()).trim(), 'x2', 'verres en fin de partie');
     const ranks = await page.locator('.rank-table tbody tr').evaluateAll(rows => rows.map(r => r.querySelector('.pl').textContent.replace(/\s+/g, ' ').trim()));
     assert.deepEqual(ranks, ['1ERAlpha', '2ECharlie', '3EBravo']);
     assert.match(await page.locator('.result-head').textContent(), /Alpha/);
