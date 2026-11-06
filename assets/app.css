@@ -361,6 +361,9 @@ label.btn { cursor: pointer; }
    encore si la police du téléphone est agrandie (fit.js, data-shrink) */
 .rest .meta { flex: 0 0 auto; align-self: stretch; margin-bottom: auto; padding: 4px 12px 0; display: flex; justify-content: space-between; gap: 12px; font-size: 10.5px; line-height: 1.4; font-weight: 600; color: var(--dim); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
 .rest .meta > :last-child { flex: 0 0 auto; }
+/* Lot 7.1 : verres du joueur qui lance (ligne au-dessus du reste) */
+.rest .meta .dk { color: var(--fg); font-weight: 800; }
+.rest .meta .dk .ico { width: 1.25em; height: 1.25em; vertical-align: -0.28em; margin-right: 1px; }
 /* Chiffres de Martian Mono : l'encre occupe 0,08 à 0,92 em de la ligne ; les marges négatives rendent ce vide */
 .rest .big { flex: 0 1 auto; display: flex; align-items: center; margin: -0.08em 0 auto; padding-bottom: 0; font-size: min(44cqw, (100cqh - 21px) / 0.9, 210px); line-height: 1; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 
@@ -744,6 +747,12 @@ html.still .gband.slide, html.still .announce, html.still .cele, html.still .cel
    minimum : la ligne grandit si les fléchettes passent à la ligne. */
 .lt .c { height: 66px; padding: 4px 6px; text-align: right; cursor: pointer; overflow: hidden; vertical-align: top; }
 .lt .c b, .lt .c small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Lot 7.1 : verres dans les cases de l'historique (cumul du joueur, en bas à gauche, face au reste ; encadré s'il en a
+   pris un pendant ce tour) */
+.lt .c { position: relative; }
+.lt .c .dk { position: absolute; left: 3px; bottom: 4px; display: inline-flex; align-items: center; gap: 1px; padding: 0 2px; font-style: normal; font-size: 10px; font-weight: 800; line-height: 1.3; border: 1px solid transparent; }
+.lt .c .dk.new { border-color: currentColor; }
+.lt .c .dk .ico { width: 10px; height: 10px; }
 .lt .c b { font-size: 20px; font-weight: 800; line-height: 1.2; }
 /* Fléchettes : toujours toutes visibles, sans « … » ; paliers (fit.js) : séparateurs resserrés, deux lignes, plus petit */
 /* (calées à droite par la marge auto du premier : ce qui dépasse sort à droite, où fit.js le voit) */

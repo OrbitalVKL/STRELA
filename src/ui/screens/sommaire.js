@@ -25,7 +25,8 @@ import { setHomeVariant, homeVariant } from './home.js';
 // Lot 7 : jouer jusqu'au bout à 4 (301, sortie simple) ; après PO1, Guillaume, Mathilde et Karim sont à 80, Sacha à 301.
 const PLAYON = () => ({ ...cfg(['p1', 'p2', 'p3', 'p4'], 301, 'single'), playOn: true });
 const PO1 = 'T20 T20 T20  T20 T20 T20  T20 T20 T20  0 0 0  S20 S20 S1  S20 S20 S1  S20 S20 S1  0 0 0';
-const DRINKS = () => { const h = 3600e3, now = Date.now(); return { p1: [now - 2 * h], p2: [now - h, now - 0.5 * h, now - 0.1 * h] }; };
+// Verres (lot 7.1 : avec leur place dans la partie, `at` = fléchettes jouées à ce moment)
+const DRINKS = () => { const h = 3600e3, now = Date.now(); return { p1: [{ t: now - 2 * h, at: 0 }], p2: [{ t: now - h, at: 0 }, { t: now - 0.5 * h, at: 2 }, { t: now - 0.1 * h, at: 3 }] }; };
 const ds = text => text.trim().split(/\s+/).filter(Boolean).map(parseDart);
 const cfg = (players, startScore = 501, outMode = 'double', legsToWin = 1) => ({ players, startScore, outMode, legsToWin });
 
@@ -188,6 +189,8 @@ export const SCENES = {
   // Verres : Guillaume 1 verre il y a 2 h, Mathilde 3 en une heure (au-dessus de 0,5 g/L), Karim aucun
   verres: () => { setGame(cfg(['p1', 'p2', 'p3']), 'T20 S20 S5', { pause: true }); store.current.drinks = DRINKS(); return '#/jeu'; },
   'verres-jeu': () => { setGame(cfg(['p1', 'p2', 'p3']), 'T20 T20 T20', {}); store.current.drinks = DRINKS(); return '#/jeu'; },
+  'verres-histo': () => { setGame(cfg(['p1', 'p2', 'p3']), 'T20 S20 T5  T19 S19 S3  T20 S20 S1  S20 S5', { panel: 'board' }); store.current.drinks = DRINKS(); selectLogCell(null); return '#/jeu'; },
+  'verres-huit': () => { const { config, darts } = eightGame(); setGame(config, darts, { panel: 'board' }); store.current.drinks = Object.fromEntries(config.players.map((id, i) => [id, Array.from({ length: i + 1 }, (_, k) => ({ t: Date.now() - (8 - k) * 600e3, at: k * 9 }))])); selectLogCell(null); return '#/jeu'; },
   'fin-verres': () => { setGame(PLAYON(), `${PO1} T20 S20  T20 S20  0 0 0  0 0 0  T20 S20`); store.current.drinks = DRINKS(); return '#/fin'; },
   'fin-manche': () => { setGame(cfg(['p1', 'p2'], 301, 'double', 2), 'T20 T20 T20 20 1 5 T20 T11 D14'); return '#/manche'; },
   'fin-partie': () => { setGame(cfg(['p1', 'p2', 'p3'], 301), 'T20 T20 T20 20 1 5 T19 S7 S3 T20 T11 D14'); return '#/fin'; },
@@ -389,6 +392,8 @@ export function sommaire() {
       ${L('jusquau-bout-place', 'Jusqu\'au bout : 2e place', 'en attente')}
       ${L('verres', 'Verres et alcoolémie', 'menu pause')}
       ${L('verres-jeu', 'Alcoolémie en jeu', 'Mathilde lance')}
+      ${L('verres-histo', 'Verres dans l\'historique', 'partie en cours')}
+      ${L('verres-huit', 'Verres dans l\'historique', '8 joueurs')}
       ${L('fin-verres', 'Fin de partie : verres')}
       ${L('fin-tournee', 'Fin de partie : classement', 'le dernier paie')}
       ${L('fin-egalite', 'Fin de partie : derniers à égalité')}

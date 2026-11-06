@@ -169,7 +169,8 @@ export function addDrink(id, now = Date.now()) {
   const g = store.current;
   if (!g) return;
   g.drinks = { ...(g.drinks || {}) };
-  g.drinks[id] = [...(g.drinks[id] || []), now];
+  // Lot 7.1 : le verre prend sa place dans l'historique de la partie (nombre de fléchettes jouées à ce moment).
+  g.drinks[id] = [...(g.drinks[id] || []), { t: now, at: g.darts.length }];
   saveCurrent();
 }
 

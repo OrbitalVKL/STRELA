@@ -130,8 +130,13 @@ function rest(v) {
   }
   const legAvg = playerSummary(s, shown, s.legNumber).average;
   // Lot 7 : alcoolémie estimée du joueur, dès son premier verre (le détail et les verres sont au menu pause).
-  const level = playerBac(cfg.players[shown]);
-  const alc = bacLevel(level) === 'zero' ? '' : `<span class="bac ${bacLevel(level)}">≈ ${formatBac(level)} G/L</span> · `;
+  // Lot 7.1 : et ses verres de la partie, dès qu'un joueur en a pris un (on voit aussi « 0 » pour ceux qui n'ont rien bu).
+  const id = cfg.players[shown];
+  const level = playerBac(id);
+  const drinking = store.current.drinks && Object.values(store.current.drinks).some(l => l.length);
+  const n = drinksHere(id);
+  const alc = (drinking ? `<span class="dk" aria-label="${n} verre${n > 1 ? 's' : ''} dans la partie">${ico('glass')}${n}</span> · ` : '')
+    + (bacLevel(level) === 'zero' ? '' : `<span class="bac ${bacLevel(level)}">≈ ${formatBac(level)} G/L</span> · `);
   return `<section class="rest" aria-label="Reste à faire">
       <div class="meta"><span class="ell">${cfg.startScore} · ${OUT_SHORT[cfg.outMode]}</span><span>${alc}MOY. ${avg(legAvg)}</span></div>
       <div class="big" id="remaining" aria-label="${remaining}" data-shrink>${rollHtml(`r:${s.legNumber}:${shown}`, remaining)}</div>
