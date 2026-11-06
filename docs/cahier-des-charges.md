@@ -245,6 +245,8 @@ depuis l'appli. La version web reste sur GitHub Pages (aperçu, tests). Détail 
   pas une mesure, rappel des limites pour conduire.
 - Quand Tsia lance, les voyelles du texte de l'écran de jeu tombent ; elles reviennent au joueur suivant.
 - Les données de l'appli (joueurs, parties, réglages) sont conservées à la mise à jour : aucune migration.
+- 7.1 : les verres suivent l'historique de la partie comme les scores (dans chaque case, et pour le joueur qui lance) ;
+  fiche de score exportable en image ou en PDF pour l'imprimer ; les célébrations restent affichées jusqu'à un appui.
 
 ## 9. Lots
 

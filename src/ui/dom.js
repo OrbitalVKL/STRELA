@@ -46,6 +46,7 @@ const I = {
   plus: '<path d="M12 4V20M4 12H20"/>',
   minus: '<path d="M4 12H20"/>',
   glass: '<path d="M6 3H18L16.5 21H7.5Z"/><path d="M6.7 9H17.3"/>',
+  download: '<path d="M12 3V15M7 10L12 15L17 10"/><path d="M4 20H20"/>',
   up: '<path d="M5 15L12 8L19 15"/>',
   down: '<path d="M5 9L12 16L19 9"/>',
   close: '<path d="M5 5L19 19M19 5L5 19"/>',

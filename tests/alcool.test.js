@@ -1,6 +1,7 @@
 // Lot 7 : compteur de verres et alcoolémie estimée (formule de Widmark simplifiée), enregistrement des verres.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { ds } from './helpers.js';
 import { bac, drinkTimes, formatBac, bacLevel, cleanDrinks, GRAMS_PER_DRINK, WEIGHT_KG, DIFFUSION, ELIMINATION } from '../src/engine/alcohol.js';
 import { currentRecord, closedRecord } from '../src/data/db.js';
 import { deletePlayer } from '../src/engine/players.js';
@@ -52,4 +53,25 @@ test('joueur supprimé : ses verres prennent son identifiant anonyme', () => {
   const games = [{ id: 'g', config: { players: ['a', 'b'] }, darts: [], drinks: { a: [1], b: [2] } }];
   const out = deletePlayer([{ id: 'a' }, { id: 'b' }], games, 'a');
   assert.deepEqual(out.games[0].drinks, { b: [2], '~0': [1] });
+});
+
+test('lot 7.1 : verres rangés dans l’historique de la partie (cumul par volée, verre pris pendant le tour)', async () => {
+  const { drinksTimeline } = await import('../src/engine/alcohol.js');
+  const { computeState } = await import('../src/engine/x01.js');
+  const config = { startScore: 501, outMode: 'double', legsToWin: 1, players: ['a', 'b'] };
+  // a : volée 0 (fléchettes 0-2), b : volée 1 (3-5), a : volée 2 (6-8), b : volée en cours (9-).
+  const s = computeState(config, ds('T20 T20 T20  S1 S1 S1  S5 S5 S5  S20'));
+  const drinks = {
+    a: [{ t: 1, at: 1 }, { t: 2, at: 4 }, 7],          // pendant sa volée 0 ; pendant celle de b (→ sa volée 2) ; ancien format (→ dernière)
+    b: [{ t: 3, at: 0 }, { t: 4, at: 10 }],           // avant sa première volée ; pendant sa volée en cours
+  };
+  const { byVisit, totals } = drinksTimeline(s, drinks, ['a', 'b']);
+  assert.deepEqual(byVisit.get(0), { here: 1, total: 1, player: 0 });
+  assert.deepEqual(byVisit.get(2), { here: 2, total: 3, player: 0 });
+  assert.deepEqual(byVisit.get(1), { here: 1, total: 1, player: 1 });
+  assert.deepEqual(byVisit.get('open'), { here: 1, total: 2, player: 1 });
+  assert.deepEqual(totals, [3, 2]);
+  assert.equal(drinksTimeline(s, null, ['a', 'b']).byVisit.size, 0);
+  // Enregistrement : la place est gardée, l'ancien format aussi.
+  assert.deepEqual(cleanDrinks({ a: [{ t: 5, at: 2 }, { t: 6 }, 7, { at: 3 }] }), { a: [{ t: 5, at: 2 }, { t: 6 }, 7] });
 });

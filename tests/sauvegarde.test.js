@@ -8,7 +8,7 @@ import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { serve, loadPlaywright } from '../tools/lib/serve.mjs';
-import { openApp, reload, readDb, settle, throwDarts, validate, createPlayer, newGame } from '../tools/lib/app.mjs';
+import { openApp, reload, readDb, settle, throwDarts, validate, createPlayer, newGame, ack } from '../tools/lib/app.mjs';
 
 const pw = await loadPlaywright();
 const PHOTO = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==';
@@ -40,7 +40,7 @@ test('exporter, effacer, importer : base identique ; fusion sans doublon ; versi
     await reload(page);
     await newGame(page, ['Alpha', 'Bravo'], { startScore: 301 });
     for (const v of ['T20 T20 T20', '20 20 20', 'T20 T11 D14']) { await throwDarts(page, v); if (!v.includes('D14')) await validate(page); }
-    await page.click('[data-act="rematch"]');
+    await ack(page); await page.click('[data-act="rematch"]');
     await page.waitForSelector('.game');
     await throwDarts(page, 'T19 5');
     await page.evaluate(() => { location.hash = '#/reglages'; });

@@ -464,6 +464,29 @@ l'APK dans home.js (scène `premier-lancement-apk`). Pas de service worker dans 
   appli : tirage, en tête, nul, jusqu'au bout avec rechargement, verres, classement, tournée, REVANCHE).
   `tools/lib/app.mjs` › `newGame` choisit DANS CET ORDRE par défaut (option `shuffle`) et `playOn`.
 
+## Lot 7.1 : célébrations acquittées, verres dans l'historique, fiche de score
+
+- **Célébrations** : plus de minuterie. Le bandeau reste jusqu'à ce qu'on l'acquitte ; le premier appui, n'importe où,
+  le ferme et ne fait rien d'autre (avalé de l'appui au relâcher, phase de capture sur window, game.js). Entrée,
+  Espace ou Échap aussi. Ligne « TOUCHER POUR CONTINUER » (cachée sur le 180 en paysage bas). Quitter l'écran
+  (Réglages…) vaut acquittement. Aides de test : `ack(page)` dans tools/lib/app.mjs, appelée par `throwDarts`,
+  `validate`, `undo` ; après une fin de partie, `ack` avant REVANCHE ou ACCUEIL.
+- **Verres dans l'historique** : un verre est `{ t, at }` (`at` = fléchettes jouées dans la partie à ce moment ; les
+  verres de la v0.7.0, simples instants, restent lus et vont à la dernière volée du joueur). `drinksTimeline`
+  (alcohol.js) range chaque verre dans la volée du joueur en cours ou suivante ; chaque case du tableau montre, en bas à
+  gauche, les verres du joueur jusque-là (verre + nombre), encadré s'il en a pris un pendant ce tour. Le joueur qui
+  lance voit ses verres dans la ligne au-dessus du reste (« [verre] 2 · ≈ 0,44 G/L · MOY. »), dès qu'un joueur de
+  la partie a bu (0 compris). Scènes `verres-histo`, `verres-huit`.
+- **Fiche de score** (`src/ui/sheet.js`, `screens/printsheet.js`) : bloc « Fiche de score » (IMAGE · PDF) en fin de
+  partie et au détail d'une partie de l'historique. Noir sur blanc, Martian Mono, 1240 px de large (A4 à 150 points par
+  pouce) : en-tête (jeu, date, vainqueur), classement (place, manches, moyenne, fléchettes, meilleure volée, plus grosse
+  finition, verres), tournée du dernier, puis un tableau par manche (fléchettes, total, reste, verres ; finition
+  encadrée, bust en rouge). IMAGE : une seule longue page PNG. PDF : pages A4 (images JPEG, PDF écrit à la main,
+  `pdfFromJpegs`), l'en-tête du tableau est répété en haut d'une page qui le coupe. Nom
+  `strela-fiche-AAAAMMJJ-HHMM.png|pdf` (début de la partie). APK : `strelaNative.saveFile(nom, base64, type, partage)`
+  → Téléchargements/Strela puis menu de partage (Imprimer, Drive…) ; navigateur : partage du fichier ou
+  téléchargement. Tests : `tests/fiche.test.js`, passerelle simulée (`saveFile`).
+
 ## Pour le lot 4
 
 - Les écrans Historique et Stats lisent `store.games` (parties closes) ; la partie en cours est à part (`store.current`).

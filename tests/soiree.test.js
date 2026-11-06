@@ -86,6 +86,8 @@ test('jouer jusqu’au bout : places, joueur en tête, nul célébré, classemen
     await reload(page);
     assert.equal(await page.locator('.gband .nm').textContent(), 'Bravo');
     assert.equal((await readDb(page)).current.drinks[bravoId].length, 2, 'verres enregistrés');
+    assert.ok((await readDb(page)).current.drinks[bravoId].every(d => Number.isInteger(d.at)), 'avec leur place dans la partie (lot 7.1)');
+    assert.match(await page.locator('.rest .meta .dk').textContent(), /2/, 'verres de Bravo, qui lance (lot 7.1)');
     await throwDarts(page, '0 0 0');
     await validate(page);
     await throwDarts(page, 'T20 S20 D19'); // Charlie : 118 → 0, 2e ; Bravo reste seul, dernier

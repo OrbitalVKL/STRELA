@@ -31,14 +31,55 @@ export function bac(times, now) {
   return level;
 }
 
-/** Instants des verres d'un joueur dans une liste de parties ({ drinks: { [id]: [ms] } }), sur les 24 dernières heures. */
+// Un verre enregistré (lot 7.1) : { t: instant (ms), at: nombre de fléchettes jouées dans la partie à ce moment }. `at`
+// le place dans l'historique de la partie, comme une fléchette. Les verres de la v0.7.0 sont de simples instants (pas
+// de `at`) : ils restent lus, rangés à la dernière volée du joueur.
+export const drinkTime = d => (typeof d === 'number' ? d : d && d.t);
+export const drinkAt = d => (d && typeof d === 'object' && Number.isInteger(d.at) && d.at >= 0 ? d.at : null);
+
+/** Instants des verres d'un joueur dans une liste de parties ({ drinks: { [id]: [verre] } }), sur les 24 dernières heures. */
 export function drinkTimes(games, playerId, now) {
   const out = [];
   for (const g of games) {
     const list = g && g.drinks && g.drinks[playerId];
-    if (Array.isArray(list)) for (const t of list) if (Number.isFinite(t) && t <= now && now - t <= WINDOW_MS) out.push(t);
+    if (!Array.isArray(list)) continue;
+    for (const d of list) { const t = drinkTime(d); if (Number.isFinite(t) && t <= now && now - t <= WINDOW_MS) out.push(t); }
   }
   return out.sort((a, b) => a - b);
+}
+
+/**
+ * Verres d'une partie rangés dans son historique (lot 7.1) : pour chaque volée (rang dans state.visits) et pour la
+ * volée en cours ('open'), { here: verres pris pendant cette volée ou juste avant (depuis la volée précédente du même
+ * joueur), total: verres du joueur jusque-là dans la partie }. Un verre pris après la dernière volée du joueur (ou un
+ * verre de la v0.7.0, sans place) va à sa volée en cours, sinon à sa dernière volée.
+ *   drinks : g.drinks ; ids : config.players ; renvoie Map(clé → { here, total }) et totals[rang du joueur].
+ */
+export function drinksTimeline(state, drinks, ids) {
+  const byVisit = new Map();
+  const totals = ids.map(() => 0);
+  if (!drinks) return { byVisit, totals };
+  // Bornes de chaque volée dans la liste des fléchettes (les volées sont dans l'ordre du jeu).
+  const mine = ids.map(() => []); // [{ key, end }] par joueur
+  let pos = 0;
+  state.visits.forEach((v, i) => { pos += v.darts.length; mine[v.player].push({ key: i, end: pos }); });
+  if (state.visit && state.status === 'playing') mine[state.visit.player].push({ key: 'open', end: Infinity });
+  ids.forEach((id, p) => {
+    const list = Array.isArray(drinks[id]) ? drinks[id] : [];
+    const slots = mine[p];
+    if (!list.length || !slots.length) { totals[p] = list.length; return; }
+    const here = new Array(slots.length).fill(0);
+    for (const d of list) {
+      const at = drinkAt(d);
+      let k = at === null ? -1 : slots.findIndex(s => s.end >= at);
+      if (k < 0) k = slots.length - 1;
+      here[k] += 1;
+    }
+    let total = 0;
+    slots.forEach((s, k) => { total += here[k]; byVisit.set(s.key, { here: here[k], total, player: p }); });
+    totals[p] = list.length;
+  });
+  return { byVisit, totals };
 }
 
 /** « 0,45 » (deux décimales, virgule). */
@@ -53,7 +94,8 @@ export function cleanDrinks(drinks) {
   const out = {};
   for (const [id, list] of Object.entries(drinks)) {
     if (!Array.isArray(list)) continue;
-    const ok = list.filter(t => Number.isFinite(t));
+    const ok = list.filter(d => Number.isFinite(drinkTime(d)))
+      .map(d => (typeof d === 'number' ? d : drinkAt(d) === null ? { t: d.t } : { t: d.t, at: d.at }));
     if (ok.length) out[id] = ok;
   }
   return Object.keys(out).length ? out : null;
