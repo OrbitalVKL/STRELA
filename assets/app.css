@@ -269,15 +269,13 @@ label.btn { cursor: pointer; }
 .drinks li { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 6px 0; border-bottom: var(--rule); }
 .drinks .col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .drinks .nm { font-weight: 700; font-size: 16px; }
-.drinks .cnt { font-weight: 800; }
-.drinks .drive { align-self: flex-start; font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; padding: 2px 5px 1px; border: 1.5px solid currentColor; }
-.drinks .drive.alert { border-color: var(--red); }
+.drinks .cnt { display: inline-flex; align-items: center; gap: 2px; font-size: 18px; font-weight: 800; }
+.drinks .cnt .ico { width: 22px; height: 22px; }
 .drinks .mv { flex: 0 0 48px; height: 48px; border: var(--rule); display: grid; place-items: center; }
 .drinks .mv:disabled { color: var(--faint); }
 .drinks .mv.add { flex-basis: 72px; display: flex; justify-content: center; gap: 2px; background: var(--inv-bg); color: var(--inv-fg); }
 .drinks .mv.add svg { width: 20px; height: 20px; }
 .drinks .mv + .mv { margin-left: -13px; }
-.bac.over { font-weight: 800; }
 .pool { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
 .pool button { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 6px 10px; min-height: 104px; font-size: 12.5px; font-weight: 700; }
 .pool button span { max-width: 100%; }
@@ -362,7 +360,8 @@ label.btn { cursor: pointer; }
 .rest .meta { flex: 0 0 auto; align-self: stretch; margin-bottom: auto; padding: 4px 12px 0; display: flex; justify-content: space-between; gap: 12px; font-size: 10.5px; line-height: 1.4; font-weight: 600; color: var(--dim); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
 .rest .meta > :last-child { flex: 0 0 auto; }
 /* Lot 7.1 : verres du joueur qui lance (ligne au-dessus du reste) */
-.rest .meta .dk { color: var(--fg); font-weight: 800; }
+.rest .meta .dk { color: var(--fg); font-weight: 800; font-size: 13px; }
+.rest .meta .dk .x { text-transform: none; } /* « x3 », pas « X3 » */
 .rest .meta .dk .ico { width: 1.25em; height: 1.25em; vertical-align: -0.28em; margin-right: 1px; }
 /* Chiffres de Martian Mono : l'encre occupe 0,08 à 0,92 em de la ligne ; les marges négatives rendent ce vide */
 .rest .big { flex: 0 1 auto; display: flex; align-items: center; margin: -0.08em 0 auto; padding-bottom: 0; font-size: min(44cqw, (100cqh - 21px) / 0.9, 210px); line-height: 1; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }

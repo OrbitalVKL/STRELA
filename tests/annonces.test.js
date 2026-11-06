@@ -57,8 +57,8 @@ test('voix, sons et bandeaux pendant une partie ; réglages respectés', { skip:
     assert.equal((await sounds()).at(-1), 'max');
     assert.ok(await page.locator('.cele.max').count(), 'bandeau 180');
     // Lot 7.1 : le bandeau reste jusqu'à ce qu'on l'acquitte ; le premier appui le ferme sans rien faire d'autre.
-    await page.waitForTimeout(2500);
-    assert.ok(await page.locator('.cele.max').count(), 'toujours là après 2,5 s');
+    await page.waitForTimeout(6000); // lot 7.2 : Guillaume les voit partir seules ; ici elles restent
+    assert.ok(await page.locator('.cele.max').count(), 'toujours là après 6 s');
     const darts = async () => (await readDb(page)).current.darts.length;
     const count = await darts();
     await page.click('[data-key="undo"]');

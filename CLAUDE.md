@@ -139,9 +139,17 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 6 | Icône « Soyouz », 16 fonds et 40 pictogrammes d'avatar, recherche de mise à jour automatique, variantes github / play (Android 16), À propos et confidentialité, fiche Play prête (v0.6.0) — **fait, en attente de validation sur le Pixel** |
 | 7 | Soirée : voyelles qui tombent (Tsia), ordre tiré au sort, joueur en tête, célébrations des nuls, jouer jusqu'au bout, classement, tournée du dernier, verres et alcoolémie estimée (v0.7.0) — **fait, en attente de validation sur le Pixel** |
 | 7.1 | Célébrations affichées jusqu'à un appui, verres dans l'historique de la partie, fiche de score en image et PDF (v0.7.1) — **fait, en attente de validation sur le Pixel** |
+| 7.2 | Verres affichés « [verre] x3 » partout, sans équivalent en alcool (v0.7.2) — **fait, en attente de validation sur le Pixel** |
 | 8 | Recette |
 
-## État (fin du lot 7.1)
+## État (fin du lot 7.2)
+
+- Version 0.7.2. Verres affichés « [verre] x3 » (jeu, menu pause, fin de partie, historique, fiche) ; plus d'alcoolémie
+  en g/L à l'écran (demande de Guillaume). Aucune migration.
+- Ouvert : Guillaume voit les célébrations partir seules ; non reproduit en 0.7.1 (voir docs/interface.md « Lot 7.2 »).
+  À confirmer avec la version affichée dans Réglages.
+
+## État (fin du lot 7.1, pour mémoire)
 
 - Version 0.7.1. Base v2, sauvegarde v1 : toujours aucune migration. Un verre est maintenant `{ t, at }` (`at` : place
   dans la partie) ; les verres de la v0.7.0 (instants seuls) restent lus.

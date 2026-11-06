@@ -92,5 +92,5 @@ export function cellHtml(c, { key = '', selected = false } = {}) {
   const darts = v.darts.map((d, i) => `<i${i === v.faulty ? ' class="x"' : ''}>${d}</i>`).join('');
   return `<td class="c ${v.cls}${selected ? ' sel' : ''}" data-act="log-visit" data-arg="${attr(key)}" aria-label="${attr(v.label)}">`
     + `<span class="ds"${v.darts.length ? ' data-fit="3"' : ''}>${darts}</span><b>${v.big}</b><small>${v.small}</small>`
-    + (v.drinks ? `<em class="dk${v.drinks.fresh ? ' new' : ''}">${GLASS}${v.drinks.total}</em>` : '') + '</td>';
+    + (v.drinks ? `<em class="dk${v.drinks.fresh ? ' new' : ''}">${GLASS}x${v.drinks.total}</em>` : '') + '</td>';
 }

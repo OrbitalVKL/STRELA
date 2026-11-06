@@ -38,7 +38,7 @@ test('contenu : classement, tournée, verres, tableau de manche', () => {
   assert.deepEqual(m.ranking.map(r => [r.place, r.name]), [['1ER', 'Alpha'], ['2E', 'Charlie'], ['3E', 'Bravo']]);
   assert.deepEqual(m.payers, ['Bravo']);
   assert.equal(m.drinking, true);
-  assert.deepEqual(m.ranking.map(r => r.drinks), ['0', '0', '2']);
+  assert.deepEqual(m.ranking.map(r => r.drinks), ['x0', 'x0', 'x2']);
   assert.equal(m.legs.length, 1);
   assert.deepEqual(m.legs[0].columns, ['Alpha', 'Bravo', 'Charlie']);
   const bravo1 = m.legs[0].rows[0].cells[1];

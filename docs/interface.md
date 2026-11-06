@@ -487,6 +487,17 @@ l'APK dans home.js (scène `premier-lancement-apk`). Pas de service worker dans 
   → Téléchargements/Strela puis menu de partage (Imprimer, Drive…) ; navigateur : partage du fichier ou
   téléchargement. Tests : `tests/fiche.test.js`, passerelle simulée (`saveFile`).
 
+## Lot 7.2 : des verres, pas d'équivalent en alcool
+
+- Demande de Guillaume : afficher des verres (« [verre] x3 »), plus l'alcoolémie estimée. `glassCount(n)` (game.js) :
+  icône verre + « x3 », dans la ligne au-dessus du reste du joueur qui lance (dès qu'un joueur de la partie a bu) et
+  dans la liste « Verres » du menu pause et de la fin de partie (les mentions g/L, « NE CONDUIS PAS » et la note sur
+  l'estimation sont retirées ; reste une phrase : « Qui a bu ne conduit pas. »). Historique et fiche de score :
+  « [verre] x2 ». `bac()` reste dans alcohol.js (testé) mais n'est plus affiché.
+- Célébrations : Guillaume les voit partir seules sur son téléphone ; rien ne les efface sans appui dans la v0.7.1
+  (vérifié au doigt simulé, avec et sans passerelle). Piste : téléphone resté en 0.7.0 (la recherche automatique de mise à
+  jour passe au plus une fois par 24 h). tests/annonces.test.js vérifie qu'un 180 est encore là après 6 s.
+
 ## Pour le lot 4
 
 - Les écrans Historique et Stats lisent `store.games` (parties closes) ; la partie en cours est à part (`store.current`).
