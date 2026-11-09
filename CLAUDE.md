@@ -64,7 +64,7 @@ src/ui/                   interface (docs/interface.md) : app.js, nav.js, store.
                           mock.js + maquette.js (données fictives : sommaire ?maquette et tests seulement)
 src/ui/theme.js           palette (source de vérité des couleurs), contraste
 src/ui/vowels.js          voyelles qui tombent quand Tsia lance (lot 7)
-src/ui/sheet.js           fiche de score : modèle, dessin sur canvas, PDF (lot 7.1) ; screens/printsheet.js : boutons et envoi
+src/ui/sheet.js           fiche de score : modèle, dessin sur canvas (demi-page A5 paysage ou A4, lot 7.3), PDF (lot 7.1) ; screens/printsheet.js : boutons et envoi
 src/engine/ranking.js     classement, joueur en tête, derniers (tournée), célébrations des nuls (lot 7)
 src/engine/alcohol.js     alcoolémie estimée à partir des verres (lot 7)
 tests/                    tests node:test (*.test.js) ; helpers.js = aides (notation ds('T20 D16'))
@@ -140,9 +140,19 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 7 | Soirée : voyelles qui tombent (Tsia), ordre tiré au sort, joueur en tête, célébrations des nuls, jouer jusqu'au bout, classement, tournée du dernier, verres et alcoolémie estimée (v0.7.0) — **fait, en attente de validation sur le Pixel** |
 | 7.1 | Célébrations affichées jusqu'à un appui, verres dans l'historique de la partie, fiche de score en image et PDF (v0.7.1) — **fait, en attente de validation sur le Pixel** |
 | 7.2 | Verres affichés « [verre] x3 » partout, sans équivalent en alcool (v0.7.2) — **fait, en attente de validation sur le Pixel** |
+| 7.3 | Fiche de score allégée (vainqueur, classement avec verres, tournée, scores), demi-page A4 paysage si la partie est courte (v0.7.3) — **fait, en attente de validation sur le Pixel** |
 | 8 | Recette |
 
-## État (fin du lot 7.2)
+## État (fin du lot 7.3)
+
+- Version 0.7.3. Fiche de score allégée : vainqueur, classement (place, joueur, manches si plusieurs, verres), tournée,
+  scores de chaque manche ; plus de titre, de légendes ni de pied de page. Demi-feuille A4 paysage (A5) si la partie
+  tient (6 joueurs ou moins), sinon une page A4 (réduite jusqu'à 62 %), sinon des pages A4. IMAGE et PDF gardés
+  (choix de Guillaume). Détail : docs/interface.md « Lot 7.3 ».
+- Toujours ouvert : célébrations vues partir seules (à confirmer en 0.7.2 ou plus) ; contrôle « retour en partie » de
+  l'émulateur 34 (le lanceur garde le focus).
+
+## État (fin du lot 7.2, pour mémoire)
 
 - Version 0.7.2. Verres affichés « [verre] x3 » (jeu, menu pause, fin de partie, historique, fiche) ; plus d'alcoolémie
   en g/L à l'écran (demande de Guillaume). Aucune migration.

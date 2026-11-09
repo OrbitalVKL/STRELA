@@ -498,6 +498,20 @@ l'APK dans home.js (scène `premier-lancement-apk`). Pas de service worker dans 
   (vérifié au doigt simulé, avec et sans passerelle). Piste : téléphone resté en 0.7.0 (la recherche automatique de mise à
   jour passe au plus une fois par 24 h). tests/annonces.test.js vérifie qu'un 180 est encore là après 6 s.
 
+## Lot 7.3 : fiche de score allégée, demi-page paysage
+
+- Demande de Guillaume (à l'oral) : seulement le vainqueur, le classement avec les verres, celui qui paie la tournée et
+  les scores de chaque manche ; plus de titre STRELA, de légendes (« Man. = … », « Chaque case : … ») ni de pied de page ;
+  tout sur une page, et une demi-page en paysage quand la partie est courte (moins de papier). IMAGE et PDF gardés.
+- `drawSheet` (src/ui/sheet.js) choisit la forme : 1. **demi-feuille A4 paysage** (A5, 1240 × 874 px) en deux colonnes
+  (à gauche vainqueur, jeu, date, classement — place, joueur, manches s'il y en a plusieurs, verres « [verre] x3 » —,
+  tournée ; à droite les tableaux de manches, lignes de 50 px) si tout tient et s'il y a 6 joueurs ou moins ; 2. sinon
+  **une page A4** en une colonne (lignes de 62 px), réduite jusqu'à 62 % s'il le faut ; 3. sinon des **pages A4**
+  (en-tête du tableau répété, « 1 / 2 » en bas à droite). L'image prend la demi-page si elle suffit, sinon une seule
+  colonne aussi haute qu'il faut. Le PDF a des pages à la taille de l'image (A5 paysage 595,28 × 419,53 pt ou A4).
+- Pour imprimer deux fiches par feuille A4 : régler « 2 pages par feuille » dans l'appli d'impression, ou imprimer
+  sur du papier A5.
+
 ## Pour le lot 4
 
 - Les écrans Historique et Stats lisent `store.games` (parties closes) ; la partie en cours est à part (`store.current`).
