@@ -20,7 +20,7 @@ export function sheetSection(g) {
   return `<div class="sec">Fiche de score</div>
     <div class="btns two sheet-btns">${btn('png', 'IMAGE')}${btn('pdf', 'PDF')}</div>
     <p class="note" role="status">${st.busy ? 'Préparation de la fiche…' : st.msg ? esc(st.msg)
-      : `Classement et tableau de chaque manche, noir sur blanc. ${isApk() ? 'Enregistrée dans Téléchargements/Strela, puis le menu de partage s\'ouvre (Imprimer, Drive, mail…).' : 'Enregistrée dans les téléchargements, ou partagée si le téléphone le propose.'}`}</p>`;
+      : `Vainqueur, classement avec les verres, tournée et scores de chaque manche, noir sur blanc ; une demi-feuille A4 en paysage si la partie est courte. ${isApk() ? 'Enregistrée dans Téléchargements/Strela, puis le menu de partage s\'ouvre (Imprimer, Drive, mail…).' : 'Enregistrée dans les téléchargements, ou partagée si le téléphone le propose.'}`}</p>`;
 }
 
 function download(blob, name) {
