@@ -96,8 +96,9 @@ export const snapshot = page => page.evaluate(() => {
   };
 });
 
-/** Crée un joueur depuis la liste des joueurs (ou l'accueil au premier lancement) ; `icon` : clé de la banque. */
-export async function createPlayer(page, name, { icon = null, color = null } = {}) {
+/** Crée un joueur depuis la liste des joueurs (ou l'accueil au premier lancement) ; `icon` : clé de la banque ;
+ *  `turnAnim` : animation de tour (lot 7.4). */
+export async function createPlayer(page, name, { icon = null, color = null, turnAnim = null } = {}) {
   await page.evaluate(() => { location.hash = '#/joueur/nouveau'; });
   await page.waitForSelector('#name');
   await page.fill('#name', name);
@@ -107,6 +108,7 @@ export async function createPlayer(page, name, { icon = null, color = null } = {
     await page.click(`[data-act="pick-icon"][data-arg="${icon}"]`);
     await page.waitForSelector('#name');
   }
+  if (turnAnim) await page.click(`[data-act="turn-anim"][data-arg="${turnAnim}"]`);
   await page.click('[data-act="save-player"]');
   await page.waitForSelector('.list');
 }

@@ -49,6 +49,8 @@ export const SOUNDS = Object.freeze({
   finish: (ac, t) => [523, 659, 784, 1047].forEach((f, i) => tone(ac, 'triangle', f, t + i * 0.09, i === 3 ? 0.35 : 0.1, 0.24)),
   max: (ac, t) => [784, 988, 1175, 1568].forEach((f, i) => tone(ac, 'square', f, t + i * 0.07, i === 3 ? 0.4 : 0.08, 0.1)),
   // Lot 7 : trombone triste des nuls (« wah wah wah waaah »), la dernière note glisse vers le bas.
+  // Lot 7.4 : coup de carabine (animation de tour) : claquement sec puis écho grave.
+  shot: (ac, t) => { tone(ac, 'square', [1900, 140], t, 0.05, 0.16); tone(ac, 'sawtooth', [320, 45], t + 0.01, 0.22, 0.22); },
   flop: (ac, t) => [[392, 380], [370, 358], [349, 338], [330, 262]].forEach(([a, b], i) => tone(ac, 'sawtooth', [a, b], t + i * 0.26, i === 3 ? 0.7 : 0.22, 0.1)),
 });
 

@@ -680,6 +680,36 @@ label.btn { cursor: pointer; }
   100% { transform: translate(var(--dx), var(--fall)) rotate(var(--rot)); }
 }
 
+/* Animations de tour (lot 7.4, turnfx.js) : calque fixe hors de #app, sans aucun appui ; pictogrammes au texte de
+   l'écran, liserés du fond (lisibles sur la cible) ; seule l'étoile rouge prend le rouge (exception demandée). */
+#tfx { position: fixed; inset: 0; z-index: 41; pointer-events: none; overflow: hidden; color: var(--fg); }
+#tfx .tfx-n { position: absolute; left: 0; top: 0; will-change: transform, opacity; transform-origin: 50% 50%; }
+#tfx svg { display: block; width: 100%; height: 100%; overflow: visible; }
+#tfx .tfx-in { width: 100%; height: 100%; transform-origin: 50% 85%; }
+#tfx .halo, #tfx .halo * { stroke: var(--bg); stroke-width: 7px; fill: var(--bg); }
+#tfx .tfx-lbl {
+  white-space: nowrap; padding: 3px 7px; border: 1px solid var(--fg); background: var(--bg);
+  font-size: 13px; font-weight: 800; letter-spacing: 0.08em;
+}
+#tfx .tfx-bub {
+  padding: 10px 12px; border: 2px solid var(--fg); background: var(--bg); transform-origin: 0 20%;
+  font-size: 14px; font-weight: 700; line-height: 1.35;
+}
+#tfx .tfx-bub::before {
+  content: ''; position: absolute; left: -12px; top: 18px; border: 6px solid transparent; border-right-color: var(--fg);
+}
+#tfx .tie, #tfx .mouth, #tfx .pulse, #tfx .spks { transform-box: fill-box; transform-origin: 50% 50%; }
+#tfx .tie { transform-origin: 50% 0; }
+#tfx .tfx-bullet { background: var(--fg); box-shadow: 0 0 0 1px var(--bg); transform-origin: 0 50%; }
+#tfx .tfx-gun, #tfx .tfx-shoot { transform-origin: 0 0; }
+
+/* Fiche joueur : choix de l'animation de tour */
+.agrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); border-top: var(--rule); border-left: var(--rule); margin-bottom: 10px; }
+.agrid button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 72px; padding: 6px 4px; border: 0; border-right: var(--rule); border-bottom: var(--rule); font-size: 11px; font-weight: 700; letter-spacing: 0.04em; }
+.agrid button svg { width: 30px; height: 30px; }
+.agrid button .glyph { font-size: 22px; line-height: 30px; font-weight: 800; }
+.agrid button[aria-pressed="true"] { color: var(--inv-fg); background: var(--inv-bg); }
+
 /* Animations coupées (réglage ou demande du téléphone) */
 html.still .gband.slide, html.still .announce, html.still .cele, html.still .cele b { animation: none; }
 @media (prefers-reduced-motion: reduce) { .gband.slide, .announce, .cele, .cele b { animation: none; } }

@@ -7,8 +7,9 @@ import { setRenderer, noteRoute, keepAwake, go } from './nav.js';
 import { home } from './screens/home.js';
 import { playersList, playerForm, avatarBank, actions as playerActions, inputs as playerInputs } from './screens/players.js';
 import { newGame, actions as newGameActions } from './screens/newgame.js';
-import { game, key, mountGame, vowelKey, actions as gameActions } from './screens/game.js';
+import { game, key, mountGame, vowelKey, turnFx, actions as gameActions } from './screens/game.js';
 import { applyVowels } from './vowels.js';
+import { syncTurnFx, leaveGameFx } from './turnfx.js';
 import { legEnd, matchEnd, actions as resultActions } from './screens/results.js';
 import { historyList, historyDetail, leaveHistory, actions as historyActions } from './screens/history.js';
 import { statsScreen, faceScreen, actions as statsActions } from './screens/stats.js';
@@ -82,6 +83,8 @@ function draw() {
     if (applyVowels(app, vowelKey(), animationsOn()) === 'gone') fitAll(app);
     mountGame();
   }
+  // Lot 7.4 : animation de tour au début de chaque volée ; arrêtée à la première fléchette ou en quittant l'écran de jeu.
+  if (path === '/jeu') syncTurnFx(turnFx(), animationsOn()); else leaveGameFx();
   if (path === '/recadrage') mountCrop();
   app.querySelector('[data-reveal]')?.scrollIntoView({ block: 'center' });
   keepAwake(path === '/jeu' || path === '/manche'); // écran allumé pendant la partie, relâché en la quittant

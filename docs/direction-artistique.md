@@ -29,6 +29,13 @@ Aucune couleur n'est interdite dans une partie : deux joueurs peuvent garder la 
 rouge prend le rouge de base `#9E4A4A` (5,1:1). `#F6ECEC` vient de Grafit (REDINK).
 Le discret (`--faint`) sert aux filets et aux éléments vraiment secondaires, pas à du texte à lire.
 
+## Animations de tour (lot 7.4)
+
+Pictogrammes de la banque au texte de l'écran (`--fg`), liserés du fond (`--bg`) pour rester lisibles sur la cible ;
+étiquettes en Martian Mono sur fond, filet, angles droits ; trou de balle aux couleurs de la cible (`--board-mark*`).
+**Exception au rouge réservé au bust** : l'étoile rouge (animation de Guillaume) prend `--red`, `--red-text` et
+`--red-ink` en jeu, à sa demande.
+
 ## Titre et rouge d'accent (lot 4)
 
 - Le titre de l'appli s'écrit en lettres latines : **STRELA** (plus de titre russe), partout : accueil, titre de la
