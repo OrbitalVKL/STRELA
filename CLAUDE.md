@@ -11,9 +11,11 @@ Cahier des charges : [docs/cahier-des-charges.md](docs/cahier-des-charges.md).
   fichier et dans `docs/`. Mettre à jour « État » ci-dessous à la fin de chaque lot.
 - Travailler sur la branche de session, ouvrir une demande de fusion vers `main`, **la fusionner soi-même dès
   que tout est vert** (CI `ci / tests`).
-- Fin de lot : message court en trois parties — **Fait**, **À toi** (adresse à ouvrir sur son Pixel 10 Pro et
-  quoi y vérifier), **Rapport pour l'architecte** (bloc à copier : état du dépôt, choix et raisons, écarts au
-  cahier des charges, questions ouvertes, à savoir avant le lot suivant).
+- **Plus d'architecte (10/11/2026)** : Claude est autonome sur le projet — il décide des choix techniques, tient ce
+  fichier et `docs/` à jour (c'est là que va ce qu'une session suivante doit savoir), et ne pose à Guillaume que les
+  questions qui sont vraiment les siennes (goûts, usage, contenu).
+- Fin de lot : message court en deux parties — **Fait**, **À toi** (adresse à ouvrir sur son Pixel 10 Pro et quoi y
+  vérifier). Plus de « Rapport pour l'architecte ».
 - **Interface entièrement en français.** Titre de l'appli en lettres latines : **STRELA** (lot 4 ; plus de titre russe).
   Le code (identifiants) est en anglais, les commentaires et la doc en français.
 - Grafit (`OrbitalVKL/GRAFIT`) est la référence de DA et de chaîne APK : **lecture seule, ne jamais le modifier.**
