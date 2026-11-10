@@ -66,7 +66,7 @@ src/ui/                   interface (docs/interface.md) : app.js, nav.js, store.
                           mock.js + maquette.js (données fictives : sommaire ?maquette et tests seulement)
 src/ui/theme.js           palette (source de vérité des couleurs), contraste
 src/ui/vowels.js          voyelles qui tombent quand Tsia lance (lot 7)
-src/ui/turnfx.js          animations de tour par joueur (lot 7.4) : ours, cravate, carabine, planète, étoile rouge
+src/ui/turnfx.js          animations de tour par joueur (lot 7.4) : ours, cravate, carabine, planète, étoile rouge ; sons et voix (lot 7.5)
 tools/animations.mjs      captures des animations de tour figées à plusieurs instants (lot 7.4)
 src/ui/sheet.js           fiche de score : modèle, dessin sur canvas (demi-page A5 paysage ou A4, lot 7.3), PDF (lot 7.1) ; screens/printsheet.js : boutons et envoi
 src/engine/ranking.js     classement, joueur en tête, derniers (tournée), célébrations des nuls (lot 7)
@@ -146,9 +146,22 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 7.2 | Verres affichés « [verre] x3 » partout, sans équivalent en alcool (v0.7.2) — **fait, en attente de validation sur le Pixel** |
 | 7.3 | Fiche de score allégée (vainqueur, classement avec verres, tournée, scores), demi-page A4 paysage si la partie est courte (v0.7.3) — **fait, en attente de validation sur le Pixel** |
 | 7.4 | Animations de tour par joueur (fiche joueur) : ours, costume-cravate, carabine, planète, étoile rouge ; pictogramme cravate (v0.7.4) — **fait, en attente de validation sur le Pixel** |
+| 7.5 | Sons de l'ours et de la planète, voix d'homme et répliques beauf de HPV, Tsia qui marmonne (voix pâteuse), moqueries dès une volée sous 20 et variées (v0.7.5) — **fait, en attente de validation sur le Pixel** |
 | 8 | Recette |
 
-## État (fin du lot 7.4)
+## État (fin du lot 7.5)
+
+- Version 0.7.5. Aucune migration. Détail : docs/interface.md « Lot 7.5 ».
+- Sons Web Audio de l'ours (grognements, reniflements, grattage, ronflement, mastication) et de la planète (orbite,
+  étoiles, étoile filante) ; rien pour l'étoile rouge (demande de Guillaume).
+- Voix des personnages : `say(texte, { style: 'homme' | 'ivre' })`, après l'annonce en cours ; APK : `Bridge.speakAs`
+  (nouvelle méthode native, voix d'homme du moteur si présente). HPV : répliques beauf, voix d'homme. Tsia :
+  `SPEECH.drunk()` au début de chaque volée, voix pâteuse.
+- Moqueries : volée sous 20 (au lieu de 10), plusieurs phrases par cas tirées au sort (`FLOP_LINES`).
+- À vérifier sur le Pixel : la voix d'homme existe-t-elle dans le moteur Google (sinon la voix habituelle, plus grave) ;
+  grognements audibles sur le haut-parleur.
+
+## État (fin du lot 7.4, pour mémoire)
 
 - Version 0.7.4. Base v2, sauvegarde v1 : **aucune migration** (champ facultatif `turnAnim` du joueur).
 - Animations de tour (détail : docs/interface.md « Lot 7.4 ») : choix dans la fiche joueur (aperçu à l'appui), jouées

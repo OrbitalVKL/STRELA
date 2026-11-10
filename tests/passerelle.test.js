@@ -34,6 +34,7 @@ function fakeBridge() {
     info: rec('info', JSON.stringify({ version: '0.5.0', variant: play ? 'play' : 'github', package: play ? 'fr.orbitalvkl.strela.play' : 'fr.orbitalvkl.strela', sdk: 36, model: 'Google Pixel 10 Pro' })),
     vibrate: rec('vibrate', 'sent'),
     speak: rec('speak', true),
+    speakAs: rec('speakAs', true),
     stopSpeaking: rec('stopSpeaking'),
     voice: rec('voice', JSON.stringify({ state: 'ok', name: 'Google · fr-fr-x-frc-local', native: true })),
     saveBackup: rec('saveBackup', n => JSON.stringify({ ok: true, path: `Téléchargements/Strela/${n}`, shared: true })),

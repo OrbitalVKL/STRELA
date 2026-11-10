@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { serve, loadPlaywright } from '../tools/lib/serve.mjs';
 import { openApp, throwDarts, validate, createPlayer, newGame, readDb } from '../tools/lib/app.mjs';
-import { SPEECH } from '../src/ui/feedback.js';
+import { SPEECH, FLOP_LINES } from '../src/ui/feedback.js';
 
 const pw = await loadPlaywright();
 
@@ -78,7 +78,7 @@ test('voix, sons et bandeaux pendant une partie ; réglages respectés', { skip:
     assert.equal((await said()).at(-1), 'Alpha, il reste 121', 'Alpha commence son tour avec une finition jouable');
     const before = await page.evaluate(() => window.__speech.length);
     await throwDarts(page, 'T20 T20'); // 121 → 61 → 1 : bust
-    assert.equal((await said()).at(-1), SPEECH.flop('bust', 'Alpha'), 'bust : annonce moqueuse (lot 7)');
+    { const last = (await said()).at(-1); assert.ok(FLOP_LINES.bust.some(f => f('Alpha') === last), `bust : annonce moqueuse (lot 7) : ${last}`); }
     assert.equal((await sounds()).at(-1), 'bust');
     assert.equal(await page.evaluate(n => window.__speech[n], before), 'cancel', 'une nouvelle annonce coupe l’ancienne');
     await validate(page);

@@ -10,6 +10,7 @@ import { checkoutPrefs, suggestCheckout } from '../../engine/checkout.js';
 import { formatDart } from '../../engine/darts.js';
 import { go, goBackTo, refresh } from '../nav.js';
 import { TURN_ANIMS, turnAnimOf, previewTurnFx } from '../turnfx.js';
+import { say, sound, SPEECH } from '../feedback.js';
 
 export const NAME_MAX = 40;
 
@@ -214,7 +215,9 @@ export const actions = {
   'turn-anim'(k) {
     store.draft.turnAnim = k;
     refresh();
-    if (animationsOn()) previewTurnFx(k, store.draft.avatar.color); // un aperçu, comme en jeu
+    // Un aperçu, comme en jeu (sons et voix selon les réglages).
+    if (animationsOn()) previewTurnFx(k, store.draft.avatar.color, { say: (t, o) => say(t, o), sound: s => sound(s) });
+    if (k === 'voyelles') say(SPEECH.drunk(), { style: 'ivre' }); // lot 7.5 : la voix pâteuse de Tsia
   },
   'fin-bull'(v) { store.draft.checkout = checkoutPrefs({ ...store.draft.checkout, avoidBull: v === '1' }); refresh(); },
   'open-bank'() { go('#/avatars'); },

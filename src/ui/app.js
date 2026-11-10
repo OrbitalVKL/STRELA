@@ -17,7 +17,7 @@ import { settingsScreen, applyTheme, onBackupFile, actions as settingsActions } 
 import { cropScreen, mountCrop, onPhotoFile, actions as photoActions } from './screens/photo.js';
 import { animateRolls, rollScope } from './roll.js';
 import { fitAll } from './fit.js';
-import { sayLog, soundLog } from './feedback.js';
+import { sayLog, soundLog, say, SPEECH } from './feedback.js';
 import { handleBack, backHandled } from './back.js';
 import { isApk, nativeBackHandled, hasUpdater, call } from './native.js';
 import { aboutScreen, actions as aboutActions } from './screens/about.js';
@@ -50,6 +50,7 @@ const INPUTS = { ...playerInputs };
 const app = document.getElementById('app');
 let lastPath = null;
 let started = false; // rien n'est dessiné avant la lecture de la base (ou des données fictives)
+let drunkKey = null; // volée de Tsia déjà « marmonnée » (lot 7.5)
 
 function render() {
   if (!started || document.body.dataset.rescue) return;
@@ -80,7 +81,11 @@ function draw() {
   fitAll(app); // blocs compactés ou rapetissés s'ils ne tiennent pas (taille d'affichage, police du téléphone)
   if (path === '/jeu') {
     // Lot 7 : quand Tsia lance, les voyelles tombent (vowels.js) ; retirées d'emblée, le texte raccourci est remis à l'échelle.
-    if (applyVowels(app, vowelKey(), animationsOn()) === 'gone') fitAll(app);
+    const vk = vowelKey();
+    if (applyVowels(app, vk, animationsOn()) === 'gone') fitAll(app);
+    // Lot 7.5 : au début de sa volée, Tsia marmonne des mots pâteux (voix « ivre », après l'annonce en cours).
+    if (vk && vk !== drunkKey) setTimeout(() => say(SPEECH.drunk(), { style: 'ivre' }), 600);
+    drunkKey = vk;
     mountGame();
   }
   // Lot 7.4 : animation de tour au début de chaque volée ; arrêtée à la première fléchette ou en quittant l'écran de jeu.

@@ -122,3 +122,83 @@ test('vraie appli : choix gardé au rechargement ; aucune animation quand elles 
     assert.deepEqual(t.errors, []);
   } finally { await t.close(); }
 });
+
+// ------------------------------------------------------------------ lot 7.5 : sons, voix d'homme, Tsia, moqueries
+import { SPEECH, FLOP_LINES, SOUNDS, VOICE_STYLES } from '../src/ui/feedback.js';
+
+const LOT75_SOUNDS = ['bear-growl', 'bear-grunt', 'bear-sniff', 'bear-scratch', 'bear-snore', 'bear-chomp', 'planet-orbit', 'planet-twinkle', 'planet-shoot', 'shot'];
+
+test('lot 7.5 : moqueries variées (sous 20), voix pâteuse prononçable, styles de voix', () => {
+  for (const k of ['zero', 'low', 'bust', 'serie']) {
+    assert.ok(FLOP_LINES[k].length >= 3, k);
+    const all = new Set(FLOP_LINES[k].map((_, i) => SPEECH.flop(k, 'Gilles', 7, i / FLOP_LINES[k].length)));
+    assert.equal(all.size, FLOP_LINES[k].length, `${k} : toutes différentes`);
+    for (const l of all) assert.match(l, /Gilles/);
+  }
+  for (let i = 0; i < 50; i++) {
+    const d = SPEECH.drunk();
+    const parts = d.replace(/…$/, '').split('… ');
+    assert.ok(parts.length >= 4 && parts.length <= 6, d);
+    for (const p of parts) assert.ok(!/(^|\s)[b-df-hj-np-tv-z](\s|$)/i.test(p), `pas de consonne seule (épelée) : ${p}`);
+  }
+  assert.ok(VOICE_STYLES.homme.pitch < 1 && VOICE_STYLES.ivre.rate < 0.8);
+  for (const k of LOT75_SOUNDS) assert.equal(typeof SOUNDS[k], 'function', k);
+});
+
+test('lot 7.5 : chaque son se joue sans erreur et n’est pas muet (Web Audio hors ligne)', { skip, timeout: 60e3 }, async () => {
+  const t = await setup();
+  try {
+    const peaks = await t.page.evaluate(async keys => {
+      const { SOUNDS } = await import('./src/ui/feedback.js');
+      const out = {};
+      for (const k of keys) {
+        const ac = new OfflineAudioContext(1, 44100 * 3, 44100);
+        SOUNDS[k](ac, 0.01);
+        const buf = await ac.startRendering();
+        out[k] = buf.getChannelData(0).reduce((m, x) => Math.max(m, Math.abs(x)), 0);
+      }
+      return out;
+    }, LOT75_SOUNDS);
+    for (const k of LOT75_SOUNDS) assert.ok(peaks[k] > 0.01 && peaks[k] < 1.5, `${k} : ${peaks[k]}`);
+    assert.deepEqual(t.errors, []);
+  } finally { await t.close(); }
+});
+
+test('lot 7.5 : l’ours grogne, la planète sonne, HPV parle avec une voix d’homme, Tsia marmonne', { skip, timeout: 120e3 }, async () => {
+  const srv = await serve();
+  const browser = await pw.chromium.launch();
+  try {
+    const ctx = await browser.newContext({ viewport: { width: 410, height: 914 }, isMobile: true, hasTouch: true });
+    await ctx.addInitScript(() => {
+      window.__speech = [];
+      const synth = {
+        speak(u) { window.__speech.push({ text: u.text, rate: u.rate, pitch: u.pitch }); },
+        cancel() { window.__speech.push('cancel'); },
+        getVoices: () => [{ name: 'Voix française', lang: 'fr-FR', localService: true }, { name: 'Thomas', lang: 'fr-FR', localService: true }],
+        addEventListener() {},
+      };
+      Object.defineProperty(window, 'speechSynthesis', { value: synth, configurable: true });
+    });
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on('pageerror', e => errors.push(e.message));
+    await openApp(page, srv.url);
+    await createPlayer(page, 'Gilles', { icon: 'ours', turnAnim: 'ours' });
+    await createPlayer(page, 'HPV', { icon: 'cravate', turnAnim: 'cravate' });
+    await createPlayer(page, 'Angelina', { icon: 'planete', turnAnim: 'planete' });
+    await createPlayer(page, 'Tsia');
+    await newGame(page, ['Gilles', 'HPV', 'Angelina', 'Tsia'], { startScore: 501, shuffle: false });
+    await page.waitForFunction(() => import('./src/ui/feedback.js').then(m => m.soundLog.some(k => k.startsWith('bear-'))), null, { timeout: 4000 });
+    await throwDarts(page, 'S20 S20 S20'); await validate(page);
+    // HPV : la réplique, voix d'homme (grave), sans couper l'annonce en cours.
+    await page.waitForFunction(() => window.__speech.some(s => s.pitch && s.pitch < 1 && s.rate === 1), null, { timeout: 4000 });
+    const hpv = await page.evaluate(() => window.__speech.filter(s => s.pitch && s.pitch < 1));
+    assert.ok(TIE_LINES.includes(hpv.at(-1).text), hpv.at(-1).text);
+    await throwDarts(page, 'S20 S20 S20'); await validate(page);
+    await page.waitForFunction(() => import('./src/ui/feedback.js').then(m => m.soundLog.includes('planet-orbit') && m.soundLog.includes('planet-twinkle')), null, { timeout: 4000 });
+    await throwDarts(page, 'S20 S20 S20'); await validate(page);
+    // Tsia : voix lente et pâteuse.
+    await page.waitForFunction(() => window.__speech.some(s => s.rate && s.rate < 0.8), null, { timeout: 4000 });
+    assert.deepEqual(errors, []);
+  } finally { await browser.close(); await srv.close(); }
+});

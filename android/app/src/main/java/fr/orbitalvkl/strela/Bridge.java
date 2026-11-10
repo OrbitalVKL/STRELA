@@ -89,6 +89,10 @@ public class Bridge {
     @JavascriptInterface
     public boolean speak(String text, boolean strong) { return act.speech.speak(text, strong); }
 
+    /** Lot 7.5 : voix d'un personnage (« homme », « ivre »), dite après l'annonce en cours. */
+    @JavascriptInterface
+    public boolean speakAs(String text, String style) { return act.speech.speakAs(text, style); }
+
     @JavascriptInterface
     public void stopSpeaking() { act.speech.stop(); }
 

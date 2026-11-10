@@ -87,11 +87,12 @@ test('en tête : manches puis reste ; personne au départ ni en cas d’égalit�
   assert.equal(leader(computeState(cfg({ players: ['A'] }), ds('T20'))), null, 'solo');
 });
 
-test('célébrations des nuls : 0, sous 10, bust, série', () => {
+test('célébrations des nuls : 0, sous 20 (lot 7.5), bust, série', () => {
   const c = cfg({ startScore: 501, players: ['A', 'B'] });
   assert.deepEqual(flop(computeState(c, ds('0 0 0'))), { kind: 'zero', value: 0 });
   assert.deepEqual(flop(computeState(c, ds('S1 S2 S3'))), { kind: 'low', value: 6 });
-  assert.equal(flop(computeState(c, ds('S5 S5 S5'))), null, '15 : rien');
+  assert.deepEqual(flop(computeState(c, ds('S5 S5 S5'))), { kind: 'low', value: 15 }, '15 : moquerie (lot 7.5 : sous 20)');
+  assert.equal(flop(computeState(c, ds('S10 S5 S5'))), null, '20 : rien');
   assert.equal(flop(computeState(c, ds('S1 S2'))), null, 'volée pas finie');
   // A : 3 volées sous 20 d'affilée (B joue bien) → série à la 3e.
   const a3 = 'S5 S5 S5  T20 T20 T20  S1 S1 S1  T20 T20 T20  S2 S2 S2';

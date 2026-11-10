@@ -16,6 +16,8 @@ class Speech {
     TextToSpeech tts;
     volatile String state = "loading";      // loading | ok | none (pas de voix française) | absent (pas de moteur)
     volatile String name = "";
+    Voice base;                              // voix française par défaut (remise avant chaque annonce)
+    Voice male;                              // lot 7.5 : voix d'homme si le moteur en a une (sinon null)
 
     Speech(Context c) {
         ctx = c;
@@ -28,6 +30,8 @@ class Speech {
                     .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build());
                 Voice v = tts.getVoice();
+                base = v;
+                male = findMale();
                 name = v != null ? v.getName() : "voix française";
                 String engine = tts.getDefaultEngine();
                 if (engine != null && engine.contains("google")) name = "Google · " + name;
@@ -36,8 +40,39 @@ class Speech {
         } catch (Exception e) { state = "absent"; }
     }
 
+    /** Lot 7.5 : une voix française au nom d'homme (voix Google frb / frd, Samsung …m00…), locale de préférence. */
+    Voice findMale() {
+        try {
+            Voice best = null;
+            for (Voice v : tts.getVoices()) {
+                Locale l = v.getLocale();
+                if (l == null || !"fr".equals(l.getLanguage())) continue;
+                String n = v.getName().toLowerCase(Locale.ROOT);
+                if (n.contains("female") || n.contains("femme")) continue;
+                if (!(n.contains("frb") || n.contains("frd") || n.contains("male") || n.matches(".*[-_]m\\d.*"))) continue;
+                if (best == null || (best.isNetworkConnectionRequired() && !v.isNetworkConnectionRequired())) best = v;
+            }
+            return best;
+        } catch (Exception e) { return null; }
+    }
+
+    /**
+     * Lot 7.5 : voix d'un personnage, après l'annonce en cours (file d'attente) : « homme » (voix d'homme, sinon plus
+     * grave) ou « ivre » (lente et pâteuse). La voix par défaut est remise à l'annonce suivante.
+     */
+    boolean speakAs(String text, String style) {
+        if (!"ok".equals(state) || tts == null) return false;
+        boolean drunk = "ivre".equals(style);
+        try { if (male != null) tts.setVoice(male); } catch (Exception e) { /* voix refusée */ }
+        float pitch = male != null ? (drunk ? 0.8f : 0.85f) : (drunk ? 0.55f : 0.6f);
+        tts.setPitch(pitch);
+        tts.setSpeechRate(drunk ? 0.62f : 1f);
+        return tts.speak(text, TextToSpeech.QUEUE_ADD, null, "strela-perso") == TextToSpeech.SUCCESS;
+    }
+
     boolean speak(String text, boolean strong) {
         if (!"ok".equals(state) || tts == null) return false;
+        try { if (base != null && male != null) tts.setVoice(base); } catch (Exception e) { /* voix refusée */ }
         tts.setPitch(strong ? 1.25f : 1f);
         tts.setSpeechRate(strong ? 0.9f : 1.08f);
         return tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "strela") == TextToSpeech.SUCCESS;
