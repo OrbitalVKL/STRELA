@@ -237,7 +237,7 @@ depuis l'appli. La version web reste sur GitHub Pages (aperçu, tests). Détail 
 
 - Ordre des joueurs tiré au sort au lancement (réglage de Nouvelle partie, OUI par défaut).
 - Joueur en tête repéré pendant la partie.
-- Célébrations (ironiques) des nuls : volée à 0, volée sous 10, bust, série de 3 mauvaises volées ou plus.
+- Célébrations (ironiques) des nuls : volée à 0, volée sous 20 (sous 10 jusqu'au lot 7.4), bust, série de 3 mauvaises volées ou plus.
 - Jouer jusqu'au bout (réglage de Nouvelle partie, NON par défaut, 3 joueurs ou plus) : après le gagnant, les autres
   finissent pour les places.
 - Fin de partie : classement complet ; le dernier paie sa tournée.

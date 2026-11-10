@@ -104,7 +104,7 @@ export function turnFx() {
   if (!v.player || v.pend || v.darts.length) return null;
   const kind = turnAnimOf(v.player);
   if (kind === 'aucune' || kind === 'voyelles') return null;
-  return { key: `${g.id}:${s.visits.length}`, kind, color: colorOf(v.player), say: text => say(text), sound: k => sound(k) };
+  return { key: `${g.id}:${s.visits.length}`, kind, color: colorOf(v.player), say: (text, o) => say(text, o), sound: k => sound(k) };
 }
 
 // ------------------------------------------------------------------ morceaux communes aux deux mises en page

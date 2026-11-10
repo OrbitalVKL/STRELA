@@ -51,11 +51,11 @@ export function lastPlaces(state) {
 //   'serie' : 3 mauvaises volées d'affilée ou plus dans la manche (mauvaise = moins de 20 points, bust compris) ;
 //   'bust'  : bust ;
 //   'zero'  : volée à 0 point ;
-//   'low'   : volée sous 10 points.
+//   'low'   : volée sous 20 points (sous 10 jusqu'au lot 7.4 ; relevé au lot 7.5, demande de Guillaume).
 // Près de la fin (reste de départ de la volée sous 60), marquer peu est normal : seuls le bust et le 0 comptent, et la
 // volée ne compte ni pour ni contre une série.
 export const FLOP_BAD = 20;
-export const FLOP_LOW = 10;
+export const FLOP_LOW = 20;
 export const FLOP_SERIES = 3;
 export const FLOP_NEAR = 60;
 

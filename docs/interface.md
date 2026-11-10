@@ -543,6 +543,33 @@ l'APK dans home.js (scène `premier-lancement-apk`). Pas de service worker dans 
   on lance pendant, arrêt à la première fléchette, pas de reprise, choix relu après rechargement, rien quand les
   animations sont coupées).
 
+## Lot 7.5 : sons des animations, voix des personnages, moqueries
+
+- Demandes de Guillaume : un son pour la planète d'Angelina (comme la carabine de Patrick) ; des répliques plus beauf et
+  une voix d'homme pour HPV ; des grognements pour l'ours de Gilles (quand il se balade ou mange) ; rien pour l'étoile ;
+  Tsia qui marmonne des mots incompréhensibles « comme s'il avait trop bu » ; moqueries dès une volée sous 20.
+- Sons (feedback.js, réglage « Sons ») : outils `noise` (bruit blanc filtré), `growl` (dent de scie roulée à ~26 Hz,
+  passe-bas à 900 Hz pour passer sur un haut-parleur de téléphone), `ping`. L'ours : `bear-growl`, `bear-grunt`,
+  `bear-sniff`, `bear-scratch`, `bear-snore`, `bear-chomp` (mastication puis « mmmh »), calés sur chaque saynète
+  (turnfx.js › `bear`). La planète : `planet-orbit` (glissando qui chevrote pendant l'orbite), `planet-twinkle`
+  (tintements des étoiles), `planet-shoot` (souffle de l'étoile filante). Comme toute l'animation, ils s'arrêtent à la
+  première fléchette (minuteries annulées).
+- Voix (réglage « Annonces vocales ») : `say(texte, { style })`, styles `homme` et `ivre` (`VOICE_STYLES`), dits
+  **après** l'annonce en cours (ils ne la coupent pas). Web : voix française au nom d'homme si le téléphone en a une
+  (`MALE`), sinon la voix habituelle plus grave. APK : `Bridge.speakAs(texte, style)` → `Speech.speakAs` (file
+  d'attente `QUEUE_ADD`, voix Google `frb` / `frd` ou nom « male » / « -m00 » si présente, sinon hauteur 0,6 ; la voix
+  par défaut est remise à l'annonce suivante).
+- HPV : `TIE_LINES` réécrites (humour beauf : pétanque, barbecue, tournée, tongs…), voix `homme`.
+- Tsia : au début de chacune de ses volées (clé des voyelles), `SPEECH.drunk()` — 3 à 5 syllabes pâteuses
+  prononçables (jamais de consonne seule, que la voix épellerait) et une bribe compréhensible (« la cible elle
+  bouge »…) — voix `ivre` (lente, grave). Aussi à l'aperçu VOYELLES de la fiche.
+- Aperçu de la fiche joueur : avec sons et voix, selon les réglages.
+- Moqueries : `FLOP_LOW` passe de 10 à 20 (une volée de 10 à 19 points est moquée aussi) ; `FLOP_LINES` : 3 à 6 phrases
+  par cas (0, bas, bust, série), tirées au sort (`SPEECH.flop(kind, nom, valeur, r)`).
+- Tests : tests/animations.test.js (moqueries, voix pâteuse, styles ; chaque son rendu hors ligne et non muet ; vraie
+  appli avec voix simulée : l'ours grogne, la planète sonne, HPV parle grave, Tsia lentement), classement (sous 20),
+  annonces (moquerie du bust parmi les variantes), passerelle (`speakAs`).
+
 ## Pour le lot 4
 
 - Les écrans Historique et Stats lisent `store.games` (parties closes) ; la partie en cours est à part (`store.current`).

@@ -33,22 +33,24 @@ export function turnAnimOf(player) {
 
 /** Une phrase du bonhomme en costume-cravate (humour beauf demandé par Guillaume). */
 export const TIE_LINES = Object.freeze([
-  'Allez, on se détend, c\'est pas la NASA ici.',
-  'Moi je dis ça, je dis rien.',
-  'Petit point synergie : triple vingt et on n\'en parle plus.',
-  'Attention, ça va envoyer du pâté !',
-  'Patron, remettez-nous la même !',
-  'On n\'est pas là pour trier des lentilles.',
-  'Regarde et apprends, stagiaire.',
-  'La cravate, c\'est pour intimider la cible.',
-  'Je vais vous la faire à l\'ancienne.',
-  'Après ça, réunion au comptoir.',
-  'Attention les yeux, ça va piquer !',
-  'Le vingt, je le vise depuis le CE2.',
-  'C\'est pas le lancer qui compte, c\'est l\'apéro après.',
-  'J\'ai fait une école de commerce, moi.',
-  'Une fléchette, une cacahuète. C\'est la règle.',
-  'Ce soir, c\'est moi qui régale… ah non, c\'est le dernier.',
+  'Alors, on n\'est pas bien là ?',
+  'Bon, c\'est pas tout ça, mais y a la pétanque après.',
+  'Tu veux que je te montre comment on fait, petit ?',
+  'Moi, à ton âge, je mettais des cent quatre-vingts en tongs.',
+  'Allez hop, on remet une petite tournée, c\'est moi qui régale !',
+  'La fléchette, c\'est comme le barbecue : faut savoir allumer.',
+  'Je lance comme je conduis : à l\'instinct.',
+  'J\'ai pas mes lunettes, mais je le sens bien.',
+  'C\'est du lourd, mon gars. Du très lourd.',
+  'Elle est où la saucisse ? Y avait pas de saucisse ?',
+  'Ça, c\'est mon côté artiste.',
+  'Pastis à droite, fléchette à gauche. L\'équilibre.',
+  'Faut viser avec le cœur, pas avec les yeux.',
+  'Je suis comme le bon vin : je m\'améliore avec l\'apéro.',
+  'Attention, ça va faire des étincelles. Reculez les enfants !',
+  'Le triple vingt ? Je l\'ai inventé, le triple vingt.',
+  'T\'inquiète, j\'ai fait un stage de team building.',
+  'On rigole, on rigole, mais c\'est du sport de haut niveau.',
 ]);
 
 /** Saynètes de l'ours (une tirée au sort à chaque volée). */
@@ -98,10 +100,10 @@ export function syncTurnFx(info, animate, deps = {}) {
 }
 
 let previews = 0;
-/** Aperçu depuis la fiche joueur (lot 7.4) : part de l'avatar de la fiche, sans voix ni son. */
-export function previewTurnFx(kind, color) {
+/** Aperçu depuis la fiche joueur (lot 7.4) : part de l'avatar de la fiche ; lot 7.5 : avec sons et voix (réglages). */
+export function previewTurnFx(kind, color, { say = null, sound = null } = {}) {
   if (!PLAYERS[kind]) { stopTurnFx(true); return null; }
-  return syncTurnFx({ key: `apercu:${++previews}`, kind, color: `var(--av-${Number.isInteger(color) ? color : 7})`, fromSel: '#app #preview .av' }, true);
+  return syncTurnFx({ key: `apercu:${++previews}`, kind, color: `var(--av-${Number.isInteger(color) ? color : 7})`, fromSel: '#app #preview .av', say, sound }, true);
 }
 
 /** Hors de l'écran de jeu : l'animation d'une volée s'arrête (l'aperçu de la fiche joueur continue). */
@@ -217,6 +219,15 @@ function bear(ctx, entry) {
     { transform: 'rotate(0deg) translateY(-6px)' }, { transform: 'rotate(-9deg) translateY(0)' },
   ], { duration: 520, delay, iterations: Math.max(1, Math.round(duration / 520)), fill: 'none' });
   const midY = clamp(H * 0.42, 90, H - S - 40);
+  // Lot 7.5 : grognements et bruits de l'ours (si les sons sont sur OUI), calés sur la saynète.
+  const sfx = (ms, k) => { if (typeof ctx.info.sound === 'function') ctx.later(ms, () => ctx.info.sound(k)); };
+  ({
+    balade: [[350, 'bear-growl'], [1500, 'bear-grunt'], [2500, 'bear-growl']],
+    renifle: [[300, 'bear-grunt'], [1050, 'bear-sniff'], [1850, 'bear-grunt'], [2600, 'bear-growl']],
+    gratte: [[300, 'bear-growl'], [1050, 'bear-scratch'], [1650, 'bear-scratch'], [2550, 'bear-grunt']],
+    dodo: [[300, 'bear-grunt'], [1300, 'bear-snore'], [2950, 'bear-grunt']],
+    attrape: [[650, 'bear-growl'], [1450, 'bear-chomp'], [2700, 'bear-grunt']],
+  })[scene].forEach(([ms, k]) => sfx(ms, k));
 
   if (scene === 'balade') {
     ctx.anim(outer, [
@@ -346,9 +357,9 @@ function suit(ctx, entry) {
     { transform: T(bx, fy + 2, 'scale(0.4)'), opacity: 0 }, { transform: T(bx, fy + 2), opacity: 1, offset: 0.08 },
     { transform: T(bx, fy + 2), opacity: 1, offset: 0.9 }, { transform: T(bx, fy + 2), opacity: 0 },
   ], { duration: 2900, delay: 1050, easing: 'ease-out' });
-  // La voix de l'appli lit la réplique (si les annonces vocales sont sur OUI) : un peu après le début, pour ne pas couper
-  // l'annonce de la volée précédente.
-  if (typeof info.say === 'function') ctx.later(1250, () => info.say(line));
+  // La voix de l'appli lit la réplique (si les annonces vocales sont sur OUI), voix d'homme (lot 7.5), après l'annonce
+  // de la volée précédente (elle ne la coupe pas).
+  if (typeof info.say === 'function') ctx.later(900, () => info.say(line, { style: 'homme' }));
 }
 
 // ------------------------------------------------------------------ la carabine (Patrick)
@@ -437,6 +448,11 @@ function planet(ctx) {
   ctx.anim(pl, frames, { duration: 3400, easing: 'linear' });
   ctx.anim(pl.firstChild, [{ transform: 'rotate(-14deg)' }, { transform: 'rotate(14deg)' }, { transform: 'rotate(-14deg)' }],
     { duration: 1100, delay: START, iterations: 2, easing: 'ease-in-out', fill: 'none' });
+  // Lot 7.5 : son d'orbite (glissando qui chevrote), tintements des étoiles, souffle de l'étoile filante.
+  if (typeof ctx.info.sound === 'function') {
+    [[START, 'planet-orbit'], [900, 'planet-twinkle'], [1550, 'planet-twinkle'], [2150, 'planet-shoot']]
+      .forEach(([ms, k]) => ctx.later(ms, () => ctx.info.sound(k)));
+  }
   // Étoiles qui scintillent autour.
   for (let i = 0; i < 9; i++) {
     const a = (i / 9) * Math.PI * 2 + Math.random() * 0.5;
