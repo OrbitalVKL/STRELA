@@ -39,8 +39,8 @@ describe('maquette', () => {
     assert.equal(computeState(config, simulateGame(config, new Array(8).fill(0.3), 1)).status, 'finished');
   });
 
-  test('banque d’avatars : 40 pictogrammes (carabine comprise), noms en français, SVG monochrome, rangés par thème', () => {
-    assert.equal(ICON_KEYS.length, 40);
+  test('banque d’avatars : 41 pictogrammes (carabine et cravate comprises), noms en français, SVG monochrome, rangés par thème', () => {
+    assert.equal(ICON_KEYS.length, 41);
     assert.ok(ICONS.carabine, 'carabine');
     const grouped = ICON_GROUPS.flatMap(g => g.keys);
     assert.deepEqual([...grouped].sort(), [...ICON_KEYS].sort(), 'chaque pictogramme dans un seul groupe');

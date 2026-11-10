@@ -6,7 +6,8 @@
 // enregistrements. Ajouter une version = ajouter une fonction à la fin de la liste, sans toucher aux précédentes.
 //
 // Magasins (forme des données : docs/interface.md, « Enregistrement ») :
-//   players   { id, name, avatar: { kind, icon?, color, photo? }, archived, checkout: { double, avoidBull } (v2, lot 4) }
+//   players   { id, name, avatar: { kind, icon?, color, photo? }, archived, checkout: { double, avoidBull } (v2, lot 4),
+//             turnAnim? (lot 7.4, facultatif : animation de tour, valeurs TURN_ANIM_VALUES) }
 //   games     { id, startedAt, endedAt, config, darts[], validated, abandoned, drinks? (lot 7) }
 //             darts[] : { segment, multiplier, pos? } ; la partie en cours est celle dont endedAt vaut null ;
 //             config.playOn (lot 7, jouer jusqu'au bout) et drinks { [joueur]: [instants] } facultatifs : aucune migration
@@ -175,14 +176,20 @@ export const closedRecord = (g, abandoned, endedAt) => withDrinks(g, {
 });
 
 /**
- * Joueur tel qu'enregistré : rien d'autre que { id, name, avatar, archived, checkout } (la photo seulement si
+ * Joueur tel qu'enregistré : rien d'autre que { id, name, avatar, archived, checkout, turnAnim? } (la photo seulement si
  * l'avatar en est une ; préférences de finition complétées par leurs valeurs par défaut).
  */
 export function playerRecord(p) {
   const av = { ...(p.avatar || {}) };
   if (av.kind !== 'photo') delete av.photo;
-  return { id: p.id, name: p.name, avatar: av, archived: !!p.archived, checkout: checkoutPrefs(p.checkout) };
+  const rec = { id: p.id, name: p.name, avatar: av, archived: !!p.archived, checkout: checkoutPrefs(p.checkout) };
+  // Lot 7.4 : animation de tour, champ facultatif (absent = choix par défaut, voir src/ui/turnfx.js) ; aucune migration.
+  if (TURN_ANIM_VALUES.includes(p.turnAnim)) rec.turnAnim = p.turnAnim;
+  return rec;
 }
+
+/** Valeurs permises de `turnAnim` (lot 7.4) ; « aucune » est gardée pour qu'un choix explicite l'emporte sur le défaut. */
+export const TURN_ANIM_VALUES = Object.freeze(['aucune', 'ours', 'cravate', 'carabine', 'planete', 'etoile', 'voyelles']);
 
 /**
  * Opérations de la suppression d'un joueur (résultat de deletePlayer() du moteur) : fiche retirée, parties

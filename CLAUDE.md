@@ -64,6 +64,8 @@ src/ui/                   interface (docs/interface.md) : app.js, nav.js, store.
                           mock.js + maquette.js (données fictives : sommaire ?maquette et tests seulement)
 src/ui/theme.js           palette (source de vérité des couleurs), contraste
 src/ui/vowels.js          voyelles qui tombent quand Tsia lance (lot 7)
+src/ui/turnfx.js          animations de tour par joueur (lot 7.4) : ours, cravate, carabine, planète, étoile rouge
+tools/animations.mjs      captures des animations de tour figées à plusieurs instants (lot 7.4)
 src/ui/sheet.js           fiche de score : modèle, dessin sur canvas (demi-page A5 paysage ou A4, lot 7.3), PDF (lot 7.1) ; screens/printsheet.js : boutons et envoi
 src/engine/ranking.js     classement, joueur en tête, derniers (tournée), célébrations des nuls (lot 7)
 src/engine/alcohol.js     alcoolémie estimée à partir des verres (lot 7)
@@ -141,9 +143,22 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 7.1 | Célébrations affichées jusqu'à un appui, verres dans l'historique de la partie, fiche de score en image et PDF (v0.7.1) — **fait, en attente de validation sur le Pixel** |
 | 7.2 | Verres affichés « [verre] x3 » partout, sans équivalent en alcool (v0.7.2) — **fait, en attente de validation sur le Pixel** |
 | 7.3 | Fiche de score allégée (vainqueur, classement avec verres, tournée, scores), demi-page A4 paysage si la partie est courte (v0.7.3) — **fait, en attente de validation sur le Pixel** |
+| 7.4 | Animations de tour par joueur (fiche joueur) : ours, costume-cravate, carabine, planète, étoile rouge ; pictogramme cravate (v0.7.4) — **fait, en attente de validation sur le Pixel** |
 | 8 | Recette |
 
-## État (fin du lot 7.3)
+## État (fin du lot 7.4)
+
+- Version 0.7.4. Base v2, sauvegarde v1 : **aucune migration** (champ facultatif `turnAnim` du joueur).
+- Animations de tour (détail : docs/interface.md « Lot 7.4 ») : choix dans la fiche joueur (aperçu à l'appui), jouées
+  au début de chaque volée par-dessus le jeu (`src/ui/turnfx.js`, calque `#tfx`), non bloquantes, arrêtées à la première
+  fléchette, jamais pendant une célébration, coupées avec le réglage Animations. Défaut : voyelles pour Tsia, rien
+  sinon. Pictogramme **cravate** (41 dans la banque). Son `shot` (carabine). L'étoile rouge prend `--red` en jeu
+  (exception à la DA demandée par Guillaume).
+- À régler par Guillaume sur le Pixel : choisir l'animation dans la fiche de Gilles (OURS), HPV (CRAVATE), Patrick
+  (CARABINE), Angelina (PLANÈTE) et la sienne (ÉTOILE ROUGE) ; les pseudos ne déclenchent rien d'eux-mêmes (sauf Tsia).
+- Ouvert : répliques de HPV à compléter si Guillaume en donne (`TIE_LINES`) ; toujours les points ouverts du lot 7.3.
+
+## État (fin du lot 7.3, pour mémoire)
 
 - Version 0.7.3. Fiche de score allégée : vainqueur, classement (place, joueur, manches si plusieurs, verres), tournée,
   scores de chaque manche ; plus de titre, de légendes ni de pied de page. Demi-feuille A4 paysage (A5) si la partie

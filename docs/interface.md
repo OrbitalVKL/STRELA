@@ -512,6 +512,37 @@ l'APK dans home.js (scène `premier-lancement-apk`). Pas de service worker dans 
 - Pour imprimer deux fiches par feuille A4 : régler « 2 pages par feuille » dans l'appli d'impression, ou imprimer
   sur du papier A5.
 
+## Lot 7.4 : animations de tour
+
+- Demande de Guillaume : une animation propre à certains joueurs au début de leur tour, « comme Tsia quand il perd les
+  voyelles » — ours de Gilles qui se balade, bonhomme en costume-cravate pour HPV (humour beauf), carabine de Patrick
+  qui touche la cible, planète d'Angelina qui fait des tours dans les étoiles, étoile rouge de Guillaume qui brille ; et
+  une cravate dans la banque d'avatars.
+- Choix de Guillaume : **réglage dans la fiche joueur** (section « Animation de tour » : AUCUNE, OURS, CRAVATE,
+  CARABINE, PLANÈTE, ÉTOILE ROUGE, VOYELLES ; un appui choisit et montre un aperçu) ; **à chaque volée** ; **par-dessus
+  le jeu, sans bloquer** ; cravate variante A (cravate seule, rayée).
+- Données : champ facultatif `turnAnim` du joueur (`TURN_ANIM_VALUES`, db.js) gardé par `playerRecord`, donc par la base
+  et la sauvegarde ; **aucune migration**. Absent = défaut : « voyelles » pour le pseudo Tsia (comportement du lot 7),
+  « aucune » sinon. La fiche n'écrit le champ que si l'on a choisi (le défaut suit le pseudo).
+- `src/ui/turnfx.js` : `turnAnimOf(joueur)`, `syncTurnFx(info, animate)` appelé après chaque rendu de l'écran de jeu
+  (app.js) et à la fermeture d'une célébration (game.js › `endCele`) ; `turnFx()` (game.js) donne la volée qui commence
+  (aucune fléchette, pas de célébration, pas de volée en attente). Une fois par volée (clé `partie:rang`), arrêtée (fondu
+  de 160 ms) à la première fléchette, retirée en quittant l'écran de jeu, rien si Animations est sur NON ou si le
+  téléphone demande moins d'animations. Calque `#tfx` fixe hors de `#app`, `pointer-events: none`, sous le mode nuit.
+  Web Animations API ; pictogrammes au texte de l'écran avec un liseré du fond (lisibles sur la cible).
+- Les cinq : **ours** (5 saynètes tirées au sort sans répéter : balade, renifle et tapote la cible, se gratte, fait
+  dodo avec des Z, attrape une fléchette au vol ; ~3,5 s) ; **cravate** (bonhomme qui entre, ajuste sa cravate, bulle
+  avec une réplique de `TIE_LINES`, lue par la voix de l'appli à 1,25 s si les annonces vocales sont sur OUI) ;
+  **carabine** (vient du bord opposé à la cible, viseur qui se cale sur le centre de la cible de saisie ou de la petite
+  cible, coup à 1,2 s avec le son `shot`, trou et fêlures aux couleurs de la cible, « MOUCHE ! ») ; **planète** (deux
+  tours d'orbite en ellipse, étoiles qui scintillent, étoile filante) ; **étoile rouge** (voyant qui s'allume trois
+  fois, halos, reflet, éclats aux pointes). Exception à la DA : l'étoile prend `--red` en jeu (demande de Guillaume).
+- Sommaire : « 2 · Fiche : animation de tour ». Captures : `node tools/animations.mjs [--taille=914x410] [--clair]`
+  (partie à cinq joueurs, chaque animation figée à 0,5 / 1,3 / 2,1 s → `captures/anim-*.png`).
+- Tests : tests/animations.test.js (choix, défaut Tsia, base et sauvegarde ; vraie appli : jouée pour le bon joueur,
+  on lance pendant, arrêt à la première fléchette, pas de reprise, choix relu après rechargement, rien quand les
+  animations sont coupées).
+
 ## Pour le lot 4
 
 - Les écrans Historique et Stats lisent `store.games` (parties closes) ; la partie en cours est à part (`store.current`).

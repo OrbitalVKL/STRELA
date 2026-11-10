@@ -229,6 +229,8 @@ export const SCENES = {
   'banque-carabine': () => { store.draft = null; Object.assign(openDraft('p2').avatar, { kind: 'icon', icon: 'carabine', color: 15 }); return '#/avatars'; },
   'fiche-fonds': () => { store.draft = null; Object.assign(openDraft('p3').avatar, { color: 8 }); return '#/joueur/p3'; },
   'fiche-edit': () => { store.draft = null; return '#/joueur/p2'; },
+  // Lot 7.4 : animation de tour choisie (un appui sur un choix la montre, comme en jeu)
+  'fiche-animation': () => { store.draft = null; Object.assign(openDraft('p2'), { turnAnim: 'cravate' }); return '#/joueur/p2'; },
   suppression: () => { store.current = null; store.draft = null; Object.assign(openDraft('p4'), { del: 'ask', reveal: true }); return '#/joueur/p4'; },
   'suppression-refus': () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S5'); store.draft = null; Object.assign(openDraft('p1'), { del: 'refused', reveal: true }); return '#/joueur/p1'; },
   'joueur-supprime': () => {
@@ -316,12 +318,13 @@ export function sommaire() {
       ${L('fiche-photo', '2 · Fiche : avatar photo')}
       ${L('photo-erreur', '2 · Fiche : photo refusée', 'trop lourde')}
       ${L('fiche-finition', '2 · Fiche : finition', 'D16, bull évité')}
+      ${L('fiche-animation', '2 · Fiche : animation de tour', 'appui = aperçu')}
       ${L('recadrage', '2 · Recadrage de la photo', 'glisser, pincer')}
       ${L('recadrage-zoom', '2 · Recadrage : zoom ×2,5')}
       ${L('suppression', '2 · Supprimer un joueur', 'confirmation')}
       ${L('suppression-refus', '2 · Supprimer pendant une partie', 'refusé')}
       ${L('joueur-supprime', '8 · Partie avec un joueur supprimé', 'Sacha supprimé')}
-      ${H('#/avatars', '3 · Banque d\'avatars', '40 icônes par thème')}
+      ${H('#/avatars', '3 · Banque d\'avatars', '41 icônes par thème')}
       ${L('banque-carabine', '3 · Banque : carabine choisie', 'fond bordeaux')}
       ${L('fiche-fonds', '2 · Fiche : 16 fonds', 'fond lavande')}
       ${H('#/nouvelle', '4 · Nouvelle partie', 'derniers réglages')}

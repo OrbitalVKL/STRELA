@@ -1,4 +1,4 @@
-// Strela — avatars : banque de 40 pictogrammes originaux (dessinés pour Strela, DA « console Soyuz » :
+// Strela — avatars : banque de 41 pictogrammes (40 au lot 6, cravate au lot 7.4) originaux (dessinés pour Strela, DA « console Soyuz » :
 // traits droits, angles vifs, monochromes), rangés par thème, 16 fonds sourds, initiales par défaut.
 // Grille 48 × 48, trait de 3 (lisible de 40 px à 96 px). Tout est en `currentColor`.
 //
@@ -58,6 +58,8 @@ export const ICONS = Object.freeze({
   aigle: ['AIGLE', `${P('M24 15L4 9L8 17L4 19L10 25L6 28L16 31L24 27L32 31L42 28L38 25L44 19L40 17L44 9Z')}${P('M20 31L18 43H30L28 31', ' stroke-width="2.5"')}${F('M21 5H27V12H21Z')}${F('M27 8H31L27 11Z')}`],
   sanglier: ['SANGLIER', `${P('M4 10L14 16H34L44 10L40 24L34 32H14L8 24Z')}${P('M17 29H31V41H17Z')}${F('M20 34H23V37H20ZM25 34H28V37H25Z')}${P('M16 38L9 28M32 38L39 28')}${P('M17 22V23M31 22V23', ' stroke-width="4"')}`],
   belier: ['BÉLIER', `${P('M17 9H6V25H15V17H11M31 9H42V25H33V17H37')}${P('M17 7H31L33 24L28 42H20L15 24Z')}${P('M20 22V23M28 22V23', ' stroke-width="4"')}${P('M21 36H27', ' stroke-width="2.5"')}`],
+  // Lot 7.4 : la cravate (animation de tour « cravate »).
+  cravate: ['CRAVATE', `${F('M20 5H28L26 13H22Z')}${P('M22 13L18 34L24 43L30 34L26 13')}${P('M21 23L27 19M20 30L28 25', ' stroke-width="2"')}`],
   verre: ['VERRE', `${P('M5 6H43L24 26Z')}${P('M24 26V42M13 43H35')}${P('M15 15H33', ' stroke-width="2"')}${F('M28 9H33V14H28Z')}${P('M31 11L38 3', ' stroke-width="2"')}`],
 });
 
@@ -68,7 +70,7 @@ export const ICON_GROUPS = Object.freeze([
   ['Tir et jeu', ['flechette', 'cible', 'carabine', 'viseur', 'arc', 'medaille', 'de', 'bille', 'pique', 'coeur', 'trefle', 'couronne']],
   ['Espace', ['rocket', 'spoutnik', 'satellite', 'casque', 'antenne', 'planete', 'lune', 'etoile']],
   ['Animaux', ['renard', 'loup', 'ours', 'sanglier', 'cerf', 'belier', 'lievre', 'chat', 'hibou', 'aigle', 'corbeau', 'poisson', 'tortue']],
-  ['Bar et objets', ['chope', 'verre', 'ancre', 'boussole', 'montagne', 'flamme', 'eclair']],
+  ['Bar et objets', ['chope', 'verre', 'cravate', 'ancre', 'boussole', 'montagne', 'flamme', 'eclair']],
 ].map(([title, keys]) => Object.freeze({ title, keys: Object.freeze(keys) })));
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);

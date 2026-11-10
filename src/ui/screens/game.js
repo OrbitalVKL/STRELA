@@ -25,7 +25,7 @@ import { themeControls, storageBanner } from './settings.js';
 import { gameLog, selectLogCell, selectedLogCell } from './history.js';
 import { sound, dartSound, say, SPEECH } from '../feedback.js';
 import { correctDart, locateDart, visitStart, CORRECT_ERRORS } from '../../engine/correct.js';
-import { isTsia } from '../vowels.js';
+import { turnAnimOf, syncTurnFx } from '../turnfx.js';
 import { leader, flop, lastPlaces } from '../../engine/ranking.js';
 
 export const ANNOUNCE_MS = 800;
@@ -89,8 +89,22 @@ export function vowelKey() {
   const s = currentState();
   if (s.status === 'finished') return null;
   const v = view();
-  if (!v.player || !isTsia(v.player.name)) return null;
+  if (!v.player || turnAnimOf(v.player) !== 'voyelles') return null;
   return `${g.id}:${v.pend ? s.visits.length - 1 : s.visits.length}`;
+}
+
+/** Animation de tour (lot 7.4, turnfx.js) : la volée qui commence (aucune fléchette, pas de célébration ouverte), avec
+ *  l'animation du joueur, sinon null. Les voyelles de Tsia sont à part (vowelKey). */
+export function turnFx() {
+  const g = store.current;
+  if (!g || g.ui.frozen || g.ui.cele) return null;
+  const s = currentState();
+  if (s.status === 'finished') return null;
+  const v = view();
+  if (!v.player || v.pend || v.darts.length) return null;
+  const kind = turnAnimOf(v.player);
+  if (kind === 'aucune' || kind === 'voyelles') return null;
+  return { key: `${g.id}:${s.visits.length}`, kind, color: colorOf(v.player), say: text => say(text), sound: k => sound(k) };
 }
 
 // ------------------------------------------------------------------ morceaux communes aux deux mises en page
@@ -657,6 +671,8 @@ function endCele() {
   const g = store.current;
   if (g) g.ui.cele = null;
   document.querySelector('.cele')?.remove();
+  // Lot 7.4 : l'animation de tour attendait la fermeture du bandeau.
+  if (location.hash === '#/jeu') syncTurnFx(turnFx(), animationsOn());
 }
 
 // Acquittement : l'appui est arrêté avant l'appli (phase de capture sur window), puis son relâcher et son clic aussi ;

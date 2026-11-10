@@ -2,13 +2,14 @@
 // Archiver : le joueur n'est plus proposé, ses stats restent ; RÉACTIVER (liste ou fiche) le remet. Supprimer : il
 // disparaît avec ses stats ; ses parties avec d'autres restent, où il devient « Joueur supprimé » (src/engine/players.js).
 // Photo : appareil photo ou galerie (sélecteur d'images d'Android), puis recadrage carré (screens/photo.js).
-import { store, newId, inCurrentGame, deletionPreview, deletePlayer, savePlayer, setArchived } from '../store.js';
+import { store, newId, inCurrentGame, deletionPreview, deletePlayer, savePlayer, setArchived, animationsOn } from '../store.js';
 import { esc, ico, topBar, avg, plural } from '../dom.js';
 import { avatarHtml, iconSvg, ICONS, ICON_KEYS, ICON_GROUPS, AVATAR_COLOR_NAMES, colorIndex } from '../avatars.js';
 import { playerStats } from '../../engine/stats.js';
 import { checkoutPrefs, suggestCheckout } from '../../engine/checkout.js';
 import { formatDart } from '../../engine/darts.js';
 import { go, goBackTo, refresh } from '../nav.js';
+import { TURN_ANIMS, turnAnimOf, previewTurnFx } from '../turnfx.js';
 
 export const NAME_MAX = 40;
 
@@ -55,6 +56,7 @@ export function openDraft(id) {
     avatar: p ? { ...p.avatar } : { kind: 'initials', color: freeColor },
     archived: p ? !!p.archived : false,
     checkout: checkoutPrefs(p && p.checkout), // finition conseillée en jeu (lot 4)
+    turnAnim: p ? p.turnAnim : undefined, // animation de tour (lot 7.4) ; absente = choix par défaut (voyelles pour Tsia)
     confirm: false,
     del: null, // null | 'ask' (confirmation) | 'refused' (joueur de la partie en cours)
     photoError: '', // photo trop lourde ou illisible
@@ -112,6 +114,8 @@ export function playerForm(id) {
       <div class="swatches">${AVATAR_COLOR_NAMES.map((n, i) => `<button type="button" class="swatch" style="background:var(--av-${i})" data-act="avcolor" data-arg="${i}" aria-pressed="${d.avatar.color === i}" aria-label="${n}"><span data-shrink>${n}</span></button>`).join('')}</div>
       <div class="sec">Finition</div>
       ${finishHtml(d)}
+      <div class="sec">Animation de tour</div>
+      ${turnAnimHtml(d)}
       ${archiveBlock || deleteBlock ? `<div class="sec">Archiver ou supprimer</div><div class="btns">${archiveBlock}${deleteBlock}</div>` : ''}
     </div>
     <div class="dock" data-layer><button type="button" class="btn primary" data-act="save-player">${isNew ? 'CRÉER LE JOUEUR' : 'ENREGISTRER'}</button></div>
@@ -134,6 +138,22 @@ function finishHtml(d) {
       <div class="toggle"><button type="button" data-act="fin-bull" data-arg="1" aria-pressed="${c.avoidBull}">OUI</button><button type="button" data-act="fin-bull" data-arg="0" aria-pressed="${!c.avoidBull}">NON</button></div></div>
     <p class="note">En jeu, la finition conseillée en tient compte. Exemples (sortie double) :</p>
     <div class="fin-ex">${ex}</div>`;
+}
+
+/** Animation de tour (lot 7.4) : jouée au début de chacune de ses volées ; un appui la choisit et la montre. */
+function turnAnimHtml(d) {
+  const cur = turnAnimOf({ name: d.name, turnAnim: d.turnAnim });
+  const btn = a => {
+    const pic = a.icon ? iconSvg(a.icon) : `<span class="glyph" aria-hidden="true">${a.key === 'voyelles' ? 'A·E' : '—'}</span>`;
+    return `<button type="button" data-act="turn-anim" data-arg="${a.key}" aria-pressed="${cur === a.key}">${pic}<span>${a.label}</span></button>`;
+  };
+  const note = cur === 'voyelles'
+    ? 'Les voyelles de l\'écran tombent pendant toute sa volée et reviennent pour le joueur suivant.'
+    : cur === 'aucune'
+      ? 'Rien de spécial au début de ses volées.'
+      : `Au début de chacune de ses volées, par-dessus le jeu : on peut lancer pendant, elle s'arrête à la première fléchette.${animationsOn() ? '' : ' Animations coupées dans les Réglages : elle ne se jouera pas.'}`;
+  return `<div class="agrid" role="group" aria-label="Animation de tour">${TURN_ANIMS.map(btn).join('')}</div>
+    <p class="note">${note}</p>`;
 }
 
 /** SUPPRIMER, sa confirmation (conséquences chiffrées) ou le refus pendant une partie. */
@@ -163,7 +183,7 @@ function deleteHtml(d) {
 }
 
 // ------------------------------------------------------------------ banque d'avatars
-// Lot 6 : 40 pictogrammes rangés par thème (ICON_GROUPS), sur le fond choisi ; l'écran défile.
+// Lot 6 : 40 pictogrammes (41 avec la cravate, lot 7.4) rangés par thème (ICON_GROUPS), sur le fond choisi ; l'écran défile.
 export function avatarBank() {
   const d = store.draft || { name: 'Exemple', avatar: { kind: 'icon', icon: 'flechette', color: 0 }, forId: null };
   const back = d.forId ? `#/joueur/${d.forId}` : '#/';
@@ -191,6 +211,11 @@ export const actions = {
   },
   avcolor(i) { store.draft.avatar.color = Number(i); refresh(); },
   'fin-double'(n) { store.draft.checkout = checkoutPrefs({ ...store.draft.checkout, double: Number(n) }); refresh(); },
+  'turn-anim'(k) {
+    store.draft.turnAnim = k;
+    refresh();
+    if (animationsOn()) previewTurnFx(k, store.draft.avatar.color); // un aperçu, comme en jeu
+  },
   'fin-bull'(v) { store.draft.checkout = checkoutPrefs({ ...store.draft.checkout, avoidBull: v === '1' }); refresh(); },
   'open-bank'() { go('#/avatars'); },
   'pick-icon'(key) {
@@ -233,7 +258,10 @@ export const actions = {
     if (avatar.kind !== 'photo') delete avatar.photo;
     const old = d.id && store.players.find(p => p.id === d.id);
     const checkout = checkoutPrefs(d.checkout);
-    savePlayer(old ? { ...old, name, avatar, checkout } : { id: newId('p'), name, avatar, archived: false, checkout });
+    const turnAnim = d.turnAnim; // seulement si on l'a choisie (sinon le défaut suit le pseudo)
+    const rec = old ? { ...old, name, avatar, checkout } : { id: newId('p'), name, avatar, archived: false, checkout };
+    if (turnAnim) rec.turnAnim = turnAnim; else delete rec.turnAnim;
+    savePlayer(rec);
     store.draft = null;
     go('#/joueurs');
   },

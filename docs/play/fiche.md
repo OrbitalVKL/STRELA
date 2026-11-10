@@ -37,7 +37,7 @@ LES RÈGLES, SANS Y PENSER
 • Célébrations discrètes pour les 100, 140 et 180, et pour les finitions.
 
 JOUEURS ET STATISTIQUES
-• Chaque joueur a son pseudo et son avatar : initiales, photo recadrée ou l'un des 40 pictogrammes dessinés pour Strela, sur l'un de 16 fonds.
+• Chaque joueur a son pseudo et son avatar : initiales, photo recadrée ou l'un des 41 pictogrammes dessinés pour Strela, sur l'un de 16 fonds.
 • Moyenne sur 3 fléchettes, 9 premières, taux de finition et de doubles, meilleures finitions, 100+, 140+, 180.
 • Face-à-face entre deux joueurs, historique complet partie par partie et volée par volée.
 • Une partie interrompue reprend exactement où elle en était.
