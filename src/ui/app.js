@@ -22,6 +22,7 @@ import { handleBack, backHandled } from './back.js';
 import { isApk, nativeBackHandled, hasUpdater, call } from './native.js';
 import { aboutScreen, actions as aboutActions } from './screens/about.js';
 import { actions as sheetActions } from './screens/printsheet.js';
+import { soireeScreen, actions as soireeActions } from './screens/soiree.js';
 
 const ROUTES = [
   [/^\/?$/, home],
@@ -39,11 +40,12 @@ const ROUTES = [
   [/^\/reglages$/, settingsScreen],
   [/^\/recadrage$/, cropScreen],
   [/^\/apropos$/, aboutScreen],
+  [/^\/soiree$/, soireeScreen],
 ];
 
 const ACTIONS = {
   ...playerActions, ...newGameActions, ...gameActions, ...resultActions,
-  ...statsActions, ...settingsActions, ...historyActions, ...photoActions, ...aboutActions, ...sheetActions,
+  ...statsActions, ...settingsActions, ...historyActions, ...photoActions, ...aboutActions, ...sheetActions, ...soireeActions,
 };
 const INPUTS = { ...playerInputs };
 

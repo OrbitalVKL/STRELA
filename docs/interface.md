@@ -570,6 +570,60 @@ l'APK dans home.js (scène `premier-lancement-apk`). Pas de service worker dans 
   appli avec voix simulée : l'ours grogne, la planète sonne, HPV parle grave, Tsia lentement), classement (sous 20),
   annonces (moquerie du bust parmi les variantes), passerelle (`speakAs`).
 
+## Lot 7.6 : tirage revu, bande du tour, soirée, bouton des verres
+
+- Demandes de Guillaume (12/11/2026) : vérifier le tirage au sort des joueurs ; afficher le numéro de « manche » en cours
+  (compris comme le **tour** : la manche était déjà au bandeau) ; voir où en est le tour par rapport au premier qui
+  commence ; un **mode soirée** (joueurs de la soirée, verres qui continuent d'une partie à l'autre, joueurs ajoutés en
+  cours de soirée) ; un moyen d'ajouter un verre en partie sans passer par la pause. Plus tard : une animation par
+  pictogramme d'avatar, toutes différentes (pas faite, notée au plan).
+- **Tirage** : `shuffled()` (Fisher-Yates, hasard du téléphone) était juste et déjà testé (soiree.test.js). Ce qui
+  clochait : la REVANCHE ne retirait jamais au sort (elle décalait l'ordre tiré d'un cran). La partie note maintenant
+  `shuffled: true` ; la REVANCHE d'une partie tirée tire de nouveau (« ORDRE TIRÉ AU SORT » sous le bouton). À la
+  Nouvelle partie, en « Tiré au sort », la liste montre « ? » au lieu des rangs et n'a plus les flèches (l'ordre ne
+  compte pas). L'ordre tiré se voit dans la bande du tour.
+- **Bande du tour** (game.js › `roundStrip`, portrait et paysage, entre les cases et la bande des autres) : « TOUR n »
+  (n = ligne du tableau de la partie, `roundOf`), puis tous les joueurs dans l'ordre du tour à partir du premier de la
+  manche (`legStarter`) : plein = a lancé ce tour-ci, encadré = lance, filet = à lancer, barré = a fini (jouer jusqu'au
+  bout). « A lancé » = autant de volées dans la manche que le numéro du tour (juste même quand des joueurs sont sautés).
+  « ENCORE n » / « DERNIER ». Paliers fit1…fit4 (`+n`, puis rien, puis le bouton verre sans « +1 », puis « T5 »).
+  Solo : « TOUR n » et le bouton verre seulement. Petit écran (≤ 680 px de haut) : plus basse ; ≤ 380 px de large,
+  cachée pendant qu'une volée attend VALIDER (le pavé garde sa place).
+- **Bouton verre** (au bout de la bande du tour, « [verre] +1 ») : panneau « Verres » (`ui.drinks`, `drinksSheet`) avec
+  − / + VERRE pour chaque joueur, le joueur qui lance en premier ; fermé par ✕, RETOUR AU JEU ou le retour d'Android
+  (`drinks-close` dans `CLOSERS`). Le pavé ne réagit pas tant qu'il est ouvert. Les verres restent aussi au menu pause.
+- **Soirée** (`#/soiree`, screens/soiree.js ; accueil : DÉBUTER UNE SOIRÉE, puis SOIRÉE EN COURS) :
+  - Enregistrée dans les réglages, clé `soiree` : `{ id, startedAt, players, drinks }` (`drinks` : verres pris hors
+    partie, `{ t }`). Effacée à TERMINER LA SOIRÉE. Pas dans la sauvegarde JSON (état passager) ; les parties, elles,
+    y gardent leurs champs.
+  - Chaque partie lancée pendant la soirée reçoit `soiree` (identifiant) et `drinksBefore` (`{ joueur: verres de la
+    soirée avant la partie }`, entiers > 0). Tout ce qui montre les verres d'une partie compte `drinksBefore` +
+    verres de la partie (`gameDrinks`, `gameDrinking` ; `drinksTimeline(…, before)` pour l'historique et la fiche de
+    score) : le cumul reste juste même après la fin de la soirée. Aucune migration.
+  - Total de la soirée d'un joueur (`soireeDrinks`) = verres hors partie + verres de chaque partie de la soirée.
+  - Joueurs : choisis au début (proposés : ceux de la dernière partie) ; ajoutés à l'écran Soirée, ou en les mettant
+    dans une nouvelle partie (`startGame` › `joinSoiree`) ; ✕ retire de la soirée (les verres restent comptés).
+    Nouvelle partie : les joueurs de la soirée sont proposés d'office.
+  - Écran Soirée : − / + VERRE par joueur. Le + va dans la partie en cours si elle est de la soirée et que le joueur y
+    joue, sinon hors partie. Le − retire le dernier verre : de la partie en cours, sinon hors partie, sinon de sa
+    dernière partie de la soirée (correction d'un oubli).
+  - Partie sans fléchette rangée (donc effacée) : ses verres passent hors partie, rien n'est perdu. SUPPRIMER LA
+    PARTIE (partie d'essai) efface ses verres avec elle.
+- **Volée classée** (2e message de Guillaume) : au résultat d'une volée (en attente de VALIDER, bust compris), un
+  bandeau sous le reste dit si elle est parmi les 3 meilleures (vidéo inverse, ▲) ou les 3 pires (filet, ▼) de la
+  soirée — toutes les volées des parties de la soirée — ou de la partie hors soirée. `ranking.js › visitStanding` :
+  rang = 1 + volées strictement meilleures (ou pires), donc partagé à égalité ; points = `scored` (bust = 0) ; rien
+  avant 9 volées en tout (`VISIT_RANK_MIN`) ni si la volée est à la fois parmi les 3 meilleures et les 3 pires.
+  Paliers : « VOLÉE » retiré, puis « · SOIRÉE ». Le grand reste rapetisse d'autant (`.rest.ranked`).
+- **Pavé S / D / T** (même message : on ne distinguait le triple du double que par la lettre) : DOUBLE armé = touches
+  sur fond gris moyen (`color-mix` du texte à 24 %) et 2 traits sous le nombre ; TRIPLE armé = vidéo inverse et 3
+  traits ; le sélecteur S / D / T prend le même fond. Aussi au pavé de correction. Plus de trame hachurée (elle reste
+  pour la volée en attente).
+- Sommaire : volee-meilleure, volee-troisieme, volee-pire, volee-pire-bust, verres-panneau, soiree-debut, soiree, soiree-partie, accueil-soiree, nouvelle-soiree, verres-soiree,
+  verres-soiree-jeu, verres-soiree-histo.
+- Tests : tests/tour-soiree.test.js (champs enregistrés, sauvegarde, soirée relue, cumul de l'historique, case à jouer ;
+  vraie appli : bande du tour, REVANCHE retirée au sort, soirée de bout en bout avec rechargement).
+
 ## Pour le lot 4
 
 - Les écrans Historique et Stats lisent `store.games` (parties closes) ; la partie en cours est à part (`store.current`).

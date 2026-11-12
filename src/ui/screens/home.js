@@ -5,7 +5,7 @@
 // sert qu'au bust). Deux variantes, comparées au sommaire de maquette : « bande » (retenue : bande de titre en aplat
 // rouge) et « filet » (titre en texte rouge, filets rouges sous le titre et au-dessus du pied). Dans les deux, l'action
 // principale de l'accueil est en aplat rouge, texte clair (--red-ink sur --red : 5,8:1, mêmes valeurs en clair).
-import { store, activePlayers, currentState, playerById, resumeRoute } from '../store.js';
+import { store, activePlayers, currentState, playerById, resumeRoute, soireeTotal } from '../store.js';
 import { esc, ico, plural, OUT_SHORT, maquetteButtons } from '../dom.js';
 import { BUILD } from '../build.js';
 import { storageBanner, updateBadge } from './settings.js';
@@ -56,6 +56,10 @@ export function home() {
   // NOUVELLE PARTIE : aplat rouge quand c'est l'action principale ; derrière REPRENDRE ou la création des joueurs, filet
   // rouge seulement (une seule action forte à l'écran).
   const newGame = `<a class="btn ${resume || welcome ? 'accent-line' : 'accent'} big" href="#/nouvelle">NOUVELLE PARTIE</a>`;
+  // Lot 7.6 : soirée (joueurs repris d'une partie à l'autre, verres cumulés).
+  const soiree = store.soiree
+    ? `<a class="btn soiree-btn on" href="#/soiree"><span class="t">${ico('glass')} SOIRÉE EN COURS</span><small>${plural(store.soiree.players.length, 'JOUEUR', 'JOUEURS')} · ${plural(soireeTotal(), 'VERRE', 'VERRES')}</small><span class="go">${ico('chev')}</span></a>`
+    : first ? '' : `<a class="btn ghost soiree-btn" href="#/soiree"><span class="t">${ico('glass')} DÉBUTER UNE SOIRÉE</span></a>`;
   const saved = store.maquette ? 'Maquette · données fictives'
     : store.db.error ? '<span class="red">Non enregistré</span>' : 'Enregistré sur ce téléphone';
   return `<div class="screen home v-${variant}">
@@ -64,7 +68,7 @@ export function home() {
       <p class="home-sub">Compteur de fléchettes X01</p>
     </header>
     <main class="home-main">
-      ${storageBanner()}${updateBadge()}${welcome}${resume}${newGame}
+      ${storageBanner()}${updateBadge()}${welcome}${resume}${newGame}${soiree}
       <nav class="tiles" aria-label="Menu">
         <a class="tile" href="#/joueurs">${ico('players')}<div><b data-shrink>Joueurs</b><br><span data-shrink="2">${n ? plural(n, 'joueur', 'joueurs') : 'aucun joueur'}</span></div></a>
         <a class="tile" href="#/historique">${ico('history')}<div><b data-shrink>Historique</b><br><span data-shrink="2">${g ? plural(g, 'partie', 'parties') : 'aucune partie'}</span></div></a>

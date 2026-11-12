@@ -337,6 +337,34 @@ label.btn { cursor: pointer; }
 .gband .pause { flex: 0 0 60px; align-self: stretch; border: 0; border-left: 1px solid var(--av-ink); color: var(--av-ink); display: grid; place-items: center; }
 .gband .pause svg { width: 26px; height: 26px; }
 .gband .pause:active { background: var(--av-ink); color: var(--pc); }
+/* Lot 7.6 : bande du tour — TOUR n, joueurs dans l'ordre du tour depuis le premier de la manche. */
+.round { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 0 0 12px; border-top: var(--rule); overflow: hidden; }
+.round .glass { flex: 0 0 auto; margin-left: auto; align-self: stretch; display: flex; align-items: center; gap: 3px; padding: 0 12px; border: 0; border-left: var(--rule); background: var(--inv-bg); color: var(--inv-fg); font-size: 14px; font-weight: 800; letter-spacing: 0.04em; }
+.round .glass svg { width: 22px; height: 22px; }
+.round .glass:active { background: var(--bg); color: var(--fg); }
+.round .rl .sh { display: none; }
+.round .rl + .glass { margin-left: 0; }
+.round.fit1 .rl .lg { display: none; }
+.round.fit1 .rl .sh { display: inline; }
+.round.fit2 .rl { display: none; }
+.round .rt .sh { display: none; }
+.round.fit3 .glass span { display: none; }
+.round.fit4 .rt .lg { display: none; }
+.round.fit4 .rt .sh { display: inline; }
+.round.many .rds { gap: 2px; }
+.round.many .rd { width: 24px; height: 24px; }
+.round .rt { flex: 0 0 auto; font-size: 13px; font-weight: 800; letter-spacing: 0.08em; white-space: nowrap; }
+.round .rds { flex: 0 0 auto; display: flex; align-items: center; gap: 5px; list-style: none; margin: 0; padding: 0; }
+.round .rd { position: relative; flex: 0 0 auto; display: grid; place-items: center; width: 28px; height: 28px; }
+.round .rd.done .av { background: var(--fg); color: var(--bg); box-shadow: none; }
+.round .rd.done .av img { opacity: 0.6; }
+.round .rd.now { box-shadow: inset 0 0 0 2px var(--fg); }
+.round .rd.todo { color: var(--dim); }
+.round .rd.todo .av { color: var(--dim); box-shadow: inset 0 0 0 1px var(--dim); }
+.round .rd.out { opacity: 0.35; }
+.round .rd.out::after { content: ''; position: absolute; left: 3px; right: 3px; top: 50%; border-top: 2px solid var(--fg); transform: rotate(-45deg); }
+.round .rl { flex: 0 0 auto; margin-left: auto; font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; color: var(--dim); white-space: nowrap; }
+.rest .meta .tour { color: var(--fg); font-weight: 800; }
 .gband.slide { animation: band-in 280ms cubic-bezier(.2, .8, .3, 1); }
 @keyframes band-in { from { transform: translateX(-100%); } to { transform: none; } }
 
@@ -456,9 +484,17 @@ label.btn { cursor: pointer; }
 .key.hit, .key:active:not(:disabled) { background: var(--fg); color: var(--bg); }
 .key:disabled { color: var(--faint); }
 .key.bull:disabled { text-decoration: line-through; }
-/* D ou T armé : le pavé des nombres change d'aspect (préfixe + trame) */
-.armed .krow.nums .key, .armed .key.bull { background-image: repeating-linear-gradient(135deg, transparent 0 9px, var(--faint) 9px 10px); }
-.armed .krow.nums .key.hit { background: var(--fg); }
+/* D ou T armé : le pavé des nombres change d'aspect (préfixe D / T). Lot 7.6 (demande de Guillaume : on ne distinguait
+   le triple du double que par la lettre) : DOUBLE = fond gris moyen et 2 traits sous le nombre ; TRIPLE = vidéo inverse
+   et 3 traits. Simple : fond normal, sans trait. Le sélecteur S / D / T prend le même aspect. */
+.armed.m2 .krow.nums .key, .armed.m2 .key.bull:not(:disabled), .key.m[data-key="D"][aria-pressed="true"], .fx-pad .key.m[data-arg="2"][aria-pressed="true"] {
+  background: color-mix(in srgb, var(--fg) 24%, var(--bg)); color: var(--fg); }
+.armed.m3 .krow.nums .key, .key.m[data-key="T"][aria-pressed="true"], .fx-pad .key.m[data-arg="3"][aria-pressed="true"] { background: var(--inv-bg); color: var(--inv-fg); }
+.armed .krow.nums .key::after, .armed.m2 .key.bull:not(:disabled)::after { content: ''; position: absolute; left: 50%; bottom: 8px; width: 18px; height: 2px; margin-left: -9px; background: currentColor; }
+.armed.m2 .krow.nums .key::after, .armed.m2 .key.bull::after { box-shadow: 0 -4px 0 currentColor; }
+.armed.m3 .krow.nums .key::after { box-shadow: 0 -4px 0 currentColor, 0 -8px 0 currentColor; }
+.armed.m2 .krow.nums .key.hit, .armed.m2 .krow.nums .key:active { background: var(--fg); color: var(--bg); }
+.armed.m3 .krow.nums .key.hit, .armed.m3 .krow.nums .key:active { background: var(--bg); color: var(--fg); }
 /* Volée en attente : touches éteintes et hachurées, grand VALIDER sur le haut du pavé, ANNULER reste actif */
 .pad-k.wait .key:disabled { background-image: repeating-linear-gradient(135deg, transparent 0 7px, var(--faint) 7px 8px); text-decoration: none; }
 .validate {
@@ -482,7 +518,7 @@ label.btn { cursor: pointer; }
 .rest.alert { gap: 4px; }
 .bust-word { font-size: min(29cqw, 100cqh - 76px, 150px); line-height: 1; font-weight: 800; letter-spacing: 0.04em; margin-top: auto; }
 .bust-rest { margin-bottom: auto; }
-.bust-rest { font-size: 26px; font-weight: 800; letter-spacing: 0.08em; }
+.bust-rest { white-space: nowrap; font-size: 26px; font-weight: 800; letter-spacing: 0.08em; }
 
 /* Feuilles (pause, cible agrandie, historique en cours) */
 .sheet-bg { position: fixed; inset: 0; z-index: 20; background: var(--bg); overflow: auto; }
@@ -545,6 +581,7 @@ label.btn { cursor: pointer; }
 .land .co .route span { min-width: 0; padding: 1px 4px; }
 .land .co.turn { display: none; } /* le suivant est déjà dans la bande des autres et sur VALIDER */
 .land .others { margin-top: 0; }
+.land .round { min-height: 36px; }
 .land .op { min-height: 46px; }
 .land .others.many .op { min-height: 44px; }
 .land .lbtns { flex: 0 1 64px; min-height: 46px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1.6fr); gap: 1px; background: var(--faint); border: var(--rule); }
@@ -574,6 +611,7 @@ label.btn { cursor: pointer; }
   .land .visit { grid-template-rows: minmax(44px, auto) minmax(34px, auto); }
   .land .op { min-height: 42px; }
   .land .lbtns { flex-basis: 54px; }
+  .land .round { min-height: 30px; }
 }
 /* Cible aussi grande que la hauteur le permet ; sur un écran plus étroit (navigation à 3 boutons), elle cède
    quelques pixels pour que le reste garde des chiffres de 120 px, sans descendre sous 44 % de la largeur (saisie) */
@@ -887,6 +925,7 @@ html.night body::after { content: ''; position: fixed; inset: 0; z-index: 100; p
 /* Portrait, hauteur réduite (Chrome avec ses barres, navigation à 3 boutons) */
 @media (orientation: portrait) and (max-height: 800px) {
   .gband { min-height: 72px; }
+  .round { min-height: 38px; }
   .visit { min-height: 50px; }
   .co { min-height: 38px; font-size: 20px; }
   .mini-board { width: 92px; height: 92px; }
@@ -894,6 +933,7 @@ html.night body::after { content: ''; position: fixed; inset: 0; z-index: 100; p
 }
 @media (orientation: portrait) and (max-height: 730px) {
   .gband { min-height: 66px; }
+  .round { min-height: 32px; }
   .gband .nm { font-size: clamp(40px, calc((100cqi - 150px) / (var(--n, 9) * 0.6)), 42px); }
   .visit { min-height: 46px; }
   .co { min-height: 34px; }
@@ -936,3 +976,56 @@ html.night body::after { content: ''; position: fixed; inset: 0; z-index: 100; p
 .about .kv b { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .licence { margin: 10px 0 0; padding: 10px; border: var(--rule); font-size: 10.5px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 50vh; overflow: auto; }
 .home-main .upd-badge { margin: 0; }
+
+/* ------------------------------------------------------------------ soirée (lot 7.6) */
+.soiree-btn { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center; text-align: left; justify-content: stretch; min-height: 52px; }
+.soiree-btn .t { display: flex; align-items: center; gap: 8px; }
+.soiree-btn .t .ico { width: 20px; height: 20px; }
+.soiree-btn small { grid-column: 1; display: block; }
+.soiree-btn .go { grid-row: 1 / span 2; grid-column: 2; }
+.soiree-btn.on { background: var(--inv-bg); color: var(--inv-fg); border-color: var(--inv-bg); }
+.soiree-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 12px; padding: 12px 16px; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; }
+.soiree-head b { letter-spacing: 0.12em; }
+.soiree-head .dk { display: inline-flex; align-items: center; gap: 1px; }
+.soiree-head .dk .ico { width: 16px; height: 16px; }
+.soiree-head .dk .x { text-transform: none; }
+.drinks.soiree .mv.out { flex-basis: 40px; margin-left: 4px; color: var(--dim); border-color: var(--faint); }
+.soiree-line { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 10px 12px; border: var(--rule); color: var(--fg); text-decoration: none; font-size: 12px; line-height: 1.45; }
+.soiree-line > .ico { flex: 0 0 22px; width: 22px; height: 22px; }
+.soiree-line span { flex: 1; min-width: 0; }
+.soiree-line b { letter-spacing: 0.1em; }
+.soiree-line:active { background: var(--fg); color: var(--bg); }
+/* Lot 7.6 : petit écran en portrait (≈ 640 px) — la bande du tour prend sa place sur les cases et la bande des autres. */
+@media (orientation: portrait) and (max-height: 680px) {
+  .round { min-height: 26px; }
+  .round .rd, .round.many .rd { width: 22px; height: 22px; }
+  .visit { min-height: 42px; }
+  .op { min-height: 40px; }
+  .others.many .op { min-height: 38px; }
+  .co { min-height: 30px; }
+  .others { margin-top: 0; }
+}
+/* Très petit écran (≈ 640 px) en grande police : la volée en attente de VALIDER garde la place du pavé. */
+@media (orientation: portrait) and (max-height: 680px) {
+  .round.wait { display: none; }
+}
+
+/* Lot 7.6 : volée parmi les 3 meilleures (vidéo inverse) ou les 3 pires (filet épais) de la soirée, au résultat. */
+.rest .vr { flex: 0 0 auto; align-self: center; display: flex; align-items: center; gap: 6px; max-width: calc(100% - 16px); margin: 0 0 6px; padding: 4px 10px 3px; overflow: hidden; white-space: nowrap; font-size: 13px; font-weight: 800; letter-spacing: 0.08em; line-height: 1.2; }
+.rest .vr .ico { flex: 0 0 auto; width: 16px; height: 16px; stroke-width: 3; }
+.rest .vr.best { background: var(--inv-bg); color: var(--inv-fg); }
+.rest .vr.worst { box-shadow: inset 0 0 0 2px var(--fg); color: var(--fg); }
+.rest .vr .s2 { display: none; }
+.rest .vr.fit1 .l1 { display: none; }
+.rest .vr.fit2 .l2 { display: none; }
+.rest .vr.fit2 .s2 { display: inline; }
+.rest .vr.fit3 .s2 { display: none; }
+.rest .vr .vt { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.rest .meta .vr.in-meta { margin: 0; padding: 0 4px; font-size: 11px; gap: 3px; min-width: 0; flex: 0 1 auto; }
+.rest .meta .vr.in-meta .ico { width: 12px; height: 12px; }
+.rest.alert .vr.worst { box-shadow: inset 0 0 0 1.5px var(--red-ink); color: var(--red-ink); }
+.rest.ranked .big { font-size: min(44cqw, (100cqh - 51px) / 0.9, 210px); }
+.land .rest.ranked .big { font-size: min(50cqw, (100cqh - 51px) / 0.9, 200px); }
+/* Lot 7.6 : paysage étroit en grande police — la fin de la ligne du haut (verres · moyenne) se coupe en « … » plutôt
+   que de déborder sur les cases. */
+.land .rest .meta > :last-child { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }

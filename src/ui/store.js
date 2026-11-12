@@ -9,7 +9,7 @@
 
 import { computeState, STATUS, EVENTS } from '../engine/x01.js';
 import { deletePlayer as removePlayer, deletionImpact, isDeletedId } from '../engine/players.js';
-import { openDb, currentRecord, closedRecord, playerRecord, deletionOps, gameDeletionOps, DB_VERSION } from '../data/db.js';
+import { openDb, currentRecord, closedRecord, playerRecord, deletionOps, gameDeletionOps, soireeRecord, DB_VERSION } from '../data/db.js';
 import { makeBackup, importPlan } from '../data/backup.js';
 import { bac, drinkTimes } from '../engine/alcohol.js';
 
@@ -18,6 +18,8 @@ export const store = {
   games: [],
   current: null,     // { id, config, darts, startedAt, validated, ui: voir freshUi() }
   lastSetup: null,   // derniers réglages de « Nouvelle partie »
+  soiree: null,      // soirée en cours (lot 7.6) : { id, startedAt, players, drinks } (db.js › soireeRecord)
+  soireeDraft: null, // écran « Soirée » avant de la débuter : { players }
   draft: null,       // fiche joueur en cours de modification
   setupDraft: null,  // écran « Nouvelle partie » en cours
   crop: null,        // photo en cours de recadrage (screens/photo.js)
@@ -73,6 +75,7 @@ export function resaveAll() {
     ...(store.current ? [{ store: 'games', put: currentRecord(store.current) }] : []),
     { store: 'settings', key: 'display', put: { ...store.settings } },
     ...(store.lastSetup ? [{ store: 'settings', key: 'lastSetup', put: store.lastSetup }] : []),
+    ...(store.soiree ? [{ store: 'settings', key: 'soiree', put: store.soiree }] : []),
   ];
   return write(ops);
 }
@@ -95,6 +98,7 @@ export async function openStorage({ onVersionChange } = {}) {
   if (data.stale.length) write(data.stale.map(g => ({ store: 'games', put: g })));
   store.current = data.current && readable(data.current) ? { ...data.current, ui: freshUi() } : null;
   store.lastSetup = data.settings.lastSetup || null;
+  store.soiree = soireeRecord(data.settings.soiree);
   if (data.settings.display) {
     Object.assign(store.settings, data.settings.display);
     mirrorSettings();
@@ -168,6 +172,8 @@ export function saveCurrent() {
 export function addDrink(id, now = Date.now()) {
   const g = store.current;
   if (!g) return;
+  // Lot 7.6 : un joueur de la partie qui n'est pas (ou plus) dans la soirée de la partie la rejoint.
+  if (g.soiree && store.soiree && store.soiree.id === g.soiree && !store.soiree.players.includes(id)) joinSoiree([id]);
   g.drinks = { ...(g.drinks || {}) };
   // Lot 7.1 : le verre prend sa place dans l'historique de la partie (nombre de fléchettes jouées à ce moment).
   g.drinks[id] = [...(g.drinks[id] || []), { t: now, at: g.darts.length }];
@@ -185,6 +191,98 @@ export function removeDrink(id) {
 
 /** Verres du joueur dans la partie en cours. */
 export const drinksHere = id => (store.current && store.current.drinks && store.current.drinks[id] ? store.current.drinks[id].length : 0);
+
+/** Lot 7.6 : verres à afficher pour le joueur `id` dans la partie `g` : ceux de la soirée avant la partie (s'il y en a
+ *  une) plus ceux de la partie. Sans soirée : ceux de la partie seulement (comme avant). */
+export const gameDrinks = (g, id) => ((g && g.drinksBefore && g.drinksBefore[id]) || 0) + ((g && g.drinks && g.drinks[id] && g.drinks[id].length) || 0);
+
+/** Un verre au moins à montrer dans la partie `g` (de la partie ou de la soirée avant elle). */
+export const gameDrinking = g => !!(g && ((g.drinks && Object.values(g.drinks).some(l => l.length)) || (g.drinksBefore && Object.values(g.drinksBefore).some(n => n > 0))));
+
+// ------------------------------------------------------------------ soirée (lot 7.6)
+// Une soirée regroupe des parties : ses joueurs (on en ajoute en cours de route), et leurs verres, qui continuent
+// d'une partie à l'autre. Enregistrée dans les réglages (clé « soiree ») tant qu'elle dure ; chaque partie lancée
+// pendant la soirée garde l'identifiant de la soirée (`soiree`) et les verres d'avant (`drinksBefore`), pour que son
+// historique et sa fiche de score montrent le cumul même une fois la soirée terminée. Aucune migration.
+const saveSoiree = () => write([store.soiree ? { store: 'settings', key: 'soiree', put: store.soiree } : { store: 'settings', del: 'soiree' }]);
+
+/** Parties de la soirée en cours (historique et partie en cours). */
+const soireeGames = () => {
+  if (!store.soiree) return [];
+  const id = store.soiree.id;
+  return [...store.games, ...(store.current ? [store.current] : [])].filter(g => g.soiree === id);
+};
+
+/** Débute une soirée avec ces joueurs (une soirée précédente est terminée). */
+export function startSoiree(players, now = Date.now()) {
+  store.soiree = { id: newId('s'), startedAt: now, players: [...new Set(players)], drinks: {} };
+  store.setupDraft = null; // « Nouvelle partie » reprendra les joueurs de la soirée
+  saveSoiree();
+  return store.soiree;
+}
+
+/** Termine la soirée : les parties gardent leurs verres ; rien n'est effacé. */
+export function endSoiree() {
+  store.soiree = null;
+  store.setupDraft = null;
+  saveSoiree();
+}
+
+/** Ajoute des joueurs à la soirée en cours (ceux qui y sont déjà ne bougent pas). */
+export function joinSoiree(ids) {
+  const s = store.soiree;
+  if (!s) return;
+  const add = ids.filter(id => !s.players.includes(id));
+  if (!add.length) return;
+  s.players = [...s.players, ...add];
+  saveSoiree();
+}
+
+/** Retire un joueur de la soirée (ses verres restent comptés s'il revient). */
+export function leaveSoiree(id) {
+  const s = store.soiree;
+  if (!s || !s.players.includes(id)) return;
+  s.players = s.players.filter(x => x !== id);
+  saveSoiree();
+}
+
+/** Verres du joueur depuis le début de la soirée en cours (hors partie, et dans chaque partie de la soirée). */
+export function soireeDrinks(id) {
+  const s = store.soiree;
+  if (!s) return 0;
+  return ((s.drinks[id] && s.drinks[id].length) || 0)
+    + soireeGames().reduce((n, g) => n + ((g.drinks && g.drinks[id] && g.drinks[id].length) || 0), 0);
+}
+
+/** Total des verres de la soirée (tous les joueurs). */
+export const soireeTotal = () => (store.soiree ? store.soiree.players.reduce((n, id) => n + soireeDrinks(id), 0) : 0);
+
+/** La partie en cours appartient à la soirée en cours et `id` y joue : les verres vont dans la partie. */
+const inSoireeGame = id => !!(store.soiree && store.current && store.current.soiree === store.soiree.id && store.current.config.players.includes(id));
+
+/** Un verre de plus pour `id` depuis l'écran Soirée : dans la partie en cours s'il y joue, sinon hors partie. */
+export function soireeAddDrink(id, now = Date.now()) {
+  const s = store.soiree;
+  if (!s) return;
+  if (inSoireeGame(id)) { addDrink(id, now); return; }
+  s.drinks = { ...s.drinks, [id]: [...(s.drinks[id] || []), { t: now }] };
+  saveSoiree();
+}
+
+/** Retire le dernier verre de `id` dans la soirée : partie en cours, sinon hors partie, sinon sa dernière partie de la
+ *  soirée (correction d'un oubli). */
+export function soireeRemoveDrink(id) {
+  const s = store.soiree;
+  if (!s) return;
+  if (inSoireeGame(id) && drinksHere(id)) { removeDrink(id); return; }
+  const own = s.drinks[id];
+  if (own && own.length) { s.drinks = { ...s.drinks, [id]: own.slice(0, -1) }; saveSoiree(); return; }
+  const g = store.games.filter(x => x.soiree === s.id && x.drinks && x.drinks[id] && x.drinks[id].length)
+    .sort((a, b) => b.startedAt - a.startedAt)[0];
+  if (!g) return;
+  g.drinks = { ...g.drinks, [id]: g.drinks[id].slice(0, -1) };
+  write([{ store: 'games', put: closedRecord(g, g.abandoned, g.endedAt) }]);
+}
 
 /** Alcoolémie estimée (g/L) du joueur maintenant : ses verres des 24 dernières heures, toutes parties confondues. */
 export function playerBac(id, now = Date.now()) {
@@ -204,6 +302,16 @@ export function startGame(setup) {
     // REVANCHE (ni l'un ni l'autre donné) garde les préférences d'avant
     shuffle: setup.shuffle ?? store.lastSetup?.shuffle ?? true, playOn: setup.playOn ?? store.lastSetup?.playOn ?? false };
   store.current = { id: newId('g'), config, darts: [], startedAt: Date.now(), validated: 0, ui: freshUi() };
+  // Lot 7.6 : l'ordre tiré est noté dans la partie, pour que la REVANCHE tire de nouveau au sort.
+  if (setup.shuffle && players.length > 1) store.current.shuffled = true;
+  // Lot 7.6 : soirée en cours. Les joueurs de la partie la rejoignent ; la partie garde leurs verres d'avant.
+  if (store.soiree) {
+    joinSoiree(players);
+    store.current.soiree = store.soiree.id;
+    const before = {};
+    for (const id of players) { const n = soireeDrinks(id); if (n) before[id] = n; }
+    if (Object.keys(before).length) store.current.drinksBefore = before;
+  }
   // Ordre tiré : « À TOI, PSEUDO » annonce le premier à lancer.
   if (setup.shuffle && players.length > 1) store.current.ui.announce = 0;
   write([{ store: 'games', put: currentRecord(store.current) }, { store: 'settings', key: 'lastSetup', put: store.lastSetup }]);
@@ -225,7 +333,7 @@ export function shuffled(list) {
   return out;
 }
 
-export const freshUi = () => ({ mult: 1, pause: false, confirm: false, panel: null, boardView: 'visit', announce: null, slide: false, loupe: null, frozen: false, fix: null, cele: null });
+export const freshUi = () => ({ mult: 1, pause: false, confirm: false, panel: null, boardView: 'visit', announce: null, slide: false, loupe: null, frozen: false, fix: null, cele: null, drinks: false });
 
 export const currentState = () => (store.current ? computeState(store.current.config, store.current.darts) : null);
 
@@ -254,6 +362,14 @@ export function archiveCurrent(abandoned) {
     store.games.unshift(rec);
     write([{ store: 'games', put: rec }]);
   } else {
+    // Lot 7.6 : partie sans fléchette effacée ; ses verres restent à la soirée (hors partie).
+    const sv = store.soiree;
+    if (sv && g.soiree === sv.id && g.drinks && Object.values(g.drinks).some(l => l.length)) {
+      const drinks = { ...sv.drinks };
+      for (const [id, list] of Object.entries(g.drinks)) if (list.length) drinks[id] = [...(drinks[id] || []), ...list.map(d => ({ t: d.t ?? d }))];
+      sv.drinks = drinks;
+      saveSoiree();
+    }
     write([{ store: 'games', del: g.id }]);
   }
 }

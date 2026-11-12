@@ -9,6 +9,8 @@ export const CLOSERS = [
   'fix-cancel',       // correction d'une fléchette
   'abandon-no',       // confirmations du menu pause
   'resume',           // menu pause
+  'drinks-close',     // panneau des verres (lot 7.6)
+  'soiree-end-no',    // terminer la soirée (lot 7.6)
   'close-panel',      // panneau cible + historique
   'launch-no',        // LANCER pendant une partie
   'del-game-no',      // supprimer une partie

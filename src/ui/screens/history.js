@@ -138,7 +138,7 @@ function detail(g, s, t, players) {
  */
 export function gameLog(g, s, { live = false, abandoned = false, reverse = false, details = true } = {}) {
   const players = g.config.players.map(playerById);
-  const timeline = drinksTimeline(s, g.drinks, g.config.players); // lot 7.1 : verres dans le tableau
+  const timeline = drinksTimeline(s, g.drinks, g.config.players, g.drinksBefore); // lot 7.1 : verres dans le tableau
   const shown = s.legs.filter(l => l.visits.length || (live && l.number === s.legNumber));
   const legs = (reverse ? [...shown].reverse() : shown).map(l => {
     const t = legTable(s, l.number, { live, drinks: timeline.byVisit });
@@ -153,7 +153,7 @@ export function gameLog(g, s, { live = false, abandoned = false, reverse = false
     return `<div class="leg-h"><b>MANCHE ${l.number}</b><span>${info}</span></div>${table}`;
   }).join('');
   return `<div class="pad"><div class="sec" style="margin-bottom:0">Tour par tour</div></div>${legs}
-    <p class="note pad">Chaque case : les fléchettes du tour, le total de la volée en gros, le reste après la volée en petit${g.drinks ? ', les verres du joueur jusque-là (encadrés : pris pendant ce tour)' : ''}${live ? ' ; la ligne en inverse est le tour en cours' : ''}. Touchez une case pour voir ses fléchettes sur la cible${details ? '' : ' au-dessus'}.</p>`;
+    <p class="note pad">Chaque case : les fléchettes du tour, le total de la volée en gros, le reste après la volée en petit${g.drinks || g.drinksBefore ? ', les verres du joueur jusque-là (encadrés : pris pendant ce tour)' : ''}${g.drinksBefore ? ' — soirée comprise' : ''}${live ? ' ; la ligne en inverse est le tour en cours' : ''}. Touchez une case pour voir ses fléchettes sur la cible${details ? '' : ' au-dessus'}.</p>`;
 }
 
 /** Case ouverte d'avance (sommaire de maquette, ouverture du panneau du jeu) : « idPartie|rangVolée », ou null. */

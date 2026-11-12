@@ -33,6 +33,7 @@ const cfg = (players, startScore = 501, outMode = 'double', legsToWin = 1) => ({
 /** Partie fabriquée ; `pending` : la dernière volée close attend VALIDER (sinon elle est déjà validée). */
 function setGame(setup, notation, ui = {}, pending = false) {
   ensureExtraPlayers(setup.players);
+  store.soiree = null; // lot 7.6 : la partie fabriquée n'est d'aucune soirée (mockSoiree() l'y met)
   store.current = null; // la partie fabriquée remplace la précédente sans la ranger dans l'historique
   startGame(setup);
   store.current.darts = Array.isArray(notation) ? notation : ds(notation);
@@ -79,6 +80,25 @@ function mockIssue(db) {
 
 /** Écran de secours (src/ui/rescue.js), montré comme un écran ordinaire : RECHARGER, EXPORTER LA SAUVEGARDE. */
 export const secours = () => (window.strelaRescueHtml ? window.strelaRescueHtml('TypeError: exemple d\'erreur inattendue (maquette)') : '');
+
+/** Soirée fictive (lot 7.6) : 4 joueurs depuis 2 h, deux parties déjà jouées avec des verres, un verre hors partie.
+ *  `game` : la partie en cours (déjà fabriquée) en fait partie, avec les verres d'avant. */
+function mockSoiree({ game = false } = {}) {
+  const now = Date.now(), h = 3600e3;
+  ensureExtraPlayers(['p1', 'p2', 'p3', 'p4']);
+  store.soiree = { id: 'soiree-1', startedAt: now - 2 * h, players: ['p1', 'p2', 'p3', 'p4'], drinks: { p3: [{ t: now - 1.5 * h }] } };
+  const played = [
+    { id: 'gs1', startedAt: now - 1.8 * h, endedAt: now - 1.4 * h, config: cfg(['p1', 'p2', 'p3'], 301), darts: ds('T20 T20 T20 20 1 5 T19 S7 S3 T20 T11 D14'), validated: 12, abandoned: false, soiree: 'soiree-1',
+      drinks: { p1: [{ t: now - 1.7 * h, at: 3 }, { t: now - 1.5 * h, at: 9 }], p2: [{ t: now - 1.6 * h, at: 6 }] } },
+    { id: 'gs2', startedAt: now - 1.2 * h, endedAt: now - 0.8 * h, config: cfg(['p2', 'p4'], 301), darts: ds('T20 T20 T20 20 20 20 T20 T11 D14'), validated: 9, abandoned: false, soiree: 'soiree-1',
+      drinks: { p2: [{ t: now - h, at: 3 }], p4: [{ t: now - 0.9 * h, at: 6 }] } },
+  ];
+  store.games = [...played, ...store.games.filter(g => !g.soiree)];
+  if (game && store.current) {
+    store.current.soiree = 'soiree-1';
+    store.current.drinksBefore = { p1: 2, p2: 2, p3: 1 };
+  }
+}
 
 /** Préférences de finition d'un joueur fictif : D16 et bull évité. */
 const prefer = id => { const p = store.players.find(q => q.id === id); if (p) p.checkout = { double: 16, avoidBull: true }; };
@@ -191,6 +211,21 @@ export const SCENES = {
   'verres-jeu': () => { setGame(cfg(['p1', 'p2', 'p3']), 'T20 T20 T20', {}); store.current.drinks = DRINKS(); return '#/jeu'; },
   'verres-histo': () => { setGame(cfg(['p1', 'p2', 'p3']), 'T20 S20 T5  T19 S19 S3  T20 S20 S1  S20 S5', { panel: 'board' }); store.current.drinks = DRINKS(); selectLogCell(null); return '#/jeu'; },
   'verres-huit': () => { const { config, darts } = eightGame(); setGame(config, darts, { panel: 'board' }); store.current.drinks = Object.fromEntries(config.players.map((id, i) => [id, Array.from({ length: i + 1 }, (_, k) => ({ t: Date.now() - (8 - k) * 600e3, at: k * 9 }))])); selectLogCell(null); return '#/jeu'; },
+  // Lot 7.6 : soirée (avant, en cours, accueil, nouvelle partie), panneau des verres en jeu (bouton du bandeau)
+  'soiree-debut': () => { store.current = null; store.soireeDraft = null; return '#/soiree'; },
+  soiree: () => { store.current = null; mockSoiree(); return '#/soiree'; },
+  'soiree-partie': () => { setGame(cfg(['p1', 'p2', 'p3']), 'T20 S20 S5'); mockSoiree({ game: true }); return '#/soiree'; },
+  'accueil-soiree': () => { store.current = null; mockSoiree(); return '#/'; },
+  'nouvelle-soiree': () => { store.current = null; mockSoiree(); store.setupDraft = null; return '#/nouvelle'; },
+  'verres-panneau': () => { setGame(cfg(['p1', 'p2', 'p3']), 'T20 S20 S5', { drinks: true }); store.current.drinks = DRINKS(); return '#/jeu'; },
+  'verres-soiree': () => { setGame(cfg(['p1', 'p2', 'p3']), 'T20 S20 S5  T19 S19 S3', { drinks: true }); mockSoiree({ game: true }); store.current.drinks = { p2: [{ t: Date.now(), at: 4 }] }; return '#/jeu'; },
+  'verres-soiree-jeu': () => { setGame(cfg(['p1', 'p2', 'p3']), 'T20 S20 S5  T19 S19 S3'); mockSoiree({ game: true }); store.current.drinks = { p2: [{ t: Date.now(), at: 4 }] }; return '#/jeu'; },
+  'verres-soiree-histo': () => { setGame(cfg(['p1', 'p2', 'p3']), 'T20 S20 S5  T19 S19 S3  T20 S20 S1', { panel: 'board' }); mockSoiree({ game: true }); store.current.drinks = { p2: [{ t: Date.now(), at: 4 }] }; selectLogCell(null); return '#/jeu'; },
+  // Lot 7.6 : volée parmi les 3 meilleures / pires de la soirée, au résultat (en attente de VALIDER)
+  'volee-meilleure': () => { setGame(cfg(['p1', 'p2', 'p3']), 'T20 S20 S5  T19 S19 S3  T20 S20 S1  T20 T20 T20', {}, true); mockSoiree({ game: true }); return '#/jeu'; },
+  'volee-pire': () => { setGame(cfg(['p1', 'p2', 'p3']), 'T20 S20 S5  T19 S19 S3  T20 S20 S1  S1 S1 S1', {}, true); mockSoiree({ game: true }); return '#/jeu'; },
+  'volee-pire-bust': () => { setGame(cfg(['p1', 'p2', 'p3'], 301), 'T20 T20 T20  T19 S19 S3  T20 S20 S1  T20 T20', {}, true); mockSoiree({ game: true }); return '#/jeu'; },
+  'volee-troisieme': () => { setGame(cfg(['p1', 'p2', 'p3']), 'T20 S20 S5  T19 S19 S3  T20 S20 S1  T20 T20 S20', {}, true); mockSoiree({ game: true }); return '#/jeu'; },
   'fin-verres': () => { setGame(PLAYON(), `${PO1} T20 S20  T20 S20  0 0 0  0 0 0  T20 S20`); store.current.drinks = DRINKS(); return '#/fin'; },
   'fin-manche': () => { setGame(cfg(['p1', 'p2'], 301, 'double', 2), 'T20 T20 T20 20 1 5 T20 T11 D14'); return '#/manche'; },
   'fin-partie': () => { setGame(cfg(['p1', 'p2', 'p3'], 301), 'T20 T20 T20 20 1 5 T19 S7 S3 T20 T11 D14'); return '#/fin'; },
@@ -398,6 +433,19 @@ export function sommaire() {
       ${L('verres-histo', 'Verres dans l\'historique', 'partie en cours')}
       ${L('verres-huit', 'Verres dans l\'historique', '8 joueurs')}
       ${L('fin-verres', 'Fin de partie : verres')}
+      ${L('volee-meilleure', 'Volée : meilleure de la soirée', 'au résultat')}
+      ${L('volee-troisieme', 'Volée : 3e meilleure de la soirée', '140')}
+      ${L('volee-pire', 'Volée : pire de la soirée')}
+      ${L('volee-pire-bust', 'Volée : bust parmi les pires')}
+      ${L('verres-panneau', 'Verres : panneau du bandeau', 'sans la pause')}
+      ${L('soiree-debut', 'Soirée : débuter', 'choix des joueurs')}
+      ${L('soiree', 'Soirée en cours', '2 parties jouées')}
+      ${L('soiree-partie', 'Soirée pendant une partie')}
+      ${L('accueil-soiree', 'Accueil avec une soirée')}
+      ${L('nouvelle-soiree', 'Nouvelle partie pendant la soirée')}
+      ${L('verres-soiree', 'Verres de la soirée en jeu', 'panneau')}
+      ${L('verres-soiree-jeu', 'Verres de la soirée en jeu', 'Mathilde x3')}
+      ${L('verres-soiree-histo', 'Verres de la soirée dans l\'historique')}
       ${L('fin-tournee', 'Fin de partie : classement', 'le dernier paie')}
       ${L('fin-egalite', 'Fin de partie : derniers à égalité')}
       ${L('fete-100', 'Célébration 100+', 'discrète')}

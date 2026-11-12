@@ -77,3 +77,22 @@ export function flop(state) {
   if (counts(v) && v.scored < FLOP_LOW) return { kind: 'low', value: v.scored };
   return null;
 }
+
+// Lot 7.6 : place d'une volée parmi d'autres (celles de la soirée, ou de la partie hors soirée), au résultat.
+export const VISIT_RANK_MIN = 9; // volées en tout (celle-ci comprise) avant de classer quoi que ce soit
+export const VISIT_RANK_TOP = 3;
+
+/**
+ * { kind: 'best' | 'worst', rank } si la volée qui vaut `x` points est parmi les 3 meilleures ou les 3 pires de
+ * `others` + elle-même, sinon null. Rang = 1 + autres volées strictement meilleures (ou pires) : à égalité, on partage le
+ * rang. Rien avant VISIT_RANK_MIN volées en tout, ni si elle est à la fois parmi les meilleures et les pires.
+ */
+export function visitStanding(x, others) {
+  if (!Number.isFinite(x) || others.length + 1 < VISIT_RANK_MIN) return null;
+  const best = 1 + others.filter(y => y > x).length;
+  const worst = 1 + others.filter(y => y < x).length;
+  if (best <= VISIT_RANK_TOP && worst <= VISIT_RANK_TOP) return null;
+  if (best <= VISIT_RANK_TOP) return { kind: 'best', rank: best };
+  if (worst <= VISIT_RANK_TOP) return { kind: 'worst', rank: worst };
+  return null;
+}
