@@ -121,7 +121,9 @@ test('REVANCHE d’une partie tirée au sort : nouveau tirage', { skip, timeout:
     await ack(page);
     assert.match(await page.locator('[data-act="rematch"]').textContent(), /ORDRE TIRÉ AU SORT/);
     const orders = new Set();
-    for (let k = 0; k < 6; k++) {
+    // À 2 joueurs, chaque tirage garde l'ordre une fois sur deux : on rejoue jusqu'à ce qu'il change (au plus 20 fois,
+    // une chance sur 500 000 de ne jamais le voir changer).
+    for (let k = 0; k < 20 && orders.size < 2; k++) {
       if (k) {
         await throwDarts(page, 'T20 T20 T20'); await validate(page);
         await throwDarts(page, 'T20 T20 T20'); await validate(page);
