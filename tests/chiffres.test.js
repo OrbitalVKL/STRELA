@@ -24,8 +24,10 @@
 //   meilleure finition 121 ; manche la plus courte 6 fl. ; 100+ : 100 et 121 → 2 ; 140+ : 171 → 1 ; 180 : 2
 //   victoires 2 / 3 ; face-à-face : Bravo 1 victoire, 0 défaite (partie 2 abandonnée : ne compte pas) ; Charlie
 //   supprimé n'est plus un adversaire.
+//   lot 7.7 : meilleure volée 180 ; pire volée 0 (le bust de la partie 1 ; les finitions ne comptent pas) ; pire volée
+//   de chaque partie, de la plus récente : partie 3 : 180, partie 2 : 171, partie 1 : BUST.
 // Bravo : (242 + 180) / 12 × 3 = 105,5 (9 premières : idem) ; finition 0 / 1 = 0 % ; doubles : aucune occasion « — » ;
-//   100+ : 1 ; 180 : 1 ; victoires 0 / 2.
+//   100+ : 1 ; 180 : 1 ; victoires 0 / 2 ; meilleure volée 180, pire volée 60 (partie 1 : 60, 120, 62).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { serve, loadPlaywright } from '../tools/lib/serve.mjs';
@@ -111,8 +113,10 @@ test('historique et statistiques comparés aux calculs à la main', { skip: !pw 
     await page.click('[data-act="period"][data-arg="tout"]');
     assert.deepEqual(await kpis(page), {
       average: '128,8', first9: '141,0', won: '2 / 3', checkout: '50 %', double: '100 %',
-      bestFinish: '121', shortest: '6 fl.', ton: '2', ton40: '1', max: '2',
+      bestFinish: '121', shortest: '6 fl.', bestVisit: '180', worstVisit: '0', ton: '2', ton40: '1', max: '2',
     });
+    const worst = await page.$$eval('.worst li', lis => lis.map(li => li.querySelector('.w b').textContent.trim()));
+    assert.deepEqual(worst, ['180', '171', 'BUST'], 'pire volée de chaque partie, de la plus récente');
     const h2h = await page.$$eval('.h2h-row', as => as.map(a => a.innerText.replace(/\s+/g, ' ').trim()));
     assert.deepEqual(h2h, ['BR BRAVO 1 VICTOIRE · 0 DÉFAITE'], 'Bravo seul (Charlie supprimé n’est plus un adversaire)');
 
@@ -131,7 +135,7 @@ test('historique et statistiques comparés aux calculs à la main', { skip: !pw 
     await page.evaluate(i => { location.hash = `#/stats/${i}`; }, id.Bravo);
     assert.deepEqual(await kpis(page), {
       average: '105,5', first9: '105,5', won: '0 / 2', checkout: '0 %', double: '—',
-      bestFinish: '—', shortest: '—', ton: '1', ton40: '0', max: '1',
+      bestFinish: '—', shortest: '—', bestVisit: '180', worstVisit: '60', ton: '1', ton40: '0', max: '1',
     });
     // Liste des joueurs : moyenne, parties, victoires.
     await page.evaluate(() => { location.hash = '#/joueurs'; });

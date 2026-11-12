@@ -1029,3 +1029,15 @@ html.night body::after { content: ''; position: fixed; inset: 0; z-index: 100; p
 /* Lot 7.6 : paysage étroit en grande police — la fin de la ligne du haut (verres · moyenne) se coupe en « … » plutôt
    que de déborder sur les cases. */
 .land .rest .meta > :last-child { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* Lot 7.7 : stats — pire volée de chaque partie (date, jeu, pire, meilleure ; un appui ouvre la partie). */
+.worst { list-style: none; margin: 0; padding: 0; border-top: var(--rule); }
+.worst a { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 4px 0; border-bottom: var(--rule); color: var(--fg); text-decoration: none; }
+.worst a:active { background: var(--fg); color: var(--bg); }
+.worst .d { flex: 1 1 auto; min-width: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.worst .g { flex: 0 0 auto; font-size: 11px; color: var(--dim); font-weight: 700; }
+.worst .w, .worst .bv { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; min-width: 52px; line-height: 1.1; }
+.worst small { font-size: 9.5px; color: var(--dim); font-weight: 700; letter-spacing: 0.08em; }
+.worst .w b { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.worst .bv b { font-size: 15px; font-weight: 700; color: var(--dim); font-variant-numeric: tabular-nums; }
+.worst .ico { flex: 0 0 18px; width: 18px; height: 18px; color: var(--dim); }

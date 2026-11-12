@@ -149,10 +149,18 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 7.4 | Animations de tour par joueur (fiche joueur) : ours, costume-cravate, carabine, planète, étoile rouge ; pictogramme cravate (v0.7.4) — **fait, en attente de validation sur le Pixel** |
 | 7.5 | Sons de l'ours et de la planète, voix d'homme et répliques beauf de HPV, Tsia qui marmonne (voix pâteuse), moqueries dès une volée sous 20 et variées (v0.7.5) — **fait, en attente de validation sur le Pixel** |
 | 7.6 | Tirage au sort revu (REVANCHE retirée au sort), bande du tour (TOUR n, qui a lancé), mode soirée (joueurs, verres cumulés d'une partie à l'autre), bouton verre en jeu, volée parmi les 3 meilleures / pires de la soirée, pavé double / triple bien distincts (v0.7.6) — **fait, en attente de validation sur le Pixel** |
-| 7.7 | (plus tard, demandé le 12/11/2026) Une animation de tour par pictogramme d'avatar, toutes différentes |
+| 7.7 | Stats : meilleure et pire volée, pire volée de chaque partie ; moqueries plus cyniques ; 22 répliques de HPV en plus (v0.7.7) — **fait, en attente de validation sur le Pixel** |
+| 7.8 | (plus tard, demandé le 12/11/2026) Une animation de tour par pictogramme d'avatar, toutes différentes |
 | 8 | Recette |
 
-## État (fin du lot 7.6)
+## État (fin du lot 7.7)
+
+- Version 0.7.7. Aucune migration (tout est recalculé). Détail : docs/interface.md « Lot 7.7 », définitions :
+  docs/statistiques.md.
+- « Pires scores de chaque partie » compris comme la pire volée du joueur dans chaque partie (liste dans ses stats).
+- À vérifier sur le Pixel : les nouvelles cases des Stats ; les moqueries (assez cyniques ?) et HPV.
+
+## État (fin du lot 7.6, pour mémoire)
 
 - Version 0.7.6. Aucune migration (champs facultatifs `shuffled`, `soiree`, `drinksBefore` des parties ; réglage
   `soiree`). Détail : docs/interface.md « Lot 7.6 ».
@@ -164,7 +172,7 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
   (`visitStanding`, ranking.js). Pavé : double = fond gris + 2 traits, triple = vidéo inverse + 3 traits.
 - À vérifier sur le Pixel : lisibilité de la bande du tour de loin ; le bouton verre ; une vraie soirée de plusieurs
   parties (cumul juste après REVANCHE et Nouvelle partie).
-- Plus tard (lot 7.7) : une animation par pictogramme d'avatar, toutes différentes (les 41 pictogrammes,
+- Plus tard (lot 7.8) : une animation par pictogramme d'avatar, toutes différentes (les 41 pictogrammes,
   src/ui/avatars.js) — à cadrer avec Guillaume (remplace-t-elle l'animation choisie dans la fiche ?).
 
 ## État (fin du lot 7.5, pour mémoire)

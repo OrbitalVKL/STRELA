@@ -624,6 +624,17 @@ l'APK dans home.js (scène `premier-lancement-apk`). Pas de service worker dans 
 - Tests : tests/tour-soiree.test.js (champs enregistrés, sauvegarde, soirée relue, cumul de l'historique, case à jouer ;
   vraie appli : bande du tour, REVANCHE retirée au sort, soirée de bout en bout avec rechargement).
 
+## Lot 7.7 : stats des volées, moqueries plus cyniques, HPV plus beauf
+
+- Demandes de Guillaume (12/11/2026, soir) : dans les stats, meilleure volée, pire volée et « pires scores de chaque
+  partie » (compris comme la pire volée du joueur dans chaque partie) ; moqueries plus cyniques ; plus de répliques
+  pour HPV, encore plus beauf, dont « Les carottes râpées, ça rentre tout seul. »
+- Stats (engine/stats.js › `playerStats` : `bestVisit`, `worstVisit`, `perGame`) : deux cases MEILLEURE VOLÉE et
+  PIRE VOLÉE ; section « Pire volée de chaque partie » (date, jeu, PIRE, MEILL., un appui ouvre la partie).
+  Définitions : docs/statistiques.md. Vérifié à la main dans tests/chiffres.test.js.
+- `FLOP_LINES` (feedback.js) : 6 à 11 phrases par cas, plus cyniques, sans pronom genré. `TIE_LINES` (turnfx.js) :
+  40 répliques.
+
 ## Pour le lot 4
 
 - Les écrans Historique et Stats lisent `store.games` (parties closes) ; la partie en cours est à part (`store.current`).

@@ -271,16 +271,29 @@ export const SPEECH = Object.freeze({
   lastPays: names => (names.length === 1 ? `${names[0]} paie sa tournée !` : `${names.join(' et ')} paient leur tournée !`),
 });
 
-// Moqueries des nuls (lot 7 ; lot 7.5 : plusieurs par cas, la volée « basse » va jusqu'à 19 points).
+// Moqueries des nuls (lot 7 ; lot 7.5 : plusieurs par cas, la volée « basse » va jusqu'à 19 points ; lot 7.7 : plus
+// cyniques, demande de Guillaume). Sans pronom genré : le pseudo seulement.
 export const FLOP_LINES = Object.freeze({
   zero: [n => `Zéro ! Bravo ${n} !`, n => `Zéro pointé pour ${n}. Respect.`, n => `${n}, la cible est de l'autre côté.`,
-    n => `Rien, nada, que dalle. Merci ${n} !`, n => `${n} vise le mur, et il le touche.`],
+    n => `Rien, nada, que dalle. Merci ${n} !`, n => `${n} vise le mur, et le touche.`,
+    n => `Zéro. ${n}, même par hasard on fait mieux.`, n => `${n} vient d'inventer la volée fantôme.`,
+    n => `Trois fléchettes, zéro point. ${n}, c'est presque un exploit.`, n => `Zéro. Le mur te dit merci, ${n}.`,
+    n => `${n}, la cible t'a vu venir. Elle s'est poussée.`, n => `Zéro pointé. ${n}, t'as pensé au tricot ?`],
   low: [n => `Quel talent, ${n} !`, (n, v) => `${v} points. On sent la grande forme, ${n}.`, n => `${n}, c'est un échauffement, j'espère ?`,
-    n => `Magnifique, ${n}. Enfin, presque.`, (n, v) => `${v} ! Le public est debout, ${n}. Pour partir.`, n => `${n} joue avec la main gauche ce soir.`],
+    (n, v) => `${v} ! Le public est debout, ${n}. Pour partir.`, n => `${n} joue avec la main gauche ce soir.`,
+    (n, v) => `${v} points. Même la machine à café fait mieux, ${n}.`, (n, v) => `${v}. ${n}, tu joues pour l'autre équipe ?`,
+    (n, v) => `${v} points. ${n}, personne ne t'oblige à jouer, tu sais.`, (n, v) => `Ah, ${v}. ${n} confond fléchettes et pétanque.`,
+    (n, v) => `${v} points. Quelqu'un peut ramasser le niveau de ${n} ? Il est par terre.`,
+    (n, v) => `${v}. Dis-moi que tu fais exprès, ${n}. Dis-le.`],
   bust: [n => `Bust ! On applaudit ${n} !`, n => `Bust ! ${n} a encore fait ses calculs de tête.`, n => `Trop fort, ${n}. Vraiment trop fort.`,
-    n => `Bust ! ${n}, la calculatrice est en option.`],
+    n => `Bust ! ${n}, la calculatrice est en option.`, n => `Bust. ${n} compte comme un pigeon.`,
+    n => `Bust ! ${n}, compter à l'envers, c'est trop demander ?`, n => `Bust. Bel effort, ${n}. Pour rien.`,
+    n => `Bust ! ${n} tenait la finition, et l'a lâchée.`, n => `Bust. ${n}, l'école devrait te rembourser.`],
   serie: [(n, v) => `${v} volées ratées d'affilée. Bravo ${n} !`, (n, v) => `${v} de suite ! ${n} tient la distance.`,
-    (n, v) => `${v} volées pourries d'affilée. ${n}, une tournée et ça repart.`],
+    (n, v) => `${v} volées pourries d'affilée. ${n}, une tournée et ça repart.`,
+    (n, v) => `${v} de suite. ${n} est constant, au moins dans la nullité.`,
+    (n, v) => `${v} volées ratées. ${n}, la tournée est pour toi, d'office.`,
+    (n, v) => `${v} d'affilée. On arrête de compter, par pitié pour ${n}.`],
 });
 
 // Voix pâteuse de Tsia (lot 7.5) : syllabes à prononcer (jamais de lettres seules, que la voix épellerait) et une

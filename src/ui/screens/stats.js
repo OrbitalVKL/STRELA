@@ -100,9 +100,12 @@ export function statsScreen(id) {
         <div class="kpi" data-k="double"><small>Taux de doubles</small><b>${pct(st.doubleRate)}</b></div>
         <div class="kpi" data-k="bestFinish"><small>Meilleure finition</small><b>${int(st.bestFinish)}</b></div>
         <div class="kpi" data-k="shortest"><small>Manche la + courte</small><b>${st.shortestLeg ?? '—'}${st.shortestLeg ? '<small> fl.</small>' : ''}</b></div>
+        <div class="kpi" data-k="bestVisit"><small>Meilleure volée</small><b>${st.bestVisit}</b></div>
+        <div class="kpi" data-k="worstVisit"><small>Pire volée</small><b>${st.worstVisit ?? '—'}</b></div>
         <div class="kpi wide tons"><div data-k="ton"><small>100+</small><b>${st.ton}</b></div><div data-k="ton40"><small>140+</small><b>${st.ton40}</b></div><div data-k="max"><small>180</small><b>${st.max}</b></div></div>
       </div>
-      <p class="note">Finition : volées gagnées quand la finition était jouable. Doubles : fléchettes qui ont fini quand une seule pouvait finir.</p>
+      <p class="note">Finition : volées gagnées quand la finition était jouable. Doubles : fléchettes qui ont fini quand une seule pouvait finir. Pire volée : un bust compte 0, une volée de finition ne compte pas.</p>
+      ${worstList(st.perGame)}
       ${h2h ? `<div class="sec">Face-à-face</div><ul class="h2h">${h2h}</ul><p class="note">Touchez un adversaire pour le détail partie par partie.</p>` : ''}
       <div class="sec">Segments touchés <span class="n">${st.segments.total} fl.</span></div>
       ${board(st.segments)}
@@ -112,6 +115,17 @@ export function statsScreen(id) {
       ${chart(tl, st.average)}
       <p class="note center">${readPoint}</p>
     </div></div>`;
+}
+
+// ------------------------------------------------------------------ pires volées de chaque partie (lot 7.7)
+const WORST_ROWS = 12;
+function worstList(rows) {
+  if (!rows.length) return '';
+  const shown = rows.slice(0, WORST_ROWS);
+  return `<div class="sec">Pire volée de chaque partie <span class="n">${rows.length}</span></div>
+    <ul class="worst">${shown.map(r => `<li><a href="#/partie/${esc(r.gameId)}"><span class="d">${when(r.at)}</span><span class="g">${r.startScore}</span>
+      <span class="w"><small>PIRE</small><b>${r.worstBust ? 'BUST' : r.worst}</b></span><span class="bv"><small>MEILL.</small><b>${r.best}</b></span>${ico('chev')}</a></li>`).join('')}</ul>
+    ${rows.length > WORST_ROWS ? `<p class="note">Les ${WORST_ROWS} parties les plus récentes de la période.</p>` : ''}`;
 }
 
 // ------------------------------------------------------------------ face-à-face (lot 3)
