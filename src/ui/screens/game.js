@@ -9,10 +9,10 @@
 //   hors de la cible ne compte rien).
 // Après la 3e fléchette ou un bust, la volée reste affichée jusqu'à VALIDER (turn.js) ; ANNULER reste possible.
 // À la validation, « À TOI, PSEUDO » occupe le haut de l'écran ~0,8 s, puis le bandeau du joueur glisse en place.
-import { store, currentState, playerById, archiveCurrent, deleteCurrent, animationsOn, saveCurrent, legEndPending, addDrink, removeDrink, drinksHere } from '../store.js';
+import { store, currentState, playerById, archiveCurrent, deleteCurrent, animationsOn, saveCurrent, legEndPending, addDrink, removeDrink, drinksHere, gameDrinks, gameDrinking } from '../store.js';
 import { esc, ico, avg, OUT_SHORT, maquetteButtons } from '../dom.js';
 import { avatarHtml, colorIndex } from '../avatars.js';
-import { throwDart, undoDart } from '../../engine/x01.js';
+import { throwDart, undoDart, computeState } from '../../engine/x01.js';
 import { makeDart, formatDart } from '../../engine/darts.js';
 import { suggestCheckout } from '../../engine/checkout.js';
 import { playerSummary } from '../../engine/stats.js';
@@ -26,7 +26,7 @@ import { gameLog, selectLogCell, selectedLogCell } from './history.js';
 import { sound, dartSound, say, SPEECH } from '../feedback.js';
 import { correctDart, locateDart, visitStart, CORRECT_ERRORS } from '../../engine/correct.js';
 import { turnAnimOf, syncTurnFx } from '../turnfx.js';
-import { leader, flop, lastPlaces } from '../../engine/ranking.js';
+import { leader, flop, lastPlaces, visitStanding } from '../../engine/ranking.js';
 
 export const ANNOUNCE_MS = 800;
 const LENS = { size: 150, zoom: 2.5, gap: 26 };
@@ -133,25 +133,60 @@ function band(v, slide) {
     </header>`;
 }
 
+// Lot 7.6 (demande de Guillaume) : au résultat de la volée (en attente de VALIDER), dire si elle est parmi les 3
+// meilleures ou les 3 pires de la soirée (toutes les volées des parties de la soirée), ou de la partie hors soirée.
+// Rang = 1 + nombre d'autres volées strictement meilleures (ou pires) : à égalité, on partage le rang. Points d'une
+// volée = `scored` (un bust vaut 0). Calcul : ranking.js › visitStanding.
+const scoreCache = new Map(); // partie close → points de ses volées
+function scoresOf(g) {
+  const key = `${g.id}:${g.darts.length}`;
+  if (!scoreCache.has(key)) {
+    let list = [];
+    try { list = computeState(g.config, g.darts).visits.map(x => x.scored); } catch (e) { /* partie illisible : ignorée */ }
+    scoreCache.set(key, list);
+  }
+  return scoreCache.get(key);
+}
+export function visitRank(g, s) {
+  const idx = s.visits.length - 1;
+  if (idx < 0) return null;
+  const x = s.visits[idx].scored;
+  const others = s.visits.filter((_, i) => i !== idx).map(y => y.scored);
+  if (g.soiree) for (const h of store.games) if (h.soiree === g.soiree && h.id !== g.id) others.push(...scoresOf(h));
+  const r = visitStanding(x, others);
+  return r && { ...r, scope: g.soiree ? 'soiree' : 'partie' };
+}
+function rankBadge(v) {
+  const r = v.pend ? visitRank(v.g, v.s) : null;
+  if (!r) return '';
+  const word = r.kind === 'best' ? 'MEILLEURE' : 'PIRE';
+  const where = r.scope === 'soiree' ? 'SOIRÉE' : 'PARTIE';
+  const n = r.rank > 1 ? `<b>${r.rank}E</b> ` : '';
+  return `<div class="vr ${r.kind}" role="status" data-fit="3">${ico(r.kind === 'best' ? 'up' : 'down')}<span class="vt">${n}${word}<span class="l1"> VOLÉE</span><span class="l2"> DE LA ${where}</span><span class="s2"> · ${where}</span></span></div>`;
+}
+
 function rest(v) {
   const { cfg, player, remaining, s, shown } = v;
+  const badge = rankBadge(v);
   if (v.bust) {
+    // Bust classé (lot 7.6) : le classement prend la place de « AUCUN POINT » (le bloc rouge est déjà plein).
     return `<section class="rest alert" role="alert" aria-label="Bust">
-      <div class="meta"><span class="ell">${esc(player.name)}</span><span>AUCUN POINT</span></div>
-      <b class="bust-word" data-shrink>BUST</b><span class="bust-rest">RESTE ${remaining}</span><span id="remaining" hidden>${remaining}</span>
+      <div class="meta"><span class="ell">${esc(player.name)}</span>${badge ? badge.replace('class="vr', 'class="vr in-meta') : '<span>AUCUN POINT</span>'}</div>
+      <b class="bust-word" data-shrink>BUST</b><span class="bust-rest" data-shrink>RESTE ${remaining}</span><span id="remaining" hidden>${remaining}</span>
     </section>`;
   }
   const legAvg = playerSummary(s, shown, s.legNumber).average;
   // Lot 7 : alcoolémie estimée du joueur, dès son premier verre (le détail et les verres sont au menu pause).
   // Lot 7.1 : et ses verres de la partie, dès qu'un joueur en a pris un (on voit aussi « 0 » pour ceux qui n'ont rien bu).
   const id = cfg.players[shown];
-  const drinking = store.current.drinks && Object.values(store.current.drinks).some(l => l.length);
-  const n = drinksHere(id);
+  // Lot 7.6 : avec une soirée, les verres d'avant la partie comptent aussi.
+  const drinking = gameDrinking(store.current);
+  const n = gameDrinks(store.current, id);
   // Lot 7.2 (demande de Guillaume) : des verres, pas leur équivalent en alcool : « [verre] x3 ».
   const alc = drinking ? `${glassCount(n)} · ` : '';
-  return `<section class="rest" aria-label="Reste à faire">
+  return `<section class="rest${badge ? ' ranked' : ''}" aria-label="Reste à faire">
       <div class="meta"><span class="ell">${cfg.startScore} · ${OUT_SHORT[cfg.outMode]}</span><span>${alc}MOY. ${avg(legAvg)}</span></div>
-      <div class="big" id="remaining" aria-label="${remaining}" data-shrink>${rollHtml(`r:${s.legNumber}:${shown}`, remaining)}</div>
+      <div class="big" id="remaining" aria-label="${remaining}" data-shrink>${rollHtml(`r:${s.legNumber}:${shown}`, remaining)}</div>${badge}
     </section>`;
 }
 
@@ -212,6 +247,41 @@ function others(v) {
   }).join('')}</section>`;
 }
 
+/** Tour en cours (lot 7.6) : celui de la volée montrée (en cours, ou en attente de VALIDER). */
+const tourOf = v => roundOf(v.s, v.pend ? v.s.visits.length - 1 : 'open');
+
+/**
+ * Bande du tour (lot 7.6, demande de Guillaume) : « TOUR 5 » puis tous les joueurs dans l'ordre du tour, à partir du
+ * premier à lancer de la manche. Plein = a déjà lancé ce tour-ci ; encadré = lance maintenant ; filet = lance encore
+ * ce tour-ci ; barré = a fini (jouer jusqu'au bout). Un joueur a lancé ce tour-ci s'il a déjà autant de volées dans la
+ * manche que le numéro du tour (robuste aux joueurs sautés).
+ */
+function roundStrip(v) {
+  const { s, n, cfg, shown } = v;
+  const r = tourOf(v);
+  // Verres (lot 7.6) : un appui ouvre le panneau des verres, sans passer par la pause.
+  const glass = `<button type="button" class="glass" data-act="drinks-open" data-press aria-label="Verres">${ico('glass')}<span>+1</span></button>`;
+  if (n < 2) return `<section class="round" aria-label="Tour ${r}"><b class="rt">TOUR ${r}</b>${glass}</section>`;
+  const count = new Array(n).fill(0);
+  for (const x of s.visits) if (x.leg === s.legNumber) count[x.player] += 1;
+  const placed = s.placing ? s.finishOrder : [];
+  const cells = [];
+  let left = 0;
+  for (let k = 0; k < n; k++) {
+    const i = (s.legStarter + k) % n;
+    const p = playerById(cfg.players[i]);
+    const out = placed.includes(i);
+    const now = i === shown && !v.pend;
+    const done = !out && !now && count[i] >= r;
+    if (!out && !done && !now) left += 1;
+    const st = out ? 'out' : now ? 'now' : done ? 'done' : 'todo';
+    const label = { out: 'a fini', now: 'lance', done: 'a lancé', todo: 'à lancer' }[st];
+    cells.push(`<li class="rd ${st}" aria-label="${esc(p.name)} : ${label}">${avatarHtml(p, n > 5 ? 19 : 22, 'mono')}</li>`);
+  }
+  const tail = left ? `<span class="rl"><span class="lg">ENCORE </span><span class="sh">+</span>${left}</span>` : '<span class="rl"><span class="lg">DERNIER</span><span class="sh">FIN</span></span>';
+  return `<section class="round${n > 5 ? ' many' : ''}${v.pend ? ' wait' : ''}" aria-label="Tour ${r}" data-fit="4"><b class="rt"><span class="lg">TOUR </span><span class="sh">T</span>${r}</b><ol class="rds">${cells.join('')}</ol>${v.pend ? '' : tail}${glass}</section>`;
+}
+
 /** « 1ER », « 2E »… */
 export const placeLabel = n => (n === 1 ? '1ER' : `${n}E`);
 
@@ -250,7 +320,7 @@ export function game() {
   const slide = v.ui.slide;
   v.ui.slide = false; // le glissement ne se joue qu'une fois
   const land = isLandscape();
-  const overlays = `${v.ui.panel ? livePanel(v) : ''}${v.ui.pause ? pauseSheet() : ''}`;
+  const overlays = `${v.ui.panel ? livePanel(v) : ''}${v.ui.pause ? pauseSheet() : ''}${v.ui.drinks ? drinksSheet(v) : ''}`;
   if (land) return landscape(v, slide, overlays);
 
   // Pavé (portrait)
@@ -266,7 +336,7 @@ export function game() {
     }).join('')}</div>`);
   }
   const mk = (k, label, word) => `<button type="button" class="key m" data-key="${k}" aria-pressed="${!wait && m === { S: 1, D: 2, T: 3 }[k]}" ${dis}><span class="kl" data-shrink>${label}<small>${word}</small></span></button>`;
-  const pad = `<section class="pad-k${m > 1 && !wait ? ' armed' : ''}${wait ? ' wait' : ''}" aria-label="Saisie">
+  const pad = `<section class="pad-k${m > 1 && !wait ? ` armed m${m}` : ''}${wait ? ' wait' : ''}" aria-label="Saisie">
       <div class="krow mult">${mk('S', 'S', 'SIMPLE')}${mk('D', 'D', 'DOUBLE')}${mk('T', 'T', 'TRIPLE')}</div>
       ${nums.join('')}
       <div class="krow last">
@@ -281,7 +351,7 @@ export function game() {
   return `<div class="game port">
     <div class="toparea">${band(v, slide)}${rest(v)}${announce(v)}</div>
     <div class="vblock"><div class="vcol">${visitBoxes(v)}${checkoutLine(v)}</div>${smallBoard(v)}</div>
-    ${others(v)}${pad}
+    ${roundStrip(v)}${others(v)}${pad}
     ${overlays}${celebrationHtml()}
   </div>`;
 }
@@ -295,7 +365,7 @@ function landscape(v, slide, overlays) {
       <div class="toparea">${band(v, slide)}
         <div class="mid">${rest(v)}<div class="side">${visitBoxes(v)}${checkoutLine(v)}</div></div>
         ${announce(v)}</div>
-      ${others(v)}
+      ${roundStrip(v)}${others(v)}
       <div class="lbtns">
         <button type="button" class="key zero" data-key="0" ${wait ? 'disabled' : ''}>0<small>RATÉ</small></button>
         <button type="button" class="key undo" data-key="undo" ${g.darts.length ? '' : 'disabled'}>${ico('undo')}<span class="kl" data-shrink>ANNULER</span></button>
@@ -405,7 +475,7 @@ function fixer(v, fix) {
     const pre = m === 2 ? 'D' : m === 3 ? 'T' : '';
     const nums = [];
     for (let r = 0; r < 4; r++) nums.push(`<div class="krow nums">${[1, 2, 3, 4, 5].map(c => k(r * 5 + c, `${pre}${r * 5 + c}`)).join('')}</div>`);
-    body = `<div class="fx-pad${m > 1 ? ' armed' : ''}">
+    body = `<div class="fx-pad${m > 1 ? ` armed m${m}` : ''}">
       <div class="krow mult">${mk(1, 'S')}${mk(2, 'D')}${mk(3, 'T')}</div>${nums.join('')}
       <div class="krow last">${k(25, m === 2 ? 'D25' : '25', m === 3)}${k(50, '50')}${k(0, '0')}<button type="button" class="key undo" data-act="fix-cancel"><span class="kl" data-shrink>FERMER</span></button></div></div>`;
   }
@@ -444,18 +514,32 @@ function pauseSheet() {
  * Verres et alcoolémie (lot 7) : pour chaque joueur, ses verres dans la partie (− / + VERRE) et son alcoolémie estimée
  * (verres des 24 dernières heures, toutes parties confondues). Aussi sur l'écran de fin de partie (sans les boutons).
  */
-export function drinksSection(ids, { edit = true } = {}) {
+export function drinksSection(ids, { edit = true, title = true } = {}) {
+  const g = store.current;
   const rows = ids.map(id => {
     const p = playerById(id);
-    const n = drinksHere(id);
-    const buttons = edit ? `<button type="button" class="mv" data-act="drink-minus" data-arg="${esc(id)}" ${n ? '' : 'disabled'} aria-label="Retirer un verre à ${esc(p.name)}">${ico('minus')}</button>
+    const n = gameDrinks(g, id); // lot 7.6 : avec les verres de la soirée avant la partie
+    const buttons = edit ? `<button type="button" class="mv" data-act="drink-minus" data-arg="${esc(id)}" ${drinksHere(id) ? '' : 'disabled'} aria-label="Retirer un verre à ${esc(p.name)}">${ico('minus')}</button>
         <button type="button" class="mv add" data-act="drink-plus" data-arg="${esc(id)}" aria-label="Un verre de plus pour ${esc(p.name)}">${ico('plus')}${ico('glass')}</button>` : '';
     return `<li>${avatarHtml(p, 32)}<div class="col"><span class="nm ell">${esc(p.name)}</span>
         ${glassCount(n, 'cnt')}</div>${buttons}</li>`;
   }).join('');
-  return `<div class="sec" style="margin-bottom:0">Verres</div>
+  const soiree = g && g.soiree ? ' Les verres de la soirée continuent d\'une partie à l\'autre.' : '';
+  return `${title ? `<div class="sec" style="margin-bottom:0">${g && g.soiree ? 'Verres de la soirée' : 'Verres'}</div>` : ''}
     <ul class="drinks">${rows}</ul>
-    <p class="note" style="margin:0">Chaque verre est noté dans l'historique de la partie, au tour où il a été pris. Qui a bu ne conduit pas.</p>`;
+    <p class="note" style="margin:0">Chaque verre est noté dans l'historique de la partie, au tour où il a été pris.${soiree} Qui a bu ne conduit pas.</p>`;
+}
+
+/** Panneau des verres (lot 7.6) : ouvert par le bouton verre du bandeau, sans passer par la pause. Le joueur qui lance
+ *  en premier, puis les autres dans l'ordre de la partie. */
+function drinksSheet(v) {
+  const ids = v.cfg.players.map((_, k) => v.cfg.players[(v.shown + k) % v.n]);
+  return `<div class="sheet-bg" role="dialog" aria-label="Verres" data-layer><div class="sheet">
+    <header class="top" data-layer><h1><span>${v.g.soiree ? 'Verres de la soirée' : 'Verres'}</span></h1><button type="button" class="act" data-act="drinks-close" aria-label="Fermer">${ico('close')}</button></header>
+    <div class="body" style="padding-top:12px">
+      ${drinksSection(ids, { title: false })}
+      <button type="button" class="btn primary big" data-act="drinks-close">${ico('play')} RETOUR AU JEU</button>
+    </div></div></div>`;
 }
 
 /** « [verre] x3 » (lot 7.2) : verres du joueur dans la partie. */
@@ -514,7 +598,7 @@ function bindBoard(wrap) {
   };
   wrap.addEventListener('pointerdown', ev => {
     const g = store.current;
-    if (!g || g.ui.pause || g.ui.panel || pendingVisit(currentState(), g.validated)) return;
+    if (!g || g.ui.pause || g.ui.panel || g.ui.drinks || pendingVisit(currentState(), g.validated)) return;
     if (ev.pointerType === 'mouse' && ev.button !== 0) return;
     ev.preventDefault();
     stopAnnounce(true);
@@ -766,7 +850,7 @@ function proposeFix(f, dart) {
 /** Touche du pavé (appelée au relâcher, si le doigt n'a pas glissé : app.js). */
 export function key(k) {
   const g = store.current;
-  if (!g || g.ui.pause || g.ui.panel) return;
+  if (!g || g.ui.pause || g.ui.panel || g.ui.drinks) return;
   const ui = g.ui;
   if (k === 'undo') { undo(); refresh(); flash('undo'); return; }
   if (pendingVisit(currentState(), g.validated)) return; // volée en attente : seuls ANNULER et VALIDER
@@ -824,6 +908,8 @@ export const actions = {
     refresh();
   },
   'drink-plus'(id) { addDrink(id); buzz(BUZZ.dart); refresh(); },
+  'drinks-open'() { stopAnnounce(); store.current.ui.drinks = true; refresh(); },
+  'drinks-close'() { store.current.ui.drinks = false; refresh(); },
   'drink-minus'(id) { removeDrink(id); buzz(BUZZ.undo); refresh(); },
   abandon() { store.current.ui.confirm = 'abandon'; refresh(); },
   'delete-current'() { store.current.ui.confirm = 'delete'; refresh(); },

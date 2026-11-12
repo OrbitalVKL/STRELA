@@ -77,7 +77,9 @@ export function cellView(c) {
     small: c.finish ? 'GAGNÉ' : c.open ? (n ? `${n}/3` : 'À JOUER') : String(c.remaining),
     label: `${n ? `${darts.join(', ')} : ` : ''}${c.bust ? `bust, reste ${c.remaining}` : c.finish ? `${c.total}, manche gagnée` : c.open ? `volée en cours, ${c.total}` : `${c.total}, reste ${c.remaining}`}${drinkLabel(c.drinks)}`,
     // Lot 7.1 : verres du joueur jusqu'à cette volée (comme le reste) ; marqués s'il en a pris un pendant ce tour.
-    drinks: c.drinks && c.drinks.total ? { total: c.drinks.total, fresh: c.drinks.here > 0 } : null,
+    // Lot 7.6 : case à jouer encore vide : le cumul seulement s'il vient d'un verre pris juste avant (le cumul d'avant, soirée
+    // comprise, est déjà dans la case précédente).
+    drinks: c.drinks && c.drinks.total && !(c.open && !n && !c.drinks.here) ? { total: c.drinks.total, fresh: c.drinks.here > 0 } : null,
   };
 }
 

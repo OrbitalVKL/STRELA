@@ -29,7 +29,7 @@ const placeLabel = n => (n === 1 ? '1ER' : `${n}E`);
 export function sheetModel(g, s, players) {
   const n = g.config.players.length;
   const finished = s.status === 'finished';
-  const timeline = drinksTimeline(s, g.drinks, g.config.players);
+  const timeline = drinksTimeline(s, g.drinks, g.config.players, g.drinksBefore);
   const drinking = timeline.totals.some(x => x > 0);
   const order = finished ? standings(s) : g.config.players.map((_, i) => ({ player: i, place: null }));
   // Lot 7.3 : place, joueur, manches gagnées, verres ; plus de moyenne ni d'autres statistiques.

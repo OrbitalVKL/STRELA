@@ -24,6 +24,8 @@ export function resetMock() {
   store.current = null;
   store.draft = null;
   store.setupDraft = null;
+  store.soiree = null; // lot 7.6
+  store.soireeDraft = null;
   store.crop = null;
   // Lot 4 : problème d'enregistrement simulé et variante de l'accueil remis à zéro
   store.mockIssue = false;

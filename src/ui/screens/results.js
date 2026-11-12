@@ -3,7 +3,7 @@
 // Les deux montrent la cible : volée de la finition numérotée, volées précédentes du vainqueur dans la manche en discret.
 // La fin de manche sert de validation de la volée gagnante (pas de VALIDER en jeu pour une finition) : MANCHE SUIVANTE
 // l'enregistre (`validated`), une reprise avant cela revient sur cet écran.
-import { store, currentState, playerById, archiveCurrent, startGame, saveCurrent } from '../store.js';
+import { store, currentState, playerById, archiveCurrent, startGame, saveCurrent, gameDrinking } from '../store.js';
 import { esc, avg, int, OUT_LABEL, maquetteButtons } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
 import { formatDart } from '../../engine/darts.js';
@@ -83,13 +83,13 @@ export function matchEnd() {
       <tbody>${rows.map(r => `<tr${r.i === w ? ' class="win"' : ''}><td><div class="pl">${multi ? `<b class="plc">${placeLabel(r.place)}</b>` : avatarHtml(r.p, 28)}<span class="nm">${esc(r.p.name)}</span></div></td>
         <td>${s.legsWon[r.i]}</td><td>${avg(r.sum.average)}</td><td>${r.sum.darts}</td><td>${r.sum.best}</td><td>${int(r.sum.bestFinish)}</td></tr>`).join('')}</tbody></table>
       <p class="note">Man. = manches gagnées · Moy. = moyenne sur 3 fléchettes · Meil. = meilleure volée · Fin. = plus grosse finition.</p>
-      ${g.drinks && Object.values(g.drinks).some(l => l.length) ? drinksSection(rows.map(r => g.config.players[r.i]), { edit: false }) : ''}
+      ${gameDrinking(g) ? drinksSection(rows.map(r => g.config.players[r.i]), { edit: false }) : ''}
       ${sheetSection(g)}
       <button type="button" class="btn ghost" style="margin-top:14px" data-act="undo-end">ANNULER LA DERNIÈRE FLÉCHETTE</button>
       ${store.maquette ? `<div class="mq-row">${maquetteButtons('mq')}</div>` : ''}
     </div>
     <div class="dock btns" data-layer>
-      <button type="button" class="btn primary big" data-act="rematch">REVANCHE <small>${g.config.players.length > 1 ? `${esc(nextFirst.name).toUpperCase()} COMMENCE` : 'MÊMES RÉGLAGES'}</small></button>
+      <button type="button" class="btn primary big" data-act="rematch">REVANCHE <small>${g.config.players.length < 2 ? 'MÊMES RÉGLAGES' : g.shuffled ? 'ORDRE TIRÉ AU SORT' : `${esc(nextFirst.name).toUpperCase()} COMMENCE`}</small></button>
       <button type="button" class="btn" data-act="finish-home">ACCUEIL</button>
     </div>
     ${celebrationHtml()}
@@ -128,10 +128,12 @@ export const actions = {
   rematch() {
     if (!store.current) { go('#/', { replace: true }); return; }
     const c = store.current.config;
+    // Mêmes réglages ; le premier à lancer passe au joueur suivant. Lot 7.6 : si l'ordre avait été tiré au sort, la
+    // revanche le tire de nouveau (avant, elle gardait l'ordre tiré en le décalant d'un cran).
+    const shuffled = !!store.current.shuffled;
+    const players = shuffled ? [...c.players] : [...c.players.slice(1), c.players[0]];
     archiveCurrent(false);
-    // Mêmes réglages ; le premier à lancer passe au joueur suivant.
-    const players = [...c.players.slice(1), c.players[0]];
-    startGame({ players, startScore: c.startScore, outMode: c.outMode, legsToWin: c.legsToWin, playOn: !!c.playOn });
+    startGame({ players, startScore: c.startScore, outMode: c.outMode, legsToWin: c.legsToWin, playOn: !!c.playOn, ...(shuffled ? { shuffle: true } : {}) });
     go('#/jeu', { replace: true });
   },
   'finish-home'() { archiveCurrent(false); go('#/'); },

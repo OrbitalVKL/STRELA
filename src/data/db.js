@@ -12,7 +12,9 @@
 //             darts[] : { segment, multiplier, pos? } ; la partie en cours est celle dont endedAt vaut null ;
 //             config.playOn (lot 7, jouer jusqu'au bout) et drinks { [joueur]: [instants] } facultatifs : aucune migration
 //   settings  clés « display » { theme, night, vibrate, anim, sound, voice (lot 3, OUI si absents) }, « lastSetup » { players, startScore, outMode,
-//             legsToWin, shuffle?, playOn? (lot 7) }, « storage » { asked, persisted } (demande de stockage persistant)
+//             legsToWin, shuffle?, playOn? (lot 7) }, « storage » { asked, persisted } (demande de stockage persistant),
+//             « soiree » (lot 7.6, soirée en cours : soireeRecord ; absente sinon)
+//   games, lot 7.6 : shuffled?, soiree?, drinksBefore? facultatifs (withDrinks) : aucune migration
 //
 // Toutes les écritures passent par write(ops) : une seule transaction pour la liste d'opérations, durabilité
 // « strict » (écrite sur le disque avant d'être annoncée faite). Les transactions sont exécutées dans l'ordre où
@@ -163,11 +165,33 @@ export const currentRecord = g => withDrinks(g, {
   id: g.id, startedAt: g.startedAt, endedAt: null, config: g.config, darts: g.darts, validated: g.validated, abandoned: false,
 });
 
-/** Lot 7 : verres de la partie (champ facultatif, absent s'il n'y en a pas : aucune migration). */
+/** Lot 7 : verres de la partie (champ facultatif, absent s'il n'y en a pas : aucune migration). Lot 7.6 : aussi les
+ *  champs facultatifs `shuffled` (ordre tiré au sort, pour la REVANCHE), `soiree` (identifiant de la soirée) et
+ *  `drinksBefore` ({ [joueur]: verres de la soirée avant cette partie }). */
 export function withDrinks(g, rec) {
   const drinks = cleanDrinks(g.drinks);
   if (drinks) rec.drinks = drinks;
+  if (g.shuffled === true) rec.shuffled = true;
+  if (typeof g.soiree === 'string' && g.soiree) rec.soiree = g.soiree;
+  const before = cleanBefore(g.drinksBefore);
+  if (before) rec.drinksBefore = before;
   return rec;
+}
+
+/** `drinksBefore` nettoyé (entiers positifs seulement), ou null. */
+export function cleanBefore(x) {
+  if (!x || typeof x !== 'object' || Array.isArray(x)) return null;
+  const out = {};
+  for (const [id, n] of Object.entries(x)) if (Number.isInteger(n) && n > 0) out[id] = n;
+  return Object.keys(out).length ? out : null;
+}
+
+/** Soirée (lot 7.6, réglage « soiree ») telle qu'enregistrée, ou null si illisible :
+ *  { id, startedAt, players: [identifiants], drinks: { [joueur]: [{ t }] } (verres pris hors partie) }. */
+export function soireeRecord(x) {
+  if (!x || typeof x !== 'object' || typeof x.id !== 'string' || !Number.isFinite(x.startedAt) || !Array.isArray(x.players)) return null;
+  const players = [...new Set(x.players.filter(id => typeof id === 'string' && id))];
+  return { id: x.id, startedAt: x.startedAt, players, drinks: cleanDrinks(x.drinks) || {} };
 }
 
 /** Enregistrement d'une partie close (terminée ou abandonnée). */

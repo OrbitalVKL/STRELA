@@ -54,11 +54,14 @@ export function drinkTimes(games, playerId, now) {
  * joueur), total: verres du joueur jusque-là dans la partie }. Un verre pris après la dernière volée du joueur (ou un
  * verre de la v0.7.0, sans place) va à sa volée en cours, sinon à sa dernière volée.
  *   drinks : g.drinks ; ids : config.players ; renvoie Map(clé → { here, total }) et totals[rang du joueur].
+ *   before (lot 7.6) : g.drinksBefore, verres de la soirée avant la partie ({ [joueur]: n }) : le cumul part de là.
  */
-export function drinksTimeline(state, drinks, ids) {
+export function drinksTimeline(state, drinks, ids, before = null) {
   const byVisit = new Map();
-  const totals = ids.map(() => 0);
-  if (!drinks) return { byVisit, totals };
+  const start = id => (before && Number.isInteger(before[id]) && before[id] > 0 ? before[id] : 0);
+  const totals = ids.map(id => start(id));
+  if (!drinks && !ids.some(id => start(id))) return { byVisit, totals };
+  drinks = drinks || {};
   // Bornes de chaque volée dans la liste des fléchettes (les volées sont dans l'ordre du jeu).
   const mine = ids.map(() => []); // [{ key, end }] par joueur
   let pos = 0;
@@ -67,7 +70,7 @@ export function drinksTimeline(state, drinks, ids) {
   ids.forEach((id, p) => {
     const list = Array.isArray(drinks[id]) ? drinks[id] : [];
     const slots = mine[p];
-    if (!list.length || !slots.length) { totals[p] = list.length; return; }
+    if (!slots.length || (!list.length && !start(id))) { totals[p] = start(id) + list.length; return; }
     const here = new Array(slots.length).fill(0);
     for (const d of list) {
       const at = drinkAt(d);
@@ -75,9 +78,9 @@ export function drinksTimeline(state, drinks, ids) {
       if (k < 0) k = slots.length - 1;
       here[k] += 1;
     }
-    let total = 0;
+    let total = start(id);
     slots.forEach((s, k) => { total += here[k]; byVisit.set(s.key, { here: here[k], total, player: p }); });
-    totals[p] = list.length;
+    totals[p] = start(id) + list.length;
   });
   return { byVisit, totals };
 }

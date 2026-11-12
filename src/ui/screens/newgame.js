@@ -10,7 +10,11 @@ function draft() {
   if (store.setupDraft) return store.setupDraft;
   const last = { shuffle: true, playOn: false, ...(store.lastSetup || { players: [], startScore: 501, outMode: 'double', legsToWin: 1 }) };
   const active = new Set(activePlayers().map(p => p.id));
-  store.setupDraft = { ...last, players: last.players.filter(id => active.has(id)), confirm: false };
+  // Lot 7.6 : pendant une soirée, ses joueurs sont proposés d'office (ceux de la dernière partie d'abord, dans leur ordre).
+  const base = store.soiree
+    ? [...last.players.filter(id => store.soiree.players.includes(id)), ...store.soiree.players.filter(id => !last.players.includes(id))]
+    : last.players;
+  store.setupDraft = { ...last, players: base.filter(id => active.has(id)), confirm: false };
   return store.setupDraft;
 }
 
@@ -23,9 +27,9 @@ export function newGame() {
 
   const order = chosen.length
     ? `<ol class="order">${chosen.map((p, i) => `<li>
-        <span class="rank inv">${i + 1}</span>${avatarHtml(p, 40)}<span class="nm ell">${esc(p.name)}</span>
-        <button type="button" class="mv" data-act="move-up" data-arg="${i}" ${i === 0 ? 'disabled' : ''} aria-label="Monter">${ico('up')}</button>
-        <button type="button" class="mv" data-act="move-down" data-arg="${i}" ${i === chosen.length - 1 ? 'disabled' : ''} aria-label="Descendre">${ico('down')}</button>
+        <span class="rank inv">${d.shuffle ? '?' : i + 1}</span>${avatarHtml(p, 40)}<span class="nm ell">${esc(p.name)}</span>
+        ${d.shuffle ? '' : `<button type="button" class="mv" data-act="move-up" data-arg="${i}" ${i === 0 ? 'disabled' : ''} aria-label="Monter">${ico('up')}</button>
+        <button type="button" class="mv" data-act="move-down" data-arg="${i}" ${i === chosen.length - 1 ? 'disabled' : ''} aria-label="Descendre">${ico('down')}</button>`}
         <button type="button" class="mv" data-act="remove" data-arg="${i}" aria-label="Retirer">${ico('close')}</button></li>`).join('')}</ol>`
     : `<p class="note" style="margin:0">${d.shuffle ? 'Touchez les joueurs de la partie.' : 'Touchez les joueurs dans l\'ordre où ils vont lancer.'}</p>`;
 
@@ -58,6 +62,7 @@ export function newGame() {
   return `<div class="screen has-dock">${topBar('Nouvelle partie', '#/')}
     <div class="pad">
       ${busyNote}
+      ${store.soiree ? `<a class="soiree-line" href="#/soiree">${ico('glass')}<span><b>SOIRÉE EN COURS</b><br>Ses joueurs sont proposés ; un joueur ajouté rejoint la soirée, et les verres continuent.</span>${ico('chev')}</a>` : ''}
       <div class="sec">${d.shuffle ? 'Joueurs' : 'Ordre de passage'} <span class="n">${d.players.length}/${MAX_PLAYERS}</span></div>
       ${order}
       <div class="seg" style="margin-top:12px">${seg('shuffle', 'oui', 'Tiré au sort', d.shuffle ? 'oui' : 'non')}${seg('shuffle', 'non', 'Dans cet ordre', d.shuffle ? 'oui' : 'non')}</div>
