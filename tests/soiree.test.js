@@ -29,7 +29,8 @@ test('ordre tiré au sort : la partie prend un ordre mélangé, les réglages ga
     for (let k = 0; k < 8; k++) {
       await newGame(t.page, ['Alpha', 'Bravo', 'Charlie'], { shuffle: true });
       const first = await t.page.locator('.gband .nm').textContent();
-      const announced = await t.page.locator('.announce .nm').count() ? await t.page.locator('.announce .nm').textContent() : null;
+      // Lu d'un coup dans la page : l'annonce ne dure que 0,8 s (deux lectures séparées pouvaient la manquer entre les deux).
+      const announced = await t.page.evaluate(() => document.querySelector('.announce .nm')?.textContent ?? null);
       await settle(t.page);
       const db = await readDb(t.page);
       const cur = db.current;

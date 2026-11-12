@@ -58,13 +58,16 @@ export function playerSummary(state, p, legNumber = null) {
  *   average, first9, checkoutRate, doubleRate, bestFinish, shortestLeg, ton (100–139), ton40 (140–179),
  *   max (180), played, won, legsPlayed, legsWon, segments (carte des impacts), timeline (moyenne par partie),
  *   headToHead (par adversaire : { played, won, lost }).
+ *   Lot 7.6 : bestVisit (meilleure volée), worstVisit (pire volée, bust = 0, hors volées de finition : une finition
+ *   courte n'est pas une mauvaise volée ; null s'il n'y en a pas), perGame (par partie, de la plus récente à la plus
+ *   ancienne : { gameId, at, startScore, worst, worstBust, best }).
  */
 export function playerStats(games, playerId) {
   const out = {
     played: 0, won: 0, legsPlayed: 0, legsWon: 0, darts: 0, points: 0,
     average: null, first9: null, checkoutRate: null, doubleRate: null,
     checkoutChances: 0, checkouts: 0, doubleDarts: 0, doubleHits: 0,
-    bestFinish: null, shortestLeg: null, ton: 0, ton40: 0, max: 0, bestVisit: 0,
+    bestFinish: null, shortestLeg: null, ton: 0, ton40: 0, max: 0, bestVisit: 0, worstVisit: null, perGame: [],
     segments: emptySegments(), timeline: [], headToHead: {},
   };
   let f9Points = 0, f9Darts = 0;
@@ -90,6 +93,13 @@ export function playerStats(games, playerId) {
     }
     const mine = s.visits.filter(v => v.player === p);
     const g = avg3(mine);
+    const scoring = mine.filter(v => !v.finish);
+    if (scoring.length) {
+      const w = scoring.reduce((a, v) => (v.scored < a.scored ? v : a));
+      out.worstVisit = out.worstVisit === null ? w.scored : Math.min(out.worstVisit, w.scored);
+      out.perGame.unshift({ gameId: game.id, at: game.startedAt, startScore: s.config.startScore, worst: w.scored,
+        worstBust: scoring.some(v => v.bust && v.scored === w.scored) && w.scored === 0, best: mine.reduce((m, v) => Math.max(m, v.scored), 0) });
+    }
     if (g !== null) out.timeline.push({ at: game.startedAt, average: g, gameId: game.id });
 
     for (const leg of s.legs) {
