@@ -78,8 +78,9 @@ function spread(marks, R) {
  *   impacts  : [{ dart, n? (1, 2, 3 : volée en cours, numérotée), old? (volées précédentes, discret) }]
  *   heat     : (key) → 0..1 (carte des segments : plus une zone est claire, plus elle a été touchée) ; act : data-act
  *   cls, id, label (texte pour les lecteurs d'écran), selected : clé de zone entourée
+ *   counts   : lot 7.8 — (secteur 1…20 | 25) → nombre d'impacts, écrit sur chaque secteur (simple extérieur) et au centre
  */
-export function boardSvg({ size = 300, labels = size >= 150, impacts = [], heat = null, act = null, cls = '', id = '', label = 'Cible', selected = null } = {}) {
+export function boardSvg({ size = 300, labels = size >= 150, impacts = [], heat = null, act = null, cls = '', id = '', label = 'Cible', selected = null, counts = null } = {}) {
   const edge = labels ? RINGS.edge : RINGS.doubleOut + 0.04;
   const vb = `${f(-edge)} ${f(-edge)} ${f(2 * edge)} ${f(2 * edge)}`;
   const unit = (2 * edge) / size; // unités du repère par px affiché
@@ -95,6 +96,17 @@ export function boardSvg({ size = 300, labels = size >= 150, impacts = [], heat 
     for (const z of ZONES) if (z.key === selected) parts.push(shape(z, 'class="sel"'));
   }
   if (labels) parts.push(`<g class="num" style="font-size:${f(0.115)}px">${numbers(RINGS.labels)}</g>`);
+  if (counts) {
+    // Nombre d'impacts de chaque secteur sur une plaquette sombre, au milieu du simple extérieur ; bull au centre.
+    const r = (RINGS.tripleOut + RINGS.doubleIn) / 2;
+    const plate = (x, y, n) => {
+      const w = 0.05 + 0.047 * String(n).length;
+      return `<rect x="${f(x - w / 2)}" y="${f(y - 0.055)}" width="${f(w)}" height="${f(0.11)}"/><text x="${f(x)}" y="${f(y)}" dy="0.36em" text-anchor="middle">${n}</text>`;
+    };
+    const cells = SECTORS.map((sct, i) => { const n = counts(sct); if (!n) return ''; const [x, y] = polar(i * 18, r); return plate(x, y, n); });
+    const nb = counts(25);
+    parts.push(`<g class="cnt" style="font-size:${f(0.082)}px" aria-hidden="true">${cells.join('')}${nb ? plate(0, 0, nb) : ''}</g>`);
+  }
   // Impacts : d'abord les anciens (discrets), puis la volée en cours, numérotée.
   const old = impacts.filter(i => i.old), cur = impacts.filter(i => !i.old);
   for (const i of old) {

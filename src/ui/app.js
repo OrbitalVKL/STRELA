@@ -23,9 +23,19 @@ import { isApk, nativeBackHandled, hasUpdater, call } from './native.js';
 import { aboutScreen, actions as aboutActions } from './screens/about.js';
 import { actions as sheetActions } from './screens/printsheet.js';
 import { soireeScreen, actions as soireeActions } from './screens/soiree.js';
+import { settings2Screen } from './screens/settings.js';
+import { stats2Screen, rankingScreen, actions as stats2Actions } from './screens/v2/stats2.js';
+import { history2List, actions as history2Actions } from './screens/v2/history2.js';
+import { home2, changelogScreen } from './screens/v2/home2.js';
+import { soireeDashScreen, actions as dashActions } from './screens/v2/soireedash.js';
+
+// Lot 7.8 : refonte en maquette. Montrée seulement dans le sommaire de maquette (store.preview) ; l'appli garde les
+// écrans actuels, et les nouvelles adresses (classement, nouveautés) y renvoient à l'accueil.
+const pv = (next, cur) => (...a) => (store.preview ? next(...a) : cur(...a));
+const pvOnly = next => (...a) => (store.preview ? next(...a) : null);
 
 const ROUTES = [
-  [/^\/?$/, home],
+  [/^\/?$/, pv(home2, home)],
   [/^\/joueurs$/, playersList],
   [/^\/joueur\/(.+)$/, playerForm],
   [/^\/avatars$/, avatarBank],
@@ -33,19 +43,23 @@ const ROUTES = [
   [/^\/jeu$/, game],
   [/^\/manche$/, legEnd],
   [/^\/fin$/, matchEnd],
-  [/^\/historique$/, historyList],
+  [/^\/historique$/, pv(history2List, historyList)],
   [/^\/partie\/(.+)$/, historyDetail],
-  [/^\/stats(?:\/(.+))?$/, statsScreen],
+  [/^\/stats(?:\/(.+))?$/, pv(stats2Screen, statsScreen)],
+  [/^\/classement$/, pvOnly(rankingScreen)],
+  [/^\/nouveautes$/, pvOnly(changelogScreen)],
   [/^\/face\/([^/]+)\/(.+)$/, faceScreen],
-  [/^\/reglages$/, settingsScreen],
+  [/^\/reglages$/, pv(settings2Screen, settingsScreen)],
   [/^\/recadrage$/, cropScreen],
   [/^\/apropos$/, aboutScreen],
   [/^\/soiree$/, soireeScreen],
+  [/^\/soiree\/(.+)$/, pvOnly(soireeDashScreen)],
 ];
 
 const ACTIONS = {
   ...playerActions, ...newGameActions, ...gameActions, ...resultActions,
   ...statsActions, ...settingsActions, ...historyActions, ...photoActions, ...aboutActions, ...sheetActions, ...soireeActions,
+  ...stats2Actions, ...history2Actions, ...dashActions,
 };
 const INPUTS = { ...playerInputs };
 
@@ -74,8 +88,12 @@ function draw() {
   if (!html) return; // l'écran a redirigé
   const samePage = path === lastPath;
   const y = window.scrollY;
+  // Lot 7.8 : blocs à défilement horizontal (courbe zoomée) : position gardée d'un rendu à l'autre tant que leur clé
+  // ne change pas ; sinon calés à droite (les parties les plus récentes).
+  const hs = new Map([...app.querySelectorAll('[data-hscroll]')].map(e => [e.dataset.hscroll, e.scrollLeft]));
   app.innerHTML = html;
   window.scrollTo(0, samePage ? y : 0);
+  for (const e of app.querySelectorAll('[data-hscroll]')) e.scrollLeft = hs.has(e.dataset.hscroll) ? hs.get(e.dataset.hscroll) : e.scrollWidth;
   lastPath = path;
   // Chiffres en rouleau (reste, total, autres joueurs) : animés depuis la valeur affichée au rendu précédent.
   rollScope(store.current ? store.current.id : null);

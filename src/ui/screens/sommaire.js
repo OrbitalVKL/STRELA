@@ -21,6 +21,11 @@ import { isDark, applyTheme, presetBackup } from './settings.js';
 import { makeBackup, parseBackup } from '../../data/backup.js';
 import { saveSetting } from '../store.js';
 import { setHomeVariant, homeVariant } from './home.js';
+import { seasonMock } from '../maquette.js';
+import { setHome2Variant } from './v2/home2.js';
+import { presetStats2 } from './v2/stats2.js';
+import { presetHistory2 } from './v2/history2.js';
+import { presetSettings2 } from './settings.js';
 
 // Lot 7 : jouer jusqu'au bout à 4 (301, sortie simple) ; après PO1, Guillaume, Mathilde et Karim sont à 80, Sacha à 301.
 const PLAYON = () => ({ ...cfg(['p1', 'p2', 'p3', 'p4'], 301, 'single'), playOn: true });
@@ -104,7 +109,37 @@ function mockSoiree({ game = false } = {}) {
 const prefer = id => { const p = store.players.find(q => q.id === id); if (p) p.checkout = { double: 16, avoidBull: true }; };
 const visitIndex = (config, darts, pick) => computeState(config, darts).visits.findIndex(pick);
 
+// Lot 7.8 (maquette de la refonte) : une saison de soirées et les nouveaux écrans (store.preview).
+const v78 = (route, prep = () => {}) => () => { seasonMock(); setHome2Variant('tableau'); presetStats2(); presetHistory2(); presetSettings2(); prep(); return route; };
+
 export const SCENES = {
+  'v78-accueil': v78('#/'),
+  'v78-accueil-console': v78('#/', () => setHome2Variant('console')),
+  'v78-accueil-soiree': v78('#/', () => { store.soiree = { id: 's1', startedAt: Date.now() - 2 * 3600e3, players: ['p1', 'p2', 'p3'], drinks: {} }; }),
+  'v78-console-soiree': v78('#/', () => { setHome2Variant('console'); store.soiree = { id: 's1', startedAt: Date.now() - 2 * 3600e3, players: ['p1', 'p2', 'p3'], drinks: {} }; }),
+  'v78-stats': v78('#/stats/p1'),
+  'v78-stats-info': v78('#/stats/p1', () => presetStats2({ info: ['score', 'courbe'] })),
+  'v78-stats-zoom': v78('#/stats/p1', () => { presetStats2({ zoom: 4, metric: 'average' }); store.preview = true; }),
+  'v78-stats-pire': v78('#/stats/p2', () => presetStats2({ metric: 'worstVisit', zoom: 2 })),
+  'v78-stats-point': v78('#/stats/p1', () => { presetStats2({ zoom: 2 }); const g = store.games.find(x => x.config.players.includes('p1')); presetStats2({ zoom: 2, point: g.id }); }),
+  'v78-stats-volees': v78('#/stats/p1', () => presetStats2({ folds: ['best', 'worst'] })),
+  'v78-classement': v78('#/classement'),
+  'v78-classement-info': v78('#/classement', () => presetStats2({ info: ['palmares', 'classement'], rank: 'worstVisit' })),
+  'v78-classement-verres': v78('#/classement', () => presetStats2({ rank: 'drinks' })),
+  'v78-historique': v78('#/historique'),
+  'v78-historique-filtre': v78('#/historique', () => { const d = new Date(); presetHistory2({ player: 'p2', month: `${d.getFullYear()}-${d.getMonth()}` }); }),
+  'v78-historique-tout': v78('#/historique', () => presetHistory2({ open: store.games.map(g => (g.soiree ? `s:${g.soiree}` : '')).filter(Boolean) })),
+  'v78-historique-vide': v78('#/historique', () => presetHistory2({ player: 'p11', result: 'abandoned' })),
+  'v78-reglages': v78('#/reglages'),
+  'v78-reglages-ouverts': v78('#/reglages', () => presetSettings2({ info: ['aff', 'son', 'vib'], diag: true })),
+  'v78-reglages-apk': v78('#/reglages', () => { store.mockApk = true; store.mockUpdate = { current: '0.7.7', latest: '0.7.8', available: true }; }),
+  'v78-nouveautes': v78('#/nouveautes'),
+  'v78-soiree-dash': v78('#/soiree/s1'),
+  'v78-soiree-dash-ancienne': v78('#/soiree/s6'),
+  'v78-historique-selection': v78('#/historique', () => { const ids = store.games.filter(g => !g.soiree).slice(0, 2).map(g => g.id); presetHistory2({ sel: [...ids, store.games[0].id], open: ['s:s1'] }); }),
+  'v78-historique-ajouter': v78('#/historique', () => { presetHistory2({ sel: [store.games.find(g => !g.soiree).id], ask: 'attach' }); }),
+  'v78-historique-jour': v78('#/historique', () => { const d = new Date(); d.setDate(d.getDate() - 4); d.setHours(19, 0, 0, 0); const players = ['p1', 'p2']; for (let i = 0; i < 2; i++) store.games.push({ id: `jour${i}`, startedAt: d.getTime() + i * 2400e3, config: { startScore: 301, outMode: 'double', legsToWin: 1, players }, darts: simulateGame({ startScore: 301, outMode: 'double', legsToWin: 1, players }, [0.4, 0.4], 70 + i), abandoned: false }); const k = `d:${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; presetHistory2({ open: [k] }); }),
+  'v78-stats-cible': v78('#/stats/p1', () => presetStats2({ folds: ['board'] })),
   jeu: () => { setGame(cfg(['p1', 'p2']), ''); return '#/jeu'; },
   reprendre: () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S5 S20 T19 S1 T20'); return '#/'; },
   'arme-d': () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S5 S20 T19 S1 T20', { mult: 2 }); return '#/jeu'; },
@@ -336,6 +371,37 @@ export function sommaire() {
       <p class="note">Sur chaque écran, ${ico('theme')} en haut à droite bascule le thème et ${ico('menu')} revient ici (en partie : menu pause).
         Données fictives, en mémoire : la maquette ne touche jamais aux joueurs et aux parties enregistrés sur le téléphone.</p>
     </div>
+    <div class="pad"><div class="sec">Lot 7.8 · refonte (maquette)</div>
+      <p class="note" style="margin-top:0">Saison fictive : 14 soirées de 3 à 6 parties. Seule la maquette montre la refonte ; l'appli installée garde les écrans actuels tant qu'elle n'est pas validée.</p></div>
+    <nav class="toc">
+      ${L('v78-accueil', '★ Accueil A « tableau de bord »', 'à parcourir')}
+      ${L('v78-accueil-console', '★ Accueil B « console »')}
+      ${L('v78-accueil-soiree', '★ Accueil A, soirée en cours')}
+      ${L('v78-console-soiree', '★ Accueil B, soirée en cours')}
+      ${L('v78-stats', '★ Stats : joueur', 'chiffres regroupés')}
+      ${L('v78-stats-info', '★ Stats : explications (i) ouvertes')}
+      ${L('v78-stats-zoom', '★ Stats : courbe zoomée ×4', 'valeurs sur les points')}
+      ${L('v78-stats-pire', '★ Stats : courbe « Pire volée »', '×2')}
+      ${L('v78-stats-point', '★ Stats : partie touchée sur la courbe')}
+      ${L('v78-stats-volees', '★ Stats : volées dépliées', 'meilleures, pire de chaque partie')}
+      ${L('v78-classement', '★ Classement', 'palmarès')}
+      ${L('v78-classement-info', '★ Classement : pire volée', 'explications ouvertes')}
+      ${L('v78-classement-verres', '★ Classement : verres')}
+      ${L('v78-historique', '★ Historique', 'par soirée, filtres')}
+      ${L('v78-historique-filtre', '★ Historique : Mathilde, ce mois-ci')}
+      ${L('v78-historique-tout', '★ Historique : soirées dépliées')}
+      ${L('v78-historique-vide', '★ Historique : aucun résultat')}
+      ${L('v78-reglages', '★ Réglages', 'cartes')}
+      ${L('v78-reglages-ouverts', '★ Réglages : explications et diagnostic ouverts')}
+      ${L('v78-reglages-apk', '★ Réglages : appli Android', 'mise à jour disponible')}
+      ${L('v78-nouveautes', '★ Nouveautés', 'changelog')}
+      ${L('v78-soiree-dash', '★ Tableau de bord d\'une soirée', 'hier soir, à imprimer')}
+      ${L('v78-soiree-dash-ancienne', '★ Tableau de bord d\'une soirée plus ancienne')}
+      ${L('v78-historique-selection', '★ Historique : sélection', 'regrouper en soirée')}
+      ${L('v78-historique-ajouter', '★ Historique : ajouter à une soirée')}
+      ${L('v78-historique-jour', '★ Historique : jour hors soirée', 'EN FAIRE UNE SOIRÉE')}
+      ${L('v78-stats-cible', '★ Stats : cible chiffrée', 'impacts par secteur')}
+    </nav>
     <div class="pad"><div class="sec">Écrans</div></div>
     <nav class="toc">
       ${H('#/', '1 · Accueil', `variante « ${homeVariant()} »`)}

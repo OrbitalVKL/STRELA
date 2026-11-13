@@ -58,16 +58,16 @@ export function playerSummary(state, p, legNumber = null) {
  *   average, first9, checkoutRate, doubleRate, bestFinish, shortestLeg, ton (100–139), ton40 (140–179),
  *   max (180), played, won, legsPlayed, legsWon, segments (carte des impacts), timeline (moyenne par partie),
  *   headToHead (par adversaire : { played, won, lost }).
- *   Lot 7.6 : bestVisit (meilleure volée), worstVisit (pire volée, bust = 0, hors volées de finition : une finition
- *   courte n'est pas une mauvaise volée ; null s'il n'y en a pas), perGame (par partie, de la plus récente à la plus
- *   ancienne : { gameId, at, startScore, worst, worstBust, best }).
+ *   Lot 7.7 : bestVisit (meilleure volée), worstVisit (pire volée ; lot 7.8 : hors bust et hors volée de finition ;
+ *   null s'il n'y en a pas), perGame (par partie, de la plus récente à la plus ancienne : { gameId, at, startScore,
+ *   worst, best, busts }). Lot 7.8 : busts, triples (fléchettes dans un triple), tripleRate (triples ÷ fléchettes).
  */
 export function playerStats(games, playerId) {
   const out = {
     played: 0, won: 0, legsPlayed: 0, legsWon: 0, darts: 0, points: 0,
     average: null, first9: null, checkoutRate: null, doubleRate: null,
     checkoutChances: 0, checkouts: 0, doubleDarts: 0, doubleHits: 0,
-    bestFinish: null, shortestLeg: null, ton: 0, ton40: 0, max: 0, bestVisit: 0, worstVisit: null, perGame: [],
+    bestFinish: null, shortestLeg: null, ton: 0, ton40: 0, max: 0, bestVisit: 0, worstVisit: null, perGame: [], busts: 0, triples: 0, tripleRate: null,
     segments: emptySegments(), timeline: [], headToHead: {},
   };
   let f9Points = 0, f9Darts = 0;
@@ -93,13 +93,16 @@ export function playerStats(games, playerId) {
     }
     const mine = s.visits.filter(v => v.player === p);
     const g = avg3(mine);
-    const scoring = mine.filter(v => !v.finish);
+    // Lot 7.8 (Guillaume) : un bust n'est pas une volée à 0, c'est un bust : ni lui ni la volée de finition ne comptent
+    // pour la pire volée.
+    const scoring = mine.filter(v => !v.finish && !v.bust);
     if (scoring.length) {
       const w = scoring.reduce((a, v) => (v.scored < a.scored ? v : a));
       out.worstVisit = out.worstVisit === null ? w.scored : Math.min(out.worstVisit, w.scored);
       out.perGame.unshift({ gameId: game.id, at: game.startedAt, startScore: s.config.startScore, worst: w.scored,
-        worstBust: scoring.some(v => v.bust && v.scored === w.scored) && w.scored === 0, best: mine.reduce((m, v) => Math.max(m, v.scored), 0) });
+        best: mine.reduce((m, v) => Math.max(m, v.scored), 0), busts: mine.filter(v => v.bust).length });
     }
+    out.busts += mine.filter(v => v.bust).length;
     if (g !== null) out.timeline.push({ at: game.startedAt, average: g, gameId: game.id });
 
     for (const leg of s.legs) {
@@ -135,6 +138,7 @@ export function playerStats(games, playerId) {
         }
         left -= dartValue(d);
         addSegment(out.segments, d);
+        if (d.multiplier === 3) out.triples += 1;
       });
     }
   }
@@ -142,6 +146,7 @@ export function playerStats(games, playerId) {
   out.first9 = f9Darts ? (f9Points / f9Darts) * 3 : null;
   out.checkoutRate = out.checkoutChances ? out.checkouts / out.checkoutChances : null;
   out.doubleRate = out.doubleDarts ? out.doubleHits / out.doubleDarts : null;
+  out.tripleRate = out.darts ? out.triples / out.darts : null; // lot 7.8 : fléchettes dans un triple ÷ fléchettes lancées
   return out;
 }
 

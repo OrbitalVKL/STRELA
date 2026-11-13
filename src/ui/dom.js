@@ -58,6 +58,18 @@ const I = {
   play: '<path d="M7 4L19 12L7 20Z"/>',
   check: '<path d="M4 12L10 18L20 6" stroke-width="3"/>',
   trash: '<path d="M4 6H20M9 6V3H15V6M6 6L7 21H17L18 6"/><path d="M10 10V17M14 10V17"/>',
+  // Lot 7.8 (maquette)
+  info: '<path d="M3 3H21V21H3Z"/><path d="M10.8 10H13.2V18H10.8ZM10.8 5.5H13.2V8H10.8Z" fill="currentColor" stroke="none"/>',
+  trophy: '<path d="M7 3H17V9C17 12 14.8 14 12 14S7 12 7 9Z"/><path d="M7 5H3V8C3 10 5 11 7 11M17 5H21V8C21 10 19 11 17 11"/><path d="M12 14V18M8 21H16V18H8Z"/>',
+  news: '<path d="M12 2L14.2 9.8L22 12L14.2 14.2L12 22L9.8 14.2L2 12L9.8 9.8Z"/>',
+  filter: '<path d="M3 4H21L14 12V20L10 18V12Z"/>',
+  zoomin: '<path d="M10 3A7 7 0 1 0 10.01 3M15 15L21 21"/><path d="M7 10H13M10 7V13"/>',
+  zoomout: '<path d="M10 3A7 7 0 1 0 10.01 3M15 15L21 21"/><path d="M7 10H13"/>',
+  calendar: '<path d="M3 5H21V21H3Z"/><path d="M3 10H21M8 3V7M16 3V7"/>',
+  data: '<path d="M4 5C4 3.5 20 3.5 20 5V19C20 20.5 4 20.5 4 19Z"/><path d="M4 5C4 6.5 20 6.5 20 5M4 12C4 13.5 20 13.5 20 12"/>',
+  sound: '<path d="M3 9H7L12 4V20L7 15H3Z"/><path d="M16 8C17.5 9.5 17.5 14.5 16 16M19 5C22 8 22 16 19 19"/>',
+  phone: '<path d="M6 2H18V22H6Z"/><path d="M10 18H14"/>',
+  wrench: '<path d="M14 3A5 5 0 0 0 9.5 10L3 16.5L7.5 21L14 14.5A5 5 0 0 0 21 10L17.5 13.5L13 12L11.5 7.5L15 4Z"/>',
 };
 export const ico = (name, cls = 'ico') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${I[name] || ''}</svg>`;
 

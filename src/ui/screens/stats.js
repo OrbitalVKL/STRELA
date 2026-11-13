@@ -10,19 +10,23 @@ import { refresh, go } from '../nav.js';
 import { isDeletedId } from '../../engine/players.js';
 
 let period = '30j';
+/** Lot 7.8 : partagés avec la refonte (screens/v2/stats2.js). */
+export const currentPeriod = () => period;
+export const pickedBoard = () => picked.board;
 let picked = { board: null, point: null };
 
 // ------------------------------------------------------------------ cible (même dessin que le jeu, en carte de chaleur)
 /** Nombre d'impacts d'une zone (« T20 », « D16 », « 5 », « 25 », « 50 »). */
-const countOf = (seg, key) => (key === '25' ? seg[25][0] : key === '50' ? seg[25][1]
+export const countOf = (seg, key) => (key === '25' ? seg[25][0] : key === '50' ? seg[25][1]
   : key[0] === 'T' ? seg[Number(key.slice(1))][2] : key[0] === 'D' ? seg[Number(key.slice(1))][1] : seg[Number(key)][0]);
 
-function board(seg) {
+export function board(seg, { counts = false } = {}) {
   let max = 1;
   for (let s = 1; s <= 20; s++) max = Math.max(max, ...seg[s]);
   max = Math.max(max, seg[25][0], seg[25][1]);
   const op = c => Math.pow(c / max, 0.6); // 0 : zone jamais touchée, 1 : la plus touchée
-  return boardSvg({ size: 380, heat: key => op(countOf(seg, key)), act: 'board', selected: picked.board, cls: 'board', label: 'Carte des segments touchés' });
+  return boardSvg({ size: 380, heat: key => op(countOf(seg, key)), act: 'board', selected: picked.board, cls: 'board', label: 'Carte des segments touchés',
+    counts: counts ? sct => seg[sct].reduce((a, b) => a + b, 0) : null });
 }
 
 // ------------------------------------------------------------------ évolution de la moyenne
@@ -104,7 +108,7 @@ export function statsScreen(id) {
         <div class="kpi" data-k="worstVisit"><small>Pire volée</small><b>${st.worstVisit ?? '—'}</b></div>
         <div class="kpi wide tons"><div data-k="ton"><small>100+</small><b>${st.ton}</b></div><div data-k="ton40"><small>140+</small><b>${st.ton40}</b></div><div data-k="max"><small>180</small><b>${st.max}</b></div></div>
       </div>
-      <p class="note">Finition : volées gagnées quand la finition était jouable. Doubles : fléchettes qui ont fini quand une seule pouvait finir. Pire volée : un bust compte 0, une volée de finition ne compte pas.</p>
+      <p class="note">Finition : volées gagnées quand la finition était jouable. Doubles : fléchettes qui ont fini quand une seule pouvait finir. Pire volée : sans les bust ni les volées de finition.</p>
       ${worstList(st.perGame)}
       ${h2h ? `<div class="sec">Face-à-face</div><ul class="h2h">${h2h}</ul><p class="note">Touchez un adversaire pour le détail partie par partie.</p>` : ''}
       <div class="sec">Segments touchés <span class="n">${st.segments.total} fl.</span></div>
@@ -124,14 +128,14 @@ function worstList(rows) {
   const shown = rows.slice(0, WORST_ROWS);
   return `<div class="sec">Pire volée de chaque partie <span class="n">${rows.length}</span></div>
     <ul class="worst">${shown.map(r => `<li><a href="#/partie/${esc(r.gameId)}"><span class="d">${when(r.at)}</span><span class="g">${r.startScore}</span>
-      <span class="w"><small>PIRE</small><b>${r.worstBust ? 'BUST' : r.worst}</b></span><span class="bv"><small>MEILL.</small><b>${r.best}</b></span>${ico('chev')}</a></li>`).join('')}</ul>
+      <span class="w"><small>PIRE</small><b>${r.worst}</b></span><span class="bv"><small>MEILL.</small><b>${r.best}</b></span>${ico('chev')}</a></li>`).join('')}</ul>
     ${rows.length > WORST_ROWS ? `<p class="note">Les ${WORST_ROWS} parties les plus récentes de la période.</p>` : ''}`;
 }
 
 // ------------------------------------------------------------------ face-à-face (lot 3)
 const words = (n, one, many) => `${n} ${n > 1 ? many : one}`;
 /** « 7 VICTOIRES · 3 DÉFAITES » (bilan en toutes lettres, sans s'appuyer sur la couleur). */
-const tally = (won, lost) => `${words(won, 'VICTOIRE', 'VICTOIRES')} · ${words(lost, 'DÉFAITE', 'DÉFAITES')}`;
+export const tally = (won, lost) => `${words(won, 'VICTOIRE', 'VICTOIRES')} · ${words(lost, 'DÉFAITE', 'DÉFAITES')}`;
 
 /** Une partie commune : date, GAGNÉ / PERDU / GAGNÉE PAR …, score en manches, moyenne de chacun. */
 function faceRow(r, me, op) {

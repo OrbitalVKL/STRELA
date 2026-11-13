@@ -2,7 +2,7 @@
 // (import dynamique dans app.js). Tout reste en mémoire : la vraie base du téléphone n'est jamais ouverte.
 import { store } from './store.js';
 import { setHomeVariant } from './screens/home.js';
-import { MOCK_PLAYERS, EXTRA_PLAYERS, mockGames } from './mock.js';
+import { MOCK_PLAYERS, EXTRA_PLAYERS, mockGames, mockSeason } from './mock.js';
 
 const clone = o => JSON.parse(JSON.stringify(o));
 
@@ -27,6 +27,7 @@ export function resetMock() {
   store.soiree = null; // lot 7.6
   store.soireeDraft = null;
   store.crop = null;
+  store.preview = false; // lot 7.8 : refonte montrée par les scènes « v78 »
   // Lot 4 : problème d'enregistrement simulé et variante de l'accueil remis à zéro
   store.mockIssue = false;
   store.mockApk = false; // true : APK « github » simulé ; 'play' : variante Google Play (lot 6)
@@ -47,4 +48,15 @@ export function ensureExtraPlayers(ids) {
 export function givePhoto(id) {
   const p = store.players.find(q => q.id === id);
   if (p) p.avatar = { kind: 'photo', photo: SAMPLE_PHOTO, color: p.avatar.color };
+}
+
+/** Lot 7.8 (maquette de la refonte) : une saison de soirées (plusieurs parties le même soir), pour la courbe zoomable,
+ *  le classement et la navigation dans l'historique. Remplace les parties fictives ; la refonte est affichée. */
+export function seasonMock() {
+  store.players = MOCK_PLAYERS.map(clone); // toujours les mêmes joueurs (une scène précédente a pu en ajouter)
+  ensureExtraPlayers(['p11']);
+  store.preview = true;
+  store.current = null;
+  store.soiree = null;
+  store.games = mockSeason(store.players.filter(p => !p.archived));
 }

@@ -30,8 +30,9 @@ chiffres lus à l'écran et comparés à des valeurs calculées à la main (le c
 | Manche la plus courte | moins de fléchettes lancées par le joueur dans une manche qu'il a gagnée |
 | 100+ / 140+ / 180 | volées de 100 à 139, de 140 à 179, et de 180 (une volée en bust ne compte pas) |
 | Meilleure volée (lot 7.7) | plus grand total d'une volée (bust = 0) |
-| Pire volée (lot 7.7) | plus petit total d'une volée, bust = 0 ; les volées de finition ne comptent pas (une finition de 2 n'est pas une mauvaise volée) ; « — » sans volée |
-| Pire volée de chaque partie (lot 7.7) | même définition, partie par partie (de la plus récente, 12 au plus à l'écran), avec la meilleure volée de la partie à côté ; « BUST » si la pire est un bust |
+| Pire volée (lot 7.7, revu au 7.8) | plus petit total d'une volée ; ni les bust (un bust n'est pas une volée à 0, c'est un bust) ni les volées de finition (une finition de 2 n'est pas une mauvaise volée) ne comptent ; « — » sans volée |
+| Taux de triples (lot 7.8) | fléchettes tombées dans un triple ÷ fléchettes lancées |
+| Pire volée de chaque partie (lot 7.7) | même définition, partie par partie (de la plus récente, 12 au plus à l'écran), avec la meilleure volée de la partie à côté |
 | Victoires | parties gagnées ÷ parties jouées (abandonnées comprises) |
 | Moyenne d'une partie (évolution, face-à-face) | moyenne sur 3 fléchettes du joueur dans cette partie |
 | Carte des segments | chaque fléchette lancée, par zone (simple, double, triple, 25, 50, à côté) |

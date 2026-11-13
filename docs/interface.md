@@ -635,6 +635,50 @@ l'APK dans home.js (scène `premier-lancement-apk`). Pas de service worker dans 
 - `FLOP_LINES` (feedback.js) : 6 à 11 phrases par cas, plus cyniques, sans pronom genré. `TIE_LINES` (turnfx.js) :
   40 répliques.
 
+## Lot 7.8 : maquette de la refonte (13/11/2026)
+
+Demandes de Guillaume, « tout en mode maquette pour l'instant » : seule la maquette (`?maquette`, scènes « v78-… » en
+tête du sommaire) montre ces écrans ; l'appli installée garde les écrans actuels. Drapeau `store.preview`.
+
+- **Courbe des stats** (stats2.js › `chartBlock`) : n'importe quel chiffre partie par partie (`METRICS` avec `game` :
+  moyenne, 9 premières, meilleure et pire volée, finition, doubles, 100+, verres). Une partie = un point, dans l'ordre
+  où elles ont été jouées (plus d'entassement sur une date) ; jours séparés par un filet et une bande grisée, date en
+  tête si elle tient (« MER. 11/11 ·4 » = 4 parties ce jour-là). Zoom ×1 (tout tient) à ×8, défilement horizontal
+  (`data-hscroll` : position gardée d'un rendu à l'autre, sinon calée sur les parties récentes) ; axe des valeurs fixe
+  à gauche ; à ×4 et plus, valeur sur chaque point. Un point touché : date, jeu, valeur, lien vers la partie.
+- **Explications** derrière une icône (i) (`v2-info`) : stats, classement, réglages. **Volées repliées** (`v2-fold`) :
+  10 meilleures volées, pire volée de chaque partie (30 au plus), carte de la cible.
+- **Classement global** (`#/classement`, onglet des Stats) : palmarès (pour chaque chiffre, le meilleur et le pire ;
+  verres : « le plus » / « le moins » ; carte masquée si tout le monde est à égalité), puis classement complet du
+  chiffre choisi (EN TÊTE, LANTERNE ROUGE). Au classement, « pire volée » = moyenne de la pire volée de chaque partie
+  (la pire de toutes vaut 0 pour presque tous), 100+ et verres = par partie.
+- **Nouveautés** (`#/nouveautes`, src/ui/changelog.js) : versions, dates des APK, en clair. Liens : accueil (repère
+  NOUVEAU), Réglages › À propos.
+- **Réglages** (settings.js › `settings2Screen`) : mêmes options, en cartes (Affichage, Son et voix, Vibrations,
+  Sauvegarde, Appli Android, À propos), descriptions courtes, explications longues derrière (i), diagnostic replié.
+- **Historique** (history2.js) : filtres joueur (pastilles), résultat (toutes, terminées, abandons), mois (avec le
+  nombre de parties) ; parties groupées par soirée, sinon par jour (avant 6 h = la veille), titres de mois collants,
+  groupes repliables (les deux plus récents ouverts ; TOUT DÉPLIER / REPLIER) ; lignes compactes. Appui long : la
+  sélection et la suppression actuelles.
+- **Accueil** (home2.js), deux variantes : A « tableau de bord » (bande rouge, action principale, soirée, cartes
+  « dernière partie » et « en tête sur 30 jours », 6 raccourcis) ; B « console » (titre rouge, menu numéroté façon
+  pupitre, actions en bas sous le pouce).
+- Données de maquette : `mockSeason` (14 soirées de 3 à 6 parties, verres, abandons, parties isolées).
+- **Retouches du 13/11 (2e message)** :
+  - Pire volée **sans les bust** (un bust n'est pas une volée à 0) ni les finitions — dans le moteur (`playerStats`),
+    donc aussi dans les Stats actuelles ; « BUST » ne s'affiche plus comme pire volée.
+  - Stats v2 : taux de finition retiré ; **taux de triples** (`tripleRate` = triples ÷ fléchettes) ; bust par partie
+    (classement : moins = mieux, `dir: -1`) ; groupes Score, Précision, Finition, Volées.
+  - **Cible chiffrée** (`boardSvg({ counts })`) : nombre d'impacts de chaque secteur sur une plaquette, bull au centre ;
+    tableau des 8 secteurs les plus touchés (S, D, T, total) sous la cible.
+  - **Parties liées à une soirée** (store.js › `setGamesSoiree`, `newSoireeId` ; verres d'avant recalculés) : dans
+    l'historique v2, appui long → sélection → REGROUPER EN SOIRÉE, AJOUTER À UNE SOIRÉE (8 dernières), SORTIR DE LA
+    SOIRÉE, SUPPRIMER ; un jour hors soirée déplié propose EN FAIRE UNE SOIRÉE.
+  - **Tableau de bord d'une soirée** (`#/soiree/<id>`, v2/soireedash.js ; modèle pur engine/soiree.js) : podium
+    (victoires puis moyenne), faits marquants (meilleure et pire volée, meilleure moyenne, plus de 180, de bust, de
+    verres), tableau des joueurs (défilant, pseudo figé), parties ; IMAGE / PDF (une page A4, réduite si besoin ;
+    livraison `deliverFile` de printsheet.js). Accès : groupe de soirée de l'historique, écran Soirée en cours.
+
 ## Pour le lot 4
 
 - Les écrans Historique et Stats lisent `store.games` (parties closes) ; la partie en cours est à part (`store.current`).
