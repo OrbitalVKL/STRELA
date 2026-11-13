@@ -27,6 +27,7 @@ import { stats2Screen, rankingScreen, actions as stats2Actions } from './screens
 import { history2List, leaveHistory2, actions as history2Actions } from './screens/v2/history2.js';
 import { home2, changelogScreen } from './screens/v2/home2.js';
 import { soireeDashScreen, actions as dashActions } from './screens/v2/soireedash.js';
+import { actions as infoActions } from './info.js';
 
 // Version 0.8.0 : la refonte (lot 7.8, écrans de screens/v2/) remplace l'accueil, l'historique, les stats et les
 // réglages ; accueil A « tableau de bord » (choix de Guillaume, 13/11/2026).
@@ -56,7 +57,7 @@ const ROUTES = [
 const ACTIONS = {
   ...playerActions, ...newGameActions, ...gameActions, ...resultActions,
   ...statsActions, ...settingsActions, ...historyActions, ...photoActions, ...aboutActions, ...sheetActions, ...soireeActions,
-  ...stats2Actions, ...history2Actions, ...dashActions,
+  ...stats2Actions, ...history2Actions, ...dashActions, ...infoActions,
 };
 const INPUTS = { ...playerInputs };
 

@@ -175,6 +175,8 @@ export function withDrinks(g, rec) {
   if (typeof g.soiree === 'string' && g.soiree) rec.soiree = g.soiree;
   const before = cleanBefore(g.drinksBefore);
   if (before) rec.drinksBefore = before;
+  // Version 0.8.1 : verres d'avant la correction « resaisis à chaque partie » (pour pouvoir l'annuler) ; facultatif.
+  if (g.drinksRaw && typeof g.drinksRaw === 'object') rec.drinksRaw = cleanDrinks(g.drinksRaw) || {};
   return rec;
 }
 

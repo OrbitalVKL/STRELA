@@ -114,14 +114,15 @@ public class Bridge {
     /**
      * Fiche de score (lot 7.1) : image PNG ou PDF reçue en base64, écrite dans Téléchargements/Strela/<name> puis proposée
      * au menu de partage (Imprimer, Drive…). Nom strela-fiche-AAAAMMJJ-HHMM.png|pdf ; le type suit l'extension.
+     * Version 0.8.1 : aussi le rapport de soirée, strela-soiree-AAAAMMJJ-HHMM.png|pdf (refusé jusque-là).
      */
     @JavascriptInterface
     public String saveFile(String name, String base64, String mime, boolean share) {
         try {
-            if (!name.matches("strela-fiche-[0-9]{8}-[0-9]{4}\\.(png|pdf)")) throw new IllegalArgumentException("nom de fichier refusé");
+            if (!name.matches("strela-(fiche|soiree)-[0-9]{8}-[0-9]{4}\\.(png|pdf)")) throw new IllegalArgumentException("nom de fichier refusé");
             String type = name.endsWith(".pdf") ? "application/pdf" : "image/png";
             byte[] data = android.util.Base64.decode(base64, android.util.Base64.DEFAULT);
-            return save(name, data, type, share, "Partager la fiche de score");
+            return save(name, data, type, share, name.startsWith("strela-soiree-") ? "Partager le rapport de soirée" : "Partager la fiche de score");
         } catch (Exception e) {
             return json("ok", false, "error", String.valueOf(e.getMessage()));
         }

@@ -5,7 +5,7 @@ import { esc, topBar, avg, when, OUT_SHORT } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
 import { inPeriod, faceToFace } from '../../engine/stats.js';
 import { boardSvg } from '../board.js';
-import { refresh, go } from '../nav.js';
+import { refresh, go, backFrom } from '../nav.js';
 import { isDeletedId } from '../../engine/players.js';
 
 let period = '30j';
@@ -77,7 +77,7 @@ export function faceScreen(pid, oid) {
     ? `<div class="sec">Abandonnées <span class="n">${f.abandoned.length}</span></div><p class="note" style="margin:0 0 10px">Elles ne comptent pas dans le bilan.</p>
        <ul class="flist">${f.abandoned.map(r => faceRow(r, me, op)).join('')}</ul>`
     : '';
-  return `<div class="screen">${topBar('Face-à-face', `#/stats/${esc(pid)}`)}
+  return `<div class="screen">${topBar('Face-à-face', backFrom(`#/stats/${esc(pid)}`))}
     <div class="pad" style="padding-top:14px">
       <div class="faces">${side(me, 'fme')}<span class="vs">CONTRE</span>${side(op, 'fop')}</div>
       <div class="seg" style="margin-top:14px">${seg('7j', '7 jours')}${seg('30j', '30 jours')}${seg('tout', 'Tout')}</div>

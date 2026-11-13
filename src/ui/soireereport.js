@@ -34,7 +34,7 @@ function sheet(mk) {
   return { c, x };
 }
 /** Texte ; renvoie sa largeur. max : coupé avec « … » au-delà. */
-function T(x, s, X, Y, { px = 11, w = 400, color = INK, align = 'left', ls = 0, max = 0 } = {}) {
+function T(x, s, X, Y, { px = 11, w = 400, color = INK, align = 'left', ls = 0, max = 0, halo = false } = {}) {
   x.font = `${w} ${px}px ${FONT}`; x.fillStyle = color; x.textAlign = align; x.textBaseline = 'alphabetic';
   if ('letterSpacing' in x) x.letterSpacing = `${ls}px`;
   let str = String(s);
@@ -42,6 +42,8 @@ function T(x, s, X, Y, { px = 11, w = 400, color = INK, align = 'left', ls = 0, 
     while (str.length > 1 && x.measureText(`${str}…`).width > max) str = str.slice(0, -1);
     str += '…';
   }
+  // halo : liseré blanc autour des lettres, pour lire une valeur posée sur une courbe.
+  if (halo) { x.strokeStyle = PAPER; x.lineWidth = 3; x.lineJoin = 'round'; x.strokeText(str, X, Y); x.lineJoin = 'miter'; }
   x.fillText(str, X, Y);
   const wd = x.measureText(str).width;
   if ('letterSpacing' in x) x.letterSpacing = '0px';
@@ -185,7 +187,7 @@ function card(x, m, who, r, i, W, maxAvg) {
   // Moyenne de chaque partie jouée (à son échelle).
   T(x, 'MOYENNE PAR PARTIE', 10, 58, { px: 9, color: MUT, ls: 0.9 });
   const vals = m.timeline.map(g => g.avg[r.id]).filter(v => v !== undefined && v !== null);
-  const sw = W - 150, sh = 30, sy = 64;
+  const sw = W - 150, sh = 30, sy = 66;
   if (vals.length) {
     const lo = Math.min(...vals) - 3, hi = Math.max(...vals) + 3;
     const px = k => 12 + (vals.length > 1 ? k * (sw - 4) / (vals.length - 1) : (sw - 4) / 2);
@@ -194,6 +196,9 @@ function card(x, m, who, r, i, W, maxAvg) {
     vals.forEach((v, k) => (k ? x.lineTo(px(k), py(v)) : x.moveTo(px(k), py(v))));
     x.stroke();
     vals.forEach((v, k) => rect(x, px(k) - 1.6, py(v) - 1.6, 3.2, 3.2, INK));
+    // Version 0.8.1 : la valeur de chaque partie au-dessus du point (une sur deux ou trois si elles sont serrées).
+    const every = Math.max(1, Math.ceil(24 / ((sw - 4) / Math.max(1, vals.length - 1))));
+    vals.forEach((v, k) => { if (k % every === 0 || k === vals.length - 1) T(x, dec(v, 0), px(k), py(v) - 4, { px: 7.5, w: 700, color: INK, align: 'center', halo: true }); });
   }
   const aw = T(x, dec(r.average), 10, 118, { px: 20, w: 700 });
   const bx = 10 + aw + 10, bwid = Math.min(110, W - 150 - aw - 10);
@@ -277,21 +282,35 @@ function pageB(x, m, who) {
   const CH = 200, cy0 = y + 18, gsN = m.timeline.length;
   const all = m.timeline.flatMap(g => Object.values(g.avg)).filter(v => v !== null && v !== undefined);
   const lo = Math.max(0, Math.floor((Math.min(...all, 30) - 5) / 10) * 10), hi = Math.ceil((Math.max(...all, 40) + 5) / 10) * 10;
-  const cx = k => MX + 34 + (gsN > 1 ? k * (LW - 2 * MX - 34 - 100) / (gsN - 1) : (LW - 2 * MX - 134) / 2);
+  const cx = k => MX + 34 + (gsN > 1 ? k * (LW - 2 * MX - 34 - 128) / (gsN - 1) : (LW - 2 * MX - 162) / 2);
   const cy = v => cy0 + CH - 24 - (v - lo) / (hi - lo) * (CH - 34);
-  for (let v = lo; v <= hi; v += 10) { hline(x, MX + 34, LW - MX - 96, cy(v), RULE, 0.4); T(x, v, MX + 28, cy(v) + 3, { px: 8, color: MUT, align: 'right' }); }
+  for (let v = lo; v <= hi; v += 10) { hline(x, MX + 34, LW - MX - 122, cy(v), RULE, 0.4); T(x, v, MX + 28, cy(v) + 3, { px: 8, color: MUT, align: 'right' }); }
   const every = Math.ceil(gsN / 14);
   m.timeline.forEach((g, k) => { if (k % every === 0 || k === gsN - 1 && gsN <= 14) T(x, gsN > 7 ? `P${g.n}` : `P${g.n} ${hhmm(g.at)}`, cx(k), cy0 + CH - 6, { px: 8, color: MUT, align: 'center' }); });
   const ends = [];
+  const cols = m.timeline.map(() => []); // valeurs de chaque partie, à écrire à côté des points (0.8.1)
   m.rows.forEach((r, j) => {
     const p = who(r.id);
-    const pts = m.timeline.map((g, k) => (g.avg[r.id] === undefined || g.avg[r.id] === null ? null : [cx(k), cy(g.avg[r.id])])).filter(Boolean);
+    const pts = m.timeline.map((g, k) => (g.avg[r.id] === undefined || g.avg[r.id] === null ? null : [cx(k), cy(g.avg[r.id]), k, g.avg[r.id]])).filter(Boolean);
     if (!pts.length) return;
     x.strokeStyle = p.color; x.lineWidth = j === 0 ? 2.6 : 1.4; x.beginPath();
     pts.forEach(([X, Y], k) => (k ? x.lineTo(X, Y) : x.moveTo(X, Y))); x.stroke();
     pts.forEach(([X, Y]) => rect(x, X - 2.5, Y - 2.5, 5, 5, p.color));
+    pts.forEach(([X, Y, k, v]) => cols[k].push({ X, Y, v, color: p.color }));
     ends.push({ p, y: pts.at(-1)[1] });
   });
+  const colW = gsN > 1 ? (cx(1) - cx(0)) : 200;
+  if (colW >= 22) {
+    for (const col of cols) {
+      col.sort((a, b) => a.Y - b.Y);
+      let last = -Infinity;
+      for (const c of col) {
+        const ly = Math.max(c.Y + 3, last + 8.5);
+        T(x, dec(c.v, 0), c.X + 5, ly, { px: 7.5, w: 700, color: c.color, halo: true });
+        last = ly;
+      }
+    }
+  }
   ends.sort((a, b) => a.y - b.y).forEach((e, k, arr) => { e.ly = Math.max(e.y, k ? arr[k - 1].ly + 11 : -Infinity); });
   ends.forEach(e => T(x, e.p.name.toUpperCase(), LW - MX - 90, e.ly + 3, { px: 9, w: 700, color: e.p.color, max: 90 }));
   // Trophées
@@ -411,6 +430,9 @@ export function drawSoireeReport(m, who, mk = (w, h) => { const c = document.cre
   const mm = { ...m, endAt, oneDay: endAt - m.start <= 14 * 3600e3 };
   return [pageA, pageB, pageC].map(fn => { const { c, x } = sheet(mk); fn(x, mm, who); return c; });
 }
+
+/** Nom du fichier du rapport, sans extension (accepté par l'APK : Bridge.saveFile, strela-soiree-AAAAMMJJ-HHMM). */
+export const reportFileBase = ms => { const d = new Date(ms); return `strela-soiree-${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}-${pad2(d.getHours())}${pad2(d.getMinutes())}`; };
 
 /** Image du pictogramme d'un avatar (SVG en blanc cassé), à dessiner sur le canvas ; null si rien à charger. */
 export function faceImage(svgOrPhoto, isPhoto) {

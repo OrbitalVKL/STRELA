@@ -78,10 +78,10 @@ src/ui/theme.js           palette (source de vérité des couleurs), contraste
 src/ui/vowels.js          voyelles qui tombent quand Tsia lance (lot 7)
 src/ui/turnfx.js          animations de tour par joueur (lot 7.4) : ours, cravate, carabine, planète, étoile rouge ; sons et voix (lot 7.5)
 src/ui/screens/soiree.js  soirée (lot 7.6) : joueurs de la soirée, verres cumulés d'une partie à l'autre
-src/ui/screens/v2/        refonte en maquette (lot 7.8, store.preview) : home2.js, stats2.js (+ classement), history2.js,
+src/ui/screens/v2/        écrans de la refonte (lot 7.8, dans l'appli depuis la 0.8.0) : home2.js, stats2.js (+ classement), history2.js,
                           soireedash.js (tableau de bord d'une soirée) ; engine/soiree.js : son modèle (pur, testé) ;
                           src/ui/soireereport.js : rapport de soirée en 3 feuilles A4 (A podium, B chronologie, C duels)
-src/ui/changelog.js       nouveautés de chaque version (lot 7.8, écran #/nouveautes en maquette)
+src/ui/changelog.js       nouveautés de chaque version (écran #/nouveautes) ; src/ui/info.js : explications derrière (i) (0.8.1)
 tools/animations.mjs      captures des animations de tour figées à plusieurs instants (lot 7.4)
 src/ui/sheet.js           fiche de score : modèle, dessin sur canvas (demi-page A5 paysage ou A4, lot 7.3), PDF (lot 7.1) ; screens/printsheet.js : boutons et envoi
 src/engine/ranking.js     classement, joueur en tête, derniers (tournée), célébrations des nuls (lot 7)
@@ -182,7 +182,11 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 - Aucune migration. Pire volée sans les bust ; taux de finition calculé mais plus affiché (taux de triples à la place).
 - À vérifier sur le Pixel : tout le parcours de la refonte avec les vraies données (historique groupé, regrouper en
   soirée, rapport de soirée en PDF partagé, classement, réglages, nouveautés).
-- Ensuite : lot 7.9 (une animation de tour par pictogramme d'avatar) quand Guillaume le demandera.
+- **0.8.1** (13/11) : export du rapport accepté par l'APK, correction des verres (détail d'une partie ; soirée aux verres
+  resaisis à chaque partie, annulable), retour vers l'écran d'origine (`backFrom`), explications derrière (i) au
+  tableau de bord et au détail de partie, valeurs sur les courbes. Détail : docs/interface.md « Version 0.8.1 ».
+- Ensuite : lot 7.9 (une animation de tour par pictogramme d'avatar), confirmé par Guillaume le 13/11 « dans un second
+  temps ».
 
 ## État (fin du lot 7.7)
 

@@ -1,8 +1,9 @@
 // Historique : la liste est celle de la version 0.8.0 (screens/v2/history2.js) ; ici, l'écran vide et le détail.
 // Détail : manche par manche, un tableau tour par tour (une colonne par joueur), fléchettes et impacts de chaque volée
 // sur la cible (gameLog, partagé avec le panneau « Partie en cours » du jeu).
-import { store, playerById, deleteGames } from '../store.js';
-import { esc, topBar, when, avg, plural, OUT_LABEL } from '../dom.js';
+import { store, playerById, deleteGames, editGameDrinks, gameDrinks } from '../store.js';
+import { infoSec, infoBox } from '../info.js';
+import { esc, ico, topBar, when, avg, plural, OUT_LABEL } from '../dom.js';
 import { avatarHtml, iconSvg } from '../avatars.js';
 import { gameState, gameWinner, playerSummary } from '../../engine/stats.js';
 import { formatDart } from '../../engine/darts.js';
@@ -10,7 +11,7 @@ import { boardSvg, impactsFor, markIcon } from '../board.js';
 import { legTable, cellHtml } from '../table.js';
 import { drinksTimeline } from '../../engine/alcohol.js';
 import { sheetSection } from './printsheet.js';
-import { go, refresh } from '../nav.js';
+import { go, refresh, backFrom } from '../nav.js';
 
 const dl = d => { const f = formatDart(d); return f.replace(/^S/, ''); };
 
@@ -58,7 +59,19 @@ export function historyDetail(id) {
         <p class="small">Elle disparaît de l'historique et des stats de chacun. Les joueurs et leurs photos restent.</p>
         <div class="btns two"><button type="button" class="btn" data-act="del-game-no">NON</button><button type="button" class="btn alert" data-act="del-game-yes" data-arg="${esc(id)}">SUPPRIMER</button></div></div>`
     : `<button type="button" class="btn danger" data-act="del-game" data-arg="${esc(id)}">SUPPRIMER CETTE PARTIE</button>`;
-  return `<div class="screen">${topBar('Détail de la partie', '#/historique')}${head}${table}${gameLog(g, s, { abandoned: g.abandoned })}
+  // Version 0.8.1 : verres de la partie, corrigeables (oubli, erreur, verres resaisis d'une partie à l'autre).
+  const drinkRows = g.config.players.map(pid => {
+    const p = playerById(pid);
+    const here = (g.drinks && g.drinks[pid] && g.drinks[pid].length) || 0;
+    const total = gameDrinks(g, pid);
+    return `<li>${avatarHtml(p, 32)}<div class="col"><span class="nm ell">${esc(p.name)}</span>
+        <span class="small dim">${ico('glass')} x${here} dans la partie${g.soiree && total !== here ? ` · x${total} depuis le début de la soirée` : ''}</span></div>
+      <button type="button" class="mv" data-act="gdrink-minus" data-arg="${esc(`${g.id}|${pid}`)}" ${here ? '' : 'disabled'} aria-label="Retirer un verre à ${esc(p.name)}">${ico('minus')}</button>
+      <button type="button" class="mv add" data-act="gdrink-plus" data-arg="${esc(`${g.id}|${pid}`)}" aria-label="Un verre de plus pour ${esc(p.name)}">${ico('plus')}${ico('glass')}</button></li>`;
+  }).join('');
+  const drinks = `<div class="pad" style="margin-top:18px">${infoSec('Verres', 'detail-drinks')}${infoBox('detail-drinks', 'Les verres pris pendant cette partie, à corriger avec − et + (un verre ajouté ici compte à la fin de la partie). Dans une soirée, les parties suivantes reprennent le nouveau cumul.')}
+    <ul class="drinks">${drinkRows}</ul></div>`;
+  return `<div class="screen">${topBar('Détail de la partie', backFrom('#/historique'))}${head}${table}${gameLog(g, s, { abandoned: g.abandoned })}${drinks}
     <div class="pad" style="margin-top:22px">${sheetSection(g)}</div>
     <div class="pad" style="margin-top:22px">${del}</div></div>`;
 }
@@ -109,8 +122,8 @@ export function gameLog(g, s, { live = false, abandoned = false, reverse = false
       : '<p class="note pad">Aucune volée pour l\'instant.</p>';
     return `<div class="leg-h"><b>MANCHE ${l.number}</b><span>${info}</span></div>${table}`;
   }).join('');
-  return `<div class="pad"><div class="sec" style="margin-bottom:0">Tour par tour</div></div>${legs}
-    <p class="note pad">Chaque case : les fléchettes du tour, le total de la volée en gros, le reste après la volée en petit${g.drinks || g.drinksBefore ? ', les verres du joueur jusque-là (encadrés : pris pendant ce tour)' : ''}${g.drinksBefore ? ' — soirée comprise' : ''}${live ? ' ; la ligne en inverse est le tour en cours' : ''}. Touchez une case pour voir ses fléchettes sur la cible${details ? '' : ' au-dessus'}.</p>`;
+  // Version 0.8.1 : l'explication est derrière le (i) du titre.
+  return `<div class="pad">${infoSec('Tour par tour', 'log')}${infoBox('log', `Chaque case : les fléchettes du tour, le total de la volée en gros, le reste après la volée en petit${g.drinks || g.drinksBefore ? ', les verres du joueur jusque-là (encadrés : pris pendant ce tour)' : ''}${g.drinksBefore ? ' — soirée comprise' : ''}${live ? ' ; la ligne en inverse est le tour en cours' : ''}. Touchez une case pour voir ses fléchettes sur la cible${details ? '' : ' au-dessus'}.`)}</div>${legs}`;
 }
 
 /** Case ouverte d'avance (sommaire de maquette, ouverture du panneau du jeu) : « idPartie|rangVolée », ou null. */
@@ -128,4 +141,7 @@ export const actions = {
   'del-game'(id) { askDetail = id; refresh(); },
   'del-game-no'() { askDetail = null; refresh(); },
   'del-game-yes'(id) { askDetail = null; deleteGames([id]); go('#/historique', { replace: true }); },
+  // Verres d'une partie de l'historique (0.8.1)
+  'gdrink-plus'(arg) { const [gid, pid] = String(arg).split('|'); editGameDrinks(gid, pid, 1); refresh(); },
+  'gdrink-minus'(arg) { const [gid, pid] = String(arg).split('|'); editGameDrinks(gid, pid, -1); refresh(); },
 };

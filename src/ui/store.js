@@ -11,7 +11,7 @@ import { computeState, STATUS, EVENTS } from '../engine/x01.js';
 import { deletePlayer as removePlayer, deletionImpact, isDeletedId } from '../engine/players.js';
 import { openDb, currentRecord, closedRecord, playerRecord, deletionOps, gameDeletionOps, soireeRecord, DB_VERSION } from '../data/db.js';
 import { makeBackup, importPlan } from '../data/backup.js';
-import { bac, drinkTimes } from '../engine/alcohol.js';
+import { bac, drinkTimes, drinkTime } from '../engine/alcohol.js';
 
 export const store = {
   players: [],
@@ -243,6 +243,77 @@ function recomputeSoiree(sid) {
   }
   return games;
 }
+
+const putGames = games => write(games.map(g => ({ store: 'games', put: closedRecord(g, g.abandoned, g.endedAt) })));
+
+/**
+ * Version 0.8.1 : corrige les verres d'une partie de l'historique (détail de la partie) : `delta` +1 ajoute un verre au
+ * joueur `id` (à la fin de la partie), -1 retire son dernier verre. Les cumuls de sa soirée sont recalculés.
+ */
+export function editGameDrinks(gameId, id, delta) {
+  const g = store.games.find(x => x.id === gameId);
+  if (!g || !g.config.players.includes(id)) return;
+  const list = (g.drinks && g.drinks[id]) || [];
+  if (delta < 0 && !list.length) return;
+  const t = list.length ? drinkTime(list[list.length - 1]) : (g.endedAt || g.startedAt);
+  g.drinks = { ...(g.drinks || {}), [id]: delta > 0 ? [...list, { t, at: g.darts.length }] : list.slice(0, -1) };
+  if (!g.drinks[id].length) delete g.drinks[id];
+  putGames(g.soiree ? recomputeSoiree(g.soiree) : [g]);
+}
+
+/**
+ * Version 0.8.1 : verres « resaisis à chaque partie » (avant le mode soirée, il fallait reprendre dans chaque partie les
+ * verres des parties d'avant). Pour chaque joueur, dans l'ordre des parties de la soirée : verres de la partie = verres
+ * saisis − verres saisis dans sa partie précédente (on garde les derniers saisis) ; s'il en a saisi moins que la fois
+ * d'avant, ils comptent tous (il a repris de zéro). Rien n'est enregistré : { id: { before, after } } par joueur et les
+ * nouvelles listes par partie.
+ */
+export function cumulativeDrinksFix(sid) {
+  const games = store.games.filter(g => g.soiree === sid).sort((a, b) => a.startedAt - b.startedAt);
+  const prev = {};
+  const lists = new Map();
+  const totals = {};
+  for (const g of games) {
+    const out = {};
+    for (const id of g.config.players) {
+      const list = (g.drinks && g.drinks[id]) || [];
+      const p = prev[id] || 0;
+      const keep = list.length >= p ? list.slice(p) : list;
+      if (keep.length) out[id] = keep;
+      totals[id] = totals[id] || { before: 0, after: 0 };
+      totals[id].before += list.length;
+      totals[id].after += keep.length;
+      prev[id] = list.length;
+    }
+    lists.set(g.id, out);
+  }
+  return { totals, lists };
+}
+
+/** Applique la correction « resaisis à chaque partie » (annulable : les verres d'avant restent dans `drinksRaw`). */
+export function applyCumulativeFix(sid) {
+  const { lists } = cumulativeDrinksFix(sid);
+  for (const g of store.games) {
+    if (!lists.has(g.id) || g.drinksRaw) continue;
+    g.drinksRaw = g.drinks || {};
+    const d = lists.get(g.id);
+    if (Object.keys(d).length) g.drinks = d; else delete g.drinks;
+  }
+  putGames(recomputeSoiree(sid));
+}
+
+/** Annule la correction « resaisis à chaque partie » d'une soirée. */
+export function undoCumulativeFix(sid) {
+  for (const g of store.games) {
+    if (g.soiree !== sid || !g.drinksRaw) continue;
+    if (Object.keys(g.drinksRaw).length) g.drinks = g.drinksRaw; else delete g.drinks;
+    delete g.drinksRaw;
+  }
+  putGames(recomputeSoiree(sid));
+}
+
+/** La correction « resaisis à chaque partie » a été faite sur cette soirée. */
+export const cumulativeFixed = sid => store.games.some(g => g.soiree === sid && g.drinksRaw);
 
 /** Débute une soirée avec ces joueurs (une soirée précédente est terminée). */
 export function startSoiree(players, now = Date.now()) {
