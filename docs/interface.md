@@ -664,6 +664,20 @@ tête du sommaire) montre ces écrans ; l'appli installée garde les écrans act
   « dernière partie » et « en tête sur 30 jours », 6 raccourcis) ; B « console » (titre rouge, menu numéroté façon
   pupitre, actions en bas sous le pouce).
 - Données de maquette : `mockSeason` (14 soirées de 3 à 6 parties, verres, abandons, parties isolées).
+- **Retouches du 13/11 (2e message)** :
+  - Pire volée **sans les bust** (un bust n'est pas une volée à 0) ni les finitions — dans le moteur (`playerStats`),
+    donc aussi dans les Stats actuelles ; « BUST » ne s'affiche plus comme pire volée.
+  - Stats v2 : taux de finition retiré ; **taux de triples** (`tripleRate` = triples ÷ fléchettes) ; bust par partie
+    (classement : moins = mieux, `dir: -1`) ; groupes Score, Précision, Finition, Volées.
+  - **Cible chiffrée** (`boardSvg({ counts })`) : nombre d'impacts de chaque secteur sur une plaquette, bull au centre ;
+    tableau des 8 secteurs les plus touchés (S, D, T, total) sous la cible.
+  - **Parties liées à une soirée** (store.js › `setGamesSoiree`, `newSoireeId` ; verres d'avant recalculés) : dans
+    l'historique v2, appui long → sélection → REGROUPER EN SOIRÉE, AJOUTER À UNE SOIRÉE (8 dernières), SORTIR DE LA
+    SOIRÉE, SUPPRIMER ; un jour hors soirée déplié propose EN FAIRE UNE SOIRÉE.
+  - **Tableau de bord d'une soirée** (`#/soiree/<id>`, v2/soireedash.js ; modèle pur engine/soiree.js) : podium
+    (victoires puis moyenne), faits marquants (meilleure et pire volée, meilleure moyenne, plus de 180, de bust, de
+    verres), tableau des joueurs (défilant, pseudo figé), parties ; IMAGE / PDF (une page A4, réduite si besoin ;
+    livraison `deliverFile` de printsheet.js). Accès : groupe de soirée de l'historique, écran Soirée en cours.
 
 ## Pour le lot 4
 

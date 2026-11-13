@@ -53,6 +53,7 @@ export function givePhoto(id) {
 /** Lot 7.8 (maquette de la refonte) : une saison de soirées (plusieurs parties le même soir), pour la courbe zoomable,
  *  le classement et la navigation dans l'historique. Remplace les parties fictives ; la refonte est affichée. */
 export function seasonMock() {
+  store.players = MOCK_PLAYERS.map(clone); // toujours les mêmes joueurs (une scène précédente a pu en ajouter)
   ensureExtraPlayers(['p11']);
   store.preview = true;
   store.current = null;

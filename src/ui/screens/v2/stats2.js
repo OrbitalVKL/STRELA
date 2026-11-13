@@ -29,13 +29,15 @@ export const METRICS = Object.freeze([
     info: 'Plus grand total d\'une volée.' },
   { k: 'worstVisit', label: 'Pire volée', fmt: int, dir: 1, game: s => s.worstVisit,
     all: s => (s.perGame.length ? s.perGame.reduce((n, r) => n + r.worst, 0) / s.perGame.length : null), allFmt: dec1, unit: 'moy. par partie',
-    info: 'Plus petit total d\'une volée ; un bust compte 0, une volée de finition ne compte pas. Au classement : moyenne de la pire volée de chaque partie (la pire de toutes vaut 0 pour presque tout le monde).' },
-  { k: 'checkoutRate', label: 'Finition', fmt: pct, dir: 1, pct: true, game: s => s.checkoutRate, all: s => s.checkoutRate,
-    info: 'Volées gagnées ÷ volées commencées sur une finition jouable (reste qu\'on peut finir en 3 fléchettes).' },
+    info: 'Plus petit total d\'une volée, sans les bust (un bust n\'est pas une volée à 0) ni les volées de finition. Au classement : moyenne de la pire volée de chaque partie.' },
+  { k: 'tripleRate', label: 'Triples', fmt: pct, dir: 1, pct: true, game: s => s.tripleRate, all: s => s.tripleRate,
+    info: 'Fléchettes tombées dans un triple ÷ fléchettes lancées.' },
   { k: 'doubleRate', label: 'Doubles', fmt: pct, dir: 1, pct: true, game: s => s.doubleRate, all: s => s.doubleRate,
     info: 'Fléchettes qui ont fini la manche ÷ fléchettes lancées quand une seule pouvait finir.' },
   { k: 'tons', label: '100+', fmt: dec1, dir: 1, game: s => s.ton + s.ton40 + s.max, all: s => (s.played ? (s.ton + s.ton40 + s.max) / s.played : null),
     gameFmt: int, unit: '/ partie', info: 'Volées de 100 et plus (180 compris). Au classement : par partie jouée.' },
+  { k: 'busts', label: 'Bust', fmt: dec1, dir: -1, game: s => s.busts, gameFmt: int, all: s => (s.played ? s.busts / s.played : null), unit: '/ partie',
+    info: 'Volées en bust (le reste repasse au-dessus de zéro, ou à 1 en sortie double). Moins il y en a, mieux c\'est. Au classement : par partie jouée.' },
   { k: 'max', label: '180', fmt: int, dir: 1, all: s => s.max, info: 'Nombre de 180 sur la période.' },
   { k: 'bestFinish', label: 'Meilleure finition', fmt: int, dir: 1, all: s => s.bestFinish, info: 'Plus grand reste fini en une volée.' },
   { k: 'drinks', label: 'Verres', fmt: dec1, dir: 0, game: (s, g, id) => (g.drinks && g.drinks[id] ? g.drinks[id].length : 0),
@@ -201,8 +203,20 @@ function bestList(games, pid) {
 
 function worstPerGame(rows) {
   return `<ul class="worst">${rows.slice(0, 30).map(r => `<li><a href="#/partie/${esc(r.gameId)}"><span class="d">${when(r.at)}</span><span class="g">${r.startScore}</span>
-      <span class="w"><small>PIRE</small><b>${r.worstBust ? 'BUST' : r.worst}</b></span><span class="bv"><small>MEILL.</small><b>${r.best}</b></span>${ico('chev')}</a></li>`).join('')}</ul>
+      <span class="w"><small>PIRE</small><b>${r.worst}</b></span><span class="bv"><small>MEILL.</small><b>${r.best}</b></span>${ico('chev')}</a></li>`).join('')}</ul>
     ${rows.length > 30 ? '<p class="note">Les 30 parties les plus récentes de la période.</p>' : ''}`;
+}
+
+/** Secteurs les plus touchés : tableau S / D / T / total (les 8 premiers, puis le bull). */
+function sectorTable(seg) {
+  const rows = [];
+  for (let i = 1; i <= 20; i++) rows.push({ k: String(i), s: seg[i][0], d: seg[i][1], t: seg[i][2] });
+  rows.sort((a, b) => (b.s + b.d + b.t) - (a.s + a.d + a.t));
+  const top = rows.slice(0, 8);
+  const bull = { k: 'BULL', s: seg[25][0], d: seg[25][1], t: null };
+  const tr = r => `<tr><th>${r.k}</th><td>${r.s}</td><td>${r.d}</td><td>${r.t ?? '—'}</td><td><b>${r.s + r.d + (r.t || 0)}</b></td></tr>`;
+  return `<table class="sectab"><thead><tr><th>Secteur</th><th>S</th><th>D</th><th>T</th><th>Total</th></tr></thead>
+    <tbody>${top.map(tr).join('')}${tr(bull)}</tbody></table>`;
 }
 
 // ------------------------------------------------------------------ écran Stats (joueur)
@@ -237,23 +251,25 @@ export function stats2Screen(id) {
         ${k('first9', '9 premières', avg(st.first9))}${k('won', 'Victoires', `${st.won}<small> / ${st.played}</small>`)}
         ${k('bestVisit', 'Meilleure volée', st.bestVisit)}${k('worstVisit', 'Pire volée', st.worstVisit ?? '—')}
       </div>
-      ${sec('Finition', 'finition')}
-      ${infoBox('finition', `<b>Finition</b> : ${metric('checkoutRate').info} <b>Doubles</b> : ${metric('doubleRate').info}`)}
-      <div class="kpis">
-        ${k('checkout', 'Taux de finition', pct(st.checkoutRate))}${k('double', 'Taux de doubles', pct(st.doubleRate))}
-        ${k('bestFinish', 'Meilleure finition', int(st.bestFinish))}${k('shortest', 'Manche la + courte', `${st.shortestLeg ?? '—'}${st.shortestLeg ? '<small> fl.</small>' : ''}`)}
-      </div>
-      ${sec('Grosses volées', null)}
-      <div class="kpis"><div class="kpi wide tons"><div data-k="ton"><small>100+</small><b>${st.ton}</b></div><div data-k="ton40"><small>140+</small><b>${st.ton40}</b></div><div data-k="max"><small>180</small><b>${st.max}</b></div><div data-k="drinks"><small>Verres</small><b>${drinks}</b></div></div></div>
+      ${sec('Précision', 'precision')}
+      ${infoBox('precision', `<b>Triples</b> : ${metric('tripleRate').info} <b>Doubles</b> : ${metric('doubleRate').info}`)}
+      <div class="kpis">${k('triple', 'Taux de triples', pct(st.tripleRate))}${k('double', 'Taux de doubles', pct(st.doubleRate))}</div>
+      ${sec('Finition', null)}
+      <div class="kpis">${k('bestFinish', 'Meilleure finition', int(st.bestFinish))}${k('shortest', 'Manche la + courte', `${st.shortestLeg ?? '—'}${st.shortestLeg ? '<small> fl.</small>' : ''}`)}</div>
+      ${sec('Volées', null)}
+      <div class="kpis"><div class="kpi wide tons"><div data-k="ton"><small>100+</small><b>${st.ton}</b></div><div data-k="ton40"><small>140+</small><b>${st.ton40}</b></div><div data-k="max"><small>180</small><b>${st.max}</b></div><div data-k="busts"><small>Bust</small><b>${st.busts}</b></div></div>
+        ${k('drinks', 'Verres', `${drinks}<small> en ${plural(st.played, 'partie', 'parties')}</small>`, 'wide')}</div>
       ${chartBlock(games, pid)}
-      ${sec('Volées', 'volees')}
-      ${infoBox('volees', 'Les 10 meilleures volées de la période, et la pire volée de chaque partie (un bust compte 0, une volée de finition ne compte pas). Touchez une ligne pour ouvrir la partie.')}
+      ${sec('Meilleures et pires volées', 'volees')}
+      ${infoBox('volees', 'Les 10 meilleures volées de la période, et la pire volée de chaque partie (sans les bust ni les volées de finition). Touchez une ligne pour ouvrir la partie.')}
       ${fold('best', 'Meilleures volées', 10, bestList(games, pid))}
       ${fold('worst', 'Pire volée de chaque partie', st.perGame.length, worstPerGame(st.perGame))}
       ${h2h ? `${sec('Face-à-face', null)}<ul class="h2h">${h2h}</ul>` : ''}
       ${sec('Segments touchés', 'cible', `<span class="n">${st.segments.total} fl.</span>`)}
       ${infoBox('cible', 'Chaque fléchette lancée sur la période, par zone : plus la case est foncée, plus elle a été touchée.')}
-      ${fold('board', 'Carte de la cible', `${st.segments.miss} à côté`, `${board(st.segments)}<p class="note center">${readBoard}</p>`)}
+      ${fold('board', 'Carte de la cible', `${st.segments.miss} à côté`, `${board(st.segments, { counts: true })}
+        <p class="note center">Chiffre sur chaque secteur : impacts dans ce secteur (simple, double et triple), au centre : le bull (25 et 50). ${readBoard}</p>
+        ${sectorTable(st.segments)}`)}
     </div></div>`;
 }
 
@@ -274,7 +290,7 @@ function ranked(rows, m) {
     const x = a.vals[m.k], y = b.vals[m.k];
     if (x === null || x === undefined) return 1;
     if (y === null || y === undefined) return -1;
-    return y - x || b.s.played - a.s.played;
+    return (m.dir < 0 ? x - y : y - x) || b.s.played - a.s.played;
   });
 }
 
@@ -292,7 +308,7 @@ export function rankingScreen() {
     if (list.length < 2) return '';
     const top = list[0], low = list[list.length - 1];
     if (top.vals[m.k] === low.vals[m.k]) return ''; // tout le monde pareil (aucun 180…) : rien à dire
-    const [a, b] = m.dir ? ['MEILLEUR', 'PIRE'] : ['LE PLUS', 'LE MOINS'];
+    const [a, b] = m.dir ? ['MEILLEUR', 'PIRE'] : ['LE PLUS', 'LE MOINS']; // bust (dir -1) : classés du moins au plus
     return `<li class="palm"><button type="button" data-act="v2-rank" data-arg="${m.k}" aria-pressed="${ui.rank === m.k}">
       <span class="pl">${esc(m.label)}${m.unit ? ` <small>${m.unit}</small>` : ''}</span>
       <span class="pr best"><small>${ico('up')} ${a}</small>${who(top)}<b>${(m.allFmt || m.fmt)(top.vals[m.k])}</b></span>

@@ -134,6 +134,12 @@ export const SCENES = {
   'v78-reglages-ouverts': v78('#/reglages', () => presetSettings2({ info: ['aff', 'son', 'vib'], diag: true })),
   'v78-reglages-apk': v78('#/reglages', () => { store.mockApk = true; store.mockUpdate = { current: '0.7.7', latest: '0.7.8', available: true }; }),
   'v78-nouveautes': v78('#/nouveautes'),
+  'v78-soiree-dash': v78('#/soiree/s1'),
+  'v78-soiree-dash-ancienne': v78('#/soiree/s6'),
+  'v78-historique-selection': v78('#/historique', () => { const ids = store.games.filter(g => !g.soiree).slice(0, 2).map(g => g.id); presetHistory2({ sel: [...ids, store.games[0].id], open: ['s:s1'] }); }),
+  'v78-historique-ajouter': v78('#/historique', () => { presetHistory2({ sel: [store.games.find(g => !g.soiree).id], ask: 'attach' }); }),
+  'v78-historique-jour': v78('#/historique', () => { const d = new Date(); d.setDate(d.getDate() - 4); d.setHours(19, 0, 0, 0); const players = ['p1', 'p2']; for (let i = 0; i < 2; i++) store.games.push({ id: `jour${i}`, startedAt: d.getTime() + i * 2400e3, config: { startScore: 301, outMode: 'double', legsToWin: 1, players }, darts: simulateGame({ startScore: 301, outMode: 'double', legsToWin: 1, players }, [0.4, 0.4], 70 + i), abandoned: false }); const k = `d:${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; presetHistory2({ open: [k] }); }),
+  'v78-stats-cible': v78('#/stats/p1', () => presetStats2({ folds: ['board'] })),
   jeu: () => { setGame(cfg(['p1', 'p2']), ''); return '#/jeu'; },
   reprendre: () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S5 S20 T19 S1 T20'); return '#/'; },
   'arme-d': () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S5 S20 T19 S1 T20', { mult: 2 }); return '#/jeu'; },
@@ -389,6 +395,12 @@ export function sommaire() {
       ${L('v78-reglages-ouverts', '★ Réglages : explications et diagnostic ouverts')}
       ${L('v78-reglages-apk', '★ Réglages : appli Android', 'mise à jour disponible')}
       ${L('v78-nouveautes', '★ Nouveautés', 'changelog')}
+      ${L('v78-soiree-dash', '★ Tableau de bord d\'une soirée', 'hier soir, à imprimer')}
+      ${L('v78-soiree-dash-ancienne', '★ Tableau de bord d\'une soirée plus ancienne')}
+      ${L('v78-historique-selection', '★ Historique : sélection', 'regrouper en soirée')}
+      ${L('v78-historique-ajouter', '★ Historique : ajouter à une soirée')}
+      ${L('v78-historique-jour', '★ Historique : jour hors soirée', 'EN FAIRE UNE SOIRÉE')}
+      ${L('v78-stats-cible', '★ Stats : cible chiffrée', 'impacts par secteur')}
     </nav>
     <div class="pad"><div class="sec">Écrans</div></div>
     <nav class="toc">

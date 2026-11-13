@@ -214,6 +214,37 @@ const soireeGames = () => {
   return [...store.games, ...(store.current ? [store.current] : [])].filter(g => g.soiree === id);
 };
 
+/**
+ * Lot 7.8 (maquette) : range des parties de l'historique dans une soirée (`soireeId`), ou les en sort (null). Le
+ * cumul des verres (`drinksBefore`) est recalculé dans l'ordre des parties pour chaque soirée touchée.
+ * Renvoie l'identifiant de la soirée.
+ */
+export function setGamesSoiree(ids, soireeId) {
+  const set = new Set(ids);
+  const touched = new Set(soireeId ? [soireeId] : []);
+  for (const g of store.games) if (set.has(g.id)) { if (g.soiree) touched.add(g.soiree); if (soireeId) g.soiree = soireeId; else delete g.soiree; }
+  const changed = new Set(ids);
+  for (const sid of touched) for (const g of recomputeSoiree(sid)) changed.add(g.id);
+  write(store.games.filter(g => changed.has(g.id)).map(g => ({ store: 'games', put: closedRecord(g, g.abandoned, g.endedAt) })));
+  return soireeId;
+}
+
+/** Nouvelle soirée pour des parties de l'historique (lot 7.8). */
+export const newSoireeId = () => newId('s');
+
+/** Verres d'avant chaque partie d'une soirée, recalculés dans l'ordre des parties ; renvoie ses parties. */
+function recomputeSoiree(sid) {
+  const games = store.games.filter(g => g.soiree === sid).sort((a, b) => a.startedAt - b.startedAt);
+  const run = {};
+  for (const g of games) {
+    const before = {};
+    for (const id of g.config.players) if (run[id]) before[id] = run[id];
+    if (Object.keys(before).length) g.drinksBefore = before; else delete g.drinksBefore;
+    for (const [id, l] of Object.entries(g.drinks || {})) run[id] = (run[id] || 0) + l.length;
+  }
+  return games;
+}
+
 /** Débute une soirée avec ces joueurs (une soirée précédente est terminée). */
 export function startSoiree(players, now = Date.now()) {
   store.soiree = { id: newId('s'), startedAt: now, players: [...new Set(players)], drinks: {} };

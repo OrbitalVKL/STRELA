@@ -2,24 +2,29 @@
 // - Filtres : joueur (une pastille par joueur), résultat (toutes, terminées, abandonnées), mois.
 // - Parties rangées par soirée (parties d'une même soirée ensemble, avec ses verres) ou, hors soirée, par jour ;
 //   chaque groupe se replie (les deux plus récents ouverts) ; titres de mois.
-// - Lignes compactes : heure, jeu, avatars, vainqueur. Appui long : la sélection et la suppression de la liste
-//   actuelle (history.js) reprennent la main.
-import { store, playerById } from '../../store.js';
+// - Lignes compactes : heure, jeu, avatars, vainqueur. Appui long : sélection (plusieurs parties), puis REGROUPER EN
+//   SOIRÉE, AJOUTER À UNE SOIRÉE, SORTIR DE LA SOIRÉE ou SUPPRIMER. Un jour hors soirée : EN FAIRE UNE SOIRÉE.
+//   Une soirée : TABLEAU DE BORD (#/soiree/<id>, soireedash.js).
+import { store, playerById, deleteGames, setGamesSoiree, newSoireeId } from '../../store.js';
 import { esc, ico, topBar, plural } from '../../dom.js';
 import { avatarHtml } from '../../avatars.js';
 import { gameState, gameWinner } from '../../../engine/stats.js';
 import { refresh } from '../../nav.js';
-import { historyList, selectingGames } from '../history.js';
+import { historyList } from '../history.js';
 
 const DAYS = ['DIM.', 'LUN.', 'MAR.', 'MER.', 'JEU.', 'VEN.', 'SAM.'];
 const MONTHS = ['JANVIER', 'FÉVRIER', 'MARS', 'AVRIL', 'MAI', 'JUIN', 'JUILLET', 'AOÛT', 'SEPTEMBRE', 'OCTOBRE', 'NOVEMBRE', 'DÉCEMBRE'];
 const MSHORT = ['JANV.', 'FÉVR.', 'MARS', 'AVR.', 'MAI', 'JUIN', 'JUIL.', 'AOÛT', 'SEPT.', 'OCT.', 'NOV.', 'DÉC.'];
 
 const f = { player: null, result: 'all', month: 'all', open: null, more: 0 };
-/** Sommaire de maquette : filtres préparés. */
+let sel = null;      // null, ou Set des parties cochées
+let ask = null;      // null | 'delete' | 'attach' (choix de la soirée)
+/** Sommaire de maquette : filtres et sélection préparés. */
 export function presetHistory2(state = {}) {
   Object.assign(f, { player: null, result: 'all', month: 'all', open: null, more: 0 }, state);
   if (state.open) f.open = new Set(state.open);
+  sel = state.sel ? new Set(state.sel) : null;
+  ask = state.ask || null;
 }
 
 const hhmm = ms => { const d = new Date(ms); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
@@ -41,11 +46,15 @@ function row(g) {
   const res = g.abandoned ? '<span class="tag red">ABANDON</span>'
     : w ? `<span class="win">${ico('trophy')}<span class="nm ell">${esc(playerById(w).name)}</span></span>` : '<span class="tag">EN COURS</span>';
   const legs = g.config.legsToWin > 1 ? ` · ${s.legsWon.join('–')}` : '';
-  return `<li><a class="hrow" href="#/partie/${esc(g.id)}" data-long="select-game" data-arg="${esc(g.id)}">
-    <span class="t">${hhmm(g.startedAt)}</span>
+  const inner = `<span class="t">${hhmm(g.startedAt)}</span>
     <span class="g">${g.config.startScore}${g.config.outMode === 'single' ? ' S' : ''}${legs}</span>
     <span class="avs">${g.config.players.slice(0, 3).map(id => avatarHtml(playerById(id), 22)).join('')}${g.config.players.length > 3 ? `<small>+${g.config.players.length - 3}</small>` : ''}</span>
-    <span class="r">${res}</span></a></li>`;
+    <span class="r">${res}</span>`;
+  if (sel) {
+    const on = sel.has(g.id);
+    return `<li><button type="button" class="hrow pick" data-act="h2-pick" data-arg="${esc(g.id)}" aria-pressed="${on}"><span class="box" aria-hidden="true">${on ? ico('check') : ''}</span>${inner}</button></li>`;
+  }
+  return `<li><a class="hrow" href="#/partie/${esc(g.id)}" data-long="h2-select" data-arg="${esc(g.id)}">${inner}</a></li>`;
 }
 
 /** Groupes : une soirée (même identifiant) ou, hors soirée, un jour. Du plus récent au plus ancien. */
@@ -61,8 +70,35 @@ function groups(games) {
   return out;
 }
 
+const soireeLabel = (sid) => {
+  const gs = store.games.filter(g => g.soiree === sid);
+  const first = gs.reduce((a, g) => (g.startedAt < a.startedAt ? g : a), gs[0]);
+  return { at: first.startedAt, n: gs.length };
+};
+
+/** Bas de l'écran pendant la sélection : actions sur les parties cochées. */
+function selDock() {
+  const n = sel.size;
+  const games = store.games.filter(g => sel.has(g.id));
+  const inSoiree = games.some(g => g.soiree);
+  if (ask === 'delete') {
+    return `<div class="confirm" role="alertdialog" aria-label="Supprimer ?"><p class="alert-h">SUPPRIMER ${n > 1 ? `CES ${n} PARTIES` : 'CETTE PARTIE'} ?</p>
+      <p class="small">Elles disparaissent de l'historique et des stats. Les joueurs restent.</p>
+      <div class="btns two"><button type="button" class="btn" data-act="h2-ask" data-arg="">NON</button><button type="button" class="btn alert" data-act="h2-delete">SUPPRIMER</button></div></div>`;
+  }
+  if (ask === 'attach') {
+    const sids = [...new Set(store.games.filter(g => g.soiree).sort((a, b) => b.startedAt - a.startedAt).map(g => g.soiree))].slice(0, 8);
+    return `<div class="attach"><p class="alert-h">AJOUTER À QUELLE SOIRÉE ?</p>
+      <ul>${sids.map(sid => { const l = soireeLabel(sid); return `<li><button type="button" class="btn ghost" data-act="h2-attach" data-arg="${esc(sid)}">${ico('glass')} ${dayLabel(l.at)} <small>${plural(l.n, 'partie', 'parties')}</small></button></li>`; }).join('')}</ul>
+      <button type="button" class="btn" data-act="h2-ask" data-arg="">ANNULER</button></div>`;
+  }
+  return `<div class="btns two"><button type="button" class="btn primary" data-act="h2-group" ${n ? '' : 'disabled'}>${ico('glass')} REGROUPER EN SOIRÉE</button>
+      <button type="button" class="btn" data-act="h2-ask" data-arg="attach" ${n ? '' : 'disabled'}>AJOUTER À UNE SOIRÉE</button></div>
+    <div class="btns two"><button type="button" class="btn ghost" data-act="h2-detach" ${inSoiree ? '' : 'disabled'}>SORTIR DE LA SOIRÉE</button>
+      <button type="button" class="btn danger" data-act="h2-ask" data-arg="delete" ${n ? '' : 'disabled'}>SUPPRIMER (${n})</button></div>`;
+}
+
 export function history2List() {
-  if (selectingGames()) return historyList();
   const all = [...store.games].sort((a, b) => b.startedAt - a.startedAt);
   if (!all.length) return historyList();
   const months = [...new Set(all.map(g => monthKey(g.startedAt)))];
@@ -103,11 +139,19 @@ export function history2List() {
         <span class="k">${grp.soiree ? 'SOIRÉE · ' : ''}${plural(grp.games.length, 'PARTIE', 'PARTIES')}${drinks ? ` · ${drinks} VERRES` : ''}</span>
         <span class="avs">${players.slice(0, 3).map(id => avatarHtml(playerById(id), 20)).join('')}${players.length > 3 ? `<small>+${players.length - 3}</small>` : ''}</span>
         <span class="sp">${span}</span>${ico(isOpen ? 'up' : 'down')}</button>
-      ${isOpen ? `<ul class="hrows">${grp.games.map(row).join('')}</ul>` : ''}</li>`;
+      ${isOpen ? `<ul class="hrows">${grp.games.map(row).join('')}</ul>
+        ${sel ? '' : grp.soiree ? `<a class="hlink" href="#/soiree/${esc(grp.key.slice(2))}">${ico('stats')} TABLEAU DE BORD DE LA SOIRÉE${ico('chev')}</a>`
+          : grp.games.length > 1 ? `<button type="button" class="hlink" data-act="h2-makesoiree" data-arg="${esc(grp.games.map(g => g.id).join(','))}">${ico('glass')} EN FAIRE UNE SOIRÉE</button>` : ''}` : ''}</li>`;
   }
   const filtered = f.player || f.result !== 'all' || f.month !== 'all';
   const empty = !gs.length ? `<div class="empty" style="padding:28px 16px"><div class="big">AUCUNE PARTIE</div><p>Aucune partie ne correspond à ces filtres.</p>
       <button type="button" class="btn primary" data-act="h2-clear">TOUT AFFICHER</button></div>` : '';
+  if (sel) {
+    return `<div class="screen history2 has-dock">${topBar(`${sel.size} sélectionnée${sel.size > 1 ? 's' : ''}`, null, `<button type="button" class="act" data-act="h2-cancel" aria-label="Annuler la sélection">${ico('close')}</button>`)}
+      <p class="note pad">Cochez les parties, puis regroupez-les en soirée (leurs verres se cumulent alors d'une partie à l'autre), ajoutez-les à une soirée, sortez-les de leur soirée ou supprimez-les.</p>
+      ${empty || `<ul class="hlist">${body}</ul>`}
+      <div class="dock" data-layer>${selDock()}</div></div>`;
+  }
   return `<div class="screen history2">${topBar('Historique', '#/', `<span class="act dim" style="font-weight:600">${all.length}</span>`)}
     <div class="hfilters">
       <div class="pchips"><button type="button" class="pchip all" data-act="h2-player" data-arg="" aria-pressed="${!f.player}"><span class="allbox">${ico('players')}</span><span class="nm">TOUS</span></button>${ids.map(pchip).join('')}</div>
@@ -117,10 +161,21 @@ export function history2List() {
     <div class="hsum"><span>${filtered ? `${plural(games.length, 'partie', 'parties')} sur ${all.length}` : plural(all.length, 'partie', 'parties')} · ${plural(gs.length, 'groupe', 'groupes')}</span>
       <span class="ops"><button type="button" class="lnk" data-act="h2-all" data-arg="1">TOUT DÉPLIER</button><button type="button" class="lnk" data-act="h2-all" data-arg="0">TOUT REPLIER</button></span></div>
     ${empty || `<ul class="hlist">${body}</ul>`}
-    <p class="note pad">Les parties d'une même soirée sont ensemble ; hors soirée, rangées par jour (une partie après minuit compte pour la veille). Appui long sur une partie pour en sélectionner plusieurs et les supprimer.</p></div>`;
+    <p class="note pad">Les parties d'une même soirée sont ensemble ; hors soirée, rangées par jour (une partie après minuit compte pour la veille). Appui long sur une partie pour en sélectionner plusieurs : les regrouper en soirée, les ajouter à une soirée ou les supprimer.</p></div>`;
 }
 
+const openOnly = key => { f.open = new Set([key]); f.month = 'all'; };
+
 export const actions = {
+  'h2-select'(id) { sel = new Set([id]); ask = null; try { navigator.vibrate?.(20); } catch (e) { /* rien */ } refresh(); },
+  'h2-pick'(id) { if (!sel) return; if (sel.has(id)) sel.delete(id); else sel.add(id); ask = null; refresh(); },
+  'h2-cancel'() { sel = null; ask = null; refresh(); },
+  'h2-ask'(v) { ask = v || null; refresh(); },
+  'h2-group'() { const sid = setGamesSoiree([...sel], newSoireeId()); openOnly(`s:${sid}`); sel = null; ask = null; refresh(); },
+  'h2-attach'(sid) { setGamesSoiree([...sel], sid); openOnly(`s:${sid}`); sel = null; ask = null; refresh(); },
+  'h2-detach'() { setGamesSoiree([...sel], null); sel = null; ask = null; f.open = null; refresh(); },
+  'h2-delete'() { deleteGames([...sel]); sel = null; ask = null; refresh(); },
+  'h2-makesoiree'(arg) { const sid = setGamesSoiree(String(arg).split(','), newSoireeId()); openOnly(`s:${sid}`); refresh(); },
   'h2-player'(id) { f.player = id && f.player !== id ? id : null; f.open = null; refresh(); },
   'h2-result'(v) { f.result = v; f.open = null; refresh(); },
   'h2-month'(k) { f.month = k; f.open = null; refresh(); },

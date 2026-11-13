@@ -27,6 +27,7 @@ import { settings2Screen } from './screens/settings.js';
 import { stats2Screen, rankingScreen, actions as stats2Actions } from './screens/v2/stats2.js';
 import { history2List, actions as history2Actions } from './screens/v2/history2.js';
 import { home2, changelogScreen } from './screens/v2/home2.js';
+import { soireeDashScreen, actions as dashActions } from './screens/v2/soireedash.js';
 
 // Lot 7.8 : refonte en maquette. Montrée seulement dans le sommaire de maquette (store.preview) ; l'appli garde les
 // écrans actuels, et les nouvelles adresses (classement, nouveautés) y renvoient à l'accueil.
@@ -52,12 +53,13 @@ const ROUTES = [
   [/^\/recadrage$/, cropScreen],
   [/^\/apropos$/, aboutScreen],
   [/^\/soiree$/, soireeScreen],
+  [/^\/soiree\/(.+)$/, pvOnly(soireeDashScreen)],
 ];
 
 const ACTIONS = {
   ...playerActions, ...newGameActions, ...gameActions, ...resultActions,
   ...statsActions, ...settingsActions, ...historyActions, ...photoActions, ...aboutActions, ...sheetActions, ...soireeActions,
-  ...stats2Actions, ...history2Actions,
+  ...stats2Actions, ...history2Actions, ...dashActions,
 };
 const INPUTS = { ...playerInputs };
 

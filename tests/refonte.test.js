@@ -1,0 +1,49 @@
+// Lot 7.8 (maquette de la refonte) : pire volée sans les bust, taux de triples, tableau de bord d'une soirée.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { ds } from './helpers.js';
+import { playerStats } from '../src/engine/stats.js';
+import { soireeModel } from '../src/engine/soiree.js';
+import { CHANGELOG } from '../src/ui/changelog.js';
+
+const cfg = (players, startScore = 301) => ({ startScore, outMode: 'double', legsToWin: 1, players });
+// 301 double : A 180 → 121 ; B 1 1 1 (3) ; A 20 20 T20 = 100 → 21 ; B 20 20 20 ; A 20 → 1 : bust ; B 5 5 5 ; A 1 D10.
+const G1 = { id: 'g1', startedAt: 1000, soiree: 's', config: cfg(['A', 'B']), darts: ds('T20 T20 T20  S1 S1 S1  S20 S20 T20  S20 S20 S20  S20  S5 S5 S5  S1 D10'),
+  drinks: { B: [{ t: 1, at: 2 }, { t: 2, at: 8 }] } };
+const G2 = { id: 'g2', startedAt: 5000, soiree: 's', config: cfg(['B', 'A']), darts: ds('T20 T20 T20  S1 S1 S1  T20 T11 D14') };
+
+test('pire volée : ni les bust ni les finitions ; taux de triples', () => {
+  const a = playerStats([G1], 'A');
+  assert.equal(a.worstVisit, 100, 'le bust (20 → 1) ne compte pas, la finition non plus');
+  assert.equal(a.busts, 1);
+  assert.deepEqual(a.perGame.map(r => r.worst), [100]);
+  // A : 7 fléchettes (T20 T20 T20, 20 20 T20, 20, 1 D10 = 3 + 3 + 1 + 2 = 9), triples : 4.
+  assert.equal(a.darts, 9);
+  assert.equal(a.triples, 4);
+  assert.equal(a.tripleRate, 4 / 9);
+  assert.equal(playerStats([G1], 'B').worstVisit, 3);
+});
+
+test('tableau de bord d’une soirée : classement, faits marquants, parties', () => {
+  const m = soireeModel([G2, G1], id => ({ A: 'Alpha', B: 'Bravo' }[id]));
+  assert.equal(m.games, 2);
+  assert.equal(m.start, 1000);
+  assert.equal(m.drinks, 2);
+  assert.deepEqual(m.rows.map(r => [r.played, r.won]), [[2, 1], [2, 1]]);
+  assert.equal(m.rows.reduce((n, r) => n + r.won, 0), 2, 'une victoire par partie');
+  const hl = Object.fromEntries(m.highlights.map(h => [h.key, h]));
+  assert.equal(hl.best.value, '180');
+  assert.equal(hl.worst.value, '3', 'la pire volée de la soirée (B, 1 1 1), sans le bust de A');
+  assert.equal(hl.worst.name, 'Bravo');
+  assert.equal(hl.busts.name, 'Alpha');
+  assert.equal(hl.drinks.value, 'x2');
+  assert.deepEqual(m.list.map(x => x.id), ['g2', 'g1'], 'de la plus récente à la plus ancienne');
+});
+
+test('nouveautés : une entrée par version, de la plus récente à la plus ancienne', () => {
+  const vs = CHANGELOG.map(e => e.v);
+  assert.equal(new Set(vs).size, vs.length);
+  const num = v => v.split('.').reduce((n, x) => n * 1000 + Number(x), 0);
+  for (let i = 1; i < vs.length; i++) assert.ok(num(vs[i - 1]) > num(vs[i]), `${vs[i - 1]} avant ${vs[i]}`);
+  for (const e of CHANGELOG) assert.ok(e.items.length && e.title, e.v);
+});

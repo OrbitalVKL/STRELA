@@ -32,6 +32,29 @@ function download(blob, name) {
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
 }
 
+/**
+ * Livre un fichier { name, mime, bytes } : APK → Téléchargements/Strela + menu de partage ; navigateur → partage s'il
+ * est possible, sinon téléchargement. Renvoie le compte rendu, ou null si le partage a été annulé. (Lot 7.8 : aussi pour
+ * le tableau de bord d'une soirée.)
+ */
+export async function deliverFile(f) {
+  const what = f.mime === 'application/pdf' ? 'PDF' : 'Image';
+  if (isApk()) {
+    const r = callJson('saveFile', f.name, toBase64(f.bytes), f.mime, true);
+    return r && r.ok ? `${what} enregistrée : ${r.path}. Menu de partage ouvert.` : `Export impossible : ${(r && r.error) || 'passerelle muette'}.`;
+  }
+  const blob = new Blob([f.bytes], { type: f.mime });
+  let shared = false;
+  try {
+    const file = new File([blob], f.name, { type: f.mime });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: f.name }); shared = true; }
+  } catch (e) {
+    if (e && e.name === 'AbortError') return null;
+  }
+  if (!shared) download(blob, f.name);
+  return shared ? `${what} partagée : ${f.name}.` : `${what} enregistrée dans les téléchargements : ${f.name}.`;
+}
+
 /** Exporte la fiche (kind : png | pdf) de la partie `id`. */
 export async function exportSheet(kind, id) {
   const g = findGame(id);
@@ -41,22 +64,8 @@ export async function exportSheet(kind, id) {
   let msg;
   try {
     const f = await sheetFile(g, gameState(g), g.config.players.map(playerById), kind, BUILD.version);
-    const what = kind === 'pdf' ? 'PDF' : 'Image';
-    if (isApk()) {
-      const r = callJson('saveFile', f.name, toBase64(f.bytes), f.mime, true);
-      msg = r && r.ok ? `${what} enregistrée : ${r.path}. Menu de partage ouvert.` : `Export impossible : ${(r && r.error) || 'passerelle muette'}.`;
-    } else {
-      const blob = new Blob([f.bytes], { type: f.mime });
-      let shared = false;
-      try {
-        const file = new File([blob], f.name, { type: f.mime });
-        if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: f.name }); shared = true; }
-      } catch (e) {
-        if (e && e.name === 'AbortError') { status.set(id, {}); refresh(); return; }
-      }
-      if (!shared) download(blob, f.name);
-      msg = shared ? `${what} partagée : ${f.name}.` : `${what} enregistrée dans les téléchargements : ${f.name}.`;
-    }
+    msg = await deliverFile(f);
+    if (msg === null) { status.set(id, {}); refresh(); return; }
   } catch (e) {
     msg = `Export impossible : ${(e && e.message) || e}.`;
   }

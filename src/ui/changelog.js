@@ -5,6 +5,9 @@ export const CHANGELOG = Object.freeze([
   { v: '0.7.8', date: null, title: 'Refonte (maquette)', items: [
     'Accueil redessiné.',
     'Stats : courbe de n\'importe quel chiffre, une partie par point, zoom ; meilleures et pires volées repliables ; explications derrière (i).',
+    'Stats : taux de triples (le taux de finition disparaît) ; la pire volée ne compte plus les bust ; nombre d\'impacts écrit sur chaque secteur de la cible.',
+    'Tableau de bord de chaque soirée (podium, faits marquants, joueurs, parties), à imprimer en image ou en PDF.',
+    'Historique : regrouper des parties en soirée, les ajouter à une soirée ou les en sortir.',
     'Classement de tous les joueurs, avec le meilleur et le pire de chaque chiffre.',
     'Historique rangé par soirée et par jour, filtres par joueur et par résultat.',
     'Réglages regroupés et plus clairs (aucune option retirée).',
