@@ -1238,7 +1238,8 @@ html.night body::after { content: ''; position: fixed; inset: 0; z-index: 100; p
 .c-menu a:active { background: var(--fg); color: var(--bg); }
 .c-menu .no { flex: 0 0 26px; font-size: 12px; font-weight: 700; color: var(--red-text); font-variant-numeric: tabular-nums; }
 .c-menu .ico { flex: 0 0 22px; width: 22px; height: 22px; }
-.c-menu b { font-size: 16px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
+.c-menu b { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 16px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
+.c-menu .sub { flex-shrink: 2; }
 .c-menu .lead { flex: 1; min-width: 4px; border-bottom: 1px dotted var(--faint); transform: translateY(5px); }
 .c-menu .sub { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 11px; color: var(--dim); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
 .c-menu .newdot { flex: 0 0 auto; }
