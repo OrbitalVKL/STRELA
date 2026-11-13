@@ -2,7 +2,7 @@
 // JS pur, sans affichage. Pire volée : sans les bust ni les volées de finition (comme les Stats).
 import { playerStats, gameState, gameWinner, playerSummary } from './stats.js';
 import { standings, lastPlaces } from './ranking.js';
-import { drinkTime, isPint, unitsOf, drinkTally, tallyText } from './alcohol.js';
+import { drinkTime, isPint, unitsOf, drinkTally, tallyText, averageByDrinks } from './alcohol.js';
 
 const pad2 = n => String(n).padStart(2, '0');
 const hhmm = ms => { const d = new Date(ms); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
@@ -104,6 +104,8 @@ export function soireeModel(games, name = id => id) {
   const list = [...gs].reverse().map(g => ({ id: g.id, at: g.startedAt, startScore: g.config.startScore, winner: gameWinner(g), players: g.config.players, abandoned: !!g.abandoned }));
   return { start: gs.length ? gs[0].startedAt : null, end: gs.length ? gs[gs.length - 1].startedAt : null, games: gs.length,
     drinks: rows.reduce((n, r) => n + r.drinks, 0), rows, highlights: hl, list,
+    // Lot 9 : la moyenne de chacun au fil des verres de la soirée.
+    levels: Object.fromEntries(ids.map(id => [id, averageByDrinks(gs.map(g => ({ state: gameState(g), game: g })), id)])),
     liters: rows.reduce((n, r) => n + r.tally.liters, 0), timeline, drinkTimes, drinkList, versus, together, sectors, spread, trophies };
 }
 

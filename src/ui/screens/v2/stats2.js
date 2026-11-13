@@ -8,7 +8,7 @@ import { store, playerById } from '../../store.js';
 import { esc, ico, topBar, avg, pct, int, plural, when, OUT_SHORT } from '../../dom.js';
 import { avatarHtml } from '../../avatars.js';
 import { playerStats, inPeriod, gameState } from '../../../engine/stats.js';
-import { unitsOf, drinkTally, tallyText } from '../../../engine/alcohol.js';
+import { unitsOf, drinkTally, tallyText, averageByDrinks } from '../../../engine/alcohol.js';
 import { refresh, backFrom } from '../../nav.js';
 import { board, countOf, tally, currentPeriod, pickedBoard } from '../stats.js';
 
@@ -55,10 +55,11 @@ const ui = {
   zoom: 1,             // ×1, ×2, ×4, ×8
   point: null,         // partie touchée sur la courbe (identifiant)
   rank: 'average',     // chiffre du classement complet
+  compare: null,       // lot 9 : joueur comparé sur la courbe (identifiant), ou null
 };
 /** Sommaire de maquette : état préparé. */
 export function presetStats2(state = {}) {
-  Object.assign(ui, { info: new Set(), folds: new Set(), metric: 'average', zoom: 1, point: null, rank: 'average' }, state);
+  Object.assign(ui, { info: new Set(), folds: new Set(), metric: 'average', zoom: 1, point: null, rank: 'average', compare: null }, state);
   if (state.info) ui.info = new Set(state.info);
   if (state.folds) ui.folds = new Set(state.folds);
 }
@@ -86,11 +87,11 @@ const periodSeg = () => {
 
 // ------------------------------------------------------------------ courbe
 /** Parties du joueur sur la période (de la plus ancienne à la plus récente), avec la valeur du chiffre `m`. */
-function series(games, pid, m) {
-  return games.filter(g => g.config.players.includes(pid)).sort((a, b) => a.startedAt - b.startedAt).map(g => {
-    const s = playerStats([g], pid);
-    return { g, v: m.game(s, g, pid) };
-  });
+function series(games, pid, m, cmp = null) {
+  // Lot 9 : avec un joueur comparé, les parties de l'un ou de l'autre ; v (joueur) et v2 (comparé), null s'il n'y a pas joué.
+  const val = (g, id) => (g.config.players.includes(id) ? m.game(playerStats([g], id), g, id) : null);
+  return games.filter(g => g.config.players.includes(pid) || (cmp && g.config.players.includes(cmp))).sort((a, b) => a.startedAt - b.startedAt)
+    .map(g => ({ g, v: val(g, pid), v2: cmp ? val(g, cmp) : null }));
 }
 
 const dayKey = ms => { const d = new Date(ms); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
@@ -107,7 +108,8 @@ function chart(pts, m, pid) {
   const W = Math.max(VIEW, 12 + (n - 1) * step + 12);
   const xs = i => 12 + i * step;
   const ys = vals.map(p => scale(p.v));
-  let lo = Math.min(...ys), hi = Math.max(...ys);
+  const ys2 = pts.filter(p => p.v2 !== null && p.v2 !== undefined).map(p => scale(p.v2));
+  let lo = Math.min(...ys, ...ys2), hi = Math.max(...ys, ...ys2);
   if (m.pct) { lo = 0; hi = 100; } else {
     const pad = Math.max(2, (hi - lo) * 0.12);
     lo = Math.max(0, Math.floor((lo - pad) / 5) * 5); hi = Math.ceil((hi + pad) / 5) * 5;
@@ -143,15 +145,28 @@ function chart(pts, m, pid) {
   // Version 0.8.1 : la valeur écrite à côté des points (demande de Guillaume) ; quand les points sont serrés, un sur
   // `every` (le dernier et celui touché toujours) — zoomer les montre tous.
   const every = Math.max(1, Math.ceil(30 / step));
+  const has = v => v !== null && v !== undefined;
+  const line2 = pts.map((p, i) => (has(p.v2) ? `${xs(i).toFixed(1)},${y(scale(p.v2)).toFixed(1)}` : null)).filter(Boolean).join(' ');
   const dots = pts.map((p, i) => {
-    if (p.v === null || p.v === undefined) return '';
+    if (!has(p.v) && !has(p.v2)) return '';
     const on = p.g.id === sel;
-    const cx = xs(i), cy = y(scale(p.v));
+    const cx = xs(i);
     const r = ui.zoom >= 4 ? 4.5 : 3.5;
     const hit = Math.max(14, Math.min(40, step));
-    return `<rect class="pt${on ? ' on' : ''}" x="${(cx - r).toFixed(1)}" y="${(cy - r).toFixed(1)}" width="${2 * r}" height="${2 * r}"/>
-      ${i % every === 0 || i === n - 1 || on ? `<text class="pv${on ? ' on' : ''}" x="${cx.toFixed(1)}" y="${(cy - 8).toFixed(1)}" text-anchor="middle">${(m.gameFmt || m.fmt)(p.v)}</text>` : ''}
-      <rect x="${(cx - hit / 2).toFixed(1)}" y="${T - 18}" width="${hit.toFixed(1)}" height="${H - T + 18}" fill="transparent" data-act="v2-point" data-arg="${esc(p.g.id)}"/>`;
+    const label = i % every === 0 || i === n - 1 || on;
+    let out = '';
+    if (has(p.v)) {
+      const cy = y(scale(p.v));
+      out += `<rect class="pt${on ? ' on' : ''}" x="${(cx - r).toFixed(1)}" y="${(cy - r).toFixed(1)}" width="${2 * r}" height="${2 * r}"/>
+      ${label ? `<text class="pv${on ? ' on' : ''}" x="${cx.toFixed(1)}" y="${(cy - 8).toFixed(1)}" text-anchor="middle">${(m.gameFmt || m.fmt)(p.v)}</text>` : ''}`;
+    }
+    // Lot 9 : joueur comparé — carré creux, valeur sous le point.
+    if (has(p.v2)) {
+      const cy = y(scale(p.v2));
+      out += `<rect class="pt2" x="${(cx - r + 0.75).toFixed(1)}" y="${(cy - r + 0.75).toFixed(1)}" width="${2 * r - 1.5}" height="${2 * r - 1.5}"/>
+      ${label ? `<text class="pv2" x="${cx.toFixed(1)}" y="${(cy + 15).toFixed(1)}" text-anchor="middle">${(m.gameFmt || m.fmt)(p.v2)}</text>` : ''}`;
+    }
+    return `${out}<rect x="${(cx - hit / 2).toFixed(1)}" y="${T - 18}" width="${hit.toFixed(1)}" height="${H - T + 18}" fill="transparent" data-act="v2-point" data-arg="${esc(p.g.id)}"/>`;
   }).join('');
   const axis = `<svg class="chart2 axis" viewBox="0 0 34 ${H}" width="34" height="${H}" aria-hidden="true">
     ${ticks.map(v => `<text x="30" y="${(y(v) + 3.5).toFixed(1)}" text-anchor="end">${v}${m.pct ? '' : ''}</text>`).join('')}
@@ -160,15 +175,18 @@ function chart(pts, m, pid) {
     ${dayMarks}
     ${ticks.map(v => `<line class="ax" x1="0" x2="${W.toFixed(0)}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/>`).join('')}
     <line class="mean" x1="0" x2="${W.toFixed(0)}" y1="${y(meanV).toFixed(1)}" y2="${y(meanV).toFixed(1)}"/>
-    <polyline class="ln" points="${line}"/>${dots}
+    ${line2 ? `<polyline class="ln2" points="${line2}"/>` : ''}<polyline class="ln" points="${line}"/>${dots}
   </svg>`;
   return `<div class="chartbox">${axis}<div class="chscroll" data-hscroll="${esc(`courbe:${pid}`)}">${plot}</div></div>
-    <div class="chlegend"><span><i class="lg-ln"></i> partie par partie</span><span><i class="lg-mean"></i> moyenne ${m.pct ? `${Math.round(meanV)} %` : dec1(meanV)}</span><span>${plural(n, 'partie', 'parties')} · ${plural(days.length, 'jour', 'jours')}</span></div>`;
+    <div class="chlegend"><span><i class="lg-ln"></i> ${ui.compare ? `<span class="nm">${esc(playerById(pid).name)}</span>` : 'partie par partie'}</span>${ui.compare ? `<span><i class="lg-ln2"></i> <span class="nm">${esc(playerById(ui.compare).name)}</span></span>` : ''}<span><i class="lg-mean"></i> moyenne ${m.pct ? `${Math.round(meanV)} %` : dec1(meanV)}</span><span>${plural(n, 'partie', 'parties')} · ${plural(days.length, 'jour', 'jours')}</span></div>`;
 }
 
 function chartBlock(games, pid) {
   const m = metric(ui.metric);
-  const pts = series(games, pid, m);
+  // Lot 9 : comparer avec un autre joueur (deux courbes sur le même graphique).
+  const others = [...new Set(games.flatMap(g => g.config.players))].filter(id => id !== pid && store.players.some(p => p.id === id && !p.archived));
+  if (ui.compare === pid || (ui.compare && !others.includes(ui.compare))) ui.compare = null;
+  const pts = series(games, pid, m, ui.compare);
   const chip = x => `<button type="button" class="chip2" data-act="v2-metric" data-arg="${x.k}" aria-pressed="${x.k === m.k}">${esc(x.label)}</button>`;
   const z = ui.zoom;
   const zoom = `<div class="zoom" role="group" aria-label="Zoom">
@@ -185,7 +203,44 @@ function chartBlock(games, pid) {
     <div class="chips2">${METRICS.filter(x => x.game).map(chip).join('')}</div>
     <div class="chtools"><span class="small dim caps">${esc(m.label)}${m.pct ? ' (%)' : ''}</span>${zoom}</div>
     ${chart(pts, m, pid)}
+    ${others.length ? `<div class="cmp"><span class="small dim caps">Comparer avec</span><div class="chips2">
+      <button type="button" class="chip2" data-act="v2-compare" data-arg="" aria-pressed="${!ui.compare}">PERSONNE</button>
+      ${others.map(id => { const q = playerById(id); return `<button type="button" class="chip2 pc" data-act="v2-compare" data-arg="${esc(id)}" aria-pressed="${ui.compare === id}">${avatarHtml(q, 20)}<span class="nm">${esc(q.name)}</span></button>`; }).join('')}</div></div>` : ''}
     ${read}`;
+}
+
+// ------------------------------------------------------------------ lot 9 : la moyenne au fil des verres
+/** Barres : moyenne du joueur selon le nombre de verres déjà bus quand il lance (0, 1, 2, 3, 4, 5 et +). */
+export function drinksLevelsHtml(lv) {
+  const shown = lv.levels.filter(L => L.darts);
+  const max = Math.max(1, ...shown.map(L => L.average));
+  const sober = lv.sober;
+  return `<ul class="dlev">${lv.levels.map(L => {
+    if (!L.darts) return `<li class="none"><span class="lb">${esc(L.label)}</span><span class="bar"></span><b>—</b></li>`;
+    const d = sober !== null && L.level > 0 && L.darts >= 9 ? L.average - sober : null;
+    return `<li class="${L.level === lv.best ? 'best' : ''}${L.darts < 9 ? ' few' : ''}"><span class="lb">${esc(L.label)}</span>
+      <span class="bar"><i style="width:${Math.round((L.average / max) * 100)}%"></i></span><b>${dec1(L.average)}</b>
+      <small>${d === null ? `${L.visits} vol.` : `${d >= 0 ? '+' : '−'}${dec1(Math.abs(d))}`}</small></li>`;
+  }).join('')}</ul>`;
+}
+/** Phrase du meilleur niveau et de l'écart après 4 verres et plus (rien si trop peu de volées). */
+export function drinksLevelsLine(lv) {
+  const parts = [];
+  if (lv.best !== null) parts.push(`Meilleur niveau : <b>${esc(lv.levels[lv.best].label)}</b> (${dec1(lv.levels[lv.best].average)})`);
+  const heavy = lv.levels.slice(4).reduce((a, L) => ({ darts: a.darts + L.darts, points: a.points + L.points }), { darts: 0, points: 0 });
+  if (lv.sober !== null && heavy.darts >= 9) {
+    const d = (heavy.points / heavy.darts) * 3 - lv.sober;
+    parts.push(`à partir de 4 verres : <b>${d >= 0 ? '+' : '−'}${dec1(Math.abs(d))} points</b> par rapport à jeun`);
+  }
+  return parts.length ? `<p class="note">${parts.join(' ; ')}.</p>` : '';
+}
+function drinksBlock(games, pid) {
+  const mine = games.filter(g => g.config.players.includes(pid));
+  if (!mine.some(g => (g.drinks && g.drinks[pid] && g.drinks[pid].length) || (g.drinksBefore && g.drinksBefore[pid]))) return '';
+  const lv = averageByDrinks(mine.map(g => ({ state: gameState(g), game: g })), pid);
+  return `${sec('Au fil des verres', 'verres')}
+    ${infoBox('verres', 'Moyenne sur 3 fléchettes selon le nombre de verres déjà bus au moment de lancer (ceux de la soirée avant la partie compris ; une pinte compte pour 2). À droite : l\'écart avec la moyenne à jeun (ou le nombre de volées s\'il y en a trop peu). En gras : le niveau où il joue le mieux (9 fléchettes au moins).')}
+    ${drinksLevelsHtml(lv)}${drinksLevelsLine(lv)}`;
 }
 
 // ------------------------------------------------------------------ volées repliées
@@ -265,6 +320,7 @@ export function stats2Screen(id) {
       <div class="kpis"><div class="kpi wide tons"><div data-k="ton"><small>100+</small><b>${st.ton}</b></div><div data-k="ton40"><small>140+</small><b>${st.ton40}</b></div><div data-k="max"><small>180</small><b>${st.max}</b></div><div data-k="busts"><small>Bust</small><b>${st.busts}</b></div></div>
         ${k('drinks', `Verres${drinkT.pints ? ` · ${tallyText(drinkT)}` : ''}`, `${drinks}<small> en ${plural(st.played, 'partie', 'parties')}</small>`, 'wide')}</div>
       ${chartBlock(games, pid)}
+      ${drinksBlock(games, pid)}
       ${sec('Meilleures et pires volées', 'volees')}
       ${infoBox('volees', 'Les 10 meilleures volées de la période, et la pire volée de chaque partie (sans les bust ni les volées de finition). Touchez une ligne pour ouvrir la partie.')}
       ${fold('best', 'Meilleures volées', 10, bestList(games, pid))}
@@ -350,4 +406,5 @@ export const actions = {
   'v2-zoom'(d) { ui.zoom = Math.min(8, Math.max(1, d === 'in' ? ui.zoom * 2 : ui.zoom / 2)); refresh(); },
   'v2-point'(id) { ui.point = ui.point === id ? null : id; refresh(); },
   'v2-rank'(k) { ui.rank = k; refresh(); },
+  'v2-compare'(id) { ui.compare = id || null; refresh(); },
 };

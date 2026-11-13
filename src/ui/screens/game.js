@@ -28,6 +28,7 @@ import { sound, dartSound, say, SPEECH } from '../feedback.js';
 import { correctDart, locateDart, visitStart, CORRECT_ERRORS } from '../../engine/correct.js';
 import { turnAnimOf, syncTurnFx } from '../turnfx.js';
 import { leader, flop, lastPlaces, visitStanding } from '../../engine/ranking.js';
+import { playerRecords, isVisitRecord } from '../../engine/records.js';
 
 export const ANNOUNCE_MS = 800;
 const LENS = { size: 150, zoom: 2.5, gap: 26 };
@@ -157,7 +158,29 @@ export function visitRank(g, s) {
   const r = visitStanding(x, others);
   return r && { ...r, scope: g.soiree ? 'soiree' : 'partie' };
 }
+// Lot 9 : record personnel battu (meilleure volée de toutes ses parties d'avant), montré à la place du rang de la soirée.
+const recCache = new Map(); // joueur → { key (parties closes), rec }
+export function recordsOf(id) {
+  const key = `${store.games.length}:${store.games.reduce((n, g) => n + g.darts.length, 0)}`;
+  const c = recCache.get(id);
+  if (c && c.key === key) return c.rec;
+  const rec = playerRecords(store.games, id);
+  recCache.set(id, { key, rec });
+  return rec;
+}
+export function visitIsRecord(g, s) {
+  const v = s.visits[s.visits.length - 1];
+  if (!v) return false;
+  const id = g.config.players[v.player];
+  const rec = recordsOf(id);
+  // Pas un record si une autre volée de la partie en cours faisait déjà mieux ou aussi bien.
+  const here = s.visits.slice(0, -1).filter(x => x.player === v.player && !x.bust).reduce((m, x) => Math.max(m, x.scored), 0);
+  return isVisitRecord(rec, v) && v.scored > here;
+}
 function rankBadge(v) {
+  if (v.pend && !v.bust && visitIsRecord(v.g, v.s)) {
+    return `<div class="vr best rec" role="status" data-fit="3">${ico('trophy')}<span class="vt">RECORD<span class="l1"> PERSO</span><span class="l2"> : MEILLEURE VOLÉE</span><span class="s2"> · PERSO</span></span></div>`;
+  }
   const r = v.pend ? visitRank(v.g, v.s) : null;
   if (!r) return '';
   const word = r.kind === 'best' ? 'MEILLEURE' : 'PIRE';
@@ -186,7 +209,7 @@ function rest(v) {
   // Lot 7.2 (demande de Guillaume) : des verres, pas leur équivalent en alcool : « [verre] x3 ».
   const alc = drinking ? `${glassCount(n)} · ` : '';
   return `<section class="rest${badge ? ' ranked' : ''}" aria-label="Reste à faire">
-      <div class="meta"><span class="ell">${cfg.startScore} · ${OUT_SHORT[cfg.outMode]}</span><span>${alc}MOY. ${avg(legAvg)}</span></div>
+      <div class="meta"><span class="ell">${cfg.starts ? `DÉPART ${cfg.starts[shown]}` : cfg.startScore} · ${OUT_SHORT[cfg.outMode]}</span><span>${alc}MOY. ${avg(legAvg)}</span></div>
       <div class="big" id="remaining" aria-label="${remaining}" data-shrink>${rollHtml(`r:${s.legNumber}:${shown}`, remaining)}</div>${badge}
     </section>`;
 }
@@ -530,6 +553,7 @@ export function drinksSection(ids, { edit = true, title = true } = {}) {
   return `${title ? `<div class="sec" style="margin-bottom:0">${g && g.soiree ? 'Verres de la soirée' : 'Verres'}</div>` : ''}
     ${edit ? drinkSizeSeg() : ''}
     <ul class="drinks">${rows}</ul>
+    ${edit && ids.length > 1 ? `<button type="button" class="btn ghost all-drinks" data-act="drink-all">${plusDrink()} ${pintMode() ? 'UNE PINTE' : 'UN VERRE'} POUR TOUS</button>` : ''}
     <p class="note" style="margin:0">Une pinte compte pour 2 verres. Chaque verre est noté dans l'historique de la partie, au tour où il a été pris.${soiree} Qui a bu ne conduit pas.</p>`;
 }
 
@@ -693,6 +717,8 @@ function play(dart, key, pos = null) {
       buzz(BUZZ.dart);
       sound(v.total === 180 ? 'max' : f ? 'flop' : dartSound(dart));
       later(() => say(f ? SPEECH.flop(f.kind, name(v.player), f.value) : SPEECH.total(v.total), { strong: v.total === 180 }));
+      // Lot 9 : record personnel (meilleure volée de toutes ses parties) annoncé après le total.
+      if (!v.bust && visitIsRecord(g, st)) later(() => say(`Record personnel pour ${name(v.player)} !`, { strong: true }));
       if (v.total >= 100) celebrate(v.total === 180 ? 'max' : v.total >= 140 ? 'ton40' : 'ton', v.total, v.player);
       else if (f) celebrate(`nul-${f.kind}`, f.kind === 'serie' ? f.value : v.total, v.player);
       break;
@@ -911,6 +937,8 @@ export const actions = {
     refresh();
   },
   'drink-plus'(id) { addDrink(id, Date.now(), pintMode()); buzz(BUZZ.dart); refresh(); },
+  // Lot 9 : un verre (ou une pinte) pour chaque joueur de la partie, d'un appui (tournée servie).
+  'drink-all'() { const now = Date.now(); for (const id of store.current.config.players) addDrink(id, now, pintMode()); buzz(BUZZ.dart); refresh(); },
   'drinks-open'() { stopAnnounce(); store.current.ui.drinks = true; refresh(); },
   'drinks-close'() { store.current.ui.drinks = false; refresh(); },
   'drink-minus'(id) { removeDrink(id); buzz(BUZZ.undo); refresh(); },

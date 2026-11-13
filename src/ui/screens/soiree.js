@@ -10,6 +10,7 @@ import { esc, ico, topBar, plural } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
 import { go, refresh, buzz, BUZZ } from '../nav.js';
 import { glassCount } from './game.js';
+import { autoBackup } from '../autobackup.js';
 import { drinkSizeSeg, plusDrink, plusLabel, pintMode, drinkCount } from '../drinks.js';
 
 let ending = false; // confirmation de TERMINER LA SOIRÉE
@@ -108,5 +109,6 @@ export const actions = {
   'soiree-minus'(id) { soireeRemoveDrink(id); buzz(BUZZ.undo); refresh(); },
   'soiree-end'() { ending = true; refresh(); },
   'soiree-end-no'() { ending = false; refresh(); },
-  'soiree-end-yes'() { ending = false; endSoiree(); go('#/'); },
+  // Lot 9 : la fin de soirée écrit une sauvegarde automatique (appli Android, réglage OUI).
+  'soiree-end-yes'() { ending = false; endSoiree(); autoBackup(); go('#/'); },
 };

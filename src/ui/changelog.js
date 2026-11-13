@@ -2,6 +2,14 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.9.0', date: '2026-11-13', title: 'Soirée et records', items: [
+    'Verres : « UN VERRE POUR TOUS » (ou une pinte) dans le panneau des verres ; en fin de partie, la tournée reste indicative, et TOURNÉE SERVIE la note d\'un appui pour chacun.',
+    'Stats : la moyenne au fil des verres (aucun, 1, 2… 5 verres et plus), le niveau où chacun joue le mieux et l\'écart avec la moyenne à jeun ; aussi au tableau de bord et dans le rapport de soirée.',
+    'Stats : comparer deux joueurs sur la même courbe.',
+    'Records personnels : meilleure volée annoncée en direct (« Record personnel pour… ») ; en fin de partie, les records battus (volée, moyenne, manche la plus courte, finition).',
+    'Handicap : un score de départ par joueur (301, 501, 701), au lancement ; la revanche le garde.',
+    'Appli Android : sauvegarde automatique dans Téléchargements/Strela à la fin de chaque soirée et chaque semaine (réglage pour la couper).',
+  ] },
   { v: '0.8.2', date: '2026-11-13', title: 'Pintes, et rien ne se remet à zéro', items: [
     'Verres : verre de 25 cl ou pinte de 50 cl, à choisir au-dessus de la liste avant d\'appuyer sur + ; une pinte compte pour 2 verres, et le détail est écrit (« 1 verre + 2 pintes »).',
     'Rapport de soirée : les pintes sont dessinées en chope, et le total est aussi donné en litres.',

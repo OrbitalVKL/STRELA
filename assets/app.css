@@ -246,6 +246,8 @@ label.btn { cursor: pointer; }
 /* ---------------------------------------------------------------- nouvelle partie */
 .order { list-style: none; margin: 0; padding: 0; border-top: var(--rule); }
 .order li { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 4px 0 4px 0; border-bottom: var(--rule); }
+.order .hcap { flex: 0 0 auto; min-width: 56px; height: 40px; border: var(--rule); font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.order .hcap.on { color: var(--inv-fg); background: var(--inv-bg); border-color: var(--inv-bg); }
 .order .rank { flex: 0 0 34px; height: 34px; display: grid; place-items: center; font-weight: 800; font-size: 16px; }
 .order .nm { flex: 1; font-weight: 700; font-size: 16px; }
 .order .mv { flex: 0 0 48px; height: 48px; border: var(--rule); display: grid; place-items: center; font-size: 18px; }
@@ -752,6 +754,35 @@ html.still .gband.slide, html.still .announce, html.still .cele, html.still .cel
 .tournee .who { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 10px; }
 .tournee .pl { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .tournee .nm { font-size: 22px; font-weight: 800; line-height: 1.15; overflow-wrap: anywhere; }
+/* Lot 9 : TOURNÉE SERVIE (indicative tant qu'on n'appuie pas), records battus, un verre pour tous */
+.tournee .tserve { display: grid; gap: 8px; margin-top: 12px; }
+.tournee .tserve .seg { margin: 0; border-color: currentColor; }
+.tournee .tserve .seg button { color: inherit; background: transparent; border-left-color: currentColor; }
+.tournee .tserve .seg button[aria-pressed="true"] { color: var(--fg); background: var(--bg); }
+.tournee .tserve > .btn { display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--fg); background: var(--bg); border-color: var(--bg); }
+.tournee .tserve .ico { width: 18px; height: 18px; }
+.tournee .served { display: block; margin-top: 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; }
+.recs { list-style: none; margin: 0; padding: 0; border-top: var(--rule); }
+.recs li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "av nm v" "av rl s"; align-items: center; gap: 2px 10px; padding: 8px 0; border-bottom: var(--rule); }
+.recs .av { grid-area: av; flex-shrink: 0; }
+.recs .nm { grid-area: nm; font-weight: 700; font-size: 14px; }
+.recs .rl { grid-area: rl; min-width: 0; font-size: 10.5px; color: var(--dim); letter-spacing: 0.06em; text-transform: uppercase; }
+.recs li > b { grid-area: v; font-size: 20px; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; }
+.recs li > small { grid-area: s; font-size: 10.5px; color: var(--dim); text-align: right; }
+/* Lot 9 : la moyenne au fil des verres */
+.lvt td.best { font-weight: 800; outline: 1px solid var(--fg); outline-offset: -4px; }
+.dlev { list-style: none; margin: 0 0 6px; padding: 0; border-top: var(--rule); }
+.dlev li { display: grid; grid-template-columns: minmax(0, 7.5em) minmax(0, 1fr) 3.4em 3.6em; align-items: center; gap: 8px; min-height: 38px; border-bottom: var(--rule); font-size: 12px; }
+.dlev .lb { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dim); letter-spacing: 0.04em; text-transform: uppercase; font-size: 10.5px; }
+.dlev .bar { height: 10px; background: color-mix(in srgb, var(--fg) 8%, var(--bg)); }
+.dlev .bar i { display: block; height: 100%; background: var(--dim); }
+.dlev li.best .bar i { background: var(--fg); }
+.dlev li.best .lb, .dlev li.best b { color: var(--fg); font-weight: 800; }
+.dlev li.few .bar i { opacity: 0.5; }
+.dlev b { text-align: right; font-variant-numeric: tabular-nums; font-size: 14px; }
+.dlev small { text-align: right; color: var(--dim); font-variant-numeric: tabular-nums; font-size: 10.5px; }
+.all-drinks { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin: 10px 0; }
+.all-drinks .ico { width: 18px; height: 18px; }
 .rank-table .plc { flex: 0 0 auto; min-width: 2.6em; font-weight: 800; white-space: nowrap; }
 .result-head .t { font-size: 12px; font-weight: 700; letter-spacing: 0.12em; }
 .result-head .nm { display: block; font-size: 30px; font-weight: 800; line-height: 1.1; overflow-wrap: anywhere; }
@@ -1088,6 +1119,16 @@ html.night body::after { content: ''; position: fixed; inset: 0; z-index: 100; p
 .chlegend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 11px; color: var(--dim); }
 .chlegend i { display: inline-block; width: 18px; vertical-align: middle; border-top: 2px solid var(--fg); }
 .chlegend .lg-mean { border-top: 2px dashed var(--dim); }
+/* Lot 9 : joueur comparé (trait pointillé, carrés creux, valeur sous le point) */
+.chart2 .ln2 { fill: none; stroke: var(--dim); stroke-width: 2; stroke-dasharray: 2 3; }
+.chart2 .pt2 { fill: var(--bg); stroke: var(--dim); stroke-width: 1.5; }
+.chart2 .pv2 { fill: var(--dim); font-weight: 700; font-size: 9.5px; paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
+.chlegend .lg-ln2 { border-top: 2px dotted var(--dim); }
+.chlegend .nm { color: var(--fg); font-weight: 700; }
+.cmp { margin-top: 10px; }
+.cmp .chips2 { margin-top: 6px; }
+.chip2.pc { display: inline-flex; align-items: center; gap: 6px; }
+.chip2.pc .av { flex-shrink: 0; }
 .chread { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; padding: 10px 12px; border: 1px solid var(--fg); color: var(--fg); text-decoration: none; font-size: 12.5px; }
 .chread span { display: flex; flex-direction: column; gap: 2px; }
 .chread span + span { align-items: flex-end; margin-left: auto; }
@@ -1281,8 +1322,8 @@ button.hrow { width: 100%; border: 0; border-bottom: var(--rule); background: va
 .dlist2 .col { flex: 1; min-width: 0; display: grid; gap: 2px; }
 .dlist2 .nm { font-weight: 700; font-size: 14px; }
 .dlist2 small { font-size: 10.5px; color: var(--dim); letter-spacing: 0.04em; }
-.dlist2 b { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 2px; font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
-.dlist2 b .ico { width: 20px; height: 20px; }
+.dlist2 a > b { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 2px; font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.dlist2 a > b .ico { width: 20px; height: 20px; }
 .fixlist { list-style: none; margin: 8px 0; padding: 0; border-top: var(--rule); }
 .fixlist li { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 36px; border-bottom: var(--rule); font-size: 13px; }
 .fixlist .nm { min-width: 0; font-weight: 700; }

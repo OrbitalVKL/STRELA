@@ -29,6 +29,7 @@ import { home2, changelogScreen } from './screens/v2/home2.js';
 import { soireeDashScreen, actions as dashActions } from './screens/v2/soireedash.js';
 import { actions as infoActions } from './info.js';
 import { actions as drinkActions } from './drinks.js';
+import { weeklyAutoBackup } from './autobackup.js';
 
 // Version 0.8.0 : la refonte (lot 7.8, écrans de screens/v2/) remplace l'accueil, l'historique, les stats et les
 // réglages ; accueil A « tableau de bord » (choix de Guillaume, 13/11/2026).
@@ -166,10 +167,12 @@ function draw() {
 let autoChecked = false;
 const IN_GAME = new Set(['/jeu', '/manche', '/fin', '/recadrage']);
 function autoUpdateCheck(path) {
+  if (!weeklyChecked && !store.maquette && !IN_GAME.has(path)) { weeklyChecked = true; weeklyAutoBackup(); } // lot 9
   if (autoChecked || store.maquette || !hasUpdater() || IN_GAME.has(path)) return;
   autoChecked = true;
   if (store.settings.autoUpdate) call('autoCheckUpdate');
 }
+let weeklyChecked = false;
 setRenderer(render);
 setStorageListener(() => render());
 // Sauvegarde de ce que l'appli a en mémoire (écran de secours, si la base ne se relit pas).

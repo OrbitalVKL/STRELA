@@ -25,9 +25,13 @@ export function newGame() {
   const full = d.players.length >= MAX_PLAYERS;
   const seg = (act, value, label, cur) => `<button type="button" data-act="${act}" data-arg="${value}" aria-pressed="${value === cur}">${label}</button>`;
 
+  // Lot 9 : handicap — un score de départ par joueur (301 / 501 / 701), touché pour passer au suivant.
+  const hc = !!d.handicap;
+  const startOf = id => (d.starts && d.starts[id]) || d.startScore;
   const order = chosen.length
     ? `<ol class="order">${chosen.map((p, i) => `<li>
         <span class="rank inv">${d.shuffle ? '?' : i + 1}</span>${avatarHtml(p, 40)}<span class="nm ell">${esc(p.name)}</span>
+        ${hc ? `<button type="button" class="hcap${startOf(p.id) !== d.startScore ? ' on' : ''}" data-act="hcap" data-arg="${esc(p.id)}" aria-label="Score de départ de ${esc(p.name)} : ${startOf(p.id)}">${startOf(p.id)}</button>` : ''}
         ${d.shuffle ? '' : `<button type="button" class="mv" data-act="move-up" data-arg="${i}" ${i === 0 ? 'disabled' : ''} aria-label="Monter">${ico('up')}</button>
         <button type="button" class="mv" data-act="move-down" data-arg="${i}" ${i === chosen.length - 1 ? 'disabled' : ''} aria-label="Descendre">${ico('down')}</button>`}
         <button type="button" class="mv" data-act="remove" data-arg="${i}" aria-label="Retirer">${ico('close')}</button></li>`).join('')}</ol>`
@@ -58,7 +62,7 @@ export function newGame() {
         <p class="small">Elle restera dans l'historique, marquée « abandonnée », et la nouvelle partie commencera.</p>
         <div class="btns two"><button type="button" class="btn" data-act="launch-no">NON</button><button type="button" class="btn alert" data-act="launch-yes">ABANDONNER</button></div></div>`
     : `<button type="button" class="btn primary big" data-act="launch" ${ok ? '' : 'disabled'}>
-      ${ok ? `LANCER <small>${d.startScore} · ${d.players.length === 1 ? 'SOLO' : `${d.players.length} JOUEURS`}</small>` : 'CHOISIR LES JOUEURS'}</button>`;
+      ${ok ? `LANCER <small>${hc && d.players.some(id => startOf(id) !== d.startScore) ? 'HANDICAP' : d.startScore} · ${d.players.length === 1 ? 'SOLO' : `${d.players.length} JOUEURS`}</small>` : 'CHOISIR LES JOUEURS'}</button>`;
   return `<div class="screen has-dock">${topBar('Nouvelle partie', '#/')}
     <div class="pad">
       ${busyNote}
@@ -70,6 +74,9 @@ export function newGame() {
       ${full ? '<p class="note">8 joueurs au plus.</p>' : ''}
       <div class="sec">Jeu</div>
       <div class="seg">${START_SCORES.map(s => seg('score', s, s, d.startScore)).join('')}</div>
+      <div class="sec">Handicap</div>
+      <div class="seg">${seg('handicap', 'non', 'Non', hc ? 'oui' : 'non')}${seg('handicap', 'oui', 'Oui', hc ? 'oui' : 'non')}</div>
+      <p class="note">${hc ? 'Touchez le score à côté d\'un joueur pour changer son départ (301, 501, 701) : les plus forts partent de plus loin.' : 'Oui : un score de départ par joueur, pour des parties serrées entre joueurs de niveaux différents.'}</p>
       <div class="sec">Sortie</div>
       <div class="seg">${seg('out', 'single', 'Simple', d.outMode)}${seg('out', 'double', 'Double', d.outMode)}</div>
       <div class="sec">Manches à gagner</div>
@@ -91,6 +98,14 @@ export const actions = {
   'move-up'(i) { const p = draft().players; i = Number(i); if (i > 0) [p[i - 1], p[i]] = [p[i], p[i - 1]]; refresh(); },
   'move-down'(i) { const p = draft().players; i = Number(i); if (i < p.length - 1) [p[i + 1], p[i]] = [p[i], p[i + 1]]; refresh(); },
   score(v) { draft().startScore = Number(v); refresh(); },
+  handicap(v) { const d = draft(); d.handicap = v === 'oui'; if (!d.starts) d.starts = {}; refresh(); },
+  hcap(id) {
+    const d = draft();
+    d.starts = { ...(d.starts || {}) };
+    const cur = d.starts[id] || d.startScore;
+    d.starts[id] = START_SCORES[(START_SCORES.indexOf(cur) + 1) % START_SCORES.length];
+    refresh();
+  },
   out(v) { draft().outMode = v; refresh(); },
   shuffle(v) { draft().shuffle = v === 'oui'; refresh(); },
   playon(v) { draft().playOn = v === 'oui'; refresh(); },

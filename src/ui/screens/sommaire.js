@@ -118,6 +118,7 @@ export const SCENES = {
   'v78-stats-zoom': v78('#/stats/p1', () => { presetStats2({ zoom: 4, metric: 'average' }); }),
   'v78-stats-pire': v78('#/stats/p2', () => presetStats2({ metric: 'worstVisit', zoom: 2 })),
   'v78-stats-point': v78('#/stats/p1', () => { presetStats2({ zoom: 2 }); const g = store.games.find(x => x.config.players.includes('p1')); presetStats2({ zoom: 2, point: g.id }); }),
+  'v78-stats-compare': v78('#/stats/p1', () => presetStats2({ compare: 'p2', zoom: 2 })), // lot 9
   'v78-stats-volees': v78('#/stats/p1', () => presetStats2({ folds: ['best', 'worst'] })),
   'v78-classement': v78('#/classement'),
   'v78-classement-info': v78('#/classement', () => presetStats2({ info: ['palmares', 'classement'], rank: 'worstVisit' })),
@@ -279,6 +280,9 @@ export const SCENES = {
   solo: () => { setGame(cfg(['p2'], 301), 'T20 T20 S20 S19 S7 S3'); return '#/jeu'; },
   'solo-attente': () => { setGame(cfg(['p2'], 301), 'T20 T20 S20 S19 S7 S3', {}, true); return '#/jeu'; },
   'aucun-joueur': () => { store.players = []; store.current = null; store.setupDraft = null; return '#/joueurs'; },
+  // Lot 9 : handicap (Karim et Mathilde partent de 701, les autres de 501), et une partie en handicap.
+  'nouvelle-handicap': () => { store.current = null; store.setupDraft = { ...store.lastSetup, players: ['p1', 'p2', 'p3', 'p4'], shuffle: false, handicap: true, starts: { p1: 701, p2: 301 }, confirm: false }; return '#/nouvelle'; },
+  'jeu-handicap': () => { setGame({ ...cfg(['p1', 'p2']), starts: [701, 301] }, 'T20 S20 S5'); return '#/jeu'; },
   'nouvelle-vide': () => { store.players = []; store.current = null; store.setupDraft = null; return '#/nouvelle'; },
   'historique-vide': () => { store.games = []; return '#/historique'; },
   // Lot 3 : sauvegarde (aperçu d'un fichier, confirmations, fichier refusé)
@@ -377,6 +381,7 @@ export function sommaire() {
       ${L('v78-stats-zoom', '★ Stats : courbe zoomée ×4', 'valeurs sur les points')}
       ${L('v78-stats-pire', '★ Stats : courbe « Pire volée »', '×2')}
       ${L('v78-stats-point', '★ Stats : partie touchée sur la courbe')}
+      ${L('v78-stats-compare', '★ Stats : comparer deux joueurs', 'lot 9')}
       ${L('v78-stats-volees', '★ Stats : volées dépliées', 'meilleures, pire de chaque partie')}
       ${L('v78-classement', '★ Classement', 'palmarès')}
       ${L('v78-classement-info', '★ Classement : pire volée', 'explications ouvertes')}
@@ -501,6 +506,8 @@ export function sommaire() {
       ${L('soiree-partie', 'Soirée pendant une partie')}
       ${L('accueil-soiree', 'Accueil avec une soirée')}
       ${L('nouvelle-soiree', 'Nouvelle partie pendant la soirée')}
+      ${L('nouvelle-handicap', '2 · Nouvelle partie : handicap', 'lot 9')}
+      ${L('jeu-handicap', '3 · Partie en handicap', 'départ 701 / 301')}
       ${L('verres-soiree', 'Verres de la soirée en jeu', 'panneau')}
       ${L('verres-soiree-jeu', 'Verres de la soirée en jeu', 'Mathilde x3')}
       ${L('verres-soiree-histo', 'Verres de la soirée dans l\'historique')}

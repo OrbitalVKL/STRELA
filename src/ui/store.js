@@ -24,7 +24,7 @@ export const store = {
   setupDraft: null,  // écran « Nouvelle partie » en cours
   crop: null,        // photo en cours de recadrage (screens/photo.js)
   // autoUpdate (lot 6) : recherche automatique de mise à jour (APK « github » seulement), OUI par défaut
-  settings: { theme: 'auto', night: false, vibrate: true, anim: true, sound: true, voice: true, autoUpdate: true },
+  settings: { theme: 'auto', night: false, vibrate: true, anim: true, sound: true, voice: true, autoUpdate: true, autoBackup: true }, // autoBackup : lot 9
   maquette: false,
   // Base du téléphone : version, erreur éventuelle, stockage persistant (affichés dans le diagnostic des Réglages)
   db: { version: null, error: null, persisted: null, unreadable: 0, openCode: null, writeFail: null },
@@ -421,9 +421,15 @@ export function startGame(setup) {
   const players = setup.shuffle ? shuffled(setup.players) : [...setup.players];
   const config = { startScore: setup.startScore, outMode: setup.outMode, legsToWin: setup.legsToWin, players };
   if (setup.playOn && players.length > 2) config.playOn = true;
+  // Lot 9 : handicap (un score de départ par joueur, dans l'ordre de la partie).
+  if (setup.handicap && setup.starts) {
+    const starts = players.map(id => setup.starts[id] || setup.startScore);
+    if (starts.some(v => v !== setup.startScore)) config.starts = starts;
+  }
   store.lastSetup = { players: [...setup.players], startScore: setup.startScore, outMode: setup.outMode, legsToWin: setup.legsToWin,
     // REVANCHE (ni l'un ni l'autre donné) garde les préférences d'avant
-    shuffle: setup.shuffle ?? store.lastSetup?.shuffle ?? true, playOn: setup.playOn ?? store.lastSetup?.playOn ?? false };
+    shuffle: setup.shuffle ?? store.lastSetup?.shuffle ?? true, playOn: setup.playOn ?? store.lastSetup?.playOn ?? false,
+    handicap: setup.handicap ?? store.lastSetup?.handicap ?? false, starts: { ...(setup.starts ?? store.lastSetup?.starts ?? {}) } };
   store.current = { id: newId('g'), config, darts: [], startedAt: Date.now(), validated: 0, ui: freshUi() };
   // Lot 7.6 : l'ordre tiré est noté dans la partie, pour que la REVANCHE tire de nouveau au sort.
   if (setup.shuffle && players.length > 1) store.current.shuffled = true;
@@ -574,7 +580,7 @@ export function deletePlayer(id) {
 // ------------------------------------------------------------------ réglages
 // La base fait foi ; une copie de thème et mode nuit reste dans localStorage, lue par index.html avant l'affichage
 // (pas d'éclair de la mauvaise couleur au lancement). Sommaire de maquette : lus là, jamais écrits.
-const KEYS = { theme: 'strela.theme', night: 'strela.night', vibrate: 'strela.vibrate', anim: 'strela.anim', sound: 'strela.sound', voice: 'strela.voice', autoUpdate: 'strela.autoUpdate' };
+const KEYS = { theme: 'strela.theme', night: 'strela.night', vibrate: 'strela.vibrate', anim: 'strela.anim', sound: 'strela.sound', voice: 'strela.voice', autoUpdate: 'strela.autoUpdate', autoBackup: 'strela.autoBackupOn' };
 
 export function loadSettings() {
   try {
@@ -586,6 +592,7 @@ export function loadSettings() {
     store.settings.sound = localStorage.getItem(KEYS.sound) !== '0';
     store.settings.voice = localStorage.getItem(KEYS.voice) !== '0';
     store.settings.autoUpdate = localStorage.getItem(KEYS.autoUpdate) !== '0';
+    store.settings.autoBackup = localStorage.getItem(KEYS.autoBackup) !== '0';
   } catch (e) { /* stockage indisponible : réglages par défaut */ }
 }
 

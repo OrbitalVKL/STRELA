@@ -60,10 +60,12 @@ export class X01Error extends Error {
  *   outMode    : 'single' | 'double'
  *   legsToWin  : entier ≥ 1 (1 par défaut)
  *   players    : 1 à 8 identifiants distincts, dans l'ordre de jeu (le moteur ne les interprète pas)
+ *   starts     : (lot 9, handicap, facultatif) score de départ de chaque joueur, dans l'ordre de `players`
+ *                (301 | 501 | 701) ; absent = `startScore` pour tous. N'apparaît que si les scores diffèrent.
  */
 export function normalizeConfig(config) {
   if (config === null || typeof config !== 'object') throw new X01Error(X01_ERRORS.CONFIG_INVALID);
-  const { startScore, outMode, legsToWin = 1, players, playOn = false } = config;
+  const { startScore, outMode, legsToWin = 1, players, playOn = false, starts = null } = config;
   if (!START_SCORES.includes(startScore)) throw new X01Error(X01_ERRORS.START_SCORE_INVALID, `score de départ ${startScore}`);
   if (outMode !== OUT_SINGLE && outMode !== OUT_DOUBLE) throw new X01Error(X01_ERRORS.OUT_MODE_INVALID, `sortie ${outMode}`);
   if (!Number.isInteger(legsToWin) || legsToWin < 1) throw new X01Error(X01_ERRORS.LEGS_INVALID, `manches ${legsToWin}`);
@@ -73,7 +75,15 @@ export function normalizeConfig(config) {
   }
   // playOn n'apparaît que s'il est vrai : les parties d'avant le lot 7 gardent exactement leur configuration.
   const base = { startScore, outMode, legsToWin, players: Object.freeze([...players]) };
-  return Object.freeze(playOn === true && players.length > 2 ? { ...base, playOn: true } : base);
+  if (playOn === true && players.length > 2) base.playOn = true;
+  // Lot 9 : handicap. Gardé seulement s'il y a vraiment des scores différents.
+  if (starts !== null && starts !== undefined) {
+    if (!Array.isArray(starts) || starts.length !== players.length || !starts.every(v => START_SCORES.includes(v))) {
+      throw new X01Error(X01_ERRORS.START_SCORE_INVALID, 'handicap : un score de départ valable par joueur');
+    }
+    if (starts.some(v => v !== startScore)) base.starts = Object.freeze([...starts]);
+  }
+  return Object.freeze(base);
 }
 
 /** Vrai si, depuis `remaining`, la fléchette provoque un bust. */
@@ -109,7 +119,8 @@ export function computeState(config, darts = []) {
   const cfg = normalizeConfig(config);
   if (!Array.isArray(darts)) throw new TypeError('darts doit être une liste');
   const n = cfg.players.length;
-  const remaining = new Array(n).fill(cfg.startScore);
+  const startOf = p => (cfg.starts ? cfg.starts[p] : cfg.startScore); // lot 9 : handicap
+  const remaining = Array.from({ length: n }, (_, p) => startOf(p));
   const legsWon = new Array(n).fill(0);
   const visits = [];
   const legs = [];
@@ -195,7 +206,7 @@ export function computeState(config, darts = []) {
       }
       leg.finalRemaining = Object.freeze([...remaining]);
       leg = openLeg(legs, leg.number + 1, leg.number % n);
-      remaining.fill(cfg.startScore);
+      for (let p = 0; p < n; p++) remaining[p] = startOf(p);
       current = leg.starter;
       lastEvent = EVENTS.LEG_WON;
       return;

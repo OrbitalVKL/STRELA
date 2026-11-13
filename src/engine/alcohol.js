@@ -137,3 +137,37 @@ export function cleanDrinks(drinks) {
   }
   return Object.keys(out).length ? out : null;
 }
+
+// ------------------------------------------------------------------ lot 9 : la moyenne au fil des verres
+/** Niveaux retenus : 0, 1, 2, 3, 4 verres, puis « 5 et plus » (en verres de 25 cl, une pinte compte pour 2). */
+export const DRINK_LEVELS = 6;
+const levelOf = n => Math.min(DRINK_LEVELS - 1, Math.max(0, n));
+export const levelLabel = k => (k === DRINK_LEVELS - 1 ? `${k} verres et +` : k === 0 ? 'aucun verre' : `${k} verre${k > 1 ? 's' : ''}`);
+
+/**
+ * Moyenne d'un joueur selon le nombre de verres déjà bus quand il lance : pour chaque volée close, le cumul de ses
+ * verres à ce moment (ceux de la soirée avant la partie compris, `drinksBefore`) — drinksTimeline. Les volées d'une
+ * partie sans aucun verre comptent à « aucun verre ».
+ *   states : [{ state (computeState), game }] ; renvoie { levels: [{ level, label, darts, points, visits, average }],
+ *   best (niveau de la meilleure moyenne, 9 fléchettes au moins), sober (moyenne à jeun), delta(level) }.
+ */
+export function averageByDrinks(states, playerId) {
+  const levels = Array.from({ length: DRINK_LEVELS }, (_, level) => ({ level, label: levelLabel(level), darts: 0, points: 0, visits: 0, average: null }));
+  for (const { state, game } of states) {
+    const p = game.config.players.indexOf(playerId);
+    if (p < 0) continue;
+    const tl = drinksTimeline(state, game.drinks, game.config.players, game.drinksBefore);
+    const start = (game.drinksBefore && game.drinksBefore[playerId]) || 0;
+    state.visits.forEach((v, i) => {
+      if (v.player !== p) return;
+      const at = tl.byVisit.get(i);
+      const L = levels[levelOf(at ? at.total : start)];
+      L.darts += v.darts.length; L.points += v.scored; L.visits += 1;
+    });
+  }
+  for (const L of levels) L.average = L.darts ? (L.points / L.darts) * 3 : null;
+  const ok = levels.filter(L => L.darts >= 9);
+  const best = ok.length > 1 ? ok.reduce((a, L) => (L.average > a.average ? L : a)).level : null;
+  const sober = levels[0].darts >= 9 ? levels[0].average : null;
+  return { levels, best, sober };
+}

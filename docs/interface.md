@@ -757,6 +757,32 @@ tête du sommaire) montre ces écrans ; l'appli installée garde les écrans act
 - **Liens** : `:where(#app) a { color: inherit; text-decoration: none }` — plus aucun lien au bleu souligné du
   navigateur (les noms du tableau et des verres du tableau de bord l'étaient) ; styles de `.dlist2` et `.fixlist`.
 
+## Version 0.9.0 : lot 9, première partie (13/11/2026)
+
+Guillaume a retenu dans docs/idees.md : 1 (tournée, « la tournée à payer est indicative »), 2 (important), 3, 4,
+Cricket, 7, 8, 10, 11. Fait ici (choix techniques clairs) ; le reste attend son choix sur des propositions en images.
+- **1 · Tournée** : panneau des verres et pause : « UN VERRE (UNE PINTE) POUR TOUS » (`drink-all`) ; fin de partie : le
+  dernier qui paie reste une indication ; TOURNÉE SERVIE (`tournee-serve`, une fois, taille choisie) ajoute un verre ou
+  une pinte à chaque joueur.
+- **2 · Au fil des verres** : `averageByDrinks` (alcohol.js) — chaque volée close au niveau de verres du joueur à ce
+  moment (drinksTimeline : soirée d'avant comprise, pinte = 2), niveaux 0…4 et « 5 et + », meilleur niveau (9 fléchettes
+  au moins), moyenne à jeun. Stats (section « Au fil des verres », barres + écart), tableau de bord (tableau joueurs ×
+  niveaux), rapport feuille B (tableau, meilleur niveau teinté).
+- **7 · Handicap** : `config.starts` (x01.js, facultatif, gardé seulement s'il diffère de `startScore`) ; Nouvelle
+  partie › Handicap OUI : le score à côté de chaque joueur se touche (301 → 501 → 701) ; `lastSetup.handicap/starts` ;
+  la revanche le garde ; en jeu « DÉPART 701 ».
+- **8 · Records** (première partie) : src/engine/records.js (`playerRecords`, `isVisitRecord`, `gameRecords`) ; en jeu,
+  « RECORD PERSO » à la place du rang de la volée + voix ; fin de partie : « Records battus ». Les badges attendent le
+  choix (images).
+- **10 · Comparer** : Stats › courbe › « Comparer avec » : le joueur comparé en pointillé, carrés creux, valeurs sous
+  les points (`ui.compare`, `series(…, cmp)` : parties de l'un ou de l'autre).
+- **11 · Sauvegarde automatique** : src/ui/autobackup.js — APK seulement, réglage `autoBackup` (OUI) ; fin de soirée et
+  au lancement si la dernière a plus de 7 jours, seulement si les parties ont changé (empreinte) ; même fichier
+  qu'EXPORTER, sans partage ; dernière date dans les Réglages.
+- **En attente du choix de Guillaume** (images envoyées le 13/11, sources hors dépôt) : 3 défis (A bandeau / B tirage
+  plein écran), 4 résumé à partager (A affiche / B ticket), 8 badges (A vitrine / B tableau d'honneur), Cricket
+  (A face à face / B grille ; règles : avec points, sans points, cut-throat en option).
+
 ## Pour le lot 4
 
 - Les écrans Historique et Stats lisent `store.games` (parties closes) ; la partie en cours est à part (`store.current`).

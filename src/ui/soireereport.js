@@ -341,8 +341,29 @@ function pageB(x, m, who) {
     T(x, who(t.id).name.toUpperCase(), X + 52, Y + 31, { px: 11.5, w: 700, color: inv ? PAPER : INK, max: tw - 58 });
     T(x, `${t.value}${t.detail ? ` · ${t.detail}` : ''}`, X + 52, Y + 44, { px: 9, color: inv ? PAPER : INK, max: tw - 58 });
   });
-  // Les parties, s'il reste de la place.
   y += 14 + Math.ceil(m.trophies.length / 3) * 60 + 22;
+  // Lot 9 : la moyenne de chacun au fil des verres (avant la liste des parties), s'il y a eu des verres.
+  if (m.drinks > 0 && m.levels) {
+    const rowH = Math.min(17, Math.max(11, (LH - 60 - y - 60) / (m.rows.length + 1)));
+    h2(x, 'MOYENNE AU FIL DES VERRES', MX, y);
+    const c0 = MX + 140, cw = (LW - MX - c0) / 6;
+    ['AUCUN', '1 VERRE', '2', '3', '4', '5 ET +'].forEach((h, k) => T(x, h, c0 + k * cw + cw / 2, y + 18, { px: 8, color: MUT, align: 'center', ls: 0.5 }));
+    m.rows.forEach((r, j) => {
+      const Y = y + 22 + j * rowH, lv = m.levels[r.id], p = who(r.id);
+      rect(x, MX, Y + 2, rowH - 4, rowH - 4, p.color);
+      T(x, p.name.toUpperCase(), MX + rowH + 2, Y + rowH - 4, { px: Math.min(9, rowH - 4), w: 700, max: c0 - MX - rowH - 8 });
+      const maxAvg = Math.max(1, ...lv.levels.map(L => L.average || 0));
+      lv.levels.forEach((L, k) => {
+        const X = c0 + k * cw;
+        if (!L.darts) { T(x, '·', X + cw / 2, Y + rowH - 4, { px: 9, color: RULE, align: 'center' }); return; }
+        rect(x, X + 2, Y + 2, (cw - 4) * (L.average / maxAvg), rowH - 4, L.level === lv.best ? mix(RED, 0.35, PAPER) : F08);
+        T(x, dec(L.average), X + cw / 2, Y + rowH - 4, { px: Math.min(9, rowH - 4), w: L.level === lv.best ? 800 : 400, align: 'center' });
+      });
+      hline(x, MX, LW - MX, Y + rowH, RULE, 0.4);
+    });
+    y += 22 + m.rows.length * rowH + 24;
+  }
+  // Les parties, s'il reste de la place.
   const room = Math.floor((LH - 40 - y - 16) / 15);
   if (room >= 2) {
     h2(x, 'LES PARTIES', MX, y);

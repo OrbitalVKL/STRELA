@@ -63,8 +63,14 @@ export function soireeDashScreen(sid) {
   } else if (withDrinks >= 2) {
     fix = `<button type="button" class="btn ghost" data-act="dash-fix-ask" data-arg="${esc(sid)}">${ico('glass')} VERRES RESAISIS À CHAQUE PARTIE ?</button>`;
   }
-  const drinkRows = m.rows.map(r => `<li><a href="#/stats/${esc(r.id)}">${avatarHtml(playerById(r.id), 32)}<span class="col"><span class="nm ell">${esc(r.name)}</span>
+  const drinkRows = m.rows.map(r => `<li><a href="#/stats/${esc(r.id)}">${avatarHtml(playerById(r.id), 28)}<span class="col"><span class="nm ell">${esc(r.name)}</span>
       ${r.drinks ? `<small>${r.tally.pints ? `${tallyText(r.tally)} · ` : ''}${litersText(r.tally.liters)}</small>` : ''}</span><b>${ico('glass')}x${r.drinks}</b></a></li>`).join('');
+  // Lot 9 : la moyenne de chacun au fil des verres (0, 1, 2, 3, 4, 5 et +), en tableau.
+  const anyDrinks = m.drinks > 0;
+  const lvTable = anyDrinks ? `<div class="dtable lvt"><table><thead><tr><th>Joueur</th>${['0', '1', '2', '3', '4', '5+'].map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>
+    ${m.rows.map(r => { const lv = m.levels[r.id]; return `<tr><th><a class="pl" href="#/stats/${esc(r.id)}">${avatarHtml(playerById(r.id), 22)}<span class="nm">${esc(r.name)}</span></a></th>
+      ${lv.levels.map(L => `<td${L.level === lv.best ? ' class="best"' : ''}>${L.darts ? avg(L.average) : '·'}</td>`).join('')}</tr>`; }).join('')}
+    </tbody></table></div>` : '';
   const btn = (kind, label) => `<button type="button" class="btn" data-act="dash-export" data-arg="${esc(`${kind}|${sid}`)}"${st.busy ? ' disabled' : ''}>${ico('download')} ${label}</button>`;
   return `<div class="screen dash2">${topBar('Soirée', backFrom('#/historique'))}
     <div class="dhead inv"><b>${ico('glass')} SOIRÉE DU ${dayFull(m.start).toUpperCase()}</b>
@@ -75,6 +81,7 @@ export function soireeDashScreen(sid) {
       ${infoSec('Joueurs', 'dash-table')}${infoBox('dash-table', 'P. parties, V. victoires, Moy. moyenne sur 3 fléchettes ; pire volée sans les bust ni les finitions ; Tripl. fléchettes dans un triple. Le tableau défile de côté.')}${table}
       ${infoSec('Verres', 'dash-drinks', ` <span class="n">x${m.drinks}</span>`)}${infoBox('dash-drinks', 'Les verres de chacun sur toute la soirée, en verres de 25 cl : une pinte (50 cl) compte pour 2. Un oubli ou une erreur dans une partie : ouvrez la partie (liste ci-dessous), section Verres, et corrigez avec − et +. Si les verres ont été resaisis dans chaque nouvelle partie (avant le mode soirée), le bouton ci-dessous ne garde que les verres nouveaux de chaque partie.')}
       <ul class="dlist2">${drinkRows}</ul>${fix}
+      ${anyDrinks ? `${infoSec('Au fil des verres', 'dash-levels')}${infoBox('dash-levels', 'Moyenne sur 3 fléchettes de chacun selon le nombre de verres déjà bus quand il lance (0, 1, 2… ; une pinte compte pour 2). Encadré : le niveau où il a le mieux joué ce soir (9 fléchettes au moins). Le détail est dans ses stats.')}${lvTable}` : ''}
       ${infoSec('Parties', 'dash-games', ` <span class="n">${m.games}</span>`)}${infoBox('dash-games', 'Touchez une partie pour son détail tour par tour, sa fiche de score et ses verres.')}<ul class="hrows dlist">${glist}</ul>
       ${infoSec('Rapport à imprimer', 'dash-report', ' <span class="n">3 feuilles</span>')}${infoBox('dash-report', 'A · podium et cartes des joueurs · B · la soirée heure par heure, courbes, trophées · C · qui bat qui, chiffres comparés, cibles. IMAGE : les 3 feuilles l\'une sous l\'autre ; PDF : 3 pages A4, enregistrées dans Téléchargements/Strela puis le menu de partage s\'ouvre (Imprimer, Drive, mail…).')}
       ${st.preview ? `<div class="dpages">${st.preview.map((u, k) => `<img src="${u}" alt="Feuille ${'ABC'[k]}">`).join('')}</div>`
