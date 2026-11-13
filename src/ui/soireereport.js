@@ -1,4 +1,4 @@
-// Strela — rapport d'une soirée en 3 feuilles A4 (lot 7.8, maquette ; choix de Guillaume le 13/11 : les trois).
+// Strela — rapport d'une soirée en 3 feuilles A4 (lot 7.8, version 0.8.0 ; choix de Guillaume le 13/11 : les trois).
 //   A · PODIUM ET CARTES : podium, une carte par joueur (courbe de ses moyennes, moyenne, meilleure / pire volée, 100+,
 //       verres dessinés, cible colorée là où il a lancé, taux de triples), qui a payé chaque tournée.
 //   B · CHRONOLOGIE : la soirée heure par heure (parties, vainqueur, dernier, verres de chacun à leur heure), moyenne de

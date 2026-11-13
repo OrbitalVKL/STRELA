@@ -1,4 +1,4 @@
-// Rapport d'une soirée en 3 feuilles (lot 7.8, maquette ; Playwright, sauté s'il est absent) : les 3 feuilles A4 sont
+// Rapport d'une soirée en 3 feuilles (lot 7.8, version 0.8.0 ; Playwright, sauté s'il est absent) : les 3 feuilles A4 sont
 // dessinées avec les vrais avatars (pictogrammes chargés), l'aperçu les montre à l'écran, le PDF a 3 pages, et une
 // « soirée » regroupée sur plusieurs jours se dessine aussi (axe par partie au lieu de l'heure).
 import { test } from 'node:test';

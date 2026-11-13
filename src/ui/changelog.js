@@ -1,17 +1,16 @@
-// Nouveautés de chaque version (lot 7.8, maquette) : ce qui change pour les joueurs, en clair, de la plus récente à
+// Nouveautés de chaque version (lot 7.8 ; écran #/nouveautes depuis la 0.8.0) : ce qui change pour les joueurs, en clair, de la plus récente à
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
-  { v: '0.8.0', date: null, title: 'Refonte (maquette)', items: [
-    'Accueil redessiné.',
+  { v: '0.8.0', date: '2026-11-13', title: 'Refonte', items: [
+    'Accueil redessiné : reprise de partie, soirée, dernière partie, joueur en tête, six raccourcis.',
     'Stats : courbe de n\'importe quel chiffre, une partie par point, zoom ; meilleures et pires volées repliables ; explications derrière (i).',
-    'Stats : taux de triples (le taux de finition disparaît) ; la pire volée ne compte plus les bust ; nombre d\'impacts écrit sur chaque secteur de la cible.',
-    'Tableau de bord de chaque soirée (podium, faits marquants, joueurs, parties).',
-    'Rapport de soirée en 3 feuilles à imprimer : podium et cartes des joueurs, la soirée heure par heure avec les verres, qui bat qui et la cible de chacun.',
-    'Historique : regrouper des parties en soirée, les ajouter à une soirée ou les en sortir.',
+    'Stats : taux de triples (le taux de finition disparaît) ; nombre d\'impacts écrit sur chaque secteur de la cible.',
     'Classement de tous les joueurs, avec le meilleur et le pire de chaque chiffre.',
-    'Historique rangé par soirée et par jour, filtres par joueur et par résultat.',
-    'Réglages regroupés et plus clairs (aucune option retirée).',
+    'Historique rangé par soirée et par jour, filtres par joueur, par résultat et par mois ; regrouper des parties en soirée, les ajouter à une soirée ou les en sortir.',
+    'Tableau de bord de chaque soirée (podium, faits marquants, joueurs, parties).',
+    'Rapport de soirée en 3 feuilles à imprimer (image ou PDF) : podium et cartes des joueurs, la soirée heure par heure avec les verres, qui bat qui et la cible de chacun.',
+    'Réglages regroupés en cartes, plus clairs (aucune option retirée).',
     'Cette page des nouveautés.',
   ] },
   { v: '0.7.8', date: '2026-11-13', title: 'Accueil', items: [

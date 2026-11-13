@@ -165,29 +165,24 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 7.5 | Sons de l'ours et de la planète, voix d'homme et répliques beauf de HPV, Tsia qui marmonne (voix pâteuse), moqueries dès une volée sous 20 et variées (v0.7.5) — **fait, en attente de validation sur le Pixel** |
 | 7.6 | Tirage au sort revu (REVANCHE retirée au sort), bande du tour (TOUR n, qui a lancé), mode soirée (joueurs, verres cumulés d'une partie à l'autre), bouton verre en jeu, volée parmi les 3 meilleures / pires de la soirée, pavé double / triple bien distincts (v0.7.6) — **fait, en attente de validation sur le Pixel** |
 | 7.7 | Stats : meilleure et pire volée, pire volée de chaque partie ; moqueries plus cyniques ; 22 répliques de HPV en plus (v0.7.7) — **fait, en attente de validation sur le Pixel** |
-| 7.8 | **Maquette** de la refonte (13/11/2026) : accueil (2 variantes), stats (courbe de n'importe quel chiffre, zoomable, explications (i), volées repliées, triples, cible chiffrée), classement global, historique (soirées, filtres, regrouper en soirée), tableau de bord d'une soirée à imprimer, réglages en cartes, nouveautés — **en maquette, en attente du choix de Guillaume** |
+| 7.8 | Refonte (13/11/2026) : accueil A « tableau de bord », stats (courbe de n'importe quel chiffre, zoomable, explications (i), volées repliées, triples, cible chiffrée), classement global, historique (soirées, filtres, regrouper en soirée), tableau de bord et rapport de soirée en 3 feuilles, réglages en cartes, nouveautés ; CI plus rapide (v0.8.0) — **fait, en attente de validation sur le Pixel** |
 | 7.9 | (plus tard, demandé le 12/11/2026) Une animation de tour par pictogramme d'avatar, toutes différentes |
 | 8 | Recette |
 
-## État (lot 7.8 : maquette de la refonte)
+## État (version 0.8.0 : la refonte dans l'appli)
 
-- **Appli réelle, v0.7.8** (13/11) : accueil actuel avec STRELA centré (l'espacement des lettres rattrapé à droite) et
-  version en bas de page (demande de Guillaume, qui regardait l'accueil de l'appli) ; pire volée sans les bust.
-  Changelog : la refonte est annoncée en 0.8.0.
-- **Maquette seulement** : `store.preview` (posé par les scènes « v78-… » du sommaire ; jamais dans l'appli). Routes
-  dans app.js : `pv(nouveau, actuel)` pour `/`, `/historique`, `/stats`, `/reglages` ; `/classement` et `/nouveautes`
-  n'existent qu'en maquette. La refonte ne touche pas l'appli installée.
-- Fichiers : src/ui/screens/v2/ (home2.js : accueil A « tableau de bord » / B « console » + nouveautés ; stats2.js :
-  stats joueur + classement, `METRICS` ; history2.js : historique groupé par soirée / jour, filtres, sélection pour
-  regrouper en soirée ; soireedash.js : tableau de bord d'une soirée + feuille à imprimer, modèle dans
-  engine/soiree.js) ;
-  settings.js › `settings2Screen` (réglages en cartes) ; src/ui/changelog.js (nouveautés, à tenir à chaque version) ;
-  mock.js › `mockSeason` (14 soirées), maquette.js › `seasonMock`. Détail : docs/interface.md « Lot 7.8 ».
-- Hors maquette, déjà effectif : pire volée sans les bust (engine/stats.js), aussi dans les Stats actuelles.
-- Rapport de soirée : Guillaume garde les 3 propositions (13/11) → 3 feuilles A4 (soireereport.js), aperçu, IMAGE, PDF.
-- À faire après le choix de Guillaume : retenir une variante d'accueil, retirer le drapeau `preview` (les écrans v2
-  remplacent les actuels), retirer les anciens écrans et leurs scènes, puis tests de parcours sur les nouveaux écrans
-  (sélection et suppression dans l'historique v2, classement, nouveautés).
+- **Version 0.8.0** (13/11) : Guillaume retient l'accueil A et fait publier toute la refonte. Plus de drapeau `preview` :
+  les écrans de src/ui/screens/v2/ (home2, stats2 + classement, history2, soireedash) et `settings2Screen` sont ceux
+  de l'appli ; anciens accueil, stats, réglages et liste de l'historique retirés. Détail : docs/interface.md
+  « Version 0.8.0 » (et « Lot 7.8 » pour les écrans eux-mêmes).
+- Rapport de soirée : 3 feuilles A4 (soireereport.js) — A podium et cartes, B chronologie, C duels et cibles ; aperçu,
+  IMAGE (les 3 empilées), PDF (3 pages).
+- Sommaire : section « Version 0.8.0 » (scènes v78-… sur une saison fictive de 14 soirées, `seasonMock`).
+- Nouveautés : src/ui/changelog.js, une entrée par version (à tenir à chaque publication).
+- Aucune migration. Pire volée sans les bust ; taux de finition calculé mais plus affiché (taux de triples à la place).
+- À vérifier sur le Pixel : tout le parcours de la refonte avec les vraies données (historique groupé, regrouper en
+  soirée, rapport de soirée en PDF partagé, classement, réglages, nouveautés).
+- Ensuite : lot 7.9 (une animation de tour par pictogramme d'avatar) quand Guillaume le demandera.
 
 ## État (fin du lot 7.7)
 

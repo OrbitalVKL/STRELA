@@ -1,4 +1,4 @@
-// Lot 7.8 (maquette, ?maquette seulement) : refonte des Stats et classement global des joueurs.
+// Lot 7.8 (dans l'appli depuis la 0.8.0) : refonte des Stats et classement global des joueurs.
 // - Stats d'un joueur : chiffres regroupés (Score, Finition, Volées, Résultats), explications derrière une icône (i),
 //   courbe de n'importe quel chiffre partie par partie (une partie = un point, jours séparés, zoom ×1 à ×8 et
 //   défilement horizontal), meilleures volées et pire volée de chaque partie repliées.

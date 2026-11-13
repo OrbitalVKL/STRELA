@@ -151,31 +151,16 @@ label.btn { cursor: pointer; }
 /* Titre centré (lot 7.8, demande de Guillaume) : l'espacement des lettres ajoute un blanc après le dernier A ; on le
    rattrape à droite pour que STRELA soit vraiment au milieu. */
 .home-title { margin: 0 -0.08em 0 0; white-space: nowrap; font-size: 58px; line-height: 0.9; font-weight: 800; letter-spacing: 0.08em; font-stretch: 112.5%; }
-.home-sub { margin: 10px 16px 0; font-size: 11.5px; color: var(--dim); letter-spacing: 0.1em; text-transform: uppercase; text-align: center; }
 /* Version en bas de page (lot 7.8, demande de Guillaume) */
 .home-ver { font-size: 12px; font-weight: 700; color: var(--fg); letter-spacing: 0.08em; text-decoration: none; text-transform: none; }
 /* Variante « bande » (retenue) : bande de titre en aplat rouge, texte clair */
 .v-bande .home-head { background: var(--red); color: var(--red-ink); }
 /* Variante « filet » : titre en texte rouge, filet rouge épais dessous, filet rouge au-dessus du pied */
-.v-filet .home-head { color: var(--red-text); border-bottom: 4px solid var(--red); padding-bottom: 14px; }
-.v-filet .home-foot { border-top: 1px solid var(--red); }
-.home-main { flex: 1; padding: 26px 16px 0; display: flex; flex-direction: column; gap: 12px; }
 .resume { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; text-align: left; justify-content: stretch; }
 .resume .t { font-size: 18px; }
 .resume small { display: block; line-height: 1.5; }
 .resume small { grid-column: 1; }
 .resume .go { grid-row: 1 / span 2; grid-column: 2; font-size: 22px; }
-.tiles { flex: 1; max-height: 360px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-auto-rows: minmax(112px, 1fr); border-top: var(--rule); border-left: var(--rule); margin-top: 10px; }
-.tile {
-  display: flex; flex-direction: column; justify-content: space-between; gap: 18px;
-  min-height: 112px; padding: 14px; border: 0; border-right: var(--rule); border-bottom: var(--rule);
-  text-align: left; color: var(--fg); text-decoration: none; background: var(--bg);
-}
-.tile b { white-space: nowrap; font-size: 16px; letter-spacing: 0.08em; text-transform: uppercase; }
-.tile span { white-space: nowrap; font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; }
-.tile .ico { width: 26px; height: 26px; }
-.tile:active { background: var(--fg); color: var(--bg); }
-.tile:active span { color: var(--bg); }
 .home-foot { margin: 22px 16px 0; padding-top: 10px; border-top: var(--rule); display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; }
 .home-foot a { color: var(--dim); }
 /* Problème d'enregistrement (lot 4) : base inaccessible, stockage plein ; et écran de secours */
@@ -946,9 +931,6 @@ html.night body::after { content: ''; position: fixed; inset: 0; z-index: 100; p
 }
 /* Autres écrans en paysage : mise en page simple, centrée, défilement accepté */
 @media (orientation: landscape) and (max-height: 500px) {
-  .home-main { padding-top: 14px; }
-  .tiles { max-height: none; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: minmax(96px, auto); }
-  .tile { min-height: 96px; }
   .btn.big { min-height: 64px; }
 }
 
@@ -977,7 +959,6 @@ html.night body::after { content: ''; position: fixed; inset: 0; z-index: 100; p
 .about p { font-size: 13px; line-height: 1.55; margin: 8px 0; }
 .about .kv b { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .licence { margin: 10px 0 0; padding: 10px; border: var(--rule); font-size: 10.5px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 50vh; overflow: auto; }
-.home-main .upd-badge { margin: 0; }
 
 /* ------------------------------------------------------------------ soirée (lot 7.6) */
 .soiree-btn { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center; text-align: left; justify-content: stretch; min-height: 52px; }
@@ -1227,25 +1208,6 @@ html.night body::after { content: ''; position: fixed; inset: 0; z-index: 100; p
 .tile2 > b { font-size: 12px; font-weight: 800; letter-spacing: 0.02em; text-transform: uppercase; white-space: nowrap; }
 .tile2 span { max-width: 100%; font-size: 10.5px; color: var(--dim); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
 .tile2:active { background: var(--fg); color: var(--bg); }
-/* Variante B « console » */
-.c-head { padding: 26px 16px 12px; border-bottom: 4px solid var(--red); text-align: center; }
-.c-head .home-title { font-size: min(72px, 17vw); color: var(--red-text); }
-.c-meta { display: flex; justify-content: center; margin-top: 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; color: var(--dim); }
-.c-main { flex: 1; display: flex; flex-direction: column; gap: 12px; padding: 12px 16px 0; }
-.c-status { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; font-size: 10.5px; color: var(--dim); letter-spacing: 0.1em; }
-.c-status .on { color: var(--fg); font-weight: 800; }
-.c-menu { list-style: none; margin: 0; padding: 0; border-top: var(--rule); }
-.c-menu a { position: relative; display: flex; align-items: center; gap: 10px; min-height: 58px; border-bottom: var(--rule); color: var(--fg); text-decoration: none; }
-.c-menu a:active { background: var(--fg); color: var(--bg); }
-.c-menu .no { flex: 0 0 26px; font-size: 12px; font-weight: 700; color: var(--red-text); font-variant-numeric: tabular-nums; }
-.c-menu .ico { flex: 0 0 22px; width: 22px; height: 22px; }
-.c-menu a > b { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 16px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
-.c-menu .sub { flex-shrink: 2; }
-.c-menu .lead { flex: 1; min-width: 4px; border-bottom: 1px dotted var(--faint); transform: translateY(5px); }
-.c-menu .sub { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 11px; color: var(--dim); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
-.c-menu .newdot { flex: 0 0 auto; }
-.c-menu .newdot { position: static; margin-left: 4px; }
-.c-actions { display: grid; gap: 10px; margin-top: auto; padding-top: 6px; }
 .tag.inv { background: var(--inv-bg); color: var(--inv-fg); border-color: var(--inv-bg); }
 
 .tile2 .newdot { color: var(--red-ink); font-size: 8.5px; letter-spacing: 0.08em; position: static; align-self: flex-start; margin-top: 2px; }

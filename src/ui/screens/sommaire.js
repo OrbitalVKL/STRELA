@@ -20,9 +20,7 @@ import { go } from '../nav.js';
 import { isDark, applyTheme, presetBackup } from './settings.js';
 import { makeBackup, parseBackup } from '../../data/backup.js';
 import { saveSetting } from '../store.js';
-import { setHomeVariant, homeVariant } from './home.js';
 import { seasonMock } from '../maquette.js';
-import { setHome2Variant } from './v2/home2.js';
 import { presetStats2 } from './v2/stats2.js';
 import { presetHistory2 } from './v2/history2.js';
 import { presetSettings2 } from './settings.js';
@@ -109,17 +107,15 @@ function mockSoiree({ game = false } = {}) {
 const prefer = id => { const p = store.players.find(q => q.id === id); if (p) p.checkout = { double: 16, avoidBull: true }; };
 const visitIndex = (config, darts, pick) => computeState(config, darts).visits.findIndex(pick);
 
-// Lot 7.8 (maquette de la refonte) : une saison de soirées et les nouveaux écrans (store.preview).
-const v78 = (route, prep = () => {}) => () => { seasonMock(); setHome2Variant('tableau'); presetStats2(); presetHistory2(); presetSettings2(); prep(); return route; };
+// Lot 7.8 (refonte, dans l'appli depuis la 0.8.0) : une saison de soirées, pour voir les nouveaux écrans remplis.
+const v78 = (route, prep = () => {}) => () => { seasonMock(); presetStats2(); presetHistory2(); presetSettings2(); prep(); return route; };
 
 export const SCENES = {
   'v78-accueil': v78('#/'),
-  'v78-accueil-console': v78('#/', () => setHome2Variant('console')),
   'v78-accueil-soiree': v78('#/', () => { store.soiree = { id: 's1', startedAt: Date.now() - 2 * 3600e3, players: ['p1', 'p2', 'p3'], drinks: {} }; }),
-  'v78-console-soiree': v78('#/', () => { setHome2Variant('console'); store.soiree = { id: 's1', startedAt: Date.now() - 2 * 3600e3, players: ['p1', 'p2', 'p3'], drinks: {} }; }),
   'v78-stats': v78('#/stats/p1'),
   'v78-stats-info': v78('#/stats/p1', () => presetStats2({ info: ['score', 'courbe'] })),
-  'v78-stats-zoom': v78('#/stats/p1', () => { presetStats2({ zoom: 4, metric: 'average' }); store.preview = true; }),
+  'v78-stats-zoom': v78('#/stats/p1', () => { presetStats2({ zoom: 4, metric: 'average' }); }),
   'v78-stats-pire': v78('#/stats/p2', () => presetStats2({ metric: 'worstVisit', zoom: 2 })),
   'v78-stats-point': v78('#/stats/p1', () => { presetStats2({ zoom: 2 }); const g = store.games.find(x => x.config.players.includes('p1')); presetStats2({ zoom: 2, point: g.id }); }),
   'v78-stats-volees': v78('#/stats/p1', () => presetStats2({ folds: ['best', 'worst'] })),
@@ -291,8 +287,8 @@ export const SCENES = {
   'sauvegarde-fusionner': () => { presetBackup({ preview: mockBackup(), file: 'strela-20261030-2118.json', ask: 'merge' }); return '#/reglages'; },
   'sauvegarde-refus': () => { presetBackup({ error: 'Sauvegarde faite par une version plus récente de Strela (9.0.0) : mets l\'appli à jour avant de l\'importer.' }); return '#/reglages'; },
   // Lot 3 : suppression de parties (sélection par appui long, confirmation ; détail d'une partie)
-  'histo-selection': () => { presetHistory({ ids: store.games.slice(0, 3).map(g => g.id) }); return '#/historique'; },
-  'histo-selection-confirmer': () => { presetHistory({ ids: store.games.slice(0, 3).map(g => g.id), ask: true }); return '#/historique'; },
+  'histo-selection': () => { presetHistory2({ sel: store.games.slice(0, 3).map(g => g.id) }); return '#/historique'; },
+  'histo-selection-confirmer': () => { presetHistory2({ sel: store.games.slice(0, 3).map(g => g.id), ask: 'delete' }); return '#/historique'; },
   'partie-supprimer': () => { presetHistory({ detail: 'g1' }); return '#/partie/g1'; },
   'fiche-new': () => { store.draft = null; return '#/joueur/nouveau'; },
   // Lot 6 : banque de 40 pictogrammes (carabine choisie, sur un des nouveaux fonds) et fiche avec les 16 fonds
@@ -311,9 +307,8 @@ export const SCENES = {
   },
   // Lot 2 : premier lancement, reprise d'une fin de manche ou de partie, photo d'avatar (recadrage, erreur, en jeu)
   // Lot 4 : deux variantes du rouge d'accent de l'accueil (« bande » retenue)
-  'accueil-bande': () => { setHomeVariant('bande'); return '#/'; },
-  'accueil-filet': () => { setHomeVariant('filet'); return '#/'; },
-  'accueil-filet-reprendre': () => { setHomeVariant('filet'); setGame(cfg(['p1', 'p2']), 'T20 S20 S5 S20 T19 S1 T20'); return '#/'; },
+  accueil: () => '#/',
+  'accueil-reprendre': () => { setGame(cfg(['p1', 'p2']), 'T20 S20 S5 S20 T19 S1 T20'); return '#/'; },
   // Lot 5 : premier lancement de l'APK (import de la sauvegarde de la version web, ou à zéro)
   'premier-lancement-apk': () => { store.players = []; store.games = []; store.current = null; store.lastSetup = null; store.mockApk = true; return '#/'; },
   'reglages-apk': () => { store.mockApk = true; store.mockUpdate = { current: '0.6.0', latest: '0.6.0', available: false, state: 'idle', msg: 'Strela est à jour.' }; return '#/reglages'; },
@@ -357,7 +352,7 @@ export const SCENES = {
   'base-recente': () => { mockIssue({ openCode: 'NEWER', error: 'base plus récente que l\'appli' }); return '#/'; },
   'stockage-plein': () => { mockIssue({ writeFail: { full: true, name: 'QuotaExceededError', at: Date.now() } }); return '#/'; },
   'stockage-plein-jeu': () => { mockIssue({ writeFail: { full: true, name: 'QuotaExceededError', at: Date.now() } }); setGame(cfg(['p1', 'p2']), 'T20 S20 S5', { pause: true }); return '#/jeu'; },
-  reinit: () => { resetMock(); setHomeVariant('bande'); mockIssue({}); store.mockIssue = false; return '#/sommaire'; },
+  reinit: () => { resetMock(); mockIssue({}); store.mockIssue = false; return '#/sommaire'; },
 };
 
 const L = (scene, label, hint = '') => `<a href="#/sommaire" data-act="scene" data-arg="${scene}"><span>${label}</span><span>${hint}</span></a>`;
@@ -371,14 +366,12 @@ export function sommaire() {
       <p class="note">Sur chaque écran, ${ico('theme')} en haut à droite bascule le thème et ${ico('menu')} revient ici (en partie : menu pause).
         Données fictives, en mémoire : la maquette ne touche jamais aux joueurs et aux parties enregistrés sur le téléphone.</p>
     </div>
-    <div class="pad"><div class="sec">Lot 7.8 · refonte (maquette)</div>
-      <p class="note" style="margin-top:0">La refonte n'existe que dans cette maquette : l'appli installée garde ses écrans tant qu'elle n'est pas validée. Ouvrez un accueil ci-dessous puis naviguez normalement (Stats, Classement, Historique, Réglages, Nouveautés) : tout est la nouvelle version, sur une saison fictive de 14 soirées.</p>
-      <div class="btns two" style="margin-bottom:12px"><button type="button" class="btn primary" data-act="scene" data-arg="v78-accueil">ACCUEIL A</button><button type="button" class="btn primary" data-act="scene" data-arg="v78-accueil-console">ACCUEIL B</button></div></div>
+    <div class="pad"><div class="sec">Version 0.8.0 · refonte</div>
+      <p class="note" style="margin-top:0">La refonte est dans l'appli depuis la 0.8.0 (accueil A). Ici, sur une saison fictive de 14 soirées : ouvrez l'accueil puis naviguez normalement (Stats, Classement, Historique, Réglages, Nouveautés).</p>
+      <button type="button" class="btn primary" data-act="scene" data-arg="v78-accueil" style="margin-bottom:12px">ACCUEIL, SAISON FICTIVE</button></div>
     <nav class="toc">
-      ${L('v78-accueil', '★ Accueil A « tableau de bord »', 'à parcourir')}
-      ${L('v78-accueil-console', '★ Accueil B « console »')}
-      ${L('v78-accueil-soiree', '★ Accueil A, soirée en cours')}
-      ${L('v78-console-soiree', '★ Accueil B, soirée en cours')}
+      ${L('v78-accueil', '★ Accueil', 'saison fictive, à parcourir')}
+      ${L('v78-accueil-soiree', '★ Accueil, soirée en cours')}
       ${L('v78-stats', '★ Stats : joueur', 'chiffres regroupés')}
       ${L('v78-stats-info', '★ Stats : explications (i) ouvertes')}
       ${L('v78-stats-zoom', '★ Stats : courbe zoomée ×4', 'valeurs sur les points')}
@@ -405,10 +398,8 @@ export function sommaire() {
     </nav>
     <div class="pad"><div class="sec">Écrans</div></div>
     <nav class="toc">
-      ${H('#/', '1 · Accueil', `variante « ${homeVariant()} »`)}
-      ${L('accueil-bande', '1 · Accueil, variante A « bande »', 'retenue')}
-      ${L('accueil-filet', '1 · Accueil, variante B « filet »')}
-      ${L('accueil-filet-reprendre', '1 · Variante B avec REPRENDRE')}
+      ${H('#/', '1 · Accueil')}
+      ${L('accueil-reprendre', '1 · Accueil avec REPRENDRE')}
       ${L('premier-lancement', '1 · Accueil au premier lancement', 'aucun joueur')}
       ${L('premier-lancement-apk', '1 · Premier lancement de l\'appli Android', 'importer la version web')}
       ${L('reprendre', '1 · Accueil avec REPRENDRE', 'partie en cours')}

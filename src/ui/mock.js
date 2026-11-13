@@ -132,7 +132,7 @@ export function mockGames(players, now = Date.now()) {
 }
 
 /**
- * Lot 7.8 (maquette) : une saison de soirées sur ~9 semaines — 14 soirées de 3 à 6 parties le même soir (20 h – 1 h),
+ * Lot 7.8 (dans l'appli depuis la 0.8.0) : une saison de soirées sur ~9 semaines — 14 soirées de 3 à 6 parties le même soir (20 h – 1 h),
  * plus quelques parties isolées ; joueurs tirés parmi `players`, verres pendant les parties (cumul de la soirée dans
  * `drinksBefore`), quelques abandons. Reproductible.
  */

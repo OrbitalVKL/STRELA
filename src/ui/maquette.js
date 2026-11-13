@@ -1,7 +1,6 @@
 // Strela — données fictives du sommaire de maquette (?maquette) et des tests : chargé seulement dans ce cas
 // (import dynamique dans app.js). Tout reste en mémoire : la vraie base du téléphone n'est jamais ouverte.
 import { store } from './store.js';
-import { setHomeVariant } from './screens/home.js';
 import { MOCK_PLAYERS, EXTRA_PLAYERS, mockGames, mockSeason } from './mock.js';
 
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -27,13 +26,11 @@ export function resetMock() {
   store.soiree = null; // lot 7.6
   store.soireeDraft = null;
   store.crop = null;
-  store.preview = false; // lot 7.8 : refonte montrée par les scènes « v78 »
-  // Lot 4 : problème d'enregistrement simulé et variante de l'accueil remis à zéro
+  // Lot 4 : problème d'enregistrement simulé remis à zéro
   store.mockIssue = false;
   store.mockApk = false; // true : APK « github » simulé ; 'play' : variante Google Play (lot 6)
   store.mockUpdate = null; // état de mise à jour simulé (lot 6)
   Object.assign(store.db, { openCode: null, writeFail: null, error: null });
-  setHomeVariant('bande');
   // Derniers réglages : ceux de la partie la plus récente.
   const last = store.games[0];
   store.lastSetup = { players: [...last.config.players], startScore: last.config.startScore, outMode: last.config.outMode, legsToWin: last.config.legsToWin };
@@ -51,11 +48,10 @@ export function givePhoto(id) {
 }
 
 /** Lot 7.8 (maquette de la refonte) : une saison de soirées (plusieurs parties le même soir), pour la courbe zoomable,
- *  le classement et la navigation dans l'historique. Remplace les parties fictives ; la refonte est affichée. */
+ *  le classement et la navigation dans l'historique. Remplace les parties fictives. */
 export function seasonMock() {
   store.players = MOCK_PLAYERS.map(clone); // toujours les mêmes joueurs (une scène précédente a pu en ajouter)
   ensureExtraPlayers(['p11']);
-  store.preview = true;
   store.current = null;
   store.soiree = null;
   store.games = mockSeason(store.players.filter(p => !p.archived));

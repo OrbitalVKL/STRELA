@@ -109,7 +109,7 @@ test('partie rechargée en plein jeu : état retrouvé à l’identique, REPREND
   await page.click('[data-act="pause"]');
   await page.click('[data-act="abandon"]');
   await page.click('[data-act="abandon-yes"]');
-  await page.waitForSelector('.home-main');
+  await page.waitForSelector('.t-main');
   await settle(page);
   db = await readDb(page);
   assert.equal(db.current, null);
@@ -119,7 +119,7 @@ test('partie rechargée en plein jeu : état retrouvé à l’identique, REPREND
   assert.equal(g.darts.length, 7 * 3 + 1, 'les 7 volées de la manche 1 et la fléchette de la manche 2');
   assert.ok(g.endedAt >= g.startedAt);
   await page.evaluate(() => { location.hash = '#/historique'; });
-  assert.match(await page.innerText('.list'), /ABANDONNÉE/);
+  assert.match(await page.innerText('.hlist'), /ABANDON/);
   await page.evaluate(() => { location.hash = '#/joueurs'; });
   const row = await page.innerText('.list a:has(.nm:text-is("Alpha"))');
   assert.match(row, /moyenne \d+,\d/, 'les fléchettes d’une partie abandonnée comptent dans la moyenne');
@@ -166,9 +166,9 @@ test('501 à 2 joueurs de bout en bout, retrouvée à l’identique dans l’his
   await page.click('.sheet a[href="#/"]');
   await page.waitForSelector('a.resume');
   await page.evaluate(() => { location.hash = '#/historique'; });
-  await page.waitForSelector('.gitem');
-  assert.match(await page.innerText('.gitem'), /VAINQUEUR\s+ALPHA/i);
-  await page.click('.gitem');
+  await page.waitForSelector('.hrow');
+  assert.match(await page.innerText('.hrow'), /501[\s\S]*ALPHA/i);
+  await page.click('.hrow');
   await page.waitForSelector('.lt');
   const state = computeState(g.config, g.darts);
   const want = legTable(state, 1).rows.flatMap(r => r.cells.filter(Boolean).map(c => cellView(c).label));
