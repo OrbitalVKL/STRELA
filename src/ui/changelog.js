@@ -2,7 +2,7 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
-  { v: '0.7.8', date: null, title: 'Refonte (maquette)', items: [
+  { v: '0.8.0', date: null, title: 'Refonte (maquette)', items: [
     'Accueil redessiné.',
     'Stats : courbe de n\'importe quel chiffre, une partie par point, zoom ; meilleures et pires volées repliables ; explications derrière (i).',
     'Stats : taux de triples (le taux de finition disparaît) ; la pire volée ne compte plus les bust ; nombre d\'impacts écrit sur chaque secteur de la cible.',
@@ -12,6 +12,10 @@ export const CHANGELOG = Object.freeze([
     'Historique rangé par soirée et par jour, filtres par joueur et par résultat.',
     'Réglages regroupés et plus clairs (aucune option retirée).',
     'Cette page des nouveautés.',
+  ] },
+  { v: '0.7.8', date: '2026-11-13', title: 'Accueil', items: [
+    'STRELA centré sur l\'accueil, version en bas de page.',
+    'Stats : la pire volée ne compte plus les bust (un bust n\'est pas une volée à 0).',
   ] },
   { v: '0.7.7', date: '2026-11-12', title: 'Volées dans les stats', items: [
     'Stats : meilleure volée, pire volée, et la pire volée de chaque partie.',

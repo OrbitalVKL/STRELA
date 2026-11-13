@@ -159,9 +159,12 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 
 ## État (lot 7.8 : maquette de la refonte)
 
+- **Appli réelle, v0.7.8** (13/11) : accueil actuel avec STRELA centré (l'espacement des lettres rattrapé à droite) et
+  version en bas de page (demande de Guillaume, qui regardait l'accueil de l'appli) ; pire volée sans les bust.
+  Changelog : la refonte est annoncée en 0.8.0.
 - **Maquette seulement** : `store.preview` (posé par les scènes « v78-… » du sommaire ; jamais dans l'appli). Routes
   dans app.js : `pv(nouveau, actuel)` pour `/`, `/historique`, `/stats`, `/reglages` ; `/classement` et `/nouveautes`
-  n'existent qu'en maquette. Version inchangée (0.7.7) : l'appli installée ne change pas.
+  n'existent qu'en maquette. La refonte ne touche pas l'appli installée.
 - Fichiers : src/ui/screens/v2/ (home2.js : accueil A « tableau de bord » / B « console » + nouveautés ; stats2.js :
   stats joueur + classement, `METRICS` ; history2.js : historique groupé par soirée / jour, filtres, sélection pour
   regrouper en soirée ; soireedash.js : tableau de bord d'une soirée + feuille à imprimer, modèle dans

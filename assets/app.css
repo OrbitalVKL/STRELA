@@ -147,15 +147,17 @@ label.btn { cursor: pointer; }
 .av.gone svg { width: 60%; height: 60%; }
 
 /* ---------------------------------------------------------------- accueil */
-.home-head { padding: 22px 16px 18px; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 6px 12px; }
-.home-title { margin: 0; white-space: nowrap; font-size: 58px; line-height: 0.9; font-weight: 800; letter-spacing: 0.08em; font-stretch: 112.5%; }
-.home-sub { margin: 10px 16px 0; font-size: 11.5px; color: var(--dim); letter-spacing: 0.1em; text-transform: uppercase; }
-.home-ver { font-size: 12px; font-weight: 600; }
+.home-head { padding: 22px 16px 18px; display: flex; justify-content: center; text-align: center; }
+/* Titre centré (lot 7.8, demande de Guillaume) : l'espacement des lettres ajoute un blanc après le dernier A ; on le
+   rattrape à droite pour que STRELA soit vraiment au milieu. */
+.home-title { margin: 0 -0.08em 0 0; white-space: nowrap; font-size: 58px; line-height: 0.9; font-weight: 800; letter-spacing: 0.08em; font-stretch: 112.5%; }
+.home-sub { margin: 10px 16px 0; font-size: 11.5px; color: var(--dim); letter-spacing: 0.1em; text-transform: uppercase; text-align: center; }
+/* Version en bas de page (lot 7.8, demande de Guillaume) */
+.home-ver { font-size: 12px; font-weight: 700; color: var(--fg); letter-spacing: 0.08em; text-decoration: none; text-transform: none; }
 /* Variante « bande » (retenue) : bande de titre en aplat rouge, texte clair */
 .v-bande .home-head { background: var(--red); color: var(--red-ink); }
 /* Variante « filet » : titre en texte rouge, filet rouge épais dessous, filet rouge au-dessus du pied */
 .v-filet .home-head { color: var(--red-text); border-bottom: 4px solid var(--red); padding-bottom: 14px; }
-.v-filet .home-ver { color: var(--dim); }
 .v-filet .home-foot { border-top: 1px solid var(--red); }
 .home-main { flex: 1; padding: 26px 16px 0; display: flex; flex-direction: column; gap: 12px; }
 .resume { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; text-align: left; justify-content: stretch; }
@@ -174,7 +176,7 @@ label.btn { cursor: pointer; }
 .tile .ico { width: 26px; height: 26px; }
 .tile:active { background: var(--fg); color: var(--bg); }
 .tile:active span { color: var(--bg); }
-.home-foot { margin: 22px 16px 0; padding-top: 10px; border-top: var(--rule); display: flex; justify-content: space-between; gap: 12px; font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; }
+.home-foot { margin: 22px 16px 0; padding-top: 10px; border-top: var(--rule); display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; }
 .home-foot a { color: var(--dim); }
 /* Problème d'enregistrement (lot 4) : base inaccessible, stockage plein ; et écran de secours */
 .issue { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--red); border-left-width: 6px; font-size: 12.5px; line-height: 1.5; }
@@ -1307,5 +1309,5 @@ button.hrow { width: 100%; border: 0; border-bottom: var(--rule); background: va
 
 /* Lot 7.8 : titre centré, version en bas de page (demande de Guillaume) */
 .home2 .home-title { text-align: center; }
-.home2 .foot2 { flex-direction: column; align-items: center; gap: 2px; text-align: center; }
-.home2 .foot2 .foot-ver { color: var(--fg); font-weight: 800; letter-spacing: 0.1em; text-decoration: none; padding: 8px 12px; }
+.home2 .home-ver { padding: 6px 12px; }
+.home-foot .home-ver { color: var(--fg); }
