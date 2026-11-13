@@ -68,6 +68,8 @@ src/ui/theme.js           palette (source de vérité des couleurs), contraste
 src/ui/vowels.js          voyelles qui tombent quand Tsia lance (lot 7)
 src/ui/turnfx.js          animations de tour par joueur (lot 7.4) : ours, cravate, carabine, planète, étoile rouge ; sons et voix (lot 7.5)
 src/ui/screens/soiree.js  soirée (lot 7.6) : joueurs de la soirée, verres cumulés d'une partie à l'autre
+src/ui/screens/v2/        refonte en maquette (lot 7.8, store.preview) : home2.js, stats2.js (+ classement), history2.js
+src/ui/changelog.js       nouveautés de chaque version (lot 7.8, écran #/nouveautes en maquette)
 tools/animations.mjs      captures des animations de tour figées à plusieurs instants (lot 7.4)
 src/ui/sheet.js           fiche de score : modèle, dessin sur canvas (demi-page A5 paysage ou A4, lot 7.3), PDF (lot 7.1) ; screens/printsheet.js : boutons et envoi
 src/engine/ranking.js     classement, joueur en tête, derniers (tournée), célébrations des nuls (lot 7)
@@ -150,8 +152,22 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 7.5 | Sons de l'ours et de la planète, voix d'homme et répliques beauf de HPV, Tsia qui marmonne (voix pâteuse), moqueries dès une volée sous 20 et variées (v0.7.5) — **fait, en attente de validation sur le Pixel** |
 | 7.6 | Tirage au sort revu (REVANCHE retirée au sort), bande du tour (TOUR n, qui a lancé), mode soirée (joueurs, verres cumulés d'une partie à l'autre), bouton verre en jeu, volée parmi les 3 meilleures / pires de la soirée, pavé double / triple bien distincts (v0.7.6) — **fait, en attente de validation sur le Pixel** |
 | 7.7 | Stats : meilleure et pire volée, pire volée de chaque partie ; moqueries plus cyniques ; 22 répliques de HPV en plus (v0.7.7) — **fait, en attente de validation sur le Pixel** |
-| 7.8 | (plus tard, demandé le 12/11/2026) Une animation de tour par pictogramme d'avatar, toutes différentes |
+| 7.8 | **Maquette** de la refonte (13/11/2026) : accueil (2 variantes), stats (courbe de n'importe quel chiffre, zoomable, explications (i), volées repliées), classement global, historique (soirées, filtres), réglages en cartes, nouveautés — **en maquette, en attente du choix de Guillaume** |
+| 7.9 | (plus tard, demandé le 12/11/2026) Une animation de tour par pictogramme d'avatar, toutes différentes |
 | 8 | Recette |
+
+## État (lot 7.8 : maquette de la refonte)
+
+- **Maquette seulement** : `store.preview` (posé par les scènes « v78-… » du sommaire ; jamais dans l'appli). Routes
+  dans app.js : `pv(nouveau, actuel)` pour `/`, `/historique`, `/stats`, `/reglages` ; `/classement` et `/nouveautes`
+  n'existent qu'en maquette. Version inchangée (0.7.7) : l'appli installée ne change pas.
+- Fichiers : src/ui/screens/v2/ (home2.js : accueil A « tableau de bord » / B « console » + nouveautés ; stats2.js :
+  stats joueur + classement, `METRICS` ; history2.js : historique groupé par soirée / jour, filtres) ;
+  settings.js › `settings2Screen` (réglages en cartes) ; src/ui/changelog.js (nouveautés, à tenir à chaque version) ;
+  mock.js › `mockSeason` (14 soirées), maquette.js › `seasonMock`. Détail : docs/interface.md « Lot 7.8 ».
+- À faire après le choix de Guillaume : retenir une variante d'accueil, retirer le drapeau `preview` (les écrans v2
+  remplacent les actuels), retirer les anciens écrans et leurs scènes, puis tests de parcours sur les nouveaux écrans
+  (sélection et suppression dans l'historique v2, classement, nouveautés).
 
 ## État (fin du lot 7.7)
 
@@ -172,7 +188,7 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
   (`visitStanding`, ranking.js). Pavé : double = fond gris + 2 traits, triple = vidéo inverse + 3 traits.
 - À vérifier sur le Pixel : lisibilité de la bande du tour de loin ; le bouton verre ; une vraie soirée de plusieurs
   parties (cumul juste après REVANCHE et Nouvelle partie).
-- Plus tard (lot 7.8) : une animation par pictogramme d'avatar, toutes différentes (les 41 pictogrammes,
+- Plus tard (lot 7.9) : une animation par pictogramme d'avatar, toutes différentes (les 41 pictogrammes,
   src/ui/avatars.js) — à cadrer avec Guillaume (remplace-t-elle l'animation choisie dans la fiche ?).
 
 ## État (fin du lot 7.5, pour mémoire)

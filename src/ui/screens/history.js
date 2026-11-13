@@ -18,6 +18,8 @@ const dl = d => { const f = formatDart(d); return f.replace(/^S/, ''); };
 let picked = null;      // null (liste normale) ou Set des identifiants cochés
 let askList = false;    // confirmation de SUPPRIMER (n)
 let askDetail = null;   // identifiant de la partie dont la suppression est demandée (détail)
+/** Lot 7.8 : la refonte de la liste (screens/v2/history2.js) rend la main à cette liste pendant la sélection. */
+export const selectingGames = () => picked !== null;
 
 /** En changeant d'écran (`path` : nouvel écran) : sélection et confirmations oubliées ailleurs que là où elles sont (app.js). */
 export function leaveHistory(path) {

@@ -130,3 +130,58 @@ export function mockGames(players, now = Date.now()) {
     return { id: `g${i + 1}`, startedAt: d.getTime(), config, darts, abandoned: stop !== null };
   });
 }
+
+/**
+ * Lot 7.8 (maquette) : une saison de soirées sur ~9 semaines — 14 soirées de 3 à 6 parties le même soir (20 h – 1 h),
+ * plus quelques parties isolées ; joueurs tirés parmi `players`, verres pendant les parties (cumul de la soirée dans
+ * `drinksBefore`), quelques abandons. Reproductible.
+ */
+export function mockSeason(players, now = Date.now()) {
+  const r = rng(78);
+  const skill = Object.fromEntries(players.map(p => [p.id, p.skill ?? 0.3]));
+  const ids = players.map(p => p.id);
+  const games = [];
+  const pickPlayers = (n) => { const pool = [...ids]; const out = []; while (out.length < n && pool.length) out.push(pool.splice(Math.floor(r() * pool.length), 1)[0]); return out; };
+  const evenings = [1, 2, 5, 7, 9, 13, 16, 20, 23, 28, 34, 41, 49, 58];
+  let n = 0;
+  for (const [k, days] of evenings.entries()) {
+    const soiree = `s${k + 1}`;
+    const crew = pickPlayers(3 + Math.floor(r() * 3));
+    const count = k === 0 ? 4 : 3 + Math.floor(r() * 4);
+    let t = new Date(now - days * 86400000);
+    t.setHours(20, 30 + Math.floor(r() * 20), 0, 0);
+    if (t.getTime() > now) t = new Date(now - 4 * 3600000);
+    const before = {};
+    for (let i = 0; i < count; i++) {
+      const who = crew.filter(() => r() < 0.85);
+      const playing = who.length >= 2 ? who : crew.slice(0, 2);
+      const order = [...playing].sort(() => r() - 0.5);
+      const startScore = r() < 0.7 ? 501 : 301;
+      const config = { startScore, outMode: r() < 0.85 ? 'double' : 'single', legsToWin: 1, players: order };
+      const stop = r() < 0.08 ? 40 : null;
+      const darts = simulateGame(config, order.map(id => skill[id]), 5000 + n * 13, stop);
+      const startedAt = t.getTime();
+      const drinks = {};
+      for (const id of order) {
+        const c = Math.floor(r() * 2.4);
+        if (c) drinks[id] = Array.from({ length: c }, (_, j) => ({ t: startedAt + (j + 1) * 600000, at: Math.min(darts.length, Math.floor(darts.length * (j + 1) / (c + 1))) }));
+      }
+      const g = { id: `s${k + 1}g${i + 1}`, startedAt, config, darts, abandoned: stop !== null, soiree };
+      const b = {}; for (const id of order) if (before[id]) b[id] = before[id];
+      if (Object.keys(b).length) g.drinksBefore = b;
+      if (Object.keys(drinks).length) g.drinks = drinks;
+      for (const [id, l] of Object.entries(drinks)) before[id] = (before[id] || 0) + l.length;
+      games.push(g);
+      n += 1;
+      t = new Date(startedAt + (25 + Math.floor(r() * 25)) * 60000);
+    }
+  }
+  // Quelques parties isolées (sans soirée), en semaine.
+  for (const days of [11, 26, 38, 45]) {
+    const order = pickPlayers(2);
+    const t = new Date(now - days * 86400000); t.setHours(18, 40, 0, 0);
+    const config = { startScore: 501, outMode: 'double', legsToWin: 2, players: order };
+    games.push({ id: `iso${days}`, startedAt: t.getTime(), config, darts: simulateGame(config, order.map(id => skill[id]), 9000 + days), abandoned: false });
+  }
+  return games.sort((a, b) => b.startedAt - a.startedAt);
+}

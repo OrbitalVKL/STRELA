@@ -3,7 +3,7 @@
 // téléphone demande moins d'animations). Les mêmes commandes servent au menu pause du jeu.
 import { store, saveSetting, reducedMotion, exportBackup, applyImport, importCounts, storageIssue, resaveAll } from '../store.js';
 import { backupFileName, parseBackup, BackupError } from '../../data/backup.js';
-import { esc, topBar, plural } from '../dom.js';
+import { esc, ico, topBar, plural } from '../dom.js';
 import { BUILD } from '../build.js';
 import { refresh, buzz, BUZZ, go } from '../nav.js';
 import { say, sound, voiceInfo } from '../feedback.js';
@@ -296,7 +296,62 @@ export function settingsScreen() {
     </div></div>`;
 }
 
+// ------------------------------------------------------------------ lot 7.8 (maquette) : réglages réorganisés
+// Mêmes options, mêmes actions ; regroupées en cartes (Affichage, Son et voix, Vibrations, Sauvegarde, Appli Android,
+// À propos), descriptions courtes, explications longues derrière (i), diagnostic replié.
+const s2 = { info: new Set(), diag: false };
+export function presetSettings2(state = {}) { s2.info = new Set(state.info || []); s2.diag = !!state.diag; }
+const s2info = key => `<button type="button" class="ibtn" data-act="s2-info" data-arg="${key}" aria-pressed="${s2.info.has(key)}" aria-label="Explication">${ico('info')}</button>`;
+const s2box = (key, text) => (s2.info.has(key) ? `<p class="infobox" role="note">${text}</p>` : '');
+const card = (icon, title, key, body) => `<section class="card2"><h2>${ico(icon)}<span>${title}</span>${key ? s2info(key) : ''}</h2>${body}</section>`;
+const srow = (act, title, desc, on, disabled = false) => `<div class="row"><div class="lbl"><b>${title}</b>${desc ? `<small>${desc}</small>` : ''}</div>${toggle(act, on, disabled)}</div>`;
+
+export function settings2Screen() {
+  const t = store.settings.theme;
+  const dark = isDark();
+  const reduced = reducedMotion();
+  const vr = vibeResult && VIBE_TEXT[vibeResult];
+  const b = (v, l) => `<button type="button" data-act="theme" data-arg="${v}" aria-pressed="${t === v}">${l}</button>`;
+  const v = voiceInfo();
+  const voice = v.state === 'ok' ? `<div class="kv"><span>Voix du téléphone</span><b class="small ell">${esc(v.name)}</b></div>` : voiceBlock();
+  return `<div class="screen settings2">${topBar('Réglages', '#/')}
+    <div class="pad">
+      ${storageBanner()}${updateBadge()}
+      ${card('theme', 'Affichage', 'aff', `
+        ${s2box('aff', 'Auto suit le réglage du téléphone (sombre ou clair). Le mode nuit passe la console en rouge atténué, pour la pénombre ; il ne s\'applique qu\'en sombre. Animations : chiffres qui roulent et bandeau du joueur qui glisse ; coupées d\'office si le téléphone demande moins d\'animations.')}
+        <div class="seg" role="group" aria-label="Thème">${b('auto', 'Auto')}${b('dark', 'Sombre')}${b('light', 'Clair')}</div>
+        <div class="rows">
+          ${srow('night', 'Mode nuit', dark ? 'Rouge atténué' : 'En thème sombre seulement', store.settings.night && dark, !dark)}
+          ${srow('anim', 'Animations', reduced ? 'Coupées par le téléphone' : null, store.settings.anim && !reduced, reduced)}
+        </div>`)}
+      ${card('sound', 'Son et voix', 'son', `
+        ${s2box('son', 'Sons : clic à chaque fléchette, bust, validation et finition. Annonces vocales : total de la volée, bust, finition jouable, manche et partie, moqueries des nuls et répliques des personnages.')}
+        <div class="rows">
+          ${srow('sound', 'Sons', null, store.settings.sound)}
+          ${srow('voice', 'Annonces vocales', null, store.settings.voice)}
+        </div>
+        ${voice}
+        <div class="btns two"><button type="button" class="btn ghost" data-act="test-voice">TESTER LA VOIX</button><button type="button" class="btn ghost" data-act="test-sound">TESTER LES SONS</button></div>`)}
+      ${card('phone', 'Vibrations', 'vib', `
+        ${s2box('vib', 'Courte à chaque fléchette, longue sur un bust. TESTER envoie trois impulsions : rien senti ? Réglages Android › Son et vibreur › Vibreur et retour haptique.')}
+        <div class="rows">${srow('vibrate', 'Vibrations', null, store.settings.vibrate)}</div>
+        <button type="button" class="btn ghost" data-act="test-vibrate">TESTER LA VIBRATION</button>
+        ${vr ? `<div class="vibe ${vibeResult === 'sent' ? '' : 'bad'}" role="status"><b>${vr[0]}</b><span>${vr[1]}</span>${store.settings.vibrate ? '' : '<span>Le réglage « Vibrations » est sur NON : en partie, rien ne vibrera.</span>'}</div>` : ''}`)}
+      ${card('data', 'Sauvegarde', null, backupBlock())}
+      ${(isApk() || store.mockApk) ? `<section class="card2 apk2">${apkBlock()}</section>` : ''}
+      ${card('info', 'À propos', null, `
+        <a class="lrow" href="#/nouveautes">${ico('news')}<span><b>Nouveautés</b><small>Ce qui change à chaque version</small></span><b class="v">v${esc(BUILD.version)}</b>${ico('chev')}</a>
+        <a class="lrow" href="#/apropos">${ico('info')}<span><b>À propos de Strela</b><small>Licences, confidentialité, contact</small></span>${ico('chev')}</a>
+        <a class="lrow" href="${store.maquette ? '#/sommaire' : '?maquette#/sommaire'}">${ico('menu')}<span><b>Sommaire de maquette</b><small>Données fictives, sans toucher aux tiennes</small></span>${ico('chev')}</a>`)}
+      <button type="button" class="fold" data-act="s2-diag" aria-expanded="${s2.diag}">${ico('wrench')}<span>Diagnostic</span>${ico(s2.diag ? 'up' : 'down')}</button>
+      ${s2.diag ? `<div class="fold-body"><p class="diag" id="diag">${esc(diagnostic())}</p><button type="button" class="btn ghost" data-act="copy-diag">COPIER LE DIAGNOSTIC</button></div>` : ''}
+      <p class="note">${store.maquette ? 'Maquette : rien n\'est enregistré.' : 'Tout est enregistré sur ce téléphone, à chaque fléchette.'}</p>
+    </div></div>`;
+}
+
 export const actions = {
+  's2-info'(k) { if (s2.info.has(k)) s2.info.delete(k); else s2.info.add(k); refresh(); },
+  's2-diag'() { s2.diag = !s2.diag; refresh(); },
   theme(v) { saveSetting('theme', v); applyTheme(); refresh(); },
   night(v) { saveSetting('night', v === '1'); applyTheme(); refresh(); },
   anim(v) { saveSetting('anim', v === '1'); applyTheme(); refresh(); },

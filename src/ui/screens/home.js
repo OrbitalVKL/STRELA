@@ -11,6 +11,9 @@ import { BUILD } from '../build.js';
 import { storageBanner, updateBadge } from './settings.js';
 import { isApk } from '../native.js';
 
+/** Lot 7.8 : aussi pour l'accueil de la refonte (v2/home2.js). */
+export function resumeButtonHtml() { return resumeButton(); }
+
 function resumeButton() {
   const s = currentState();
   if (!s) return '';

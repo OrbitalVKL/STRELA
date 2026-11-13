@@ -10,14 +10,17 @@ import { refresh, go } from '../nav.js';
 import { isDeletedId } from '../../engine/players.js';
 
 let period = '30j';
+/** Lot 7.8 : partagés avec la refonte (screens/v2/stats2.js). */
+export const currentPeriod = () => period;
+export const pickedBoard = () => picked.board;
 let picked = { board: null, point: null };
 
 // ------------------------------------------------------------------ cible (même dessin que le jeu, en carte de chaleur)
 /** Nombre d'impacts d'une zone (« T20 », « D16 », « 5 », « 25 », « 50 »). */
-const countOf = (seg, key) => (key === '25' ? seg[25][0] : key === '50' ? seg[25][1]
+export const countOf = (seg, key) => (key === '25' ? seg[25][0] : key === '50' ? seg[25][1]
   : key[0] === 'T' ? seg[Number(key.slice(1))][2] : key[0] === 'D' ? seg[Number(key.slice(1))][1] : seg[Number(key)][0]);
 
-function board(seg) {
+export function board(seg) {
   let max = 1;
   for (let s = 1; s <= 20; s++) max = Math.max(max, ...seg[s]);
   max = Math.max(max, seg[25][0], seg[25][1]);
@@ -131,7 +134,7 @@ function worstList(rows) {
 // ------------------------------------------------------------------ face-à-face (lot 3)
 const words = (n, one, many) => `${n} ${n > 1 ? many : one}`;
 /** « 7 VICTOIRES · 3 DÉFAITES » (bilan en toutes lettres, sans s'appuyer sur la couleur). */
-const tally = (won, lost) => `${words(won, 'VICTOIRE', 'VICTOIRES')} · ${words(lost, 'DÉFAITE', 'DÉFAITES')}`;
+export const tally = (won, lost) => `${words(won, 'VICTOIRE', 'VICTOIRES')} · ${words(lost, 'DÉFAITE', 'DÉFAITES')}`;
 
 /** Une partie commune : date, GAGNÉ / PERDU / GAGNÉE PAR …, score en manches, moyenne de chacun. */
 function faceRow(r, me, op) {
