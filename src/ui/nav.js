@@ -18,22 +18,27 @@ export function go(hash, { replace = false } = {}) {
 // Adresse précédente (tenue par app.js) : un « retour » revient en arrière si c'est d'où l'on vient.
 let prev = '';
 let cur = '';
-export function noteRoute(hash) { if (hash !== cur) { prev = cur; cur = hash; } trackFamily(hash); }
+/** Note l'adresse affichée ; renvoie vrai si l'on revient à un écran déjà ouvert (retour), faux si l'on avance. */
+export function noteRoute(hash) { if (hash !== cur) { prev = cur; cur = hash; } return trackFamily(hash); }
 
 // Version 0.8.1 : « d'où l'on vient », par famille d'écrans (premier mot de l'adresse : stats, partie, soiree…).
 // Ouvrir une famille l'empile ; y revenir dépile ce qui a été ouvert depuis ; changer d'écran dans une famille (un autre
 // joueur dans les Stats) ne change pas d'où elle a été ouverte. Le retour d'un écran de détail (backFrom) revient à
 // l'écran d'avant sa famille : des Stats ouvertes depuis le tableau de bord d'une soirée y reviennent, au lieu de
 // l'accueil. Jamais vers le jeu (on n'y revient que par REPRENDRE).
-const FAMILY_ALIAS = { classement: 'stats' }; // onglets Joueur / Classement des Stats
+const FAMILY_ALIAS = { classement: 'stats', honneur: 'stats' }; // onglets Joueur / Classement des Stats
 const NO_RETURN = new Set(['jeu', 'manche', 'fin', 'nouvelle', 'recadrage']);
 const family = h => { const f = String(h).replace(/^#\/?/, '').split(/[/?]/)[0]; return FAMILY_ALIAS[f] || f; };
 const stack = [];
 function trackFamily(hash) {
   const f = family(hash);
-  if (f === '') { stack.length = 0; stack.push({ f, hash }); return; }
+  if (f === '') { const back = stack.length > 1; stack.length = 0; stack.push({ f, hash }); return back; }
   const i = stack.findIndex(e => e.f === f);
-  if (i >= 0) { stack.length = i + 1; stack[i].hash = hash; } else stack.push({ f, hash });
+  if (i < 0) { stack.push({ f, hash }); return false; }
+  // Retour : on redescend dans la pile vers un écran ouvert plus tôt, à la même adresse.
+  const back = i < stack.length - 1 && stack[i].hash === hash;
+  stack.length = i + 1; stack[i].hash = hash;
+  return back;
 }
 /** Adresse du lien Retour d'un écran de détail : l'écran d'où sa famille a été ouverte, sinon `fallback`. */
 export function backFrom(fallback) {

@@ -3,16 +3,19 @@
 // Les deux montrent la cible : volée de la finition numérotée, volées précédentes du vainqueur dans la manche en discret.
 // La fin de manche sert de validation de la volée gagnante (pas de VALIDER en jeu pour une finition) : MANCHE SUIVANTE
 // l'enregistre (`validated`), une reprise avant cela revient sur cet écran.
-import { store, currentState, playerById, archiveCurrent, startGame, saveCurrent, gameDrinking } from '../store.js';
+import { store, currentState, playerById, archiveCurrent, startGame, saveCurrent, gameDrinking, addDrink } from '../store.js';
+import { gameRecords } from '../../engine/records.js';
+import { drinkSizeSeg, pintMode, plusDrink } from '../drinks.js';
 import { esc, avg, int, OUT_LABEL, maquetteButtons } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
 import { formatDart } from '../../engine/darts.js';
 import { playerSummary } from '../../engine/stats.js';
 import { boardSvg, impactsFor, markIcon } from '../board.js';
 import { go } from '../nav.js';
-import { undo, celebrationHtml, placeLabel, drinksSection } from './game.js';
+import { undo, celebrationHtml, placeLabel, drinksSection, recordsOf } from './game.js';
 import { standings, lastPlaces } from '../../engine/ranking.js';
 import { sheetSection } from './printsheet.js';
+import { gameBadgesHtml } from '../honours.js';
 
 const route = v => v.darts.map(d => formatDart(d).replace(/^S/, '')).join(' · ');
 
@@ -75,7 +78,9 @@ export function matchEnd() {
       <b class="caps" style="letter-spacing:.12em">Partie terminée</b><span class="small b">${g.config.startScore} · ${OUT_LABEL[g.config.outMode]}</span></div>
     <div class="result-head">${avatarHtml(p, 88)}<div style="min-width:0"><span class="t dim">VAINQUEUR</span><span class="nm">${esc(p.name)}</span>
       ${legsTxt ? `<span class="small b">${legsTxt}</span>` : ''}</div></div>
-    ${payers.length ? tourneeHtml(payers) : ''}
+    ${payers.length ? tourneeHtml(payers, g) : ''}
+    ${recordsHtml(g, s)}
+    ${gameBadgesHtml(g)}
     ${finishBoard(g, s, winVisit, p)}
     <div class="pad">
       <div class="sec" style="margin-top:6px">${multi ? 'Classement' : 'Résumé'}</div>
@@ -96,13 +101,28 @@ export function matchEnd() {
   </div>`;
 }
 
-/** Le dernier paie sa tournée (lot 7) ; à égalité, ils la partagent. */
-function tourneeHtml(payers) {
+/**
+ * Le dernier paie sa tournée (lot 7) ; à égalité, ils la partagent. C'est une indication (demande de Guillaume) : rien
+ * n'est noté tant qu'on n'appuie pas sur TOURNÉE SERVIE (lot 9), qui ajoute un verre (ou une pinte) à chaque joueur,
+ * une seule fois.
+ */
+function tourneeHtml(payers, g) {
   const one = payers.length === 1;
+  const served = !!g.ui.served;
   return `<div class="tournee inv" role="note">
     <span class="t">${one ? 'LE DERNIER PAIE SA TOURNÉE' : 'DERNIERS À ÉGALITÉ : ILS PARTAGENT LA TOURNÉE'}</span>
     <div class="who">${payers.map(q => `<span class="pl">${avatarHtml(q, 40)}<b class="nm">${esc(q.name)}</b></span>`).join('')}</div>
+    ${served ? `<span class="served">TOURNÉE SERVIE : ${g.ui.served} POUR CHACUN, NOTÉ DANS LES VERRES</span>`
+      : `<div class="tserve">${drinkSizeSeg()}<button type="button" class="btn" data-act="tournee-serve">${plusDrink()} TOURNÉE SERVIE</button></div>`}
   </div>`;
+}
+
+/** Lot 9 : records personnels battus pendant la partie (par rapport aux parties d'avant). */
+function recordsHtml(g, s) {
+  const items = g.config.players.flatMap((id, p) => gameRecords(recordsOf(id), s, p).map(r => ({ ...r, p: playerById(id) })));
+  if (!items.length) return '';
+  return `<div class="pad"><div class="sec">Records battus</div><ul class="recs">${items.map(r => `<li>${avatarHtml(r.p, 28)}<span class="nm ell">${esc(r.p.name)}</span>
+    <span class="rl">${esc(r.label)}</span><b>${esc(r.value)}</b><small>avant : ${esc(r.before)}</small></li>`).join('')}</ul></div>`;
 }
 
 /** Cible de la finition : la volée gagnante numérotée, les volées précédentes du vainqueur dans la manche. */
@@ -131,10 +151,22 @@ export const actions = {
     // Mêmes réglages ; le premier à lancer passe au joueur suivant. Lot 7.6 : si l'ordre avait été tiré au sort, la
     // revanche le tire de nouveau (avant, elle gardait l'ordre tiré en le décalant d'un cran).
     const shuffled = !!store.current.shuffled;
+    const defis = store.current.defis || 'non';
     const players = shuffled ? [...c.players] : [...c.players.slice(1), c.players[0]];
     archiveCurrent(false);
-    startGame({ players, startScore: c.startScore, outMode: c.outMode, legsToWin: c.legsToWin, playOn: !!c.playOn, ...(shuffled ? { shuffle: true } : {}) });
+    // Lot 9 : la revanche garde le handicap de chacun.
+    const starts = c.starts ? Object.fromEntries(c.players.map((id, i) => [id, c.starts[i]])) : null;
+    startGame({ players, startScore: c.startScore, outMode: c.outMode, legsToWin: c.legsToWin, playOn: !!c.playOn, ...(shuffled ? { shuffle: true } : {}),
+      ...(starts ? { handicap: true, starts } : {}), defis });
     go('#/jeu', { replace: true });
   },
   'finish-home'() { archiveCurrent(false); go('#/'); },
+  'tournee-serve'() {
+    const g = store.current;
+    if (!g || g.ui.served) return;
+    const now = Date.now();
+    for (const id of g.config.players) addDrink(id, now, pintMode());
+    g.ui.served = pintMode() ? 'UNE PINTE' : 'UN VERRE';
+    go('#/fin', { replace: true });
+  },
 };

@@ -10,6 +10,7 @@
 // Les données viennent de soireeModel() (engine/soiree.js) ; `who(id)` donne { name, color, initials, img }.
 import { PAGE_W, PAGE_H } from './sheet.js';
 import { mix } from './theme.js';
+import { litersText } from '../engine/alcohol.js';
 
 const LW = 794, LH = 1123, MX = 34;
 const K = PAGE_W / LW;
@@ -62,6 +63,17 @@ function glass(x, X, Y, s = 8, color = INK) {
   x.beginPath(); x.moveTo(X + 1.5 * k, Y + 3.5 * k); x.lineTo(X + 6.5 * k, Y + 3.5 * k); x.lineTo(X + 5.9 * k, Y + 8.5 * k); x.lineTo(X + 2.1 * k, Y + 8.5 * k); x.closePath(); x.fill();
 }
 
+/** Pinte (0.8.2) : chope à anse, plus haute que le verre ; s = largeur du corps + anse (comme le verre). */
+function pintGlyph(x, X, Y, s = 8, color = INK) {
+  const k = s / 8;
+  x.strokeStyle = color; x.lineWidth = 0.9 * k; x.fillStyle = color;
+  x.strokeRect(X + 0.5 * k, Y - 2 * k, 5.6 * k, 11 * k);
+  x.fillRect(X + 1.1 * k, Y + 1.2 * k, 4.4 * k, 7.2 * k);
+  x.beginPath(); x.moveTo(X + 6.1 * k, Y + 0.8 * k); x.lineTo(X + 8.2 * k, Y + 0.8 * k); x.lineTo(X + 8.2 * k, Y + 5.6 * k); x.lineTo(X + 6.1 * k, Y + 5.6 * k); x.stroke();
+}
+/** Un verre enregistré : verre de 25 cl ou pinte. */
+const drinkGlyph = (x, d, X, Y, s, color = INK) => (d.pint ? pintGlyph(x, X, Y, s, color) : glass(x, X, Y, s, color));
+
 /** Avatar carré : photo ou pictogramme (image préparée), sinon initiales, sur la couleur du joueur. */
 function face(x, p, X, Y, s) {
   rect(x, X, Y, s, s, p.color);
@@ -107,7 +119,7 @@ function header(x, m, page, label) {
   T(x, m.oneDay ? `${DAYS[d.getDay()]} ${dm(d)}` : `DU ${dm(d)} AU ${dm(e)}`, MX + 16, 79, { px: 22, w: 700, color: ON_RED, ls: 2.6, max: 380 });
   const R = LW - MX - 16;
   T(x, `${m.oneDay ? `${hhmm(m.start)} → ${hhmm(m.endAt)} · ` : ''}${plural(m.games, 'PARTIE', 'PARTIES')} · ${plural(m.rows.length, 'JOUEUR', 'JOUEURS')}`, R, 58, { px: 11, color: ON_RED, ls: 0.7, align: 'right' });
-  const w = T(x, `x${m.drinks} VERRE${m.drinks > 1 ? 'S' : ''}`, R, 77, { px: 11, color: ON_RED, ls: 0.7, align: 'right' });
+  const w = T(x, `x${m.drinks} VERRE${m.drinks > 1 ? 'S' : ''}${m.drinks ? ` · ${litersText(m.liters).toUpperCase()}` : ''}`, R, 77, { px: 11, color: ON_RED, ls: 0.7, align: 'right' });
   glass(x, R - w - 13, 67, 8, ON_RED);
 }
 function footer(x, page) {
@@ -208,8 +220,10 @@ function card(x, m, who, r, i, W, maxAvg) {
     tx += T(x, t, tx, 138, { px: 9, color: MUT, ls: 0.5 }) + 5;
     tx += T(x, v, tx, 138, { px: 11, w: 700 }) + 14;
   }
-  const gn = Math.min(r.drinks, Math.floor((W - 160) / 9.5));
-  for (let k = 0; k < gn; k++) glass(x, 10 + k * 9.5, 146, 7.5);
+  // Verres dessinés dans l'ordre où ils ont été pris (0.8.2 : la pinte est une chope, elle compte pour 2).
+  const list = m.drinkList[r.id] || [];
+  const gn = Math.min(list.length, Math.floor((W - 172) / 9.5));
+  for (let k = 0; k < gn; k++) drinkGlyph(x, list[k], 10 + k * 9.5, 146, 7.5);
   T(x, r.drinks ? `x${r.drinks}` : 'aucun verre', 10 + gn * 9.5 + (gn ? 4 : 0), 155, { px: 10, color: MUT });
   // Cible et triples, à droite.
   board(x, m.sectors[r.id] || {}, W - 66, 66, 52);
@@ -225,7 +239,8 @@ function pageB(x, m, who) {
   lx += T(x, '↓', lx, 130, { px: 9, w: 700, color: RED });
   lx += T(x, ' : dernier, il paie sa tournée · ', lx, 130, { px: 9, color: MUT });
   glass(x, lx + 1, 122, 6.5, MUT);
-  T(x, ' : un verre, à son heure', lx + 9, 130, { px: 9, color: MUT });
+  lx += 9 + T(x, ' : un verre, à son heure', lx + 9, 130, { px: 9, color: MUT });
+  if (m.rows.some(r => r.tally.pints)) { pintGlyph(x, lx + 8, 123, 6.5, MUT); T(x, ' : une pinte (2 verres)', lx + 17, 130, { px: 9, color: MUT }); }
   const n = m.rows.length;
   const L = MX + 94, R = LW - MX - 4;
   const lastDrink = Math.max(0, ...Object.values(m.drinkTimes).flat());
@@ -268,13 +283,14 @@ function pageB(x, m, who) {
     T(x, p.name.toUpperCase(), MX + s + 6, y + Math.min(12, laneH / 2), { px: laneH < 26 ? 8 : 9, w: 700, max: L - MX - s - 10 });
     if (laneH >= 22) T(x, `x${r.drinks} verre${r.drinks > 1 ? 's' : ''}`, MX + s + 6, y + Math.min(23, laneH - 6), { px: 8, color: MUT });
     hline(x, L, R, base, RULE, 0.6);
-    const ts = m.drinkTimes[r.id] || [];
-    const stepH = Math.min(2, (laneH - 16) / Math.max(1, ts.length));
+    const ds = m.drinkList[r.id] || [];
+    const stepH = Math.min(2, (laneH - 16) / Math.max(1, r.drinks));
     x.strokeStyle = RULE; x.lineWidth = 1; x.beginPath(); x.moveTo(L, base);
-    ts.forEach((t, k) => { x.lineTo(tx(t), base - k * stepH); x.lineTo(tx(t), base - (k + 1) * stepH); });
-    x.lineTo(R, base - ts.length * stepH); x.stroke();
+    let lvl = 0; // cumul en verres de 25 cl : une pinte monte de 2
+    ds.forEach(d => { x.lineTo(tx(d.t), base - lvl * stepH); lvl += d.pint ? 2 : 1; x.lineTo(tx(d.t), base - lvl * stepH); });
+    x.lineTo(R, base - lvl * stepH); x.stroke();
     const gs = Math.min(8, laneH * 0.3);
-    ts.forEach(t => glass(x, tx(t) - gs / 2, base - gs * 1.25 - 4, gs));
+    ds.forEach(d => drinkGlyph(x, d, tx(d.t) - gs / 2, base - gs * 1.25 - 4, gs));
   });
   // Moyenne de chaque partie
   let y = laneBot + 42;
@@ -325,8 +341,29 @@ function pageB(x, m, who) {
     T(x, who(t.id).name.toUpperCase(), X + 52, Y + 31, { px: 11.5, w: 700, color: inv ? PAPER : INK, max: tw - 58 });
     T(x, `${t.value}${t.detail ? ` · ${t.detail}` : ''}`, X + 52, Y + 44, { px: 9, color: inv ? PAPER : INK, max: tw - 58 });
   });
-  // Les parties, s'il reste de la place.
   y += 14 + Math.ceil(m.trophies.length / 3) * 60 + 22;
+  // Lot 9 : la moyenne de chacun au fil des verres (avant la liste des parties), s'il y a eu des verres.
+  if (m.drinks > 0 && m.levels) {
+    const rowH = Math.min(17, Math.max(11, (LH - 60 - y - 60) / (m.rows.length + 1)));
+    h2(x, 'MOYENNE AU FIL DES VERRES', MX, y);
+    const c0 = MX + 140, cw = (LW - MX - c0) / 6;
+    ['AUCUN', '1 VERRE', '2', '3', '4', '5 ET +'].forEach((h, k) => T(x, h, c0 + k * cw + cw / 2, y + 18, { px: 8, color: MUT, align: 'center', ls: 0.5 }));
+    m.rows.forEach((r, j) => {
+      const Y = y + 22 + j * rowH, lv = m.levels[r.id], p = who(r.id);
+      rect(x, MX, Y + 2, rowH - 4, rowH - 4, p.color);
+      T(x, p.name.toUpperCase(), MX + rowH + 2, Y + rowH - 4, { px: Math.min(9, rowH - 4), w: 700, max: c0 - MX - rowH - 8 });
+      const maxAvg = Math.max(1, ...lv.levels.map(L => L.average || 0));
+      lv.levels.forEach((L, k) => {
+        const X = c0 + k * cw;
+        if (!L.darts) { T(x, '·', X + cw / 2, Y + rowH - 4, { px: 9, color: RULE, align: 'center' }); return; }
+        rect(x, X + 2, Y + 2, (cw - 4) * (L.average / maxAvg), rowH - 4, L.level === lv.best ? mix(RED, 0.35, PAPER) : F08);
+        T(x, dec(L.average), X + cw / 2, Y + rowH - 4, { px: Math.min(9, rowH - 4), w: L.level === lv.best ? 800 : 400, align: 'center' });
+      });
+      hline(x, MX, LW - MX, Y + rowH, RULE, 0.4);
+    });
+    y += 22 + m.rows.length * rowH + 24;
+  }
+  // Les parties, s'il reste de la place.
   const room = Math.floor((LH - 40 - y - 16) / 15);
   if (room >= 2) {
     h2(x, 'LES PARTIES', MX, y);

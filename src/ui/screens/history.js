@@ -9,7 +9,8 @@ import { gameState, gameWinner, playerSummary } from '../../engine/stats.js';
 import { formatDart } from '../../engine/darts.js';
 import { boardSvg, impactsFor, markIcon } from '../board.js';
 import { legTable, cellHtml } from '../table.js';
-import { drinksTimeline } from '../../engine/alcohol.js';
+import { drinksTimeline, drinkTally } from '../../engine/alcohol.js';
+import { drinkSizeSeg, plusDrink, plusLabel, pintMode, drinkCount } from '../drinks.js';
 import { sheetSection } from './printsheet.js';
 import { go, refresh, backFrom } from '../nav.js';
 
@@ -62,15 +63,16 @@ export function historyDetail(id) {
   // Version 0.8.1 : verres de la partie, corrigeables (oubli, erreur, verres resaisis d'une partie à l'autre).
   const drinkRows = g.config.players.map(pid => {
     const p = playerById(pid);
-    const here = (g.drinks && g.drinks[pid] && g.drinks[pid].length) || 0;
+    const here = drinkTally(g.drinks && g.drinks[pid]);
     const total = gameDrinks(g, pid);
+    const records = (g.drinks && g.drinks[pid] && g.drinks[pid].length) || 0;
     return `<li>${avatarHtml(p, 32)}<div class="col"><span class="nm ell">${esc(p.name)}</span>
-        <span class="small dim">${ico('glass')} x${here} dans la partie${g.soiree && total !== here ? ` · x${total} depuis le début de la soirée` : ''}</span></div>
-      <button type="button" class="mv" data-act="gdrink-minus" data-arg="${esc(`${g.id}|${pid}`)}" ${here ? '' : 'disabled'} aria-label="Retirer un verre à ${esc(p.name)}">${ico('minus')}</button>
-      <button type="button" class="mv add" data-act="gdrink-plus" data-arg="${esc(`${g.id}|${pid}`)}" aria-label="Un verre de plus pour ${esc(p.name)}">${ico('plus')}${ico('glass')}</button></li>`;
+        ${drinkCount(here.units, here)}${g.soiree && total !== here.units ? `<small class="dkd">x${total} depuis le début de la soirée</small>` : ''}</div>
+      <button type="button" class="mv" data-act="gdrink-minus" data-arg="${esc(`${g.id}|${pid}`)}" ${records ? '' : 'disabled'} aria-label="Retirer le dernier verre de ${esc(p.name)}">${ico('minus')}</button>
+      <button type="button" class="mv add" data-act="gdrink-plus" data-arg="${esc(`${g.id}|${pid}`)}" aria-label="${esc(plusLabel(p.name))}">${plusDrink()}</button></li>`;
   }).join('');
-  const drinks = `<div class="pad" style="margin-top:18px">${infoSec('Verres', 'detail-drinks')}${infoBox('detail-drinks', 'Les verres pris pendant cette partie, à corriger avec − et + (un verre ajouté ici compte à la fin de la partie). Dans une soirée, les parties suivantes reprennent le nouveau cumul.')}
-    <ul class="drinks">${drinkRows}</ul></div>`;
+  const drinks = `<div class="pad" style="margin-top:18px">${infoSec('Verres', 'detail-drinks')}${infoBox('detail-drinks', 'Les verres pris pendant cette partie, à corriger avec − et + (un verre ajouté ici compte à la fin de la partie). Verre de 25 cl ou pinte de 50 cl : une pinte compte pour 2 verres. Dans une soirée, les parties suivantes reprennent le nouveau cumul.')}
+    ${drinkSizeSeg()}<ul class="drinks">${drinkRows}</ul></div>`;
   return `<div class="screen">${topBar('Détail de la partie', backFrom('#/historique'))}${head}${table}${gameLog(g, s, { abandoned: g.abandoned })}${drinks}
     <div class="pad" style="margin-top:22px">${sheetSection(g)}</div>
     <div class="pad" style="margin-top:22px">${del}</div></div>`;
@@ -142,6 +144,6 @@ export const actions = {
   'del-game-no'() { askDetail = null; refresh(); },
   'del-game-yes'(id) { askDetail = null; deleteGames([id]); go('#/historique', { replace: true }); },
   // Verres d'une partie de l'historique (0.8.1)
-  'gdrink-plus'(arg) { const [gid, pid] = String(arg).split('|'); editGameDrinks(gid, pid, 1); refresh(); },
+  'gdrink-plus'(arg) { const [gid, pid] = String(arg).split('|'); editGameDrinks(gid, pid, 1, pintMode()); refresh(); },
   'gdrink-minus'(arg) { const [gid, pid] = String(arg).split('|'); editGameDrinks(gid, pid, -1); refresh(); },
 };

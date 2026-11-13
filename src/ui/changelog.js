@@ -2,6 +2,24 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.9.0', date: '2026-11-13', title: 'Soirée, défis, records et badges', items: [
+    'Défis de soirée (option au lancement : parfois ou souvent) : de temps en temps, un défi tiré au sort s\'affiche en plein écran avant la volée (« UN TRIPLE, SINON UN VERRE », « UN BULL : LES AUTRES BOIVENT »…) ; il reste rappelé pendant la volée, et le gage se note d\'un appui.',
+    'Badges : 16 à gagner (premier 180, finition 100+, 3 d\'affilée, bu et gagné, champion du mois…), dans une vitrine des stats de chaque joueur avec ses records datés ; annoncés en fin de partie.',
+    'Tableau d\'honneur (Stats › Honneur) : les badges gagnés et les records battus de tout le monde, mois par mois.',
+    'Résumé de soirée à partager : une image au format téléphone (podium et six faits marquants), depuis le tableau de bord de la soirée.',
+    'Verres : « UN VERRE POUR TOUS » (ou une pinte) dans le panneau des verres ; en fin de partie, la tournée reste indicative, et TOURNÉE SERVIE la note d\'un appui pour chacun.',
+    'Stats : la moyenne au fil des verres (aucun, 1, 2… 5 verres et plus), le niveau où chacun joue le mieux et l\'écart avec la moyenne à jeun ; aussi au tableau de bord et dans le rapport de soirée.',
+    'Stats : comparer deux joueurs sur la même courbe.',
+    'Records personnels : meilleure volée annoncée en direct (« Record personnel pour… ») ; en fin de partie, les records battus (volée, moyenne, manche la plus courte, finition).',
+    'Handicap : un score de départ par joueur (301, 501, 701), au lancement ; la revanche le garde.',
+    'Appli Android : sauvegarde automatique dans Téléchargements/Strela à la fin de chaque soirée et chaque semaine (réglage pour la couper).',
+  ] },
+  { v: '0.8.2', date: '2026-11-13', title: 'Pintes, et rien ne se remet à zéro', items: [
+    'Verres : verre de 25 cl ou pinte de 50 cl, à choisir au-dessus de la liste avant d\'appuyer sur + ; une pinte compte pour 2 verres, et le détail est écrit (« 1 verre + 2 pintes »).',
+    'Rapport de soirée : les pintes sont dessinées en chope, et le total est aussi donné en litres.',
+    'Navigation : la page, les rangées qui défilent et la courbe gardent leur position quand on change d\'indicateur ou de joueur ; au retour, un écran reprend là où on l\'avait laissé.',
+    'Tableau de bord d\'une soirée : les noms des joueurs ne sont plus en bleu souligné.',
+  ] },
   { v: '0.8.1', date: '2026-11-13', title: 'Corrections de la refonte', items: [
     'Rapport de soirée : l\'export en PDF ou en image marche dans l\'appli (nom de fichier refusé jusque-là).',
     'Verres : se corrigent dans le détail de chaque partie (− et +) ; une soirée où les verres ont été resaisis à chaque partie se corrige d\'un appui depuis son tableau de bord (et la correction s\'annule).',

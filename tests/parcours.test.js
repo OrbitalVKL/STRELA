@@ -159,7 +159,7 @@ test('501 à 2 joueurs de bout en bout, retrouvée à l’identique dans l’his
   assert.deepEqual(g.darts, ds(notation));
   assert.equal(g.abandoned, false);
   assert.deepEqual(db.current.config.players, [ids.Bravo, ids.Alpha]);
-  assert.deepEqual(db.settings.lastSetup, { players: [ids.Bravo, ids.Alpha], startScore: 501, outMode: 'double', legsToWin: 1, shuffle: false, playOn: false });
+  assert.deepEqual(db.settings.lastSetup, { players: [ids.Bravo, ids.Alpha], startScore: 501, outMode: 'double', legsToWin: 1, shuffle: false, playOn: false, handicap: false, starts: {}, defis: 'non' });
 
   // Historique : la partie, son vainqueur, et chaque case du tableau tour par tour.
   await page.click('[data-act="pause"]');

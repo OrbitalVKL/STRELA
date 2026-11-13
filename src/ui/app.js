@@ -28,6 +28,9 @@ import { history2List, leaveHistory2, actions as history2Actions } from './scree
 import { home2, changelogScreen } from './screens/v2/home2.js';
 import { soireeDashScreen, actions as dashActions } from './screens/v2/soireedash.js';
 import { actions as infoActions } from './info.js';
+import { actions as drinkActions } from './drinks.js';
+import { weeklyAutoBackup } from './autobackup.js';
+import { honourScreen, actions as honourActions } from './honours.js';
 
 // Version 0.8.0 : la refonte (lot 7.8, écrans de screens/v2/) remplace l'accueil, l'historique, les stats et les
 // réglages ; accueil A « tableau de bord » (choix de Guillaume, 13/11/2026).
@@ -45,6 +48,7 @@ const ROUTES = [
   [/^\/partie\/(.+)$/, historyDetail],
   [/^\/stats(?:\/(.+))?$/, stats2Screen],
   [/^\/classement$/, rankingScreen],
+  [/^\/honneur$/, honourScreen],
   [/^\/nouveautes$/, changelogScreen],
   [/^\/face\/([^/]+)\/(.+)$/, faceScreen],
   [/^\/reglages$/, settings2Screen],
@@ -57,7 +61,7 @@ const ROUTES = [
 const ACTIONS = {
   ...playerActions, ...newGameActions, ...gameActions, ...resultActions,
   ...statsActions, ...settingsActions, ...historyActions, ...photoActions, ...aboutActions, ...sheetActions, ...soireeActions,
-  ...stats2Actions, ...history2Actions, ...dashActions, ...infoActions,
+  ...stats2Actions, ...history2Actions, ...dashActions, ...infoActions, ...drinkActions, ...honourActions,
 };
 const INPUTS = { ...playerInputs };
 
@@ -73,26 +77,70 @@ function render() {
   try { draw(); } catch (e) { if (window.strelaRescue) window.strelaRescue(e); else throw e; }
 }
 
+// Version 0.8.2 (demande de Guillaume : « les affichages ne doivent pas se remettre à zéro pendant la navigation ») :
+// - d'un rendu à l'autre du même écran (une action, un autre joueur dans les Stats), la page et tout bloc qui défile
+//   (rangée de pastilles, tableau, panneau) gardent leur position ;
+// - en revenant à un écran déjà ouvert (retour), la page reprend là où on l'avait laissée ; en avançant, elle part du haut ;
+// - la courbe ([data-hscroll]) garde le même endroit sous le doigt, même quand sa largeur change (zoom) ; la première
+//   fois, elle est calée à droite (les parties les plus récentes).
+let lastScreen = -1;       // rang, dans ROUTES, de l'écran dessiné
+let lastHash = null;
+const pageY = new Map();   // adresse → défilement de la page en la quittant
+const sig = el => `${el.tagName}|${el.getAttribute('class') || ''}`;
+/** Positions de défilement des blocs de l'écran : clé = balise, classes et rang parmi ses semblables. */
+function scrollsOf(root) {
+  const out = new Map();
+  const seen = new Map();
+  for (const el of root.querySelectorAll('*')) {
+    const k = sig(el);
+    const n = seen.get(k) || 0;
+    seen.set(k, n + 1);
+    if (el.scrollLeft || el.scrollTop) out.set(`${k}#${n}`, { left: el.scrollLeft, top: el.scrollTop });
+  }
+  return out;
+}
+function restoreScrolls(root, saved) {
+  if (!saved.size) return;
+  const seen = new Map();
+  for (const el of root.querySelectorAll('*')) {
+    const k = sig(el);
+    const n = seen.get(k) || 0;
+    seen.set(k, n + 1);
+    const s = saved.get(`${k}#${n}`);
+    if (s && !el.dataset.hscroll) { el.scrollLeft = s.left; el.scrollTop = s.top; }
+  }
+}
+
 function draw() {
   const path = decodeURIComponent(location.hash.replace(/^#/, ''));
-  noteRoute(location.hash || '#/');
+  const returning = noteRoute(location.hash || '#/');
   if (path !== lastPath) { leaveHistory(path); leaveHistory2(path); } // sélection et confirmations de l'historique oubliées en changeant d'écran
   let html = null;
-  for (const [re, screen] of ROUTES) {
+  let screenIdx = -1;
+  for (const [i, [re, screen]] of ROUTES.entries()) {
     const m = re.exec(path);
-    if (m) { html = screen(...m.slice(1)); break; }
+    if (m) { html = screen(...m.slice(1)); screenIdx = i; break; }
   }
   if (html === null) { go('#/', { replace: true }); return; }
   if (!html) return; // l'écran a redirigé
-  const samePage = path === lastPath;
+  const sameScreen = screenIdx === lastScreen;
   const y = window.scrollY;
-  // Lot 7.8 : blocs à défilement horizontal (courbe zoomée) : position gardée d'un rendu à l'autre tant que leur clé
-  // ne change pas ; sinon calés à droite (les parties les plus récentes).
-  const hs = new Map([...app.querySelectorAll('[data-hscroll]')].map(e => [e.dataset.hscroll, e.scrollLeft]));
+  if (lastHash !== null) pageY.set(lastHash, y);
+  const blocks = sameScreen ? scrollsOf(app) : new Map();
+  const hs = new Map([...app.querySelectorAll('[data-hscroll]')].map(e => [e.dataset.hscroll, { left: e.scrollLeft, sw: e.scrollWidth, cw: e.clientWidth }]));
   app.innerHTML = html;
-  window.scrollTo(0, samePage ? y : 0);
-  for (const e of app.querySelectorAll('[data-hscroll]')) e.scrollLeft = hs.has(e.dataset.hscroll) ? hs.get(e.dataset.hscroll) : e.scrollWidth;
+  for (const e of app.querySelectorAll('[data-hscroll]')) {
+    const s = hs.get(e.dataset.hscroll);
+    // Même endroit au centre du bloc (à largeur égale : même position) ; jamais vu, ou il ne défilait pas encore
+    // (zoom ×1) : calé à droite.
+    e.scrollLeft = !s || s.sw <= s.cw + 1 ? e.scrollWidth : s.sw === e.scrollWidth ? s.left : ((s.left + s.cw / 2) / s.sw) * e.scrollWidth - e.clientWidth / 2;
+  }
+  restoreScrolls(app, blocks);
+  const hash = location.hash || '#/';
+  window.scrollTo(0, sameScreen ? y : returning ? (pageY.get(hash) || 0) : 0);
   lastPath = path;
+  lastScreen = screenIdx;
+  lastHash = hash;
   // Chiffres en rouleau (reste, total, autres joueurs) : animés depuis la valeur affichée au rendu précédent.
   rollScope(store.current ? store.current.id : null);
   animateRolls(app, animationsOn());
@@ -121,10 +169,12 @@ function draw() {
 let autoChecked = false;
 const IN_GAME = new Set(['/jeu', '/manche', '/fin', '/recadrage']);
 function autoUpdateCheck(path) {
+  if (!weeklyChecked && !store.maquette && !IN_GAME.has(path)) { weeklyChecked = true; weeklyAutoBackup(); } // lot 9
   if (autoChecked || store.maquette || !hasUpdater() || IN_GAME.has(path)) return;
   autoChecked = true;
   if (store.settings.autoUpdate) call('autoCheckUpdate');
 }
+let weeklyChecked = false;
 setRenderer(render);
 setStorageListener(() => render());
 // Sauvegarde de ce que l'appli a en mémoire (écran de secours, si la base ne se relit pas).

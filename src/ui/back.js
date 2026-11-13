@@ -8,6 +8,7 @@
 export const CLOSERS = [
   'fix-cancel',       // correction d'une fléchette
   'abandon-no',       // confirmations du menu pause
+  'defi-ok',          // carte d'un défi (lot 9)
   'resume',           // menu pause
   'drinks-close',     // panneau des verres (lot 7.6)
   'soiree-end-no',    // terminer la soirée (lot 7.6)

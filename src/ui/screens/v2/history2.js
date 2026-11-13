@@ -9,6 +9,7 @@ import { store, playerById, deleteGames, setGamesSoiree, newSoireeId } from '../
 import { esc, ico, topBar, plural } from '../../dom.js';
 import { avatarHtml } from '../../avatars.js';
 import { gameState, gameWinner } from '../../../engine/stats.js';
+import { unitsOf } from '../../../engine/alcohol.js';
 import { refresh } from '../../nav.js';
 import { historyEmpty } from '../history.js';
 
@@ -133,7 +134,7 @@ export function history2List() {
       lastMonth = mk;
     }
     const isOpen = open.has(grp.key);
-    const drinks = grp.games.reduce((n, g) => n + (g.drinks ? Object.values(g.drinks).reduce((a, l) => a + l.length, 0) : 0), 0);
+    const drinks = grp.games.reduce((n, g) => n + (g.drinks ? Object.values(g.drinks).reduce((a, l) => a + unitsOf(l), 0) : 0), 0);
     const players = [...new Set(grp.games.flatMap(g => g.config.players))];
     const span = grp.games.length > 1 ? `${hhmm(first.startedAt)} – ${hhmm(grp.games[0].startedAt)}` : hhmm(first.startedAt);
     body += `<li class="hgroup${isOpen ? ' open' : ''}">

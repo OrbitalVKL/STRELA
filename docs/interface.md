@@ -735,6 +735,71 @@ tête du sommaire) montre ces écrans ; l'appli installée garde les écrans act
   chevaucher, liseré blanc).
 - Animations de tour par pictogramme (lot 7.9) : pas encore faites, à venir.
 
+## Version 0.8.2 : pintes, défilements gardés, liens sans bleu (13/11/2026)
+
+- **Verre ou pinte** (demande de Guillaume : « distinguer un verre 0,25 et une pinte 0,5 l ») :
+  - donnée : un verre enregistré porte `v: 0.5` si c'est une pinte (sinon 25 cl, comme tous les verres d'avant ;
+    aucune migration ; `cleanDrinks` garde `v`) ;
+  - **tous les comptes sont en verres de 25 cl, une pinte compte pour 2** (`drinkUnits`, `unitsOf`, alcohol.js) : cumul
+    en jeu et dans l'historique, `drinksBefore`, stats, classement, soirée, rapport ; le détail se lit avec `drinkTally`
+    ({ units, glasses, pints, liters }) et s'écrit « 1 verre + 2 pintes » (`tallyText`), les litres avec `litersText` ;
+  - saisie : src/ui/drinks.js — choix « VERRE 25 CL · PINTE 50 CL » au-dessus de chaque liste de verres (panneau des
+    verres et pause du jeu, écran Soirée, détail d'une partie) ; les boutons + ajoutent la taille choisie (icône verre
+    ou chope `pint`) ; − retire le dernier verre saisi, quelle que soit sa taille ;
+  - rapport de soirée : pinte dessinée en chope (cartes de la feuille A, chronologie de la feuille B, dont le cumul
+    monte de 2), total en litres dans le bandeau ; tableau de bord : détail et litres par joueur.
+- **Rien ne se remet à zéro** (app.js › draw) : d'un rendu à l'autre du même écran (même entrée de ROUTES : une action,
+  un autre joueur dans les Stats), la page et tout bloc qui défile (rangée de pastilles, tableau, panneau ; clé = balise
+  + classes + rang) gardent leur position ; en revenant à un écran déjà ouvert (`noteRoute` renvoie vrai : pile de
+  nav.js), la page reprend sa position (`pageY`) ; en avançant, elle part du haut. La courbe des Stats
+  (`data-hscroll="courbe:<joueur>"`) garde le même endroit au centre quand sa largeur change (zoom) ; jamais vue ou pas
+  encore défilante : calée à droite. Test : tests/defilement.test.js.
+- **Liens** : `:where(#app) a { color: inherit; text-decoration: none }` — plus aucun lien au bleu souligné du
+  navigateur (les noms du tableau et des verres du tableau de bord l'étaient) ; styles de `.dlist2` et `.fixlist`.
+
+## Version 0.9.0 : lot 9, première partie (13/11/2026)
+
+Guillaume a retenu dans docs/idees.md : 1 (tournée, « la tournée à payer est indicative »), 2 (important), 3, 4,
+Cricket, 7, 8, 10, 11. Fait ici (choix techniques clairs) ; le reste attend son choix sur des propositions en images.
+- **1 · Tournée** : panneau des verres et pause : « UN VERRE (UNE PINTE) POUR TOUS » (`drink-all`) ; fin de partie : le
+  dernier qui paie reste une indication ; TOURNÉE SERVIE (`tournee-serve`, une fois, taille choisie) ajoute un verre ou
+  une pinte à chaque joueur.
+- **2 · Au fil des verres** : `averageByDrinks` (alcohol.js) — chaque volée close au niveau de verres du joueur à ce
+  moment (drinksTimeline : soirée d'avant comprise, pinte = 2), niveaux 0…4 et « 5 et + », meilleur niveau (9 fléchettes
+  au moins), moyenne à jeun. Stats (section « Au fil des verres », barres + écart), tableau de bord (tableau joueurs ×
+  niveaux), rapport feuille B (tableau, meilleur niveau teinté).
+- **7 · Handicap** : `config.starts` (x01.js, facultatif, gardé seulement s'il diffère de `startScore`) ; Nouvelle
+  partie › Handicap OUI : le score à côté de chaque joueur se touche (301 → 501 → 701) ; `lastSetup.handicap/starts` ;
+  la revanche le garde ; en jeu « DÉPART 701 ».
+- **8 · Records** (première partie) : src/engine/records.js (`playerRecords`, `isVisitRecord`, `gameRecords`) ; en jeu,
+  « RECORD PERSO » à la place du rang de la volée + voix ; fin de partie : « Records battus ». Les badges attendent le
+  choix (images).
+- **10 · Comparer** : Stats › courbe › « Comparer avec » : le joueur comparé en pointillé, carrés creux, valeurs sous
+  les points (`ui.compare`, `series(…, cmp)` : parties de l'un ou de l'autre).
+- **11 · Sauvegarde automatique** : src/ui/autobackup.js — APK seulement, réglage `autoBackup` (OUI) ; fin de soirée et
+  au lancement si la dernière a plus de 7 jours, seulement si les parties ont changé (empreinte) ; même fichier
+  qu'EXPORTER, sans partage ; dernière date dans les Réglages.
+- **Choix de Guillaume sur images (13/11) : « B, A, AB, AB »** — défis B, résumé A, badges A et B, Cricket A et B.
+- **3 · Défis (B, tirage plein écran)** : src/engine/defis.js — option de la partie `defis` ('parfois' ≈ 1 volée sur 8,
+  'souvent' ≈ 1 sur 4 ; Nouvelle partie › Défis de soirée ; gardée par la revanche et `lastSetup`). Tirage
+  **déterministe** (FNV de `id:rang de la volée`) : rien d'enregistré, la reprise et les stats retrouvent les mêmes
+  défis ; jamais la 1re volée ; `minRest` évite un défi injouable près de la fin. 8 défis (triple, double, le 20 ×3,
+  60+, pas de 1, bull → les autres boivent, mieux que ta moyenne, sous 20 = ta tournée). En jeu : carte plein écran
+  (`.defi-card`, voix une fois, fermée par l'appui ou la 1re fléchette), rappel dans la bande du tour (`.dfi`), au
+  résultat RÉUSSI / RATÉ et bouton du gage (`defi-gage` : verre, pinte, tournée = un verre pour tous). Tableau de bord :
+  trophée « Roi des défis ».
+- **4 · Résumé à partager (A, affiche sombre)** : src/ui/soireesummary.js — PNG 1080 × 1920 (thème sombre de la DA :
+  bande rouge, podium, 6 cases `summaryTiles` : meilleure / pire volée, roi du bust, le plus assoiffé, tournées,
+  record battu pendant la soirée, puis roi des défis, le plus régulier, roi de la soirée). Tableau de bord › « Résumé à
+  partager » : APERÇU, PARTAGER (`strela-resume-AAAAMMJJ-HHMM.png`, accepté par `Bridge.saveFile`).
+- **8 · Badges (A vitrine + B tableau d'honneur)** : src/engine/badges.js — `honours(games)` recalcule tout depuis les
+  parties closes : 16 badges (`BADGES`, gagnés à la première partie qui remplit la condition ; champion et roi du bust du
+  mois : mois finis seulement, 3 au moins, comptés ×n), événements (badges et records battus dès la 2e partie),
+  `recordsAt` (date du record actuel). src/ui/honours.js : vitrine dans les Stats du joueur (records datés, grille de
+  badges, non gagnés en discret avec ce qu'il faut faire), `#/honneur` (3e onglet des Stats : le plus de badges, puis
+  mois par mois, filtre Tout / Badges / Records, 30 premiers puis VOIR TOUT), fin de partie « Badges gagnés » + voix.
+- **Cricket (A face à face pour 2 joueurs + B grille de 2 à 8)** : lot 10, dans une session neuve (voir CLAUDE.md).
+
 ## Pour le lot 4
 
 - Les écrans Historique et Stats lisent `store.games` (parties closes) ; la partie en cours est à part (`store.current`).

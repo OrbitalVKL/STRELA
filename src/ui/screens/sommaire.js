@@ -22,6 +22,7 @@ import { makeBackup, parseBackup } from '../../data/backup.js';
 import { saveSetting } from '../store.js';
 import { seasonMock } from '../maquette.js';
 import { presetStats2 } from './v2/stats2.js';
+import { presetHonour } from '../honours.js';
 import { presetHistory2 } from './v2/history2.js';
 import { presetSettings2 } from './settings.js';
 
@@ -29,7 +30,7 @@ import { presetSettings2 } from './settings.js';
 const PLAYON = () => ({ ...cfg(['p1', 'p2', 'p3', 'p4'], 301, 'single'), playOn: true });
 const PO1 = 'T20 T20 T20  T20 T20 T20  T20 T20 T20  0 0 0  S20 S20 S1  S20 S20 S1  S20 S20 S1  0 0 0';
 // Verres (lot 7.1 : avec leur place dans la partie, `at` = fléchettes jouées à ce moment)
-const DRINKS = () => { const h = 3600e3, now = Date.now(); return { p1: [{ t: now - 2 * h, at: 0 }], p2: [{ t: now - h, at: 0 }, { t: now - 0.5 * h, at: 2 }, { t: now - 0.1 * h, at: 3 }] }; };
+const DRINKS = () => { const h = 3600e3, now = Date.now(); return { p1: [{ t: now - 2 * h, at: 0 }], p2: [{ t: now - h, at: 0 }, { t: now - 0.5 * h, at: 2, v: 0.5 }, { t: now - 0.1 * h, at: 3 }] }; }; // p2 : une pinte (0.8.2)
 const ds = text => text.trim().split(/\s+/).filter(Boolean).map(parseDart);
 const cfg = (players, startScore = 501, outMode = 'double', legsToWin = 1) => ({ players, startScore, outMode, legsToWin });
 
@@ -118,10 +119,14 @@ export const SCENES = {
   'v78-stats-zoom': v78('#/stats/p1', () => { presetStats2({ zoom: 4, metric: 'average' }); }),
   'v78-stats-pire': v78('#/stats/p2', () => presetStats2({ metric: 'worstVisit', zoom: 2 })),
   'v78-stats-point': v78('#/stats/p1', () => { presetStats2({ zoom: 2 }); const g = store.games.find(x => x.config.players.includes('p1')); presetStats2({ zoom: 2, point: g.id }); }),
+  'v78-stats-compare': v78('#/stats/p1', () => presetStats2({ compare: 'p2', zoom: 2 })), // lot 9
   'v78-stats-volees': v78('#/stats/p1', () => presetStats2({ folds: ['best', 'worst'] })),
   'v78-classement': v78('#/classement'),
   'v78-classement-info': v78('#/classement', () => presetStats2({ info: ['palmares', 'classement'], rank: 'worstVisit' })),
   'v78-classement-verres': v78('#/classement', () => presetStats2({ rank: 'drinks' })),
+  'v78-honneur': v78('#/honneur', () => presetHonour({ kind: 'tout' })), // lot 9 : tableau d'honneur
+  'v78-honneur-badges': v78('#/honneur', () => presetHonour({ kind: 'badge' })),
+  'v78-stats-vitrine': v78('#/stats/p1', () => presetStats2({ info: ['vitrine'] })),
   'v78-historique': v78('#/historique'),
   'v78-historique-filtre': v78('#/historique', () => { const d = new Date(); presetHistory2({ player: 'p2', month: `${d.getFullYear()}-${d.getMonth()}` }); }),
   'v78-historique-tout': v78('#/historique', () => presetHistory2({ open: store.games.map(g => (g.soiree ? `s:${g.soiree}` : '')).filter(Boolean) })),
@@ -279,6 +284,13 @@ export const SCENES = {
   solo: () => { setGame(cfg(['p2'], 301), 'T20 T20 S20 S19 S7 S3'); return '#/jeu'; },
   'solo-attente': () => { setGame(cfg(['p2'], 301), 'T20 T20 S20 S19 S7 S3', {}, true); return '#/jeu'; },
   'aucun-joueur': () => { store.players = []; store.current = null; store.setupDraft = null; return '#/joueurs'; },
+  // Lot 9 : handicap (Karim et Mathilde partent de 701, les autres de 501), et une partie en handicap.
+  'nouvelle-handicap': () => { store.current = null; store.setupDraft = { ...store.lastSetup, players: ['p1', 'p2', 'p3', 'p4'], shuffle: false, handicap: true, starts: { p1: 701, p2: 301 }, confirm: false }; return '#/nouvelle'; },
+  // Lot 9 : défi tiré (partie « defi21 », volée 2 : « le 20 trois fois ou une pinte »), puis raté (en attente de VALIDER).
+  'jeu-defi': () => { setGame({ ...cfg(['p1', 'p2']), defis: 'souvent' }, 'T20 S20 S5'); store.current.id = 'defi21'; return '#/jeu'; },
+  'jeu-defi-rappel': () => { setGame({ ...cfg(['p1', 'p2']), defis: 'souvent' }, 'T20 S20 S5  S20'); store.current.id = 'defi21'; store.current.ui.defiSeen = 'defi21:1'; return '#/jeu'; },
+  'jeu-defi-resultat': () => { setGame({ ...cfg(['p1', 'p2']), defis: 'souvent' }, 'T20 S20 S5  S20 S20 S1', {}, true); store.current.validated = 3; store.current.id = 'defi21'; return '#/jeu'; },
+  'jeu-handicap': () => { setGame({ ...cfg(['p1', 'p2']), starts: [701, 301] }, 'T20 S20 S5'); return '#/jeu'; },
   'nouvelle-vide': () => { store.players = []; store.current = null; store.setupDraft = null; return '#/nouvelle'; },
   'historique-vide': () => { store.games = []; return '#/historique'; },
   // Lot 3 : sauvegarde (aperçu d'un fichier, confirmations, fichier refusé)
@@ -377,10 +389,14 @@ export function sommaire() {
       ${L('v78-stats-zoom', '★ Stats : courbe zoomée ×4', 'valeurs sur les points')}
       ${L('v78-stats-pire', '★ Stats : courbe « Pire volée »', '×2')}
       ${L('v78-stats-point', '★ Stats : partie touchée sur la courbe')}
+      ${L('v78-stats-compare', '★ Stats : comparer deux joueurs', 'lot 9')}
       ${L('v78-stats-volees', '★ Stats : volées dépliées', 'meilleures, pire de chaque partie')}
       ${L('v78-classement', '★ Classement', 'palmarès')}
       ${L('v78-classement-info', '★ Classement : pire volée', 'explications ouvertes')}
       ${L('v78-classement-verres', '★ Classement : verres')}
+      ${L('v78-honneur', '★ Tableau d\'honneur', 'badges et records, lot 9')}
+      ${L('v78-honneur-badges', '★ Tableau d\'honneur : badges seuls')}
+      ${L('v78-stats-vitrine', '★ Stats : records et badges', 'vitrine, lot 9')}
       ${L('v78-historique', '★ Historique', 'par soirée, filtres')}
       ${L('v78-historique-filtre', '★ Historique : Mathilde, ce mois-ci')}
       ${L('v78-historique-tout', '★ Historique : soirées dépliées')}
@@ -501,6 +517,11 @@ export function sommaire() {
       ${L('soiree-partie', 'Soirée pendant une partie')}
       ${L('accueil-soiree', 'Accueil avec une soirée')}
       ${L('nouvelle-soiree', 'Nouvelle partie pendant la soirée')}
+      ${L('nouvelle-handicap', '2 · Nouvelle partie : handicap', 'lot 9')}
+      ${L('jeu-defi', '3 · Défi tiré au sort', 'carte, lot 9')}
+      ${L('jeu-defi-rappel', '3 · Défi : rappel pendant la volée')}
+      ${L('jeu-defi-resultat', '3 · Défi raté : gage à noter')}
+      ${L('jeu-handicap', '3 · Partie en handicap', 'départ 701 / 301')}
       ${L('verres-soiree', 'Verres de la soirée en jeu', 'panneau')}
       ${L('verres-soiree-jeu', 'Verres de la soirée en jeu', 'Mathilde x3')}
       ${L('verres-soiree-histo', 'Verres de la soirée dans l\'historique')}

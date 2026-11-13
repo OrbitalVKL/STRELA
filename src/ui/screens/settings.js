@@ -4,6 +4,7 @@
 import { store, saveSetting, reducedMotion, exportBackup, applyImport, importCounts, storageIssue, resaveAll } from '../store.js';
 import { backupFileName, parseBackup, BackupError } from '../../data/backup.js';
 import { esc, ico, topBar, plural } from '../dom.js';
+import { lastAutoBackup } from '../autobackup.js';
 import { BUILD } from '../build.js';
 import { refresh, buzz, BUZZ, go } from '../nav.js';
 import { say, sound, voiceInfo } from '../feedback.js';
@@ -274,6 +275,14 @@ const s2box = (key, text) => (s2.info.has(key) ? `<p class="infobox" role="note"
 const card = (icon, title, key, body) => `<section class="card2"><h2>${ico(icon)}<span>${title}</span>${key ? s2info(key) : ''}</h2>${body}</section>`;
 const srow = (act, title, desc, on, disabled = false) => `<div class="row"><div class="lbl"><b>${title}</b>${desc ? `<small>${desc}</small>` : ''}</div>${toggle(act, on, disabled)}</div>`;
 
+/** Lot 9 : dernière sauvegarde automatique, en clair. */
+function autoLine() {
+  const l = lastAutoBackup();
+  if (!l) return 'Fin de soirée et chaque semaine';
+  const d = new Date(l.at), p2 = n => String(n).padStart(2, '0');
+  return `Dernière : ${p2(d.getDate())}/${p2(d.getMonth() + 1)} à ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+}
+
 export function settings2Screen() {
   const t = store.settings.theme;
   const dark = isDark();
@@ -305,7 +314,9 @@ export function settings2Screen() {
         <div class="rows">${srow('vibrate', 'Vibrations', null, store.settings.vibrate)}</div>
         <button type="button" class="btn ghost" data-act="test-vibrate">TESTER LA VIBRATION</button>
         ${vr ? `<div class="vibe ${vibeResult === 'sent' ? '' : 'bad'}" role="status"><b>${vr[0]}</b><span>${vr[1]}</span>${store.settings.vibrate ? '' : '<span>Le réglage « Vibrations » est sur NON : en partie, rien ne vibrera.</span>'}</div>` : ''}`)}
-      ${card('data', 'Sauvegarde', null, backupBlock())}
+      ${card('data', 'Sauvegarde', 'auto', `${s2box('auto', 'Appli Android : à la fin de chaque soirée, et au lancement si la dernière a plus d\'une semaine (seulement si des parties ont changé), une sauvegarde est écrite dans Téléchargements/Strela, sans rien demander. Gardez ce dossier (ou copiez-le ailleurs) : il suffit d\'IMPORTER le dernier fichier pour tout retrouver.')}
+        ${(isApk() || store.mockApk) ? `<div class="rows">${srow('autoBackup', 'Sauvegarde automatique', autoLine(), store.settings.autoBackup)}</div>` : ''}
+        ${backupBlock()}`)}
       ${(isApk() || store.mockApk) ? `<section class="card2 apk2">${apkBlock()}</section>` : ''}
       ${card('info', 'À propos', null, `
         <a class="lrow" href="#/nouveautes">${ico('news')}<span><b>Nouveautés</b><small>Ce qui change à chaque version</small></span><b class="v">v${esc(BUILD.version)}</b>${ico('chev')}</a>
@@ -367,6 +378,7 @@ export const actions = {
   'update-check'() { call('checkUpdate'); upd = { ...(upd || {}), state: 'checking', msg: '' }; refresh(); },
   'update-install'() { call('installUpdate'); },
   'auto-update'(v) { saveSetting('autoUpdate', v === '1'); refresh(); },
+  autoBackup(v) { saveSetting('autoBackup', v === '1'); refresh(); }, // lot 9
   'show-update'() {
     revealUpdate = true;
     if (location.hash !== '#/reglages') go('#/reglages'); else refresh();

@@ -246,6 +246,8 @@ label.btn { cursor: pointer; }
 /* ---------------------------------------------------------------- nouvelle partie */
 .order { list-style: none; margin: 0; padding: 0; border-top: var(--rule); }
 .order li { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 4px 0 4px 0; border-bottom: var(--rule); }
+.order .hcap { flex: 0 0 auto; min-width: 56px; height: 40px; border: var(--rule); font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.order .hcap.on { color: var(--inv-fg); background: var(--inv-bg); border-color: var(--inv-bg); }
 .order .rank { flex: 0 0 34px; height: 34px; display: grid; place-items: center; font-weight: 800; font-size: 16px; }
 .order .nm { flex: 1; font-weight: 700; font-size: 16px; }
 .order .mv { flex: 0 0 48px; height: 48px; border: var(--rule); display: grid; place-items: center; font-size: 18px; }
@@ -258,6 +260,11 @@ label.btn { cursor: pointer; }
 .drinks .nm { font-weight: 700; font-size: 16px; }
 .drinks .cnt { display: inline-flex; align-items: center; gap: 2px; font-size: 18px; font-weight: 800; }
 .drinks .cnt .ico { width: 22px; height: 22px; }
+/* 0.8.2 : verre 25 cl ou pinte 50 cl (choix au-dessus de la liste), détail sous le compte */
+.dsize { margin: 10px 0; }
+.dsize button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; font-size: 12.5px; }
+.dsize .ico { width: 18px; height: 18px; }
+.dkd { display: block; font-size: 10.5px; color: var(--dim); letter-spacing: 0.04em; }
 .drinks .mv { flex: 0 0 48px; height: 48px; border: var(--rule); display: grid; place-items: center; }
 .drinks .mv:disabled { color: var(--faint); }
 .drinks .mv.add { flex-basis: 72px; display: flex; justify-content: center; gap: 2px; background: var(--inv-bg); color: var(--inv-fg); }
@@ -747,6 +754,45 @@ html.still .gband.slide, html.still .announce, html.still .cele, html.still .cel
 .tournee .who { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 10px; }
 .tournee .pl { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .tournee .nm { font-size: 22px; font-weight: 800; line-height: 1.15; overflow-wrap: anywhere; }
+/* Lot 9 : TOURNÉE SERVIE (indicative tant qu'on n'appuie pas), records battus, un verre pour tous */
+.tournee .tserve { display: grid; gap: 8px; margin-top: 12px; }
+.tournee .tserve .seg { margin: 0; border-color: currentColor; }
+.tournee .tserve .seg button { color: inherit; background: transparent; border-left-color: currentColor; }
+.tournee .tserve .seg button[aria-pressed="true"] { color: var(--fg); background: var(--bg); }
+.tournee .tserve > .btn { display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--fg); background: var(--bg); border-color: var(--bg); }
+.tournee .tserve .ico { width: 18px; height: 18px; }
+.tournee .served { display: block; margin-top: 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; }
+.recs { list-style: none; margin: 0; padding: 0; border-top: var(--rule); }
+.recs li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "av nm v" "av rl s"; align-items: center; gap: 2px 10px; padding: 8px 0; border-bottom: var(--rule); }
+.recs .av { grid-area: av; flex-shrink: 0; }
+.recs .nm { grid-area: nm; font-weight: 700; font-size: 14px; }
+.recs .rl { grid-area: rl; min-width: 0; font-size: 10.5px; color: var(--dim); letter-spacing: 0.06em; text-transform: uppercase; }
+.recs li > b { grid-area: v; font-size: 20px; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; }
+.recs li > small { grid-area: s; font-size: 10.5px; color: var(--dim); text-align: right; }
+/* Lot 9 : la moyenne au fil des verres */
+.lvt td.best { font-weight: 800; outline: 1px solid var(--fg); outline-offset: -4px; }
+.dlev { list-style: none; margin: 0 0 6px; padding: 0; border-top: var(--rule); }
+.dlev li { display: grid; grid-template-columns: minmax(0, 7.5em) minmax(0, 1fr) 3.4em 3.6em; align-items: center; gap: 8px; min-height: 38px; border-bottom: var(--rule); font-size: 12px; }
+.dlev .lb { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dim); letter-spacing: 0.04em; text-transform: uppercase; font-size: 10.5px; }
+.dlev .bar { height: 10px; background: color-mix(in srgb, var(--fg) 8%, var(--bg)); }
+.dlev .bar i { display: block; height: 100%; background: var(--dim); }
+.dlev li.best .bar i { background: var(--fg); }
+.dlev li.best .lb, .dlev li.best b { color: var(--fg); font-weight: 800; }
+.dlev li.few .bar i { opacity: 0.5; }
+.dlev b { text-align: right; font-variant-numeric: tabular-nums; font-size: 14px; }
+.dlev small { text-align: right; color: var(--dim); font-variant-numeric: tabular-nums; font-size: 10.5px; }
+/* Lot 9 : défis de soirée — carte plein écran au début de la volée, rappel et résultat dans la bande du tour */
+.defi-card { position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column; justify-content: safe center; gap: 12px; padding: 12px 24px; overflow: hidden; background: var(--bg); }
+.defi-card > small { text-align: center; font-size: 12px; font-weight: 700; letter-spacing: 0.2em; color: var(--dim); }
+.defi-card .dc { display: grid; justify-items: center; gap: 12px; padding: 20px 16px; border: 2px solid var(--fg); text-align: center; min-width: 0; }
+.defi-card .dc .nm { max-width: 100%; font-size: 20px; font-weight: 800; letter-spacing: 0.06em; }
+.defi-card .dt { font-size: 24px; font-weight: 800; line-height: 1.2; letter-spacing: 0.02em; overflow-wrap: anywhere; }
+.defi-card .btn { border-color: var(--fg); }
+.round .dfi { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 3px 6px; border: 1px solid var(--fg); font-size: 11px; font-weight: 800; letter-spacing: 0.06em; }
+.round .dfi.ok { color: var(--inv-fg); background: var(--inv-bg); }
+.round .dfi.gage { color: var(--inv-fg); background: var(--inv-bg); border-color: var(--inv-bg); min-height: 30px; }
+.all-drinks { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin: 10px 0; }
+.all-drinks .ico { width: 18px; height: 18px; }
 .rank-table .plc { flex: 0 0 auto; min-width: 2.6em; font-weight: 800; white-space: nowrap; }
 .result-head .t { font-size: 12px; font-weight: 700; letter-spacing: 0.12em; }
 .result-head .nm { display: block; font-size: 30px; font-weight: 800; line-height: 1.1; overflow-wrap: anywhere; }
@@ -1043,6 +1089,8 @@ html.night body::after { content: ''; position: fixed; inset: 0; z-index: 100; p
 .fold-body .worst, .fold-body .vlist { border-top: 0; }
 /* Onglets Joueur / Classement, pastilles de chiffre */
 .tabs2 { padding-top: 12px; }
+.tabs2 .seg { grid-auto-columns: minmax(0, 1fr); }
+.tabs2 .seg a { min-width: 0; padding: 0 3px; font-size: 12px; letter-spacing: 0; } /* lot 9 : trois onglets */
 .seg a { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; border-left: var(--rule); color: var(--fg); text-decoration: none; font-weight: 700; letter-spacing: 0.06em; font-size: 14px; text-transform: uppercase; }
 .seg a:first-child { border-left: 0; }
 .seg a[aria-pressed="true"] { color: var(--inv-fg); background: var(--inv-bg); }
@@ -1083,6 +1131,16 @@ html.night body::after { content: ''; position: fixed; inset: 0; z-index: 100; p
 .chlegend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 11px; color: var(--dim); }
 .chlegend i { display: inline-block; width: 18px; vertical-align: middle; border-top: 2px solid var(--fg); }
 .chlegend .lg-mean { border-top: 2px dashed var(--dim); }
+/* Lot 9 : joueur comparé (trait pointillé, carrés creux, valeur sous le point) */
+.chart2 .ln2 { fill: none; stroke: var(--dim); stroke-width: 2; stroke-dasharray: 2 3; }
+.chart2 .pt2 { fill: var(--bg); stroke: var(--dim); stroke-width: 1.5; }
+.chart2 .pv2 { fill: var(--dim); font-weight: 700; font-size: 9.5px; paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
+.chlegend .lg-ln2 { border-top: 2px dotted var(--dim); }
+.chlegend .nm { color: var(--fg); font-weight: 700; }
+.cmp { margin-top: 10px; }
+.cmp .chips2 { margin-top: 6px; }
+.chip2.pc { display: inline-flex; align-items: center; gap: 6px; }
+.chip2.pc .av { flex-shrink: 0; }
 .chread { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; padding: 10px 12px; border: 1px solid var(--fg); color: var(--fg); text-decoration: none; font-size: 12.5px; }
 .chread span { display: flex; flex-direction: column; gap: 2px; }
 .chread span + span { align-items: flex-end; margin-left: auto; }
@@ -1267,6 +1325,21 @@ button.hrow { width: 100%; border: 0; border-bottom: var(--rule); background: va
 .dtable tbody th, .dtable thead th:first-child { position: sticky; left: 0; z-index: 1; background: var(--bg); text-align: left; border-right: var(--rule); }
 .dtable .pl { display: flex; align-items: center; gap: 6px; }
 .dtable .nm { max-width: 110px; overflow: hidden; text-overflow: ellipsis; font-weight: 700; }
+/* 0.8.2 : aucun lien ne prend le bleu souligné du navigateur (hors DA) ; chaque écran garde ses propres règles. */
+:where(#app) a { color: inherit; text-decoration: none; }
+.dtable a.pl { color: var(--fg); text-decoration: none; }
+.dlist2 { list-style: none; margin: 0 0 12px; padding: 0; border-top: var(--rule); }
+.dlist2 a { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 6px 0; border-bottom: var(--rule); color: var(--fg); text-decoration: none; }
+.dlist2 .av { flex-shrink: 0; }
+.dlist2 .col { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.dlist2 .nm { font-weight: 700; font-size: 14px; }
+.dlist2 small { font-size: 10.5px; color: var(--dim); letter-spacing: 0.04em; }
+.dlist2 a > b { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 2px; font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.dlist2 a > b .ico { width: 20px; height: 20px; }
+.fixlist { list-style: none; margin: 8px 0; padding: 0; border-top: var(--rule); }
+.fixlist li { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 36px; border-bottom: var(--rule); font-size: 13px; }
+.fixlist .nm { min-width: 0; font-weight: 700; }
+.fixlist b { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
 .dlist { border-top: var(--rule); }
 .dlist .hrow { padding-left: 0; padding-right: 0; }
 .hls .who .av, .dtable .pl .av, .podium .av, .hcard .av, .palm .av, .rank2 .av, .hrow .av, .hhead .av, .pchip .av { flex-shrink: 0; }
@@ -1276,3 +1349,38 @@ button.hrow { width: 100%; border: 0; border-bottom: var(--rule); background: va
 .home2 .home-title { text-align: center; }
 .home2 .home-ver { padding: 6px 12px; }
 .home-foot .home-ver { color: var(--fg); }
+
+/* Lot 9 : vitrine des records et badges (Stats), badges de fin de partie, tableau d'honneur. */
+.vrecs { list-style: none; margin: 0 0 10px; padding: 0; border-top: var(--rule); }
+.vrecs li { display: grid; grid-template-columns: minmax(0, 1fr) auto 52px; align-items: baseline; gap: 10px; padding: 7px 0; border-bottom: var(--rule); }
+.vrecs .rl { min-width: 0; font-size: 11px; color: var(--dim); letter-spacing: 0.06em; text-transform: uppercase; }
+.vrecs li > b { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.vrecs li > small { font-size: 10.5px; color: var(--dim); text-align: right; }
+.badges { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 6px; }
+.badges li { border: var(--rule); padding: 8px 6px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 3px; min-width: 0; }
+.badges li .ico { width: 24px; height: 24px; }
+.badges li > b { font-size: 11px; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; text-transform: uppercase; letter-spacing: 0.03em; }
+.badges li > small { font-size: 9.5px; line-height: 1.25; overflow-wrap: anywhere; }
+.badges li.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.badges li.off { color: var(--dim); }
+.badges li.off .ico { color: var(--faint); }
+.honour-link { margin-top: 10px; width: 100%; }
+.gbadges li > b .ico { width: 22px; height: 22px; }
+.htop { list-style: none; margin: 0 0 6px; padding: 0; border-top: var(--rule); }
+.htop li { display: grid; grid-template-columns: 22px auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 7px 0; border-bottom: var(--rule); }
+.htop .rk { font-weight: 800; }
+.htop li > b { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.hlist li { display: block; padding: 0; }
+.hlist li > a { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "av nm v" "av rl s"; align-items: center; gap: 2px 10px; padding: 8px 0; color: inherit; text-decoration: none; width: 100%; }
+.hlist li > a > .av { grid-area: av; }
+.hlist li > a > .nm { grid-area: nm; font-weight: 700; font-size: 14px; }
+.hlist li > a > .rl { grid-area: rl; min-width: 0; font-size: 10.5px; color: var(--dim); letter-spacing: 0.06em; text-transform: uppercase; }
+.hlist li > a > b { grid-area: v; font-size: 20px; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; }
+.hlist li > a > small { grid-area: s; font-size: 10.5px; color: var(--dim); text-align: right; }
+.hlist li.badge > a > b { justify-self: end; display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; background: var(--fg); color: var(--bg); }
+.hlist li.badge > a > b .ico { width: 22px; height: 22px; }
+.honour .more { width: 100%; margin-top: 12px; }
+
+/* Lot 9 : aperçu du résumé de soirée à partager (image verticale). */
+.dsum { margin: 8px 0; display: flex; justify-content: center; }
+.dsum img { width: min(100%, 300px); height: auto; border: var(--rule); display: block; }
