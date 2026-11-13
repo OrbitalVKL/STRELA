@@ -66,15 +66,16 @@ export function home2() {
     ['#/stats', 'stats', 'Stats', 'par joueur'],
     ['#/classement', 'trophy', 'Classement', 'palmarès'],
     ['#/reglages', 'settings', 'Réglages', 'thème · son'],
-    ['#/nouveautes', 'news', 'Nouveautés', `v${BUILD.version}`],
+    ['#/nouveautes', 'news', 'Nouveautés', 'ce qui change'],
   ];
-  const foot = `<footer class="home-foot"><span>${store.maquette ? 'Maquette · données fictives' : 'Enregistré sur ce téléphone'}</span><span>Orbital VKL</span></footer>
+  // Version en bas de page (demande de Guillaume), un appui ouvre les nouveautés.
+  const foot = `<footer class="home-foot foot2"><a class="foot-ver" href="#/nouveautes">VERSION ${esc(BUILD.version)}</a><span>${store.maquette ? 'Maquette · données fictives' : 'Enregistré sur ce téléphone'} · Orbital VKL</span></footer>
     ${store.maquette ? `<div class="mq-row">${maquetteButtons('mq')}</div>` : ''}`;
 
   if (variant === 'console') {
     const rows = items.map(([href, icon, label, sub], i) => `<li><a href="${href}"><span class="no">${String(i + 1).padStart(2, '0')}</span>${ico(icon)}<b>${label}</b><span class="lead" aria-hidden="true"></span><span class="sub">${sub}</span>${href === '#/nouveautes' ? newsDot() : ''}</a></li>`).join('');
     return `<div class="screen home2 v-console">
-      <header class="c-head"><h1 class="home-title" data-shrink>STRELA</h1><div class="c-meta"><span>COMPTEUR X01</span><span>v${esc(BUILD.version)}</span></div></header>
+      <header class="c-head"><h1 class="home-title" data-shrink>STRELA</h1><div class="c-meta"><span>COMPTEUR DE FLÉCHETTES X01</span></div></header>
       <main class="c-main">${storageBanner()}${updateBadge()}
         <div class="c-status"><span>${lastAt ? `DERNIÈRE PARTIE · ${when(lastAt)}` : 'AUCUNE PARTIE'}</span>${store.soiree ? '<span class="on">SOIRÉE EN COURS</span>' : ''}</div>
         <ol class="c-menu">${rows}</ol>
@@ -83,7 +84,7 @@ export function home2() {
   }
   const tiles = items.map(([href, icon, label, sub]) => `<a class="tile2" href="${href}">${ico(icon)}<b data-shrink>${label}</b><span data-shrink>${sub}</span>${href === '#/nouveautes' ? newsDot() : ''}</a>`).join('');
   return `<div class="screen home2 v-tableau">
-    <header class="t-head"><div><h1 class="home-title" data-shrink>STRELA</h1><p>Compteur de fléchettes X01</p></div><a class="t-ver" href="#/nouveautes">v${esc(BUILD.version)}</a></header>
+    <header class="t-head"><h1 class="home-title" data-shrink>STRELA</h1><p>Compteur de fléchettes X01</p></header>
     <main class="t-main">${storageBanner()}${updateBadge()}
       ${resume}${newGame}${soiree}
       <div class="hcards">${lastGameCard()}${leaderCard()}</div>

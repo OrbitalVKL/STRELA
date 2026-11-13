@@ -1206,10 +1206,9 @@ html.night body::after { content: ''; position: fixed; inset: 0; z-index: 100; p
 .newdot { position: absolute; top: 10px; right: 8px; padding: 2px 5px; background: var(--red); color: var(--red-ink); font-size: 8.5px; font-weight: 800; letter-spacing: 0.08em; }
 .home2 .btn.big .ico { width: 26px; height: 26px; }
 /* Variante A « tableau de bord » */
-.t-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 12px; padding: 22px 16px 16px; background: var(--red); color: var(--red-ink); }
+.t-head { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0; padding: 22px 16px 16px; background: var(--red); color: var(--red-ink); }
 .t-head .home-title { font-size: min(58px, 14vw); }
 .t-head p { margin: 8px 0 0; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.85; }
-.t-ver { padding: 6px 8px; border: 1px solid var(--red-ink); color: var(--red-ink); font-size: 12px; font-weight: 700; text-decoration: none; }
 .t-main { flex: 1; display: flex; flex-direction: column; gap: 12px; padding: 18px 16px 0; }
 .hcards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .hcards:empty { display: none; }
@@ -1227,9 +1226,9 @@ html.night body::after { content: ''; position: fixed; inset: 0; z-index: 100; p
 .tile2 span { max-width: 100%; font-size: 10.5px; color: var(--dim); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
 .tile2:active { background: var(--fg); color: var(--bg); }
 /* Variante B « console » */
-.c-head { padding: 26px 16px 12px; border-bottom: 4px solid var(--red); }
+.c-head { padding: 26px 16px 12px; border-bottom: 4px solid var(--red); text-align: center; }
 .c-head .home-title { font-size: min(72px, 17vw); color: var(--red-text); }
-.c-meta { display: flex; justify-content: space-between; margin-top: 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; color: var(--dim); }
+.c-meta { display: flex; justify-content: center; margin-top: 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; color: var(--dim); }
 .c-main { flex: 1; display: flex; flex-direction: column; gap: 12px; padding: 12px 16px 0; }
 .c-status { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; font-size: 10.5px; color: var(--dim); letter-spacing: 0.1em; }
 .c-status .on { color: var(--fg); font-weight: 800; }
@@ -1305,3 +1304,8 @@ button.hrow { width: 100%; border: 0; border-bottom: var(--rule); background: va
 .dlist .hrow { padding-left: 0; padding-right: 0; }
 .hls .who .av, .dtable .pl .av, .podium .av, .hcard .av, .palm .av, .rank2 .av, .hrow .av, .hhead .av, .pchip .av { flex-shrink: 0; }
 .hls .who .nm { min-width: 0; }
+
+/* Lot 7.8 : titre centré, version en bas de page (demande de Guillaume) */
+.home2 .home-title { text-align: center; }
+.home2 .foot2 { flex-direction: column; align-items: center; gap: 2px; text-align: center; }
+.home2 .foot2 .foot-ver { color: var(--fg); font-weight: 800; letter-spacing: 0.1em; text-decoration: none; padding: 8px 12px; }
