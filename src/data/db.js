@@ -216,7 +216,7 @@ export function playerRecord(p) {
 }
 
 /** Valeurs permises de `turnAnim` (lot 7.4) ; « aucune » est gardée pour qu'un choix explicite l'emporte sur le défaut. */
-export const TURN_ANIM_VALUES = Object.freeze(['aucune', 'ours', 'cravate', 'carabine', 'planete', 'etoile', 'voyelles']);
+export const TURN_ANIM_VALUES = Object.freeze(['aucune', 'picto', 'ours', 'cravate', 'carabine', 'planete', 'etoile', 'voyelles']); // picto : lot 7.9
 
 /**
  * Opérations de la suppression d'un joueur (résultat de deletePlayer() du moteur) : fiche retirée, parties

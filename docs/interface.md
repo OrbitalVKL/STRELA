@@ -823,6 +823,25 @@ cut-throat. Moteur : docs/moteur-cricket.md.
 - Sommaire : scènes `ck-…` (section Version 0.8.0). Tests : tests/cricket.test.js (moteur, rangement à part,
   sauvegarde, suppression d'un joueur), tests/cricket-parcours.test.js (vraie appli).
 
+## Lot 7.9 : une animation de tour par pictogramme (13/11/2026, publié avec la 0.10.0)
+
+Demande de Guillaume (12/11) : « une animation de tour par pictogramme d'avatar, toutes différentes ».
+- **src/ui/pictofx.js** : 37 saynètes (`PICTO_FX`, une fonction par pictogramme) ; avec l'ours, la cravate, la carabine
+  et la planète de turnfx.js, les 41 pictogrammes de la banque ont chacun la leur. Chaque saynète part de l'avatar, dure
+  3 à 4 s, n'utilise que le pictogramme (`hero`, agrandi sur grand écran), de petits dessins d'appoint (`bit`, `pop`,
+  `fly`), une étiquette (`ctx.label`) et de petits bruits (`fx-…`, 22 sons Web Audio dans feedback.js). Mêmes règles que
+  le lot 7.4 (calque `#tfx` sans appui, arrêt à la première fléchette, jamais pendant une célébration, réglage
+  Animations). Aucun rouge (l'étoile du pictogramme n'est pas l'ÉTOILE ROUGE de Guillaume, qui reste un choix à part).
+- **Cadrage** (question laissée ouverte au lot 7.6) : l'animation du pictogramme **ne remplace pas** le choix de la
+  fiche. Nouveau choix « SON PICTO » (`turnAnim: 'picto'`, ajouté à `TURN_ANIM_VALUES`, aucune migration) ; **sans
+  choix enregistré**, un joueur qui a un pictogramme pour avatar l'a d'office (avant : rien), Tsia garde ses voyelles,
+  initiales et photo : rien. `turnAnimOf` = bouton allumé de la fiche ; `turnFxKind` = ce qui se joue (`picto:<clé>`,
+  ou l'une des quatre animations d'origine pour leur pictogramme).
+- **Cricket** : `cricketTurnFx` (screens/cricket.js) — la même animation au début de chaque volée (pas les voyelles).
+- Outil : `node tools/pictos.mjs [--taille=…] [--seul=renard,loup] [--instants=700,1500,2300]` fige chaque saynète à
+  plusieurs instants → captures/picto-…png. Tests : tests/animations.test.js (« lot 7.9 »).
+- À voir avec Guillaume sur le Pixel : la taille, la durée, les bruits ; une saynète à changer se réécrit seule.
+
 ## Pour le lot 4
 
 - Les écrans Historique et Stats lisent `store.games` (parties closes) ; la partie en cours est à part (`store.current`).

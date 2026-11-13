@@ -11,6 +11,7 @@ import { makeDart } from '../../engine/darts.js';
 import { validatedAfterUndo } from '../turn.js';
 import { go, refresh, buzz, BUZZ, backFrom } from '../nav.js';
 import { sound, dartSound, say } from '../feedback.js';
+import { turnFxKind } from '../turnfx.js';
 
 export const CK_MODE_LABEL = Object.freeze({ points: 'AVEC POINTS', sans: 'SANS POINTS', cutthroat: 'CUT-THROAT' });
 const colorOf = p => `var(--av-${colorIndex(p.avatar?.color)})`;
@@ -160,6 +161,18 @@ export function cricketScreen() {
     ${pad(v)}
     ${v.g.ui.pause ? pauseSheet(v) : ''}
   </div>`;
+}
+
+/** Animation de tour (lot 7.9) au début d'une volée de Cricket : celle du joueur qui lance, sinon null (app.js). */
+export function cricketTurnFx() {
+  const g = store.ck;
+  if (!g || g.ui.pause) return null;
+  const s = ckState();
+  if (s.status !== 'playing' || pending(s, g) || s.visit.darts.length) return null;
+  const p = playerById(g.config.players[s.currentPlayer]);
+  const kind = turnFxKind(p);
+  if (kind === 'aucune' || kind === 'voyelles') return null;
+  return { key: `${g.id}:${s.visits.length}`, kind, color: colorOf(p), fromSel: '#app .cks.on .av, #app .ckc.on .av', say: (t, o) => say(t, o), sound: k => sound(k) };
 }
 
 // ------------------------------------------------------------------ fin de partie et détail

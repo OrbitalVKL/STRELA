@@ -78,6 +78,7 @@ src/ui/                   interface (docs/interface.md) : app.js, nav.js, store.
 src/ui/theme.js           palette (source de vérité des couleurs), contraste
 src/ui/vowels.js          voyelles qui tombent quand Tsia lance (lot 7)
 src/ui/turnfx.js          animations de tour par joueur (lot 7.4) : ours, cravate, carabine, planète, étoile rouge ; sons et voix (lot 7.5)
+src/ui/pictofx.js         une animation par pictogramme d'avatar (lot 7.9) : 37 saynètes ; tools/pictos.mjs : leurs captures
 src/ui/screens/soiree.js  soirée (lot 7.6) : joueurs de la soirée, verres cumulés d'une partie à l'autre
 src/ui/screens/v2/        écrans de la refonte (lot 7.8, dans l'appli depuis la 0.8.0) : home2.js, stats2.js (+ classement), history2.js,
                           soireedash.js (tableau de bord d'une soirée) ; engine/soiree.js : son modèle (pur, testé) ;
@@ -173,7 +174,7 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 7.6 | Tirage au sort revu (REVANCHE retirée au sort), bande du tour (TOUR n, qui a lancé), mode soirée (joueurs, verres cumulés d'une partie à l'autre), bouton verre en jeu, volée parmi les 3 meilleures / pires de la soirée, pavé double / triple bien distincts (v0.7.6) — **fait, en attente de validation sur le Pixel** |
 | 7.7 | Stats : meilleure et pire volée, pire volée de chaque partie ; moqueries plus cyniques ; 22 répliques de HPV en plus (v0.7.7) — **fait, en attente de validation sur le Pixel** |
 | 7.8 | Refonte (13/11/2026) : accueil A « tableau de bord », stats (courbe de n'importe quel chiffre, zoomable, explications (i), volées repliées, triples, cible chiffrée), classement global, historique (soirées, filtres, regrouper en soirée), tableau de bord et rapport de soirée en 3 feuilles, réglages en cartes, nouveautés ; CI plus rapide (v0.8.0) — **fait, en attente de validation sur le Pixel** |
-| 7.9 | (plus tard, demandé le 12/11/2026) Une animation de tour par pictogramme d'avatar, toutes différentes |
+| 7.9 | Une animation de tour par pictogramme d'avatar, toutes différentes (41), jouée d'office pour un avatar à pictogramme, aussi au Cricket (publié avec la v0.10.0) — **fait, en attente de validation sur le Pixel** |
 | 9 | Idées retenues le 13/11 (docs/idees.md) : tournée, moyenne au fil des verres, défis (B), résumé à partager (A), handicap, records et badges (A + B), comparer deux joueurs, sauvegarde automatique (v0.9.0) — **fait, en attente de validation sur le Pixel** |
 | 10 | Cricket : A face à face (2 joueurs) + B grille (2 à 8), avec points / sans points / cut-throat (v0.10.0) — **fait, en attente de validation sur le Pixel** |
 | 8 | Recette |
@@ -209,8 +210,10 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
   Pas encore pour le Cricket : verres dans la partie, défis, badges, records, rapport de soirée (à proposer si
   Guillaume le veut).
 - Question ouverte à Guillaume : TOURNÉE SERVIE aussi à chaque fin de manche (aujourd'hui en fin de partie seulement) ?
-- Ensuite : lot 7.9 (une animation de tour par pictogramme d'avatar), confirmé par Guillaume le 13/11 « dans un second
-  temps ».
+- **Lot 7.9** (13/11, dans la 0.10.0) : une animation de tour par pictogramme — src/ui/pictofx.js (37 saynètes + les 4
+  d'origine = 41), choix « SON PICTO » dans la fiche, d'office sans choix pour un avatar à pictogramme, aussi au
+  Cricket ; sons `fx-…`. Détail : docs/interface.md « Lot 7.9 ». Outil : tools/pictos.mjs.
+- Ensuite : recette (lot 8), ou ce que Guillaume demandera après essai (Cricket : verres, défis, badges ?).
 
 ## État (fin du lot 7.7)
 

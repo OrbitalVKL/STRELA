@@ -2,7 +2,10 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
-  { v: '0.10.0', date: '2026-11-13', title: 'Cricket', items: [
+  { v: '0.10.0', date: '2026-11-13', title: 'Cricket, et une animation par pictogramme', items: [
+    'Animations de tour : chacun des 41 pictogrammes d\'avatar a maintenant la sienne, toutes différentes (le renard se faufile, la fusée décolle, la chope glisse sur le comptoir, le loup hurle à la lune…), avec de petits bruits.',
+    'Un joueur qui a un pictogramme pour avatar a son animation d\'office au début de chacune de ses volées ; dans sa fiche, « SON PICTO » la montre, « AUCUNE » la coupe, et les animations choisies à la main (ours, cravate, carabine, planète, étoile rouge, voyelles) ne changent pas.',
+    'Les animations de tour se jouent aussi au Cricket.',
     'Nouveau jeu : le Cricket, à choisir dans Nouvelle partie (Jeu : 301 · 501 · 701 ou Cricket), de 1 à 8 joueurs, en une ou plusieurs manches.',
     'Trois règles : avec points (par défaut), sans points (le premier qui ferme tout gagne) et cut-throat (les points vont aux adversaires, le moins de points gagne).',
     'À 2 joueurs, le tableau en face à face (les numéros au milieu, les marques de chaque côté) ; de 3 à 8, une grille avec une colonne par joueur. À 2, la grille se choisit aussi dans le menu pause.',

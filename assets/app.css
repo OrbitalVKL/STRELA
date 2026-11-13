@@ -1494,3 +1494,7 @@ button.hrow { width: 100%; border: 0; border-bottom: var(--rule); background: va
   .ckgame .ckc { padding: 2px; gap: 1px; }
   .ckgame .ckc .av { --s: 18px !important; }
 }
+/* Lot 7.9 : animations par pictogramme (pictofx.js) : comptoir, chaîne, éclair de lumière */
+#tfx .tfx-line { background: var(--fg); box-shadow: 0 0 0 1px var(--bg); }
+#tfx .tfx-chain { background: repeating-linear-gradient(to bottom, var(--fg) 0 8px, transparent 8px 13px); }
+#tfx .tfx-flashbg { background: var(--fg); }

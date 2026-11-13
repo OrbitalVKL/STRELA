@@ -31,7 +31,7 @@ import { actions as infoActions } from './info.js';
 import { actions as drinkActions } from './drinks.js';
 import { weeklyAutoBackup } from './autobackup.js';
 import { honourScreen, actions as honourActions } from './honours.js';
-import { cricketScreen, cricketEnd, cricketDetail, actions as cricketActions } from './screens/cricket.js';
+import { cricketScreen, cricketEnd, cricketDetail, cricketTurnFx, actions as cricketActions } from './screens/cricket.js';
 
 // Version 0.8.0 : la refonte (lot 7.8, écrans de screens/v2/) remplace l'accueil, l'historique, les stats et les
 // réglages ; accueil A « tableau de bord » (choix de Guillaume, 13/11/2026).
@@ -159,7 +159,9 @@ function draw() {
     mountGame();
   }
   // Lot 7.4 : animation de tour au début de chaque volée ; arrêtée à la première fléchette ou en quittant l'écran de jeu.
-  if (path === '/jeu') syncTurnFx(turnFx(), animationsOn()); else leaveGameFx();
+  if (path === '/jeu') syncTurnFx(turnFx(), animationsOn());
+  else if (path === '/cricket') syncTurnFx(cricketTurnFx(), animationsOn()); // lot 7.9 : aussi au Cricket
+  else leaveGameFx();
   if (path === '/recadrage') mountCrop();
   app.querySelector('[data-reveal]')?.scrollIntoView({ block: 'center' });
   keepAwake(path === '/jeu' || path === '/manche' || path === '/cricket'); // écran allumé pendant la partie, relâché en la quittant
