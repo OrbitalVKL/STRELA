@@ -97,7 +97,7 @@ test('APK (passerelle simulée) : vibreur, voix, export, écran, gestes, retour,
 
     // Sauvegarde relue par la coquille après une fermeture par Android pendant le sélecteur : aperçu proposé
     await page.evaluate(() => { location.hash = '#/'; });
-    await page.waitForSelector('.home-main');
+    await page.waitForSelector('.t-main');
     await page.evaluate(text => window.dispatchEvent(new CustomEvent('strela-native', { detail: { importFile: { name: 'strela-20261030-2118.json', text } } })), JSON.stringify(web));
     await page.waitForSelector('[data-act="backup-mode"][data-arg="merge"]');
     assert.match(await page.textContent('.bk-prev'), /strela-20261030-2118\.json/);
@@ -112,6 +112,7 @@ test('APK (passerelle simulée) : vibreur, voix, export, écran, gestes, retour,
     await page.click('[data-act="test-voice"]');
     assert.equal((await calls(page, 'speak')).length, 1);
     assert.deepEqual(await page.evaluate(() => window.__spoken), [], 'speechSynthesis jamais utilisé');
+    await page.click('[data-act="s2-diag"]'); // diagnostic replié (Réglages de la 0.8.0)
     assert.match(await page.textContent('#diag'), /données dans l'appli \(\/data\/user\/0\/fr\.orbitalvkl\.strela\/app_webview, 1,2 Mo\)/);
     assert.match(await page.textContent('#diag'), /appli Android 0\.5\.0/);
     assert.match(await page.textContent('#app'), /DÉSINSTALLER EFFACE LES DONNÉES/);
@@ -157,12 +158,12 @@ test('APK (passerelle simulée) : vibreur, voix, export, écran, gestes, retour,
 
     // Retour : remonte d'un écran ; à l'accueil, false (la coquille passe en arrière-plan)
     assert.equal(await page.evaluate(() => window.strelaBack()), true);
-    await page.waitForSelector('.home-main');
+    await page.waitForSelector('.t-main');
     assert.equal(await page.evaluate(() => window.strelaBack()), false, 'accueil : sortie permise');
     await page.evaluate(() => { location.hash = '#/stats'; });
     await page.waitForSelector('.chips');
     await page.evaluate(() => window.strelaBack());
-    await page.waitForSelector('.home-main');
+    await page.waitForSelector('.t-main');
 
     // Partie : écran allumé et plein écran, vibreur à chaque fléchette, voix d'Android, zone des gestes
     await clear(page);
@@ -193,7 +194,7 @@ test('APK (passerelle simulée) : vibreur, voix, export, écran, gestes, retour,
     // Quitter la partie : écran relâché, barres rendues
     await clear(page);
     await page.evaluate(() => { location.hash = '#/'; });
-    await page.waitForSelector('.home-main');
+    await page.waitForSelector('.t-main');
     assert.deepEqual(await calls(page, 'keepScreenOn'), [[false]]);
     assert.deepEqual(await calls(page, 'immersive'), [[false]]);
 
@@ -228,6 +229,8 @@ test('navigateur (sans passerelle) : API web, rien de propre à l’APK', { skip
     assert.match(await page.textContent('.welcome'), /BIENVENUE/);
     assert.doesNotMatch(await page.textContent('.welcome'), /VERSION WEB/);
     await page.evaluate(() => { location.hash = '#/reglages'; });
+    await page.waitForSelector('.settings2');
+    if (!await page.$('#diag')) await page.click('[data-act="s2-diag"]');
     await page.waitForSelector('#diag');
     assert.doesNotMatch(await page.textContent('#app'), /Appli Android|DÉSINSTALLER|RECHERCHER UNE MISE À JOUR/);
     assert.doesNotMatch(await page.textContent('#diag'), /données dans l'appli/);
@@ -267,7 +270,7 @@ test('APK github : recherche automatique au lancement, repère, réglage ; retou
     await page.waitForSelector('.empty');
     assert.deepEqual((await calls(page, 'setBackHandled')).at(-1), [true], 'ailleurs, la page traite le retour');
     await page.evaluate(() => { location.hash = '#/'; });
-    await page.waitForSelector('.home-main .upd-badge');
+    await page.waitForSelector('.t-main .upd-badge');
     assert.match(await page.textContent('.upd-badge'), /MISE À JOUR v0\.6\.0 DISPONIBLE/);
     assert.equal((await calls(page, 'installUpdate')).length, 0, 'rien n’est téléchargé sans appui');
     await page.click('.upd-badge');
@@ -291,7 +294,7 @@ test('APK github : recherche automatique au lancement, repère, réglage ; retou
     await reload(page); // la page s'ouvre sur la partie
     assert.equal((await calls(page, 'autoCheckUpdate')).length, 0, 'aucune recherche en partie');
     await page.evaluate(() => { location.hash = '#/'; });
-    await page.waitForSelector('.home-main');
+    await page.waitForSelector('.t-main');
     assert.equal((await calls(page, 'autoCheckUpdate')).length, 1, 'faite en revenant à l’accueil');
     // À propos : variante, confidentialité, licence de la police
     await page.evaluate(() => { location.hash = '#/apropos'; });
@@ -323,6 +326,8 @@ test('APK play : ni recherche, ni bouton, ni repère de mise à jour', { skip, t
     await openApp(page, srv.url);
     assert.equal(await page.evaluate(() => typeof window.strelaNative.checkUpdate), 'undefined');
     await page.evaluate(() => { location.hash = '#/reglages'; });
+    await page.waitForSelector('.settings2');
+    if (!await page.$('#diag')) await page.click('[data-act="s2-diag"]');
     await page.waitForSelector('#diag');
     const text = await page.textContent('#app');
     assert.doesNotMatch(text, /RECHERCHER UNE MISE À JOUR|Recherche automatique|INSTALLER LA VERSION/);

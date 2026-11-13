@@ -26,7 +26,6 @@ export const store = {
   // autoUpdate (lot 6) : recherche automatique de mise à jour (APK « github » seulement), OUI par défaut
   settings: { theme: 'auto', night: false, vibrate: true, anim: true, sound: true, voice: true, autoUpdate: true },
   maquette: false,
-  preview: false,    // lot 7.8 : refonte en maquette (?maquette seulement) — accueil, stats, classement, historique, réglages, nouveautés
   // Base du téléphone : version, erreur éventuelle, stockage persistant (affichés dans le diagnostic des Réglages)
   db: { version: null, error: null, persisted: null, unreadable: 0, openCode: null, writeFail: null },
 };
@@ -215,7 +214,7 @@ const soireeGames = () => {
 };
 
 /**
- * Lot 7.8 (maquette) : range des parties de l'historique dans une soirée (`soireeId`), ou les en sort (null). Le
+ * Lot 7.8 (dans l'appli depuis la 0.8.0) : range des parties de l'historique dans une soirée (`soireeId`), ou les en sort (null). Le
  * cumul des verres (`drinksBefore`) est recalculé dans l'ordre des parties pour chaque soirée touchée.
  * Renvoie l'identifiant de la soirée.
  */

@@ -24,7 +24,7 @@ chiffres lus à l'écran et comparés à des valeurs calculées à la main (le c
 |---|---|
 | Moyenne sur 3 fléchettes | total des points marqués (bust = 0) ÷ nombre de fléchettes lancées × 3 |
 | 9 premières | même calcul, limité aux 3 premières volées du joueur dans chaque manche (moins si la manche finit avant) |
-| Taux de finition | volées gagnées ÷ volées commencées sur une finition jouable (reste qu'on peut finir en 3 fléchettes selon la sortie : 170 au plus en sortie double, hors 169, 168, 166, 165, 163, 162, 159) |
+| Taux de finition (calculé, plus affiché depuis la 0.8.0 : remplacé par le taux de triples) | volées gagnées ÷ volées commencées sur une finition jouable (reste qu'on peut finir en 3 fléchettes selon la sortie : 170 au plus en sortie double, hors 169, 168, 166, 165, 163, 162, 159) |
 | Taux de doubles | fléchettes qui ont fini la manche ÷ fléchettes lancées quand **une seule** pouvait finir (en sortie double : reste pair de 2 à 40, ou 50 ; en sortie simple : reste jouable d'une fléchette). « — » s'il n'y a eu aucune occasion |
 | Meilleure finition | plus grand reste fini d'une seule volée |
 | Manche la plus courte | moins de fléchettes lancées par le joueur dans une manche qu'il a gagnée |

@@ -1,4 +1,4 @@
-// Lot 7.8 (maquette, ?maquette seulement) : tableau de bord d'une soirée (#/soiree/<id>) — ce qui s'est passé ce
+// Lot 7.8 (dans l'appli depuis la 0.8.0) : tableau de bord d'une soirée (#/soiree/<id>) — ce qui s'est passé ce
 // soir-là, joueur par joueur, à regarder et à imprimer (IMAGE · PDF, même livraison que la fiche de score).
 // - Podium (victoires, puis moyenne), faits marquants (meilleure et pire volée, plus de bust, de 180, de verres,
 //   meilleure moyenne), tableau des joueurs, parties de la soirée.

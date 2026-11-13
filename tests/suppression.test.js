@@ -14,7 +14,7 @@ async function abandonGame(page) {
   await page.click('[data-act="pause"]');
   await page.click('[data-act="abandon"]');
   await page.click('[data-act="abandon-yes"]');
-  await page.waitForSelector('.home-main');
+  await page.waitForSelector('.t-main');
 }
 
 test('supprimer des parties : détail, sélection par appui long, partie en cours ; LANCER confirmé', { skip: !pw && 'Playwright absent', timeout: 120e3 }, async () => {
@@ -63,7 +63,7 @@ test('supprimer des parties : détail, sélection par appui long, partie en cour
     await page.click('[data-act="delete-current"]');
     assert.match(await page.innerText('.sheet'), /SUPPRIMER LA PARTIE \?/);
     await page.click('[data-act="delete-current-yes"]');
-    await page.waitForSelector('.home-main');
+    await page.waitForSelector('.t-main');
     await settle(page);
     db = await readDb(page);
     assert.equal(db.current, null, 'partie en cours effacée');
@@ -78,7 +78,7 @@ test('supprimer des parties : détail, sélection par appui long, partie en cour
     assert.equal(await page.locator('[data-act="del-game-yes"]').count(), 0, 'NON referme la confirmation');
     await page.click('[data-act="del-game"]');
     await page.click('[data-act="del-game-yes"]');
-    await page.waitForSelector('.list');
+    await page.waitForSelector('.hlist');
     await settle(page);
     db = await readDb(page);
     assert.equal(db.games.length, 4);
@@ -87,24 +87,24 @@ test('supprimer des parties : détail, sélection par appui long, partie en cour
     // Liste : un appui court ouvre le détail ; un appui long entre en sélection, sans ouvrir le détail.
     const cdp = await ctx.newCDPSession(page);
     const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }] });
-    const box = await page.evaluate(() => { const r = document.querySelector('.gitem').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+    const box = await page.evaluate(() => { const r = document.querySelector('.hrow').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
     await touch('touchStart', ...box);
     await page.waitForTimeout(800);
     await touch('touchEnd');
-    await page.waitForSelector('.gitem.pick');
+    await page.waitForSelector('.hrow.pick');
     assert.equal(await page.evaluate(() => location.hash), '#/historique', 'appui long : on reste sur la liste');
-    assert.equal(await page.locator('.gitem.pick[aria-pressed="true"]').count(), 1, 'la partie touchée est cochée');
-    await page.click('.gitem.pick >> nth=1');
-    await page.click('.gitem.pick >> nth=2');
+    assert.equal(await page.locator('.hrow.pick[aria-pressed="true"]').count(), 1, 'la partie touchée est cochée');
+    await page.click('.hrow.pick >> nth=1');
+    await page.click('.hrow.pick >> nth=2');
     assert.match(await page.innerText('.dock'), /SUPPRIMER \(3\)/);
-    await page.click('.gitem.pick >> nth=2'); // décochée
-    await page.click('[data-act="pick-delete"]');
+    await page.click('.hrow.pick >> nth=2'); // décochée
+    await page.click('[data-act="h2-ask"][data-arg="delete"]');
     assert.match(await page.innerText('.dock'), /SUPPRIMER CES 2 PARTIES \?/);
-    await page.click('[data-act="pick-yes"]');
+    await page.click('[data-act="h2-delete"]');
     await settle(page);
     db = await readDb(page);
     assert.equal(db.games.length, 2, 'deux parties supprimées, en une fois');
-    assert.equal(await page.locator('.gitem.pick').count(), 0, 'sélection refermée');
+    assert.equal(await page.locator('.hrow.pick').count(), 0, 'sélection refermée');
 
     // Joueurs (et avatars) intacts ; stats recalculées sans les parties supprimées.
     assert.deepEqual(db.players, players, 'joueurs et avatars jamais touchés');

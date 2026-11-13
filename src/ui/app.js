@@ -4,16 +4,15 @@
 import { store, loadSettings, animationsOn, openStorage, requestPersistence, saving, setStorageListener, exportBackup } from './store.js';
 import { BUILD } from './build.js';
 import { setRenderer, noteRoute, keepAwake, go } from './nav.js';
-import { home } from './screens/home.js';
 import { playersList, playerForm, avatarBank, actions as playerActions, inputs as playerInputs } from './screens/players.js';
 import { newGame, actions as newGameActions } from './screens/newgame.js';
 import { game, key, mountGame, vowelKey, turnFx, actions as gameActions } from './screens/game.js';
 import { applyVowels } from './vowels.js';
 import { syncTurnFx, leaveGameFx } from './turnfx.js';
 import { legEnd, matchEnd, actions as resultActions } from './screens/results.js';
-import { historyList, historyDetail, leaveHistory, actions as historyActions } from './screens/history.js';
-import { statsScreen, faceScreen, actions as statsActions } from './screens/stats.js';
-import { settingsScreen, applyTheme, onBackupFile, actions as settingsActions } from './screens/settings.js';
+import { historyDetail, leaveHistory, actions as historyActions } from './screens/history.js';
+import { faceScreen, actions as statsActions } from './screens/stats.js';
+import { applyTheme, onBackupFile, actions as settingsActions } from './screens/settings.js';
 import { cropScreen, mountCrop, onPhotoFile, actions as photoActions } from './screens/photo.js';
 import { animateRolls, rollScope } from './roll.js';
 import { fitAll } from './fit.js';
@@ -25,17 +24,15 @@ import { actions as sheetActions } from './screens/printsheet.js';
 import { soireeScreen, actions as soireeActions } from './screens/soiree.js';
 import { settings2Screen } from './screens/settings.js';
 import { stats2Screen, rankingScreen, actions as stats2Actions } from './screens/v2/stats2.js';
-import { history2List, actions as history2Actions } from './screens/v2/history2.js';
+import { history2List, leaveHistory2, actions as history2Actions } from './screens/v2/history2.js';
 import { home2, changelogScreen } from './screens/v2/home2.js';
 import { soireeDashScreen, actions as dashActions } from './screens/v2/soireedash.js';
 
-// Lot 7.8 : refonte en maquette. Montrée seulement dans le sommaire de maquette (store.preview) ; l'appli garde les
-// écrans actuels, et les nouvelles adresses (classement, nouveautés) y renvoient à l'accueil.
-const pv = (next, cur) => (...a) => (store.preview ? next(...a) : cur(...a));
-const pvOnly = next => (...a) => (store.preview ? next(...a) : null);
+// Version 0.8.0 : la refonte (lot 7.8, écrans de screens/v2/) remplace l'accueil, l'historique, les stats et les
+// réglages ; accueil A « tableau de bord » (choix de Guillaume, 13/11/2026).
 
 const ROUTES = [
-  [/^\/?$/, pv(home2, home)],
+  [/^\/?$/, home2],
   [/^\/joueurs$/, playersList],
   [/^\/joueur\/(.+)$/, playerForm],
   [/^\/avatars$/, avatarBank],
@@ -43,17 +40,17 @@ const ROUTES = [
   [/^\/jeu$/, game],
   [/^\/manche$/, legEnd],
   [/^\/fin$/, matchEnd],
-  [/^\/historique$/, pv(history2List, historyList)],
+  [/^\/historique$/, history2List],
   [/^\/partie\/(.+)$/, historyDetail],
-  [/^\/stats(?:\/(.+))?$/, pv(stats2Screen, statsScreen)],
-  [/^\/classement$/, pvOnly(rankingScreen)],
-  [/^\/nouveautes$/, pvOnly(changelogScreen)],
+  [/^\/stats(?:\/(.+))?$/, stats2Screen],
+  [/^\/classement$/, rankingScreen],
+  [/^\/nouveautes$/, changelogScreen],
   [/^\/face\/([^/]+)\/(.+)$/, faceScreen],
-  [/^\/reglages$/, pv(settings2Screen, settingsScreen)],
+  [/^\/reglages$/, settings2Screen],
   [/^\/recadrage$/, cropScreen],
   [/^\/apropos$/, aboutScreen],
   [/^\/soiree$/, soireeScreen],
-  [/^\/soiree\/(.+)$/, pvOnly(soireeDashScreen)],
+  [/^\/soiree\/(.+)$/, soireeDashScreen],
 ];
 
 const ACTIONS = {
@@ -78,7 +75,7 @@ function render() {
 function draw() {
   const path = decodeURIComponent(location.hash.replace(/^#/, ''));
   noteRoute(location.hash || '#/');
-  if (path !== lastPath) leaveHistory(path); // sélection et confirmations de l'historique oubliées en changeant d'écran
+  if (path !== lastPath) { leaveHistory(path); leaveHistory2(path); } // sélection et confirmations de l'historique oubliées en changeant d'écran
   let html = null;
   for (const [re, screen] of ROUTES) {
     const m = re.exec(path);

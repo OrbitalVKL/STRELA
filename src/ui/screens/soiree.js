@@ -89,7 +89,7 @@ function running() {
       <div class="sec">Ajouter à la soirée</div>
       ${poolHtml(sv.players, 'soiree-join')}
       <p class="note">Un joueur ajouté à une nouvelle partie rejoint aussi la soirée. ✕ : le joueur quitte la soirée (ses verres restent comptés s'il revient).</p>
-      ${store.preview && store.games.some(g => g.soiree === sv.id) ? `<a class="btn" href="#/soiree/${esc(sv.id)}" style="margin-top:16px">${ico('stats')} TABLEAU DE BORD DE LA SOIRÉE</a>` : ''}
+      ${store.games.some(g => g.soiree === sv.id) ? `<a class="btn" href="#/soiree/${esc(sv.id)}" style="margin-top:16px">${ico('stats')} TABLEAU DE BORD DE LA SOIRÉE</a>` : ''}
       <div class="sec">Fin de soirée</div>
       ${end}
     </div>

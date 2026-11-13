@@ -201,11 +201,11 @@ await step('voix et vibreur natifs (état rapporté par Android)', async () => {
 
 await step('bouton retour hors partie : Réglages → accueil', async () => {
   await page.evaluate(() => { location.hash = '#/reglages'; });
-  await page.waitForSelector('#diag');
+  await page.waitForSelector('.settings2');
   const focus = await ensureFocus('header.top h1');
   const before = await page.evaluate(() => window.strelaNative.backCount());
   await sh('input keyevent KEYCODE_BACK');
-  const ok = await page.waitForSelector('.home-main', { timeout: 6e3 }).then(() => true, () => false);
+  const ok = await page.waitForSelector('.t-main', { timeout: 6e3 }).then(() => true, () => false);
   const got = (await page.evaluate(() => window.strelaNative.backCount())) - before;
   if (!ok) throw new Error(`toujours dans les Réglages (retour reçu par la coquille ${got} fois ; ${focus})`);
   return `retour reçu par la coquille ${got} fois`;
@@ -214,7 +214,7 @@ await step('bouton retour hors partie : Réglages → accueil', async () => {
 // Lot 6 (Android 16, targetSdk 36) : bord à bord et retour prédictif.
 await step('bord à bord : la page ne passe ni sous la barre d\'état ni sous la barre de navigation', async () => {
   await page.evaluate(() => { location.hash = '#/reglages'; });
-  await page.waitForSelector('#diag');
+  await page.waitForSelector('.settings2');
   const v = await page.evaluate(() => ({ ...JSON.parse(window.strelaNative.viewport()), h: innerHeight, w: innerWidth }));
   const size = (await sh('wm size')).match(/(\d+)x(\d+)\s*$/);
   const H = size ? Number(size[2]) : 0;
@@ -389,11 +389,11 @@ await step('retour prédictif : Réglages → la page traite le retour ; accueil
   // En dernier : sortir de l'appli puis la relancer perturbe le focus des touches de l'émulateur pour la suite.
   await front();
   await page.evaluate(() => { location.hash = '#/reglages'; });
-  await page.waitForSelector('#diag');
+  await page.waitForSelector('.settings2');
   const inSettings = await page.evaluate(() => window.strelaNative.backHandled());
   if (!inSettings) throw new Error('rappel de retour absent dans les Réglages');
   await page.evaluate(() => { location.hash = '#/'; });
-  await page.waitForSelector('.home-main');
+  await page.waitForSelector('.t-main');
   await page.waitForFunction(() => window.strelaNative.backHandled() === false, null, { timeout: 5e3 });
   await ensureFocus('.home-title');
   await sh('input keyevent KEYCODE_BACK');
@@ -415,7 +415,7 @@ await step('retour prédictif : Réglages → la page traite le retour ; accueil
   }
   await ready();
   if (!out) throw new Error(`Strela toujours au premier plan (${top})`);
-  await page.waitForSelector('.home-main');
+  await page.waitForSelector('.t-main');
   // Android, sans rappel de la page, joue son retour vers le téléphone et ferme l'activité (ou la garde en
   // arrière-plan) : les deux sont admis, rien n'est perdu (tout est enregistré à chaque fléchette).
   return `sortie vers l'écran d'accueil du téléphone (activité ${alive ? 'gardée en arrière-plan' : 'fermée par Android'}) ; relance : accueil`;
@@ -430,7 +430,7 @@ if (PLAY) {
     await ready(PPKG);
     const r = await page.evaluate(() => ({ info: JSON.parse(window.strelaNative.info()), upd: typeof window.strelaNative.checkUpdate, url: location.href }));
     await page.evaluate(() => { location.hash = '#/reglages'; });
-    await page.waitForSelector('#diag');
+    await page.waitForSelector('.settings2');
     const text = await page.textContent('#app');
     await shot('9-play-reglages');
     const both = (await sh(`pm list packages ${PKG}`)).split(/\s+/).filter(Boolean).sort();

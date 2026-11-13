@@ -17,7 +17,7 @@ const version = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).ver
 
 // [nom, état (scène ou adresse), orientation]
 const SHOTS = [
-  ['1-accueil', { scene: 'accueil-bande' }, 'portrait'],
+  ['1-accueil', { scene: 'accueil' }, 'portrait'],
   ['2-saisie-finition', { scene: 'finition' }, 'portrait'],
   ['3-stats', { route: '#/stats/p1' }, 'portrait'],
   ['4-avatars', { scene: 'banque-carabine' }, 'portrait'],

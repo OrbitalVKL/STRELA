@@ -695,6 +695,22 @@ tête du sommaire) montre ces écrans ; l'appli installée garde les écrans act
       image, photo, sinon initiales). Écran : VOIR LES 3 FEUILLES (aperçu), IMAGE (les 3 empilées), PDF (3 pages) ;
       livraison `deliverFile` de printsheet.js. Test : tests/rapport-soiree.test.js.
 
+## Version 0.8.0 : la refonte dans l'appli (13/11/2026)
+
+- Guillaume retient l'**accueil A « tableau de bord »** et demande de publier toute la refonte : plus de drapeau
+  `store.preview`, les écrans de screens/v2/ sont ceux de l'appli (app.js : routes directes ; `/classement`,
+  `/nouveautes`, `/soiree/<id>` ouvertes à tous).
+- Retirés : accueil des lots 4–7.8 (variantes « bande » / « filet ») et accueil B « console » ; ancien écran des Stats
+  (`statsScreen`, courbe de moyenne) ; anciens Réglages (`settingsScreen`) ; ancienne liste de l'historique et sa
+  sélection (`pick-*`). Gardés et partagés : home.js (`resumeButtonHtml`, `welcomeHtml` — premier lancement et import
+  de l'APK —, `savedLabel`), stats.js (période, cible, face-à-face), history.js (détail, écran vide `historyEmpty`).
+- Accueil : repère NOUVEAU sur Nouveautés tant que la page de la version installée n'a pas été ouverte (localStorage
+  `strela.news`). Historique v2 : sélection oubliée en quittant l'écran (`leaveHistory2`).
+- Réglages : diagnostic replié (bouton « Diagnostic », `s2-diag`) ; tools/android-check.mjs attend `.settings2`.
+- Tests adaptés : chiffres (historique v2 `.hrow`, stats : triples, bust, verres ; plus de taux de finition),
+  suppression (sélection v2 : `h2-ask` delete, `h2-delete`), parcours, passerelle (`.t-main`, diagnostic à déplier).
+- Aucune migration (rien de nouveau n'est enregistré, sauf la clé locale `strela.news`).
+
 ## Pour le lot 4
 
 - Les écrans Historique et Stats lisent `store.games` (parties closes) ; la partie en cours est à part (`store.current`).

@@ -26,8 +26,12 @@
 //   supprimé n'est plus un adversaire.
 //   lot 7.7 : meilleure volée 180 ; pire volée 100 (lot 7.8 : ni le bust ni les finitions ne comptent) ; pire volée
 //   de chaque partie, de la plus récente : partie 3 : 180, partie 2 : 171, partie 1 : 100.
+//   0.8.0 (écran des stats refondu, plus de taux de finition) : triples : partie 1 : T20 T20 T20, T20 → 4 ; partie 2 :
+//   T19 ×3 → 3 ; partie 3 : T20 ×3, T20 T20 → 5 ; 12 / 18 fléchettes = 67 % ; bust : 1 ; verres : 0 en 3 parties.
 // Bravo : (242 + 180) / 12 × 3 = 105,5 (9 premières : idem) ; finition 0 / 1 = 0 % ; doubles : aucune occasion « — » ;
-//   100+ : 1 ; 180 : 1 ; victoires 0 / 2 ; meilleure volée 180, pire volée 60 (partie 1 : 60, 120, 62).
+//   100+ : 1 ; 180 : 1 ; victoires 0 / 2 ; meilleure volée 180, pire volée 60 (partie 1 : 60, 120, 62) ; triples :
+//   T20 T20 puis T20 (partie 1), T20 ×3 (partie 2) → 6 / 12 = 50 % ; bust : 0.
+// Historique (0.8.0) : les 3 parties du jour dans un même groupe, de la plus récente à la plus ancienne.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { serve, loadPlaywright } from '../tools/lib/serve.mjs';
@@ -89,13 +93,14 @@ test('historique et statistiques comparés aux calculs à la main', { skip: !pw 
 
     // Historique : liste et détail de la partie 1, case par case.
     await page.evaluate(() => { location.hash = '#/historique'; });
-    const rows = await page.$$eval('.gitem', as => as.map(a => a.innerText.replace(/\s+/g, ' ')));
-    assert.match(rows[0], /301 · SIMPLE.*CHARLIE|JOUEUR SUPPRIMÉ/i);
-    assert.match(rows[0], /VAINQUEUR ALPHA/i);
-    assert.match(rows[1], /ABANDONNÉE/);
-    assert.match(rows[2], /VAINQUEUR ALPHA/i);
-    assert.match(rows[0], /JOUEUR SUPPRIMÉ/i, 'Charlie apparaît « Joueur supprimé »');
-    await page.click('.gitem >> nth=2');
+    await page.waitForSelector('.hrow');
+    const rows = await page.$$eval('.hrow', as => as.map(a => a.innerText.replace(/\s+/g, ' ')));
+    assert.equal(rows.length, 3);
+    assert.match(rows[0], /301 S\b.*ALPHA/i, 'sortie simple, gagnée par Alpha');
+    assert.match(rows[1], /501.*ABANDON/);
+    assert.match(rows[2], /301(?! S).*ALPHA/i);
+    assert.equal(await page.locator('.hrow >> nth=0').locator('.av.gone').count(), 1, 'Charlie : avatar de joueur supprimé');
+    await page.click('.hrow >> nth=2');
     await page.waitForSelector('.lt');
     const cells = await page.$$eval('.lt td.c:not(.none)', tds => tds.map(td => td.getAttribute('aria-label')));
     assert.deepEqual(cells, [
@@ -112,9 +117,11 @@ test('historique et statistiques comparés aux calculs à la main', { skip: !pw 
     await page.evaluate(i => { location.hash = `#/stats/${i}`; }, id.Alpha);
     await page.click('[data-act="period"][data-arg="tout"]');
     assert.deepEqual(await kpis(page), {
-      average: '128,8', first9: '141,0', won: '2 / 3', checkout: '50 %', double: '100 %',
-      bestFinish: '121', shortest: '6 fl.', bestVisit: '180', worstVisit: '100', ton: '2', ton40: '1', max: '2',
+      average: '128,8', first9: '141,0', won: '2 / 3', triple: '67 %', double: '100 %',
+      bestFinish: '121', shortest: '6 fl.', bestVisit: '180', worstVisit: '100', ton: '2', ton40: '1', max: '2', busts: '1',
+      drinks: '0 en 3 parties',
     });
+    await page.click('[data-act="v2-fold"][data-arg="worst"]');
     const worst = await page.$$eval('.worst li', lis => lis.map(li => li.querySelector('.w b').textContent.trim()));
     assert.deepEqual(worst, ['180', '171', '100'], 'pire volée de chaque partie, de la plus récente');
     const h2h = await page.$$eval('.h2h-row', as => as.map(a => a.innerText.replace(/\s+/g, ' ').trim()));
@@ -134,8 +141,9 @@ test('historique et statistiques comparés aux calculs à la main', { skip: !pw 
     // Stats de Bravo.
     await page.evaluate(i => { location.hash = `#/stats/${i}`; }, id.Bravo);
     assert.deepEqual(await kpis(page), {
-      average: '105,5', first9: '105,5', won: '0 / 2', checkout: '0 %', double: '—',
-      bestFinish: '—', shortest: '—', bestVisit: '180', worstVisit: '60', ton: '1', ton40: '0', max: '1',
+      average: '105,5', first9: '105,5', won: '0 / 2', triple: '50 %', double: '—',
+      bestFinish: '—', shortest: '—', bestVisit: '180', worstVisit: '60', ton: '1', ton40: '0', max: '1', busts: '0',
+      drinks: '0 en 2 parties',
     });
     // Liste des joueurs : moyenne, parties, victoires.
     await page.evaluate(() => { location.hash = '#/joueurs'; });

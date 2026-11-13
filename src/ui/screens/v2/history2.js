@@ -1,4 +1,4 @@
-// Lot 7.8 (maquette, ?maquette seulement) : historique plus facile à parcourir quand les parties s'accumulent.
+// Lot 7.8 (dans l'appli depuis la 0.8.0) : historique plus facile à parcourir quand les parties s'accumulent.
 // - Filtres : joueur (une pastille par joueur), résultat (toutes, terminées, abandonnées), mois.
 // - Parties rangées par soirée (parties d'une même soirée ensemble, avec ses verres) ou, hors soirée, par jour ;
 //   chaque groupe se replie (les deux plus récents ouverts) ; titres de mois.
@@ -10,7 +10,7 @@ import { esc, ico, topBar, plural } from '../../dom.js';
 import { avatarHtml } from '../../avatars.js';
 import { gameState, gameWinner } from '../../../engine/stats.js';
 import { refresh } from '../../nav.js';
-import { historyList } from '../history.js';
+import { historyEmpty } from '../history.js';
 
 const DAYS = ['DIM.', 'LUN.', 'MAR.', 'MER.', 'JEU.', 'VEN.', 'SAM.'];
 const MONTHS = ['JANVIER', 'FÉVRIER', 'MARS', 'AVRIL', 'MAI', 'JUIN', 'JUILLET', 'AOÛT', 'SEPTEMBRE', 'OCTOBRE', 'NOVEMBRE', 'DÉCEMBRE'];
@@ -20,6 +20,9 @@ const f = { player: null, result: 'all', month: 'all', open: null, more: 0 };
 let sel = null;      // null, ou Set des parties cochées
 let ask = null;      // null | 'delete' | 'attach' (choix de la soirée)
 /** Sommaire de maquette : filtres et sélection préparés. */
+/** En quittant l'historique : sélection et confirmations oubliées (app.js). */
+export function leaveHistory2(path) { if (path !== '/historique') { sel = null; ask = null; } }
+
 export function presetHistory2(state = {}) {
   Object.assign(f, { player: null, result: 'all', month: 'all', open: null, more: 0 }, state);
   if (state.open) f.open = new Set(state.open);
@@ -100,7 +103,7 @@ function selDock() {
 
 export function history2List() {
   const all = [...store.games].sort((a, b) => b.startedAt - a.startedAt);
-  if (!all.length) return historyList();
+  if (!all.length) { sel = null; ask = null; return historyEmpty(); }
   const months = [...new Set(all.map(g => monthKey(g.startedAt)))];
   const games = all.filter(g => (!f.player || g.config.players.includes(f.player))
     && (f.result === 'all' || (f.result === 'abandoned' ? g.abandoned : !g.abandoned))

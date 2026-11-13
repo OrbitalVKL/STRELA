@@ -264,40 +264,8 @@ function download(blob, name) {
   setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 
-export function settingsScreen() {
-  const vr = vibeResult && VIBE_TEXT[vibeResult];
-  return `<div class="screen">${topBar('Réglages', '#/')}
-    <div class="pad">
-      ${storageBanner()}
-      ${updateBadge()}
-      <div class="sec">Affichage</div>
-      ${themeControls()}
-      <p class="note">Auto suit le réglage du téléphone. Le mode nuit ne s'applique qu'en sombre.</p>
-      <div class="sec">Son et voix</div>
-      ${voiceBlock()}
-      <div class="btns two" style="margin-top:10px"><button type="button" class="btn ghost" data-act="test-voice">TESTER LA VOIX</button><button type="button" class="btn ghost" data-act="test-sound">TESTER LES SONS</button></div>
-      <div class="sec">Vibrations</div>
-      <button type="button" class="btn ghost" data-act="test-vibrate">TESTER LA VIBRATION</button>
-      ${vr ? `<div class="vibe ${vibeResult === 'sent' ? '' : 'bad'}" role="status"><b>${vr[0]}</b><span>${vr[1]}</span>${store.settings.vibrate ? '' : '<span>Le réglage « Vibrations » est sur NON : en partie, rien ne vibrera.</span>'}</div>` : ''}
-      <div class="sec">Sauvegarde</div>
-      ${backupBlock()}
-      ${apkBlock()}
-      <div class="sec">À propos</div>
-      <div class="kv"><span>Version</span><b>${esc(BUILD.version)}</b></div>
-      <a class="btn" href="#/apropos" style="margin-top:10px">À PROPOS DE STRELA</a>
-      <p class="note">Version, licences, confidentialité (rien ne quitte le téléphone) et contact.</p>
-      <p class="note">${store.maquette
-        ? 'Maquette : joueurs et parties fictifs, en mémoire. Rien n\'est enregistré, et les vraies données du téléphone ne sont pas touchées.'
-        : 'Joueurs, parties et réglages sont enregistrés sur ce téléphone, à chaque fléchette. Le sommaire de maquette montre des données fictives sans toucher aux tiennes.'}</p>
-      <div style="margin-top:16px"><a class="btn ghost" href="${store.maquette ? '#/sommaire' : '?maquette#/sommaire'}">SOMMAIRE DE MAQUETTE</a></div>
-      <div class="sec">Diagnostic</div>
-      <p class="diag" id="diag">${esc(diagnostic())}</p>
-      <button type="button" class="btn ghost" data-act="copy-diag">COPIER LE DIAGNOSTIC</button>
-    </div></div>`;
-}
-
-// ------------------------------------------------------------------ lot 7.8 (maquette) : réglages réorganisés
-// Mêmes options, mêmes actions ; regroupées en cartes (Affichage, Son et voix, Vibrations, Sauvegarde, Appli Android,
+// ------------------------------------------------------------------ réglages (version 0.8.0, refonte du lot 7.8)
+// Les options de toujours (aucune retirée), regroupées en cartes (Affichage, Son et voix, Vibrations, Sauvegarde, Appli Android,
 // À propos), descriptions courtes, explications longues derrière (i), diagnostic replié.
 const s2 = { info: new Set(), diag: false };
 export function presetSettings2(state = {}) { s2.info = new Set(state.info || []); s2.diag = !!state.diag; }
