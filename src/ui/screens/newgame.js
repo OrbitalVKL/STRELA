@@ -84,6 +84,9 @@ export function newGame() {
         <output>${legs === 1 ? '1 MANCHE' : `PREMIER À ${legs} MANCHES`}</output>
         <button type="button" data-act="legs" data-arg="1" ${legs >= 9 ? 'disabled' : ''} aria-label="Plus">+</button></div>
       <p class="note">Le premier à lancer change à chaque manche.</p>
+      <div class="sec">Défis de soirée</div>
+      <div class="seg">${seg('defis', 'non', 'Non', d.defis || 'non')}${seg('defis', 'parfois', 'Parfois', d.defis || 'non')}${seg('defis', 'souvent', 'Souvent', d.defis || 'non')}</div>
+      <p class="note">${(d.defis || 'non') === 'non' ? 'Un défi tiré au sort de temps en temps (« un triple, sinon un verre »), annoncé à voix haute et vérifié tout seul.' : `Environ une volée sur ${d.defis === 'souvent' ? 4 : 8} ; le gage est indicatif : un appui le note dans les verres.`}</p>
       ${d.players.length > 2 ? `<div class="sec">Jouer jusqu'au bout</div>
       <div class="seg">${seg('playon', 'non', 'Non', d.playOn ? 'oui' : 'non')}${seg('playon', 'oui', 'Oui', d.playOn ? 'oui' : 'non')}</div>
       <p class="note">Oui : après le gagnant, les autres finissent pour les places ; le dernier paie sa tournée.</p>` : ''}
@@ -98,6 +101,7 @@ export const actions = {
   'move-up'(i) { const p = draft().players; i = Number(i); if (i > 0) [p[i - 1], p[i]] = [p[i], p[i - 1]]; refresh(); },
   'move-down'(i) { const p = draft().players; i = Number(i); if (i < p.length - 1) [p[i + 1], p[i]] = [p[i], p[i + 1]]; refresh(); },
   score(v) { draft().startScore = Number(v); refresh(); },
+  defis(v) { draft().defis = v; refresh(); },
   handicap(v) { const d = draft(); d.handicap = v === 'oui'; if (!d.starts) d.starts = {}; refresh(); },
   hcap(id) {
     const d = draft();

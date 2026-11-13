@@ -33,3 +33,18 @@ Le lot 7.9 (une animation de tour par pictogramme d'avatar) est déjà prévu et
     pour ne jamais perdre l'historique.
 12. **Saisie plus rapide** : « RATÉ ×3 » en un appui, et la saisie du total d'une volée au clavier pour qui ne veut pas
     le détail des fléchettes.
+
+## Cricket (lot 10, choix de Guillaume le 13/11 : « AB »)
+
+Propositions en images envoyées le 13/11 ; Guillaume retient **les deux présentations** :
+- **A · face à face** quand il y a 2 joueurs : les 7 cibles (20 à 15 et bull) au milieu, les marques de chaque joueur de
+  part et d'autre (/, X, Ⓧ), les points en haut.
+- **B · grille** de 3 à 8 joueurs (et au choix pour 2) : une ligne par cible, une colonne par joueur.
+- Règles : **avec points** par défaut (une cible fermée par soi et ouverte chez un autre rapporte ; on gagne en fermant
+  tout avec autant de points ou plus), **sans points** en option, **cut-throat** en option (les points vont aux autres,
+  le moins de points gagne).
+- Saisie : pavé 20 à 15, BULL, RATÉ, et simple / double / triple ; 3 fléchettes, VALIDER comme en X01.
+- À prévoir : moteur pur `src/engine/cricket.js` (état recalculé depuis config + fléchettes, comme x01.js) inscrit dans
+  le registre GAMES ; parties Cricket rangées à part des X01 au chargement (le code X01 — stats, records, badges, soirée,
+  sauvegarde — ne doit jamais recevoir une partie Cricket : `config.game: 'cricket'`, absent = X01, aucune migration) ;
+  `parseBackup` les accepte ; historique et stats du Cricket : marques par volée (MPR).

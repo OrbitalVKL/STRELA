@@ -15,6 +15,7 @@ import { go } from '../nav.js';
 import { undo, celebrationHtml, placeLabel, drinksSection, recordsOf } from './game.js';
 import { standings, lastPlaces } from '../../engine/ranking.js';
 import { sheetSection } from './printsheet.js';
+import { gameBadgesHtml } from '../honours.js';
 
 const route = v => v.darts.map(d => formatDart(d).replace(/^S/, '')).join(' · ');
 
@@ -79,6 +80,7 @@ export function matchEnd() {
       ${legsTxt ? `<span class="small b">${legsTxt}</span>` : ''}</div></div>
     ${payers.length ? tourneeHtml(payers, g) : ''}
     ${recordsHtml(g, s)}
+    ${gameBadgesHtml(g)}
     ${finishBoard(g, s, winVisit, p)}
     <div class="pad">
       <div class="sec" style="margin-top:6px">${multi ? 'Classement' : 'Résumé'}</div>
@@ -149,12 +151,13 @@ export const actions = {
     // Mêmes réglages ; le premier à lancer passe au joueur suivant. Lot 7.6 : si l'ordre avait été tiré au sort, la
     // revanche le tire de nouveau (avant, elle gardait l'ordre tiré en le décalant d'un cran).
     const shuffled = !!store.current.shuffled;
+    const defis = store.current.defis || 'non';
     const players = shuffled ? [...c.players] : [...c.players.slice(1), c.players[0]];
     archiveCurrent(false);
     // Lot 9 : la revanche garde le handicap de chacun.
     const starts = c.starts ? Object.fromEntries(c.players.map((id, i) => [id, c.starts[i]])) : null;
     startGame({ players, startScore: c.startScore, outMode: c.outMode, legsToWin: c.legsToWin, playOn: !!c.playOn, ...(shuffled ? { shuffle: true } : {}),
-      ...(starts ? { handicap: true, starts } : {}) });
+      ...(starts ? { handicap: true, starts } : {}), defis });
     go('#/jeu', { replace: true });
   },
   'finish-home'() { archiveCurrent(false); go('#/'); },

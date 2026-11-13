@@ -15,6 +15,8 @@ import { drawSoireeReport, faceImage, reportFileBase } from '../../soireereport.
 import { soireeModel } from '../../../engine/soiree.js';
 import { pdfFromJpegs, sheetFonts, PAGE_W, PAGE_H } from '../../sheet.js';
 import { deliverFile } from '../printsheet.js';
+import { drawSoireeSummary, summaryFileName } from '../../soireesummary.js';
+import { allHonours } from '../../honours.js';
 import { refresh, go, backFrom } from '../../nav.js';
 
 const DAYS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
@@ -83,6 +85,10 @@ export function soireeDashScreen(sid) {
       <ul class="dlist2">${drinkRows}</ul>${fix}
       ${anyDrinks ? `${infoSec('Au fil des verres', 'dash-levels')}${infoBox('dash-levels', 'Moyenne sur 3 fléchettes de chacun selon le nombre de verres déjà bus quand il lance (0, 1, 2… ; une pinte compte pour 2). Encadré : le niveau où il a le mieux joué ce soir (9 fléchettes au moins). Le détail est dans ses stats.')}${lvTable}` : ''}
       ${infoSec('Parties', 'dash-games', ` <span class="n">${m.games}</span>`)}${infoBox('dash-games', 'Touchez une partie pour son détail tour par tour, sa fiche de score et ses verres.')}<ul class="hrows dlist">${glist}</ul>
+      ${infoSec('Résumé à partager', 'dash-summary')}${infoBox('dash-summary', 'Une image verticale (format téléphone) à envoyer dans la conversation des joueurs : podium et six faits marquants de la soirée. Elle est enregistrée dans Téléchargements/Strela puis le menu de partage s\'ouvre.')}
+      ${st.summary ? `<div class="dsum"><img src="${st.summary}" alt="Résumé de la soirée"></div>` : ''}
+      <div class="btns two"><button type="button" class="btn" data-act="dash-summary-see" data-arg="${esc(sid)}"${st.busy ? ' disabled' : ''}>${ico('image')} ${st.summary ? 'MASQUER' : 'APERÇU'}</button>
+        <button type="button" class="btn primary" data-act="dash-summary" data-arg="${esc(sid)}"${st.busy ? ' disabled' : ''}>${ico('download')} PARTAGER</button></div>
       ${infoSec('Rapport à imprimer', 'dash-report', ' <span class="n">3 feuilles</span>')}${infoBox('dash-report', 'A · podium et cartes des joueurs · B · la soirée heure par heure, courbes, trophées · C · qui bat qui, chiffres comparés, cibles. IMAGE : les 3 feuilles l\'une sous l\'autre ; PDF : 3 pages A4, enregistrées dans Téléchargements/Strela puis le menu de partage s\'ouvre (Imprimer, Drive, mail…).')}
       ${st.preview ? `<div class="dpages">${st.preview.map((u, k) => `<img src="${u}" alt="Feuille ${'ABC'[k]}">`).join('')}</div>`
         : `<button type="button" class="btn" data-act="dash-preview" data-arg="${esc(sid)}"${st.busy ? ' disabled' : ''}>${ico('image')} VOIR LES 3 FEUILLES</button>`}
@@ -147,6 +153,46 @@ async function exportDash(kind, sid) {
   status.set(sid, { ...(status.get(sid) || {}), busy: false, msg }); refresh();
 }
 
+/** Lot 9 : record personnel battu pendant la soirée (le premier trouvé, meilleure volée d'abord), pour le résumé. */
+function soireeRecord(games) {
+  const at = new Set(games.map(g => g.startedAt));
+  const recs = allHonours().events.filter(e => e.kind === 'record' && at.has(e.at));
+  const r = recs.find(e => e.key === 'visit') || recs[0];
+  const short = { visit: 'volée', avg: 'moyenne', leg: 'manche', fin: 'finition' };
+  return r ? { id: r.id, label: short[r.key] || r.label, value: r.value } : null;
+}
+
+async function summaryCanvas(sid) {
+  const games = store.games.filter(g => g.soiree === sid);
+  if (!games.length) return null;
+  await sheetFonts();
+  const m = soireeModel(games, id => playerById(id).name);
+  const who = await faces(m.rows.map(r => r.id));
+  return { m, c: drawSoireeSummary(m, who, { record: soireeRecord(games) }) };
+}
+
+async function summaryDash(sid, share) {
+  const cur = status.get(sid) || {};
+  if (!share && cur.summary) { status.set(sid, { ...cur, summary: null }); refresh(); return; }
+  status.set(sid, { ...cur, busy: true, msg: '' }); refresh();
+  let patch;
+  try {
+    const r = await summaryCanvas(sid);
+    if (!r) return;
+    if (share) {
+      const msg = await deliverFile({ name: summaryFileName(r.m.start), mime: 'image/png', bytes: dataUrlBytes(r.c.toDataURL('image/png')) });
+      patch = { busy: false, msg: msg || '' };
+    } else {
+      const t = document.createElement('canvas'); t.width = 540; t.height = 960;
+      t.getContext('2d').drawImage(r.c, 0, 0, t.width, t.height);
+      patch = { busy: false, summary: t.toDataURL('image/jpeg', 0.85) };
+    }
+  } catch (e) {
+    patch = { busy: false, msg: `Résumé impossible : ${(e && e.message) || e}.` };
+  }
+  status.set(sid, { ...(status.get(sid) || {}), ...patch }); refresh();
+}
+
 /** Aperçu des 3 feuilles à l'écran (images réduites). */
 async function previewDash(sid) {
   status.set(sid, { ...(status.get(sid) || {}), busy: true }); refresh();
@@ -167,6 +213,8 @@ async function previewDash(sid) {
 export const actions = {
   'dash-export'(arg) { const [kind, sid] = String(arg).split('|'); exportDash(kind, sid); },
   'dash-preview'(sid) { previewDash(String(sid)); },
+  'dash-summary'(sid) { summaryDash(String(sid), true); },
+  'dash-summary-see'(sid) { summaryDash(String(sid), false); },
   'dash-fix-ask'(sid) { status.set(sid, { ...(status.get(sid) || {}), fixAsk: true }); refresh(); },
   'dash-fix-no'(sid) { status.set(sid, { ...(status.get(sid) || {}), fixAsk: false }); refresh(); },
   'dash-fix'(sid) { applyCumulativeFix(sid); status.set(sid, { ...(status.get(sid) || {}), fixAsk: false, preview: null }); refresh(); },

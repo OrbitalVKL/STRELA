@@ -22,6 +22,7 @@ import { makeBackup, parseBackup } from '../../data/backup.js';
 import { saveSetting } from '../store.js';
 import { seasonMock } from '../maquette.js';
 import { presetStats2 } from './v2/stats2.js';
+import { presetHonour } from '../honours.js';
 import { presetHistory2 } from './v2/history2.js';
 import { presetSettings2 } from './settings.js';
 
@@ -123,6 +124,9 @@ export const SCENES = {
   'v78-classement': v78('#/classement'),
   'v78-classement-info': v78('#/classement', () => presetStats2({ info: ['palmares', 'classement'], rank: 'worstVisit' })),
   'v78-classement-verres': v78('#/classement', () => presetStats2({ rank: 'drinks' })),
+  'v78-honneur': v78('#/honneur', () => presetHonour({ kind: 'tout' })), // lot 9 : tableau d'honneur
+  'v78-honneur-badges': v78('#/honneur', () => presetHonour({ kind: 'badge' })),
+  'v78-stats-vitrine': v78('#/stats/p1', () => presetStats2({ info: ['vitrine'] })),
   'v78-historique': v78('#/historique'),
   'v78-historique-filtre': v78('#/historique', () => { const d = new Date(); presetHistory2({ player: 'p2', month: `${d.getFullYear()}-${d.getMonth()}` }); }),
   'v78-historique-tout': v78('#/historique', () => presetHistory2({ open: store.games.map(g => (g.soiree ? `s:${g.soiree}` : '')).filter(Boolean) })),
@@ -282,6 +286,10 @@ export const SCENES = {
   'aucun-joueur': () => { store.players = []; store.current = null; store.setupDraft = null; return '#/joueurs'; },
   // Lot 9 : handicap (Karim et Mathilde partent de 701, les autres de 501), et une partie en handicap.
   'nouvelle-handicap': () => { store.current = null; store.setupDraft = { ...store.lastSetup, players: ['p1', 'p2', 'p3', 'p4'], shuffle: false, handicap: true, starts: { p1: 701, p2: 301 }, confirm: false }; return '#/nouvelle'; },
+  // Lot 9 : défi tiré (partie « defi21 », volée 2 : « le 20 trois fois ou une pinte »), puis raté (en attente de VALIDER).
+  'jeu-defi': () => { setGame({ ...cfg(['p1', 'p2']), defis: 'souvent' }, 'T20 S20 S5'); store.current.id = 'defi21'; return '#/jeu'; },
+  'jeu-defi-rappel': () => { setGame({ ...cfg(['p1', 'p2']), defis: 'souvent' }, 'T20 S20 S5  S20'); store.current.id = 'defi21'; store.current.ui.defiSeen = 'defi21:1'; return '#/jeu'; },
+  'jeu-defi-resultat': () => { setGame({ ...cfg(['p1', 'p2']), defis: 'souvent' }, 'T20 S20 S5  S20 S20 S1', {}, true); store.current.validated = 3; store.current.id = 'defi21'; return '#/jeu'; },
   'jeu-handicap': () => { setGame({ ...cfg(['p1', 'p2']), starts: [701, 301] }, 'T20 S20 S5'); return '#/jeu'; },
   'nouvelle-vide': () => { store.players = []; store.current = null; store.setupDraft = null; return '#/nouvelle'; },
   'historique-vide': () => { store.games = []; return '#/historique'; },
@@ -386,6 +394,9 @@ export function sommaire() {
       ${L('v78-classement', '★ Classement', 'palmarès')}
       ${L('v78-classement-info', '★ Classement : pire volée', 'explications ouvertes')}
       ${L('v78-classement-verres', '★ Classement : verres')}
+      ${L('v78-honneur', '★ Tableau d\'honneur', 'badges et records, lot 9')}
+      ${L('v78-honneur-badges', '★ Tableau d\'honneur : badges seuls')}
+      ${L('v78-stats-vitrine', '★ Stats : records et badges', 'vitrine, lot 9')}
       ${L('v78-historique', '★ Historique', 'par soirée, filtres')}
       ${L('v78-historique-filtre', '★ Historique : Mathilde, ce mois-ci')}
       ${L('v78-historique-tout', '★ Historique : soirées dépliées')}
@@ -507,6 +518,9 @@ export function sommaire() {
       ${L('accueil-soiree', 'Accueil avec une soirée')}
       ${L('nouvelle-soiree', 'Nouvelle partie pendant la soirée')}
       ${L('nouvelle-handicap', '2 · Nouvelle partie : handicap', 'lot 9')}
+      ${L('jeu-defi', '3 · Défi tiré au sort', 'carte, lot 9')}
+      ${L('jeu-defi-rappel', '3 · Défi : rappel pendant la volée')}
+      ${L('jeu-defi-resultat', '3 · Défi raté : gage à noter')}
       ${L('jeu-handicap', '3 · Partie en handicap', 'départ 701 / 301')}
       ${L('verres-soiree', 'Verres de la soirée en jeu', 'panneau')}
       ${L('verres-soiree-jeu', 'Verres de la soirée en jeu', 'Mathilde x3')}

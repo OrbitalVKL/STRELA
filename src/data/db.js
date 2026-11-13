@@ -173,6 +173,7 @@ export function withDrinks(g, rec) {
   if (drinks) rec.drinks = drinks;
   if (g.shuffled === true) rec.shuffled = true;
   if (typeof g.soiree === 'string' && g.soiree) rec.soiree = g.soiree;
+  if (g.defis === 'parfois' || g.defis === 'souvent') rec.defis = g.defis; // lot 9 : défis de soirée
   const before = cleanBefore(g.drinksBefore);
   if (before) rec.drinksBefore = before;
   // Version 0.8.1 : verres d'avant la correction « resaisis à chaque partie » (pour pouvoir l'annuler) ; facultatif.

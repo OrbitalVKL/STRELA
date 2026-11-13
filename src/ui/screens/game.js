@@ -29,6 +29,8 @@ import { correctDart, locateDart, visitStart, CORRECT_ERRORS } from '../../engin
 import { turnAnimOf, syncTurnFx } from '../turnfx.js';
 import { leader, flop, lastPlaces, visitStanding } from '../../engine/ranking.js';
 import { playerRecords, isVisitRecord } from '../../engine/records.js';
+import { drawDefi, defiResult, DEFIS } from '../../engine/defis.js';
+import { gameBadgesSay } from '../honours.js';
 
 export const ANNOUNCE_MS = 800;
 const LENS = { size: 150, zoom: 2.5, gap: 26 };
@@ -274,6 +276,42 @@ function others(v) {
 /** Tour en cours (lot 7.6) : celui de la volée montrée (en cours, ou en attente de VALIDER). */
 const tourOf = v => roundOf(v.s, v.pend ? v.s.visits.length - 1 : 'open');
 
+// ------------------------------------------------------------------ défis de soirée (lot 9, variante B)
+/** Défi de la volée montrée : { id, key, player, open (pas encore close), result? } ou null. */
+export function defiNow(v) {
+  const g = v.g;
+  if (!g.defis) return null;
+  const s = v.s;
+  if (v.pend) {
+    const idx = s.visits.length - 1;
+    const r = defiResult(g, s, idx);
+    return r ? { id: `${g.id}:${idx}`, key: r.key, player: r.player, open: false, result: r } : null;
+  }
+  if (s.status !== 'playing' || s.currentPlayer === null) return null;
+  const idx = s.visits.length;
+  const key = drawDefi(g.id, idx, g.defis, s.remaining[s.currentPlayer]);
+  return key ? { id: `${g.id}:${idx}`, key, player: s.currentPlayer, open: true } : null;
+}
+const GAGE = { verre: '+1 VERRE', pinte: '+1 PINTE', autres: '+1 AUX AUTRES', tournee: '+1 À TOUS' };
+/** Carte plein écran au début de la volée (jusqu'à C'EST PARTI ou la première fléchette), annoncée à voix haute. */
+function defiCard(v, d) {
+  if (!d || !d.open || v.darts.length || v.ui.defiSeen === d.id) return '';
+  const p = playerById(v.cfg.players[d.player]);
+  if (v.ui.defiSaid !== d.id) { v.ui.defiSaid = d.id; setTimeout(() => say(`Défi pour ${p.name} : ${DEFIS[d.key].say}`), 400); }
+  return `<div class="defi-card" role="dialog" aria-label="Défi" data-layer style="--pc:${colorOf(p)}">
+    <small>DÉFI TIRÉ AU SORT</small>
+    <div class="dc">${avatarHtml(p, 64)}<b class="nm ell">${esc(p.name)}</b><span class="dt" data-shrink="2">${esc(DEFIS[d.key].text)}</span></div>
+    <button type="button" class="btn" data-act="defi-ok" data-arg="${esc(d.id)}">C'EST PARTI</button></div>`;
+}
+/** Dans la bande du tour : rappel du défi pendant la volée, puis son résultat (et le gage à noter d'un appui). */
+function defiChip(v, d) {
+  if (!d) return '';
+  if (d.open) return `<span class="dfi" aria-label="Défi : ${esc(DEFIS[d.key].text)}">⚑ ${esc(DEFIS[d.key].short)}</span>`;
+  const r = d.result;
+  if (r.gage && v.ui.defiDone !== d.id) return `<button type="button" class="dfi gage" data-act="defi-gage" data-arg="${esc(d.id)}">${r.ok ? 'RÉUSSI · ' : 'RATÉ · '}${GAGE[r.gage]}</button>`;
+  return `<span class="dfi${r.ok ? ' ok' : ''}">${r.ok ? 'DÉFI RÉUSSI' : 'DÉFI RATÉ'}</span>`;
+}
+
 /**
  * Bande du tour (lot 7.6, demande de Guillaume) : « TOUR 5 » puis tous les joueurs dans l'ordre du tour, à partir du
  * premier à lancer de la manche. Plein = a déjà lancé ce tour-ci ; encadré = lance maintenant ; filet = lance encore
@@ -285,7 +323,8 @@ function roundStrip(v) {
   const r = tourOf(v);
   // Verres (lot 7.6) : un appui ouvre le panneau des verres, sans passer par la pause.
   const glass = `<button type="button" class="glass" data-act="drinks-open" data-press aria-label="Verres">${ico('glass')}<span>+1</span></button>`;
-  if (n < 2) return `<section class="round" aria-label="Tour ${r}"><b class="rt">TOUR ${r}</b>${glass}</section>`;
+  const dfi = defiChip(v, defiNow(v)); // lot 9 : défi de la volée, à la place de « ENCORE n »
+  if (n < 2) return `<section class="round" aria-label="Tour ${r}"><b class="rt">TOUR ${r}</b>${dfi}${glass}</section>`;
   const count = new Array(n).fill(0);
   for (const x of s.visits) if (x.leg === s.legNumber) count[x.player] += 1;
   const placed = s.placing ? s.finishOrder : [];
@@ -303,7 +342,7 @@ function roundStrip(v) {
     cells.push(`<li class="rd ${st}" aria-label="${esc(p.name)} : ${label}">${avatarHtml(p, n > 5 ? 19 : 22, 'mono')}</li>`);
   }
   const tail = left ? `<span class="rl"><span class="lg">ENCORE </span><span class="sh">+</span>${left}</span>` : '<span class="rl"><span class="lg">DERNIER</span><span class="sh">FIN</span></span>';
-  return `<section class="round${n > 5 ? ' many' : ''}${v.pend ? ' wait' : ''}" aria-label="Tour ${r}" data-fit="4"><b class="rt"><span class="lg">TOUR </span><span class="sh">T</span>${r}</b><ol class="rds">${cells.join('')}</ol>${v.pend ? '' : tail}${glass}</section>`;
+  return `<section class="round${n > 5 ? ' many' : ''}${v.pend ? ' wait' : ''}" aria-label="Tour ${r}" data-fit="4"><b class="rt"><span class="lg">TOUR </span><span class="sh">T</span>${r}</b><ol class="rds">${cells.join('')}</ol>${dfi || (v.pend ? '' : tail)}${glass}</section>`;
 }
 
 /** « 1ER », « 2E »… */
@@ -319,6 +358,9 @@ function validateButton(v, cls = '') {
 }
 
 function announce(v) {
+  // Lot 9 : au début d'une volée avec défi, la carte du défi (avec le nom du joueur) remplace « À TOI ».
+  const card = v.pend ? '' : defiCard(v, defiNow(v));
+  if (card) return card;
   const a = v.ui.announce;
   if (a === null || a !== v.s.currentPlayer || v.pend) return '';
   const p = playerById(v.cfg.players[a]);
@@ -698,8 +740,10 @@ function play(dart, key, pos = null) {
   const g = store.current;
   if (!g) return;
   stopAnnounce();
+  const before = currentState();
   const r = throwDart(g.config, g.darts, dart);
   if (!r.ok) { buzz(BUZZ.undo); return; }
+  if (g.defis) g.ui.defiSeen = `${g.id}:${before.visits.length}`; // lot 9 : la carte du défi part à la première fléchette
   g.darts = r.darts;
   // Position réelle du doigt (paysage), gardée avec la fléchette pour marquer l'impact.
   if (pos) g.darts[g.darts.length - 1] = { segment: dart.segment, multiplier: dart.multiplier, pos: pos.map(c => Math.round(c * 1000) / 1000) };
@@ -717,14 +761,16 @@ function play(dart, key, pos = null) {
       buzz(BUZZ.dart);
       sound(v.total === 180 ? 'max' : f ? 'flop' : dartSound(dart));
       later(() => say(f ? SPEECH.flop(f.kind, name(v.player), f.value) : SPEECH.total(v.total), { strong: v.total === 180 }));
-      // Lot 9 : record personnel (meilleure volée de toutes ses parties) annoncé après le total.
+      // Lot 9 : record personnel (meilleure volée de toutes ses parties) annoncé après le total ; puis le défi.
       if (!v.bust && visitIsRecord(g, st)) later(() => say(`Record personnel pour ${name(v.player)} !`, { strong: true }));
+      sayDefi(g, st);
       if (v.total >= 100) celebrate(v.total === 180 ? 'max' : v.total >= 140 ? 'ton40' : 'ton', v.total, v.player);
       else if (f) celebrate(`nul-${f.kind}`, f.kind === 'serie' ? f.value : v.total, v.player);
       break;
     case 'bust':
       buzz(BUZZ.bust);
       sound('bust');
+      sayDefi(g, st);
       later(() => say(f ? SPEECH.flop(f.kind, name(v.player), f.value) : SPEECH.bust()));
       if (f) celebrate(`nul-${f.kind}`, f.kind === 'serie' ? f.value : 'BUST', v.player);
       break;
@@ -749,6 +795,8 @@ function play(dart, key, pos = null) {
         later(() => say(place > 1 ? SPEECH.place(place, name(v.player)) : SPEECH.match(name(v.player))));
         const payers = lastPlaces(st).map(name);
         if (payers.length) setTimeout(() => say(SPEECH.lastPays(payers)), 2600);
+        const badges = gameBadgesSay(g); // lot 9 : badges gagnés dans la partie
+        if (badges) setTimeout(() => say(badges), payers.length ? 5200 : 2600);
       }
       go(st.lastEvent === 'leg_won' ? '#/manche' : '#/fin');
       return;
@@ -826,6 +874,17 @@ export function celebrationHtml() {
   return `<div class="cele ${c.kind}${nul}${enter}" role="status" aria-live="polite" data-layer style="--pc:${colorOf(p)}">
     <small>${CELE_TEXT[c.kind]}</small><b data-shrink>${c.value}</b><span class="nm ell">${esc(p.name)}</span>
     <span class="ok" aria-hidden="true">TOUCHER POUR CONTINUER</span></div>`;
+}
+
+/** Lot 9 : résultat du défi de la volée qui vient de se fermer, dit après le total. */
+function sayDefi(g, st) {
+  if (!g.defis) return;
+  const r = defiResult(g, st, st.visits.length - 1);
+  if (!r) return;
+  const n = playerById(g.config.players[r.player]).name;
+  const txt = r.ok ? (r.gage === 'autres' ? `Défi réussi ! Les autres boivent.` : `Défi réussi, ${n} !`)
+    : r.gage === 'tournee' ? `Défi raté. ${n}, c'est ta tournée !` : `Défi raté. ${r.gage === 'pinte' ? 'Une pinte' : 'Un verre'} pour ${n} !`;
+  setTimeout(() => say(txt), 1800);
 }
 
 /** ANNULER : retire la dernière fléchette (aussi depuis une volée en attente, une fin de manche ou de partie). */
@@ -938,6 +997,18 @@ export const actions = {
   },
   'drink-plus'(id) { addDrink(id, Date.now(), pintMode()); buzz(BUZZ.dart); refresh(); },
   // Lot 9 : un verre (ou une pinte) pour chaque joueur de la partie, d'un appui (tournée servie).
+  'defi-ok'(id) { store.current.ui.defiSeen = id; store.current.ui.announce = null; refresh(); },
+  // Gage d'un défi (indicatif) : noté d'un appui dans les verres (lot 9).
+  'defi-gage'(id) {
+    const g = store.current;
+    const d = defiNow(view());
+    if (!d || d.id !== id || !d.result || !d.result.gage) return;
+    const now = Date.now();
+    const who = d.result.gage === 'tournee' ? g.config.players : d.result.gage === 'autres' ? g.config.players.filter((_, i) => i !== d.player) : [g.config.players[d.player]];
+    for (const pid of who) addDrink(pid, now, d.result.gage === 'pinte');
+    g.ui.defiDone = id;
+    buzz(BUZZ.dart); refresh();
+  },
   'drink-all'() { const now = Date.now(); for (const id of store.current.config.players) addDrink(id, now, pintMode()); buzz(BUZZ.dart); refresh(); },
   'drinks-open'() { stopAnnounce(); store.current.ui.drinks = true; refresh(); },
   'drinks-close'() { store.current.ui.drinks = false; refresh(); },

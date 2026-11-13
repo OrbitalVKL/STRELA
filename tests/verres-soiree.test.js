@@ -10,6 +10,7 @@ import { soireeModel } from '../src/engine/soiree.js';
 import { ds } from './helpers.js';
 import { reportFileBase } from '../src/ui/soireereport.js';
 import { sheetFileName } from '../src/ui/sheet.js';
+import { summaryFileName, summaryTiles } from '../src/ui/soireesummary.js';
 
 const D = n => Array.from({ length: n }, (_, i) => ({ t: 1000 + i, at: 0 }));
 const game = (id, at, drinks, players = ['A', 'B']) => ({ id, startedAt: at, soiree: 's', config: { startScore: 301, outMode: 'double', legsToWin: 1, players }, darts: [], drinks });
@@ -52,6 +53,8 @@ test('noms des fichiers du rapport et de la fiche : acceptés par l’APK', () =
     assert.match(sheetFileName(at, ext), re);
   }
   assert.equal(`${reportFileBase(at)}.pdf`, 'strela-soiree-20261112-2041.pdf');
+  assert.match(summaryFileName(at), re, 'résumé à partager (lot 9)');
+  assert.equal(summaryFileName(at), 'strela-resume-20261112-2041.png');
 });
 
 // ------------------------------------------------------------------ 0.8.2 : verre (25 cl) ou pinte (50 cl)
@@ -94,4 +97,20 @@ test('pinte : cumul dans l’historique de la partie, cumul de la soirée, modè
   assert.deepEqual(m.drinkList.A, [{ t: 1, pint: false }, { t: 2, pint: true }, { t: 3, pint: true }]);
   const tr = m.trophies.find(t => t.key === 'drinks');
   assert.equal(tr.value, 'x5 verres'); assert.equal(tr.detail, '1 verre + 2 pintes');
+});
+
+test('résumé à partager (lot 9) : six cases au plus, record de la soirée, tournées partagées', () => {
+  const config = { startScore: 301, outMode: 'single', legsToWin: 1, players: ['A', 'B', 'C'] };
+  const g = (id, t, darts, drinks) => ({ id, startedAt: t, soiree: 's', config, darts: ds(darts), drinks });
+  const games = [
+    g('g1', 1000, 'T20 T20 T20  S5 S5 S5  S1 S1 S1  T20 T20 S1', { B: [{ t: 1, at: 0 }, { t: 2, at: 0, v: 0.5 }] }),
+    g('g2', 5000, 'T20 T20 T20  S1 S1 S1  S5 S5 S5  T20 T20 S1', {}),
+  ];
+  const m = soireeModel(games);
+  const tiles = summaryTiles(m, { id: 'A', label: 'volée', value: '62' });
+  assert.ok(tiles.length <= 6);
+  assert.deepEqual(tiles.map(t => t.label).slice(0, 2), ['Meilleure volée', 'Pire volée']);
+  assert.deepEqual(tiles.find(t => t.label === 'Le plus assoiffé'), { label: 'Le plus assoiffé', id: 'B', value: 'x3' });
+  assert.ok(tiles.some(t => t.label === 'Record · volée' && t.value === '62'));
+  assert.deepEqual(tiles.find(t => t.label === 'Tournées').value, 'x1', 'C puis B : une tournée chacun');
 });

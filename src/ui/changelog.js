@@ -2,7 +2,11 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
-  { v: '0.9.0', date: '2026-11-13', title: 'Soirée et records', items: [
+  { v: '0.9.0', date: '2026-11-13', title: 'Soirée, défis, records et badges', items: [
+    'Défis de soirée (option au lancement : parfois ou souvent) : de temps en temps, un défi tiré au sort s\'affiche en plein écran avant la volée (« UN TRIPLE, SINON UN VERRE », « UN BULL : LES AUTRES BOIVENT »…) ; il reste rappelé pendant la volée, et le gage se note d\'un appui.',
+    'Badges : 16 à gagner (premier 180, finition 100+, 3 d\'affilée, bu et gagné, champion du mois…), dans une vitrine des stats de chaque joueur avec ses records datés ; annoncés en fin de partie.',
+    'Tableau d\'honneur (Stats › Honneur) : les badges gagnés et les records battus de tout le monde, mois par mois.',
+    'Résumé de soirée à partager : une image au format téléphone (podium et six faits marquants), depuis le tableau de bord de la soirée.',
     'Verres : « UN VERRE POUR TOUS » (ou une pinte) dans le panneau des verres ; en fin de partie, la tournée reste indicative, et TOURNÉE SERVIE la note d\'un appui pour chacun.',
     'Stats : la moyenne au fil des verres (aucun, 1, 2… 5 verres et plus), le niveau où chacun joue le mieux et l\'écart avec la moyenne à jeun ; aussi au tableau de bord et dans le rapport de soirée.',
     'Stats : comparer deux joueurs sur la même courbe.',

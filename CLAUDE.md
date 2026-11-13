@@ -85,6 +85,9 @@ src/ui/changelog.js       nouveautés de chaque version (écran #/nouveautes) ; 
 tools/animations.mjs      captures des animations de tour figées à plusieurs instants (lot 7.4)
 src/ui/sheet.js           fiche de score : modèle, dessin sur canvas (demi-page A5 paysage ou A4, lot 7.3), PDF (lot 7.1) ; screens/printsheet.js : boutons et envoi
 src/engine/records.js     records personnels (lot 9) ; src/ui/autobackup.js : sauvegarde automatique (APK, lot 9)
+src/engine/defis.js       défis de soirée (lot 9, tirage déterministe) ; src/engine/badges.js : badges, tableau d'honneur
+src/ui/honours.js         vitrine (Stats), tableau d'honneur #/honneur, badges de fin de partie ; src/ui/soireesummary.js :
+                          résumé de soirée à partager (image 1080 × 1920)
 src/engine/ranking.js     classement, joueur en tête, derniers (tournée), célébrations des nuls (lot 7)
 src/engine/alcohol.js     verres : comptes (verre 25 cl, pinte 50 cl = 2 verres, 0.8.2), place dans la partie, alcoolémie estimée (lot 7) ;
                           src/ui/drinks.js : choix verre / pinte et affichage du compte (0.8.2)
@@ -169,8 +172,8 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 7.7 | Stats : meilleure et pire volée, pire volée de chaque partie ; moqueries plus cyniques ; 22 répliques de HPV en plus (v0.7.7) — **fait, en attente de validation sur le Pixel** |
 | 7.8 | Refonte (13/11/2026) : accueil A « tableau de bord », stats (courbe de n'importe quel chiffre, zoomable, explications (i), volées repliées, triples, cible chiffrée), classement global, historique (soirées, filtres, regrouper en soirée), tableau de bord et rapport de soirée en 3 feuilles, réglages en cartes, nouveautés ; CI plus rapide (v0.8.0) — **fait, en attente de validation sur le Pixel** |
 | 7.9 | (plus tard, demandé le 12/11/2026) Une animation de tour par pictogramme d'avatar, toutes différentes |
-| 9 | Idées retenues le 13/11 (docs/idees.md) : tournée, moyenne au fil des verres, défis, résumé à partager, handicap, records et badges, comparer deux joueurs, sauvegarde automatique (v0.9.0 : 1, 2, 7, 8 en partie, 10, 11 faits) ; défis, résumé, badges : sur images, en attente du choix |
-| 10 | Cricket (sur images, en attente du choix : A face à face / B grille) |
+| 9 | Idées retenues le 13/11 (docs/idees.md) : tournée, moyenne au fil des verres, défis (B), résumé à partager (A), handicap, records et badges (A + B), comparer deux joueurs, sauvegarde automatique (v0.9.0) — **fait, en attente de validation sur le Pixel** |
+| 10 | Cricket : A face à face (2 joueurs) + B grille (2 à 8), avec points / sans points / cut-throat (docs/idees.md « Cricket ») — **à faire, session neuve** |
 | 8 | Recette |
 
 ## État (version 0.8.0 : la refonte dans l'appli)
@@ -195,8 +198,11 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
   docs/idees.md.
 - **0.9.0** (13/11, lot 9 première partie) : tournée (+1 pour tous, TOURNÉE SERVIE indicative), moyenne au fil des
   verres, handicap, records personnels en direct et en fin de partie, comparer deux joueurs, sauvegarde automatique.
-  Détail : docs/interface.md « Version 0.9.0 ». En attente du choix de Guillaume sur images : défis, résumé à partager,
-  badges, Cricket.
+  Puis, sur images (« B, A, AB, AB ») : défis de soirée (tirage plein écran, src/engine/defis.js), résumé à partager
+  (affiche 1080 × 1920, src/ui/soireesummary.js), badges et tableau d'honneur (src/engine/badges.js, src/ui/honours.js,
+  `#/honneur`). Détail : docs/interface.md « Version 0.9.0 ». Bridge.saveFile accepte `strela-resume-…png`.
+- **Prochain lot : Cricket (lot 10)**, cadré dans docs/idees.md « Cricket ». Question ouverte à Guillaume : TOURNÉE SERVIE
+  aussi à chaque fin de manche (aujourd'hui en fin de partie seulement) ?
 - Ensuite : lot 7.9 (une animation de tour par pictogramme d'avatar), confirmé par Guillaume le 13/11 « dans un second
   temps ».
 

@@ -3,6 +3,7 @@
 import { playerStats, gameState, gameWinner, playerSummary } from './stats.js';
 import { standings, lastPlaces } from './ranking.js';
 import { drinkTime, isPint, unitsOf, drinkTally, tallyText, averageByDrinks } from './alcohol.js';
+import { gameDefis } from './defis.js';
 
 const pad2 = n => String(n).padStart(2, '0');
 const hhmm = ms => { const d = new Date(ms); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
@@ -24,10 +25,13 @@ export function soireeModel(games, name = id => id) {
   // 0.8.2 : verres comptés en verres de 25 cl (une pinte : 2) ; `tally` garde le détail (verres, pintes, litres).
   const drinksOf = id => gs.reduce((n, g) => n + unitsOf(g.drinks && g.drinks[id]), 0);
   const tallyOf = id => drinkTally(...gs.map(g => g.drinks && g.drinks[id]));
+  // Lot 9 : défis de soirée réussis / ratés par joueur.
+  const defis = Object.fromEntries(ids.map(id => [id, { ok: 0, ko: 0 }]));
+  for (const g of gs) for (const d of gameDefis(g, gameState(g))) { const id = g.config.players[d.player]; if (defis[id]) defis[id][d.ok ? 'ok' : 'ko'] += 1; }
   const rows = ids.map(id => {
     const s = playerStats(gs, id);
     return { id, name: name(id), played: s.played, won: s.won, average: s.average, best: s.bestVisit, worst: s.worstVisit,
-      tons: s.ton + s.ton40 + s.max, max: s.max, busts: s.busts, tripleRate: s.tripleRate, drinks: drinksOf(id), tally: tallyOf(id) };
+      tons: s.ton + s.ton40 + s.max, max: s.max, busts: s.busts, tripleRate: s.tripleRate, drinks: drinksOf(id), tally: tallyOf(id), defisOk: defis[id].ok, defisKo: defis[id].ko };
   }).sort((a, b) => b.won - a.won || (b.average ?? -1) - (a.average ?? -1));
   // Volées de la soirée (pour la meilleure et la pire, avec la partie et l'heure).
   const visits = [];
@@ -99,6 +103,8 @@ export function soireeModel(games, name = id => id) {
   const maxOf = key => rows.reduce((a, x) => (x[key] !== null && (!a || x[key] > a[key]) ? x : a), null);
   const bu = maxOf('busts'); if (bu && bu.busts) trophy('busts', 'Roi du bust', bu.id, `${bu.busts} bust`);
   const dr = maxOf('drinks'); if (dr && dr.drinks) trophy('drinks', 'Le plus assoiffé', dr.id, `x${dr.drinks} verres`, dr.tally.pints ? tallyText(dr.tally) : '');
+  const df = rows.filter(r => r.defisOk).sort((a, b) => b.defisOk - a.defisOk || a.defisKo - b.defisKo)[0];
+  if (df) trophy('defis', 'Roi des défis', df.id, `${df.defisOk} réussi${df.defisOk > 1 ? 's' : ''}`, df.defisKo ? `${df.defisKo} raté${df.defisKo > 1 ? 's' : ''}` : '');
   const reg = ids.filter(id => spread[id] !== null).sort((x, y) => spread[x] - spread[y])[0];
   if (reg) trophy('regular', 'Le plus régulier', reg, `écart ${avg(spread[reg])} pts`);
   const list = [...gs].reverse().map(g => ({ id: g.id, at: g.startedAt, startScore: g.config.startScore, winner: gameWinner(g), players: g.config.players, abandoned: !!g.abandoned }));

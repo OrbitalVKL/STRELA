@@ -11,6 +11,7 @@ import { playerStats, inPeriod, gameState } from '../../../engine/stats.js';
 import { unitsOf, drinkTally, tallyText, averageByDrinks } from '../../../engine/alcohol.js';
 import { refresh, backFrom } from '../../nav.js';
 import { board, countOf, tally, currentPeriod, pickedBoard } from '../stats.js';
+import { vitrineHtml } from '../../honours.js';
 
 const dec1 = v => (v === null || v === undefined || Number.isNaN(v) ? '—' : (Math.round(v * 10) / 10).toFixed(1).replace('.', ','));
 const DAYS = ['DIM.', 'LUN.', 'MAR.', 'MER.', 'JEU.', 'VEN.', 'SAM.'];
@@ -77,7 +78,8 @@ function fold(key, title, count, body) {
 
 const tabs = active => `<div class="pad tabs2"><div class="seg">
     <a href="#/stats" role="button" aria-pressed="${active === 'joueur'}">Joueur</a>
-    <a href="#/classement" role="button" aria-pressed="${active === 'classement'}">${ico('trophy')} Classement</a></div></div>`;
+    <a href="#/classement" role="button" aria-pressed="${active === 'classement'}">Classement</a>
+    <a href="#/honneur" role="button" aria-pressed="false">Honneur</a></div></div>`;
 
 const periodSeg = () => {
   const p = currentPeriod();
@@ -319,6 +321,7 @@ export function stats2Screen(id) {
       ${sec('Volées', null)}
       <div class="kpis"><div class="kpi wide tons"><div data-k="ton"><small>100+</small><b>${st.ton}</b></div><div data-k="ton40"><small>140+</small><b>${st.ton40}</b></div><div data-k="max"><small>180</small><b>${st.max}</b></div><div data-k="busts"><small>Bust</small><b>${st.busts}</b></div></div>
         ${k('drinks', `Verres${drinkT.pints ? ` · ${tallyText(drinkT)}` : ''}`, `${drinks}<small> en ${plural(st.played, 'partie', 'parties')}</small>`, 'wide')}</div>
+      ${vitrineHtml(pid, sec, infoBox)}
       ${chartBlock(games, pid)}
       ${drinksBlock(games, pid)}
       ${sec('Meilleures et pires volées', 'volees')}

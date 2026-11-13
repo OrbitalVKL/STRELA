@@ -26,7 +26,7 @@ export function noteRoute(hash) { if (hash !== cur) { prev = cur; cur = hash; } 
 // joueur dans les Stats) ne change pas d'où elle a été ouverte. Le retour d'un écran de détail (backFrom) revient à
 // l'écran d'avant sa famille : des Stats ouvertes depuis le tableau de bord d'une soirée y reviennent, au lieu de
 // l'accueil. Jamais vers le jeu (on n'y revient que par REPRENDRE).
-const FAMILY_ALIAS = { classement: 'stats' }; // onglets Joueur / Classement des Stats
+const FAMILY_ALIAS = { classement: 'stats', honneur: 'stats' }; // onglets Joueur / Classement des Stats
 const NO_RETURN = new Set(['jeu', 'manche', 'fin', 'nouvelle', 'recadrage']);
 const family = h => { const f = String(h).replace(/^#\/?/, '').split(/[/?]/)[0]; return FAMILY_ALIAS[f] || f; };
 const stack = [];

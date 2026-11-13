@@ -429,7 +429,8 @@ export function startGame(setup) {
   store.lastSetup = { players: [...setup.players], startScore: setup.startScore, outMode: setup.outMode, legsToWin: setup.legsToWin,
     // REVANCHE (ni l'un ni l'autre donné) garde les préférences d'avant
     shuffle: setup.shuffle ?? store.lastSetup?.shuffle ?? true, playOn: setup.playOn ?? store.lastSetup?.playOn ?? false,
-    handicap: setup.handicap ?? store.lastSetup?.handicap ?? false, starts: { ...(setup.starts ?? store.lastSetup?.starts ?? {}) } };
+    handicap: setup.handicap ?? store.lastSetup?.handicap ?? false, starts: { ...(setup.starts ?? store.lastSetup?.starts ?? {}) },
+    defis: setup.defis ?? store.lastSetup?.defis ?? 'non' };
   store.current = { id: newId('g'), config, darts: [], startedAt: Date.now(), validated: 0, ui: freshUi() };
   // Lot 7.6 : l'ordre tiré est noté dans la partie, pour que la REVANCHE tire de nouveau au sort.
   if (setup.shuffle && players.length > 1) store.current.shuffled = true;
@@ -441,6 +442,8 @@ export function startGame(setup) {
     for (const id of players) { const n = soireeDrinks(id); if (n) before[id] = n; }
     if (Object.keys(before).length) store.current.drinksBefore = before;
   }
+  // Lot 9 : défis de soirée (tirés au sort pendant la partie, voir engine/defis.js).
+  if (setup.defis === 'parfois' || setup.defis === 'souvent') store.current.defis = setup.defis;
   // Ordre tiré : « À TOI, PSEUDO » annonce le premier à lancer.
   if (setup.shuffle && players.length > 1) store.current.ui.announce = 0;
   write([{ store: 'games', put: currentRecord(store.current) }, { store: 'settings', key: 'lastSetup', put: store.lastSetup }]);

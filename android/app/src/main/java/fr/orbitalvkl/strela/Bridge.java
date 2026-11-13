@@ -119,7 +119,7 @@ public class Bridge {
     @JavascriptInterface
     public String saveFile(String name, String base64, String mime, boolean share) {
         try {
-            if (!name.matches("strela-(fiche|soiree)-[0-9]{8}-[0-9]{4}\\.(png|pdf)")) throw new IllegalArgumentException("nom de fichier refusé");
+            if (!name.matches("strela-(fiche|soiree|resume)-[0-9]{8}-[0-9]{4}\\.(png|pdf)")) throw new IllegalArgumentException("nom de fichier refusé");
             String type = name.endsWith(".pdf") ? "application/pdf" : "image/png";
             byte[] data = android.util.Base64.decode(base64, android.util.Base64.DEFAULT);
             return save(name, data, type, share, name.startsWith("strela-soiree-") ? "Partager le rapport de soirée" : "Partager la fiche de score");

@@ -30,6 +30,7 @@ import { soireeDashScreen, actions as dashActions } from './screens/v2/soireedas
 import { actions as infoActions } from './info.js';
 import { actions as drinkActions } from './drinks.js';
 import { weeklyAutoBackup } from './autobackup.js';
+import { honourScreen, actions as honourActions } from './honours.js';
 
 // Version 0.8.0 : la refonte (lot 7.8, écrans de screens/v2/) remplace l'accueil, l'historique, les stats et les
 // réglages ; accueil A « tableau de bord » (choix de Guillaume, 13/11/2026).
@@ -47,6 +48,7 @@ const ROUTES = [
   [/^\/partie\/(.+)$/, historyDetail],
   [/^\/stats(?:\/(.+))?$/, stats2Screen],
   [/^\/classement$/, rankingScreen],
+  [/^\/honneur$/, honourScreen],
   [/^\/nouveautes$/, changelogScreen],
   [/^\/face\/([^/]+)\/(.+)$/, faceScreen],
   [/^\/reglages$/, settings2Screen],
@@ -59,7 +61,7 @@ const ROUTES = [
 const ACTIONS = {
   ...playerActions, ...newGameActions, ...gameActions, ...resultActions,
   ...statsActions, ...settingsActions, ...historyActions, ...photoActions, ...aboutActions, ...sheetActions, ...soireeActions,
-  ...stats2Actions, ...history2Actions, ...dashActions, ...infoActions, ...drinkActions,
+  ...stats2Actions, ...history2Actions, ...dashActions, ...infoActions, ...drinkActions, ...honourActions,
 };
 const INPUTS = { ...playerInputs };
 

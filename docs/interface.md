@@ -779,9 +779,26 @@ Cricket, 7, 8, 10, 11. Fait ici (choix techniques clairs) ; le reste attend son 
 - **11 · Sauvegarde automatique** : src/ui/autobackup.js — APK seulement, réglage `autoBackup` (OUI) ; fin de soirée et
   au lancement si la dernière a plus de 7 jours, seulement si les parties ont changé (empreinte) ; même fichier
   qu'EXPORTER, sans partage ; dernière date dans les Réglages.
-- **En attente du choix de Guillaume** (images envoyées le 13/11, sources hors dépôt) : 3 défis (A bandeau / B tirage
-  plein écran), 4 résumé à partager (A affiche / B ticket), 8 badges (A vitrine / B tableau d'honneur), Cricket
-  (A face à face / B grille ; règles : avec points, sans points, cut-throat en option).
+- **Choix de Guillaume sur images (13/11) : « B, A, AB, AB »** — défis B, résumé A, badges A et B, Cricket A et B.
+- **3 · Défis (B, tirage plein écran)** : src/engine/defis.js — option de la partie `defis` ('parfois' ≈ 1 volée sur 8,
+  'souvent' ≈ 1 sur 4 ; Nouvelle partie › Défis de soirée ; gardée par la revanche et `lastSetup`). Tirage
+  **déterministe** (FNV de `id:rang de la volée`) : rien d'enregistré, la reprise et les stats retrouvent les mêmes
+  défis ; jamais la 1re volée ; `minRest` évite un défi injouable près de la fin. 8 défis (triple, double, le 20 ×3,
+  60+, pas de 1, bull → les autres boivent, mieux que ta moyenne, sous 20 = ta tournée). En jeu : carte plein écran
+  (`.defi-card`, voix une fois, fermée par l'appui ou la 1re fléchette), rappel dans la bande du tour (`.dfi`), au
+  résultat RÉUSSI / RATÉ et bouton du gage (`defi-gage` : verre, pinte, tournée = un verre pour tous). Tableau de bord :
+  trophée « Roi des défis ».
+- **4 · Résumé à partager (A, affiche sombre)** : src/ui/soireesummary.js — PNG 1080 × 1920 (thème sombre de la DA :
+  bande rouge, podium, 6 cases `summaryTiles` : meilleure / pire volée, roi du bust, le plus assoiffé, tournées,
+  record battu pendant la soirée, puis roi des défis, le plus régulier, roi de la soirée). Tableau de bord › « Résumé à
+  partager » : APERÇU, PARTAGER (`strela-resume-AAAAMMJJ-HHMM.png`, accepté par `Bridge.saveFile`).
+- **8 · Badges (A vitrine + B tableau d'honneur)** : src/engine/badges.js — `honours(games)` recalcule tout depuis les
+  parties closes : 16 badges (`BADGES`, gagnés à la première partie qui remplit la condition ; champion et roi du bust du
+  mois : mois finis seulement, 3 au moins, comptés ×n), événements (badges et records battus dès la 2e partie),
+  `recordsAt` (date du record actuel). src/ui/honours.js : vitrine dans les Stats du joueur (records datés, grille de
+  badges, non gagnés en discret avec ce qu'il faut faire), `#/honneur` (3e onglet des Stats : le plus de badges, puis
+  mois par mois, filtre Tout / Badges / Records, 30 premiers puis VOIR TOUT), fin de partie « Badges gagnés » + voix.
+- **Cricket (A face à face pour 2 joueurs + B grille de 2 à 8)** : lot 10, dans une session neuve (voir CLAUDE.md).
 
 ## Pour le lot 4
 
