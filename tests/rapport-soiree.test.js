@@ -25,6 +25,20 @@ test('rapport de soirée : 3 feuilles A4, aperçu, PDF de 3 pages, soirée sur p
     });
     assert.equal(info.n, 3);
     assert.deepEqual(info.sizes, [[1240, 1754], [1240, 1754], [1240, 1754]]);
+    // 0.8.1 : un joueur touché sur le tableau de bord ouvre ses stats, dont le retour revient au tableau de bord (même
+    // après être passé à un autre joueur) ; les explications sont derrière (i).
+    await page.waitForSelector('.dash2');
+    assert.equal(await page.locator('.dash2 .infobox').count(), 0, 'explications repliées');
+    await page.click('.dash2 [data-act="info"] >> nth=0');
+    assert.equal(await page.locator('.dash2 .infobox').count(), 1);
+    await page.click('.podium a >> nth=0');
+    await page.waitForSelector('.stats2');
+    assert.equal(await page.getAttribute('header.top a.back', 'href'), '#/soiree/s1');
+    await page.click('.chips a >> nth=1');
+    await page.waitForSelector('.stats2');
+    assert.equal(await page.getAttribute('header.top a.back', 'href'), '#/soiree/s1', 'toujours le tableau de bord');
+    await page.click('header.top a.back');
+    await page.waitForSelector('.dash2');
     // Aperçu à l'écran
     await page.click('[data-act="dash-preview"]');
     await page.waitForSelector('.dpages img:nth-child(3)', { timeout: 20e3 });

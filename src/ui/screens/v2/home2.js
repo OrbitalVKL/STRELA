@@ -5,6 +5,7 @@
 // de page (un appui ouvre les nouveautés) ; repère NOUVEAU sur Nouveautés tant que la page de la version installée
 // n'a pas été ouverte (localStorage « strela.news »).
 import { store, activePlayers, playerById, soireeTotal } from '../../store.js';
+import { backFrom } from '../../nav.js';
 import { esc, ico, plural, when, topBar, avg, maquetteButtons } from '../../dom.js';
 import { avatarHtml } from '../../avatars.js';
 import { BUILD } from '../../build.js';
@@ -87,7 +88,7 @@ const DATE = iso => { const [y, m, d] = iso.split('-').map(Number); return `${d}
 export function changelogScreen() {
   const cur = BUILD.version;
   markNewsSeen();
-  return `<div class="screen news2">${topBar('Nouveautés', '#/')}
+  return `<div class="screen news2">${topBar('Nouveautés', backFrom('#/'))}
     <div class="pad">
       <p class="note">Installée : <b>v${esc(cur)}</b>. Ce qui change à chaque version, de la plus récente à la plus ancienne.</p>
       <ol class="clog">${CHANGELOG.map(e => `<li class="${e.v === cur ? 'cur' : ''}${e.date ? '' : ' nodate'}">

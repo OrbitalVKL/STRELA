@@ -2,6 +2,7 @@
 // l'historique. Livraison : dans l'APK, Téléchargements/Strela/<nom> puis menu de partage d'Android (imprimer, Drive,
 // mail… ; strelaNative.saveFile) ; dans le navigateur, partage du fichier s'il est possible, sinon téléchargement.
 import { store, playerById } from '../store.js';
+import { infoSec, infoBox } from '../info.js';
 import { esc, ico } from '../dom.js';
 import { gameState } from '../../engine/stats.js';
 import { sheetFile, toBase64 } from '../sheet.js';
@@ -17,10 +18,10 @@ const findGame = id => (store.current && store.current.id === id ? store.current
 export function sheetSection(g) {
   const st = status.get(g.id) || {};
   const btn = (kind, label) => `<button type="button" class="btn" data-act="sheet-export" data-arg="${esc(`${kind}|${g.id}`)}"${st.busy ? ' disabled' : ''}>${ico('download')} ${label}</button>`;
-  return `<div class="sec">Fiche de score</div>
+  // Version 0.8.1 : l'explication est derrière le (i) ; seul le résultat du dernier export reste affiché.
+  return `${infoSec('Fiche de score', 'sheet')}${infoBox('sheet', `Vainqueur, classement avec les verres, tournée et scores de chaque manche, noir sur blanc ; une demi-feuille A4 en paysage si la partie est courte. ${isApk() ? 'Enregistrée dans Téléchargements/Strela, puis le menu de partage s\'ouvre (Imprimer, Drive, mail…).' : 'Enregistrée dans les téléchargements, ou partagée si le téléphone le propose.'}`)}
     <div class="btns two sheet-btns">${btn('png', 'IMAGE')}${btn('pdf', 'PDF')}</div>
-    <p class="note" role="status">${st.busy ? 'Préparation de la fiche…' : st.msg ? esc(st.msg)
-      : `Vainqueur, classement avec les verres, tournée et scores de chaque manche, noir sur blanc ; une demi-feuille A4 en paysage si la partie est courte. ${isApk() ? 'Enregistrée dans Téléchargements/Strela, puis le menu de partage s\'ouvre (Imprimer, Drive, mail…).' : 'Enregistrée dans les téléchargements, ou partagée si le téléphone le propose.'}`}</p>`;
+    ${st.busy || st.msg ? `<p class="note" role="status">${st.busy ? 'Préparation de la fiche…' : esc(st.msg)}</p>` : ''}`;
 }
 
 function download(blob, name) {

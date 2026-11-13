@@ -8,7 +8,7 @@ import { store, playerById } from '../../store.js';
 import { esc, ico, topBar, avg, pct, int, plural, when, OUT_SHORT } from '../../dom.js';
 import { avatarHtml } from '../../avatars.js';
 import { playerStats, inPeriod, gameState } from '../../../engine/stats.js';
-import { refresh } from '../../nav.js';
+import { refresh, backFrom } from '../../nav.js';
 import { board, countOf, tally, currentPeriod, pickedBoard } from '../stats.js';
 
 const dec1 = v => (v === null || v === undefined || Number.isNaN(v) ? '—' : (Math.round(v * 10) / 10).toFixed(1).replace('.', ','));
@@ -139,6 +139,9 @@ function chart(pts, m) {
   const meanV = ys.reduce((a, b) => a + b, 0) / ys.length;
   const line = pts.map((p, i) => (p.v === null || p.v === undefined ? null : `${xs(i).toFixed(1)},${y(scale(p.v)).toFixed(1)}`)).filter(Boolean).join(' ');
   const sel = ui.point;
+  // Version 0.8.1 : la valeur écrite à côté des points (demande de Guillaume) ; quand les points sont serrés, un sur
+  // `every` (le dernier et celui touché toujours) — zoomer les montre tous.
+  const every = Math.max(1, Math.ceil(30 / step));
   const dots = pts.map((p, i) => {
     if (p.v === null || p.v === undefined) return '';
     const on = p.g.id === sel;
@@ -146,7 +149,7 @@ function chart(pts, m) {
     const r = ui.zoom >= 4 ? 4.5 : 3.5;
     const hit = Math.max(14, Math.min(40, step));
     return `<rect class="pt${on ? ' on' : ''}" x="${(cx - r).toFixed(1)}" y="${(cy - r).toFixed(1)}" width="${2 * r}" height="${2 * r}"/>
-      ${ui.zoom >= 4 ? `<text class="pv" x="${cx.toFixed(1)}" y="${(cy - 8).toFixed(1)}" text-anchor="middle">${(m.gameFmt || m.fmt)(p.v)}</text>` : ''}
+      ${i % every === 0 || i === n - 1 || on ? `<text class="pv${on ? ' on' : ''}" x="${cx.toFixed(1)}" y="${(cy - 8).toFixed(1)}" text-anchor="middle">${(m.gameFmt || m.fmt)(p.v)}</text>` : ''}
       <rect x="${(cx - hit / 2).toFixed(1)}" y="${T - 18}" width="${hit.toFixed(1)}" height="${H - T + 18}" fill="transparent" data-act="v2-point" data-arg="${esc(p.g.id)}"/>`;
   }).join('');
   const axis = `<svg class="chart2 axis" viewBox="0 0 34 ${H}" width="34" height="${H}" aria-hidden="true">
@@ -177,7 +180,7 @@ function chartBlock(games, pid) {
         <span>${esc(m.label)} <b>${(m.gameFmt || m.fmt)(picked.v)}</b></span>${ico('chev')}</a>`
     : '<p class="note center">Touchez un point pour lire la partie (heure, chiffre) et l\'ouvrir.</p>';
   return `${sec('Courbe', 'courbe')}
-    ${infoBox('courbe', 'Chaque point est une partie, dans l\'ordre où elles ont été jouées : plusieurs parties du même soir ne s\'entassent plus. Les jours sont séparés par un filet et une bande grisée. Zoomez (×2 à ×8) puis faites glisser la courbe du doigt ; à ×4 et plus, la valeur s\'affiche sur chaque point.')}
+    ${infoBox('courbe', 'Chaque point est une partie, dans l\'ordre où elles ont été jouées : plusieurs parties du même soir ne s\'entassent plus. Les jours sont séparés par un filet et une bande grisée. La valeur est écrite au-dessus des points ; quand ils sont serrés, un sur deux ou trois : zoomez (×2 à ×8) pour les voir tous, puis faites glisser la courbe du doigt.')}
     <div class="chips2">${METRICS.filter(x => x.game).map(chip).join('')}</div>
     <div class="chtools"><span class="small dim caps">${esc(m.label)}${m.pct ? ' (%)' : ''}</span>${zoom}</div>
     ${chart(pts, m)}
@@ -228,7 +231,7 @@ export function stats2Screen(id) {
   const games = inPeriod(store.games, currentPeriod());
   const st = playerStats(games, pid);
   const chips = `<div class="chips">${players.map(q => `<a class="btn chip" href="#/stats/${esc(q.id)}" aria-pressed="${q.id === pid}">${avatarHtml(q, 38)}<span class="nm">${esc(q.name.split(' ')[0])}</span></a>`).join('')}</div>`;
-  const head = `${topBar('Stats', '#/')}${tabs('joueur')}${chips}<div class="pad" style="margin-top:10px">${periodSeg()}</div>`;
+  const head = `${topBar('Stats', backFrom('#/'))}${tabs('joueur')}${chips}<div class="pad" style="margin-top:10px">${periodSeg()}</div>`;
   if (!st.played) {
     return `<div class="screen">${head}<div class="empty"><div class="big">AUCUNE PARTIE</div><p><span class="nm">${esc(p.name)}</span> n'a pas joué sur cette période.</p>
       <button type="button" class="btn primary" data-act="period" data-arg="tout">VOIR DEPUIS TOUJOURS</button></div></div>`;
@@ -297,7 +300,7 @@ function ranked(rows, m) {
 export function rankingScreen() {
   const games = inPeriod(store.games, currentPeriod());
   const rows = rankingData(games);
-  const head = `${topBar('Classement', '#/')}${tabs('classement')}<div class="pad" style="margin-top:10px">${periodSeg()}</div>`;
+  const head = `${topBar('Classement', backFrom('#/'))}${tabs('classement')}<div class="pad" style="margin-top:10px">${periodSeg()}</div>`;
   if (rows.length < 2) {
     return `<div class="screen">${head}<div class="empty"><div class="big">PAS ASSEZ DE JOUEURS</div><p>Il faut au moins deux joueurs avec une partie sur la période.</p>
       <button type="button" class="btn primary" data-act="period" data-arg="tout">VOIR DEPUIS TOUJOURS</button></div></div>`;

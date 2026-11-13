@@ -14,8 +14,8 @@ export const CLOSERS = [
   'close-panel',      // panneau cible + historique
   'launch-no',        // LANCER pendant une partie
   'del-game-no',      // supprimer une partie
-  'pick-no',          // supprimer la sélection
-  'pick-cancel',      // sélection de l'historique
+  'dash-fix-no',      // corriger les verres d'une soirée (0.8.1)
+  'h2-cancel',        // sélection de l'historique (0.8.0)
   'delete-no',        // supprimer un joueur
   'archive-no',       // archiver un joueur
   'backup-no',        // confirmation d'import

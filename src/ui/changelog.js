@@ -2,6 +2,13 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.8.1', date: '2026-11-13', title: 'Corrections de la refonte', items: [
+    'Rapport de soirée : l\'export en PDF ou en image marche dans l\'appli (nom de fichier refusé jusque-là).',
+    'Verres : se corrigent dans le détail de chaque partie (− et +) ; une soirée où les verres ont été resaisis à chaque partie se corrige d\'un appui depuis son tableau de bord (et la correction s\'annule).',
+    'Retour : depuis les stats d\'un joueur ouvertes du tableau de bord d\'une soirée (ou d\'une partie ouverte depuis les stats), le retour revient là d\'où l\'on vient.',
+    'Tableau de bord d\'une soirée et détail d\'une partie : les explications sont repliées derrière (i).',
+    'Courbes : la valeur est écrite à côté des points (stats et rapport de soirée).',
+  ] },
   { v: '0.8.0', date: '2026-11-13', title: 'Refonte', items: [
     'Accueil redessiné : reprise de partie, soirée, dernière partie, joueur en tête, six raccourcis.',
     'Stats : courbe de n\'importe quel chiffre, une partie par point, zoom ; meilleures et pires volées repliables ; explications derrière (i).',

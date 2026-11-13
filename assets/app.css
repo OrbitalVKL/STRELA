@@ -1079,7 +1079,7 @@ html.night body::after { content: ''; position: fixed; inset: 0; z-index: 100; p
 .chart2 .mean { stroke: var(--dim); stroke-width: 1.5; stroke-dasharray: 6 4; }
 .chart2 text { fill: var(--dim); font-family: var(--font); font-size: 10.5px; }
 .chart2 .dl { fill: var(--fg); font-weight: 700; letter-spacing: 0.04em; font-size: 10px; }
-.chart2 .pv { fill: var(--fg); font-weight: 700; font-size: 10px; }
+.chart2 .pv { fill: var(--fg); font-weight: 700; font-size: 10px; paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
 .chlegend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 11px; color: var(--dim); }
 .chlegend i { display: inline-block; width: 18px; vertical-align: middle; border-top: 2px solid var(--fg); }
 .chlegend .lg-mean { border-top: 2px dashed var(--dim); }
@@ -1253,7 +1253,7 @@ button.hrow { width: 100%; border: 0; border-bottom: var(--rule); background: va
 .podium .p1 a { background: var(--inv-bg); color: var(--inv-fg); border-color: var(--inv-bg); padding-top: 18px; padding-bottom: 18px; }
 .podium .pl { font-size: 18px; font-weight: 800; letter-spacing: 0.06em; }
 .podium .nm { max-width: 100%; font-weight: 800; font-size: 13px; }
-.podium small { font-size: 10px; letter-spacing: 0.04em; opacity: 0.8; }
+.podium small { font-size: 10px; letter-spacing: 0.04em; opacity: 0.8; max-width: 100%; overflow-wrap: anywhere; }
 .hls { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; border-top: var(--rule); border-left: var(--rule); }
 .hls li { display: grid; gap: 4px; min-width: 0; padding: 10px; border-right: var(--rule); border-bottom: var(--rule); }
 .hls small { font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }

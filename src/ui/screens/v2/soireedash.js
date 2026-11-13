@@ -5,15 +5,16 @@
 // - soireeModel() est pur (testé) ; le rapport à imprimer fait 3 feuilles A4 (soireereport.js, choix du 13/11 : A podium
 //   et cartes, B chronologie, C duels et cibles), en aperçu à l'écran, en IMAGE (les 3 empilées) ou en PDF (3 pages).
 // Pire volée : sans les bust ni les volées de finition (comme les Stats).
-import { store, playerById } from '../../store.js';
+import { store, playerById, cumulativeDrinksFix, applyCumulativeFix, undoCumulativeFix, cumulativeFixed } from '../../store.js';
+import { infoSec, infoBox } from '../../info.js';
 import { esc, ico, topBar, avg, pct, plural, when } from '../../dom.js';
 import { avatarHtml, ICONS, iconSvg, initials, colorIndex } from '../../avatars.js';
 import { AVATAR_COLORS, AVATAR_INK } from '../../theme.js';
-import { drawSoireeReport, faceImage } from '../../soireereport.js';
+import { drawSoireeReport, faceImage, reportFileBase } from '../../soireereport.js';
 import { soireeModel } from '../../../engine/soiree.js';
 import { pdfFromJpegs, sheetFonts, PAGE_W, PAGE_H } from '../../sheet.js';
 import { deliverFile } from '../printsheet.js';
-import { refresh, go } from '../../nav.js';
+import { refresh, go, backFrom } from '../../nav.js';
 
 const DAYS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
 const MONTHS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
@@ -32,33 +33,52 @@ export function soireeDashScreen(sid) {
   const pod = m.rows.slice(0, 3);
   const place = ['1ER', '2E', '3E'];
   const podium = `<ol class="podium">${pod.map((r, i) => `<li class="p${i + 1}"><a href="#/stats/${esc(r.id)}">${avatarHtml(playerById(r.id), i ? 44 : 56)}
-      <b class="pl">${place[i]}</b><span class="nm ell">${esc(r.name)}</span><small>${plural(r.won, 'victoire', 'victoires')} · moy. ${avg(r.average)}</small></a></li>`).join('')}</ol>`;
+      <b class="pl">${place[i]}</b><span class="nm ell">${esc(r.name)}</span><small>${plural(r.won, 'victoire', 'victoires')}<br>moy. ${avg(r.average)}</small></a></li>`).join('')}</ol>`;
   const cards = m.highlights.map(h => `<li><small>${esc(h.label)}</small><span class="who">${avatarHtml(playerById(h.id), 24)}<span class="nm ell">${esc(h.name)}</span></span><b>${esc(h.value)}</b>${h.detail ? `<span class="dt">${h.detail}</span>` : ''}</li>`).join('');
   const th = ['Joueur', 'P.', 'V.', 'Moy.', 'Meill.', 'Pire', '100+', '180', 'Bust', 'Tripl.', 'Verres'];
   const table = `<div class="dtable"><table><thead><tr>${th.map(t => `<th>${t}</th>`).join('')}</tr></thead><tbody>
-    ${m.rows.map(r => `<tr><th><span class="pl">${avatarHtml(playerById(r.id), 22)}<span class="nm">${esc(r.name)}</span></span></th><td>${r.played}</td><td><b>${r.won}</b></td><td>${avg(r.average)}</td>
+    ${m.rows.map(r => `<tr><th><a class="pl" href="#/stats/${esc(r.id)}">${avatarHtml(playerById(r.id), 22)}<span class="nm">${esc(r.name)}</span></a></th><td>${r.played}</td><td><b>${r.won}</b></td><td>${avg(r.average)}</td>
       <td>${r.best}</td><td>${r.worst ?? '—'}</td><td>${r.tons}</td><td>${r.max}</td><td>${r.busts}</td><td>${pct(r.tripleRate)}</td><td>${r.drinks}</td></tr>`).join('')}
     </tbody></table></div>`;
   const glist = m.list.map(x => `<li><a class="hrow" href="#/partie/${esc(x.id)}"><span class="t">${hhmm(x.at)}</span><span class="g">${x.startScore}</span>
       <span class="avs">${x.players.slice(0, 3).map(id => avatarHtml(playerById(id), 22)).join('')}${x.players.length > 3 ? `<small>+${x.players.length - 3}</small>` : ''}</span>
       <span class="r">${x.abandoned ? '<span class="tag red">ABANDON</span>' : x.winner ? `<span class="win">${ico('trophy')}<span class="nm ell">${esc(playerById(x.winner).name)}</span></span>` : ''}</span></a></li>`).join('');
   const st = status.get(sid) || {};
+  // Version 0.8.1 : verres de la soirée, et correction des verres « resaisis à chaque partie » (avant le mode soirée).
+  const fixed = cumulativeFixed(sid);
+  const withDrinks = games.filter(g => g.drinks && Object.values(g.drinks).some(l => l.length)).length;
+  let fix = '';
+  if (fixed) {
+    fix = `<p class="note">Verres corrigés : seuls les verres nouveaux de chaque partie sont comptés.</p>
+      <button type="button" class="btn ghost" data-act="dash-unfix" data-arg="${esc(sid)}">ANNULER LA CORRECTION DES VERRES</button>`;
+  } else if (withDrinks >= 2 && st.fixAsk) {
+    const { totals } = cumulativeDrinksFix(sid);
+    const lines = m.rows.filter(r => totals[r.id] && totals[r.id].before !== totals[r.id].after)
+      .map(r => `<li><span class="nm ell">${esc(r.name)}</span><b>${totals[r.id].before} → ${totals[r.id].after}</b></li>`).join('');
+    fix = `<div class="confirm" role="alertdialog" aria-label="Corriger les verres ?"><p class="alert-h">CORRIGER LES VERRES ?</p>
+      ${lines ? `<ul class="fixlist">${lines}</ul><p class="small">Dans chaque partie, les verres déjà comptés dans la partie d'avant sont retirés. La correction peut être annulée.</p>`
+        : '<p class="small">Rien à corriger : aucun joueur n\'a repris les verres des parties d\'avant.</p>'}
+      <div class="btns two"><button type="button" class="btn" data-act="dash-fix-no" data-arg="${esc(sid)}">NON</button>${lines ? `<button type="button" class="btn alert" data-act="dash-fix" data-arg="${esc(sid)}">CORRIGER</button>` : ''}</div></div>`;
+  } else if (withDrinks >= 2) {
+    fix = `<button type="button" class="btn ghost" data-act="dash-fix-ask" data-arg="${esc(sid)}">${ico('glass')} VERRES RESAISIS À CHAQUE PARTIE ?</button>`;
+  }
+  const drinkRows = m.rows.map(r => `<li><a href="#/stats/${esc(r.id)}">${avatarHtml(playerById(r.id), 24)}<span class="nm ell">${esc(r.name)}</span><b>${ico('glass')} x${r.drinks}</b></a></li>`).join('');
   const btn = (kind, label) => `<button type="button" class="btn" data-act="dash-export" data-arg="${esc(`${kind}|${sid}`)}"${st.busy ? ' disabled' : ''}>${ico('download')} ${label}</button>`;
-  return `<div class="screen dash2">${topBar('Soirée', '#/historique')}
+  return `<div class="screen dash2">${topBar('Soirée', backFrom('#/historique'))}
     <div class="dhead inv"><b>${ico('glass')} SOIRÉE DU ${dayFull(m.start).toUpperCase()}</b>
       <span>${hhmm(m.start)} – ${hhmm(m.end)} · ${plural(m.games, 'partie', 'parties')} · ${plural(m.rows.length, 'joueur', 'joueurs')} · ${plural(m.drinks, 'verre', 'verres')}</span></div>
     <div class="pad">
       ${podium}
-      <div class="sec">Faits marquants</div><ul class="hls">${cards}</ul>
-      <div class="sec">Joueurs</div>${table}
-      <p class="note">P. parties, V. victoires, Moy. moyenne sur 3 fléchettes ; pire volée sans les bust ni les finitions ; Tripl. fléchettes dans un triple.</p>
-      <div class="sec">Parties <span class="n">${m.games}</span></div><ul class="hrows dlist">${glist}</ul>
-      <div class="sec">Rapport à imprimer <span class="n">3 feuilles</span></div>
-      <p class="note">A · podium et cartes des joueurs · B · la soirée heure par heure, courbes, trophées · C · qui bat qui, chiffres comparés, cibles.</p>
+      ${infoSec('Faits marquants', 'dash-hl')}${infoBox('dash-hl', 'Le meilleur et le pire de la soirée. Pire volée : sans les bust ni les volées de finition. Touchez un joueur (podium, tableau, verres) pour ouvrir ses stats ; le retour revient ici.')}<ul class="hls">${cards}</ul>
+      ${infoSec('Joueurs', 'dash-table')}${infoBox('dash-table', 'P. parties, V. victoires, Moy. moyenne sur 3 fléchettes ; pire volée sans les bust ni les finitions ; Tripl. fléchettes dans un triple. Le tableau défile de côté.')}${table}
+      ${infoSec('Verres', 'dash-drinks', ` <span class="n">x${m.drinks}</span>`)}${infoBox('dash-drinks', 'Les verres de chacun sur toute la soirée. Un oubli ou une erreur dans une partie : ouvrez la partie (liste ci-dessous), section Verres, et corrigez avec − et +. Si les verres ont été resaisis dans chaque nouvelle partie (avant le mode soirée), le bouton ci-dessous ne garde que les verres nouveaux de chaque partie.')}
+      <ul class="dlist2">${drinkRows}</ul>${fix}
+      ${infoSec('Parties', 'dash-games', ` <span class="n">${m.games}</span>`)}${infoBox('dash-games', 'Touchez une partie pour son détail tour par tour, sa fiche de score et ses verres.')}<ul class="hrows dlist">${glist}</ul>
+      ${infoSec('Rapport à imprimer', 'dash-report', ' <span class="n">3 feuilles</span>')}${infoBox('dash-report', 'A · podium et cartes des joueurs · B · la soirée heure par heure, courbes, trophées · C · qui bat qui, chiffres comparés, cibles. IMAGE : les 3 feuilles l\'une sous l\'autre ; PDF : 3 pages A4, enregistrées dans Téléchargements/Strela puis le menu de partage s\'ouvre (Imprimer, Drive, mail…).')}
       ${st.preview ? `<div class="dpages">${st.preview.map((u, k) => `<img src="${u}" alt="Feuille ${'ABC'[k]}">`).join('')}</div>`
         : `<button type="button" class="btn" data-act="dash-preview" data-arg="${esc(sid)}"${st.busy ? ' disabled' : ''}>${ico('image')} VOIR LES 3 FEUILLES</button>`}
       <div class="btns two">${btn('png', 'IMAGE')}${btn('pdf', 'PDF')}</div>
-      <p class="note" role="status">${st.busy ? 'Préparation…' : st.msg ? esc(st.msg) : 'IMAGE : les 3 feuilles l\'une sous l\'autre ; PDF : 3 pages A4.'}</p>
+      ${st.busy || st.msg ? `<p class="note" role="status">${st.busy ? 'Préparation…' : esc(st.msg)}</p>` : ''}
     </div></div>`;
 }
 
@@ -97,7 +117,7 @@ async function exportDash(kind, sid) {
     const r = await reportPages(sid);
     if (!r) return;
     const d = new Date(r.m.start);
-    const base = `strela-soiree-${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}`;
+    const base = reportFileBase(r.m.start);
     let f;
     if (kind === 'png') {
       // Une image : les 3 feuilles l'une sous l'autre, séparées d'un filet.
@@ -138,4 +158,8 @@ async function previewDash(sid) {
 export const actions = {
   'dash-export'(arg) { const [kind, sid] = String(arg).split('|'); exportDash(kind, sid); },
   'dash-preview'(sid) { previewDash(String(sid)); },
+  'dash-fix-ask'(sid) { status.set(sid, { ...(status.get(sid) || {}), fixAsk: true }); refresh(); },
+  'dash-fix-no'(sid) { status.set(sid, { ...(status.get(sid) || {}), fixAsk: false }); refresh(); },
+  'dash-fix'(sid) { applyCumulativeFix(sid); status.set(sid, { ...(status.get(sid) || {}), fixAsk: false, preview: null }); refresh(); },
+  'dash-unfix'(sid) { undoCumulativeFix(sid); status.set(sid, { ...(status.get(sid) || {}), preview: null }); refresh(); },
 };

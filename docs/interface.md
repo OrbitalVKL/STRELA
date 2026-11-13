@@ -711,6 +711,30 @@ tête du sommaire) montre ces écrans ; l'appli installée garde les écrans act
   suppression (sélection v2 : `h2-ask` delete, `h2-delete`), parcours, passerelle (`.t-main`, diagnostic à déplier).
 - Aucune migration (rien de nouveau n'est enregistré, sauf la clé locale `strela.news`).
 
+## Version 0.8.1 : corrections de la refonte (13/11/2026)
+
+- **Export du rapport de soirée** refusé dans l'APK (« nom de fichier refusé ») : Bridge.saveFile n'acceptait que
+  `strela-fiche-…` ; il accepte aussi `strela-soiree-AAAAMMJJ-HHMM.png|pdf` (`reportFileBase`, soireereport.js) et le
+  titre du partage suit. Test : tests/verres-soiree.test.js lit le motif dans Bridge.java et y passe les noms produits.
+- **Verres** : Guillaume a resaisi dans chaque partie les verres des parties d'avant (soirée du 12/11). Deux outils :
+  - détail d'une partie, section Verres : − et + par joueur (`editGameDrinks` : un verre ajouté compte à la fin de la
+    partie ; cumuls de la soirée recalculés) ;
+  - tableau de bord d'une soirée, section Verres : « VERRES RESAISIS À CHAQUE PARTIE ? » → aperçu des totaux avant /
+    après → CORRIGER (`cumulativeDrinksFix` / `applyCumulativeFix` : pour chaque joueur, verres de la partie = saisis −
+    saisis dans sa partie précédente, on garde les derniers ; s'il en a saisi moins, tous comptent). Annulable : les
+    verres d'avant restent dans `drinksRaw` (champ facultatif de la partie, enregistré et sauvegardé ; aucune migration),
+    ANNULER LA CORRECTION DES VERRES (`undoCumulativeFix`). Des parties jouées hors soirée se regroupent d'abord en
+    soirée depuis l'historique (EN FAIRE UNE SOIRÉE).
+- **Retour** : `backFrom(défaut)` (nav.js) — pile des écrans par famille (premier mot de l'adresse ; classement = stats) ;
+  le lien Retour d'un écran de détail (stats, classement, face-à-face, détail de partie, soirée, nouveautés, à propos)
+  mène à l'écran d'où sa famille a été ouverte (jamais le jeu), sinon au défaut.
+- **(i)** : src/ui/info.js (`infoSec`, `infoBox`, action `info`) — tableau de bord d'une soirée (faits marquants,
+  joueurs, verres, parties, rapport), détail d'une partie (tour par tour, verres, fiche de score).
+- **Valeurs sur les courbes** : Stats (au-dessus des points, une sur `every` quand ils sont serrés, liseré du fond) ;
+  rapport A (courbe de chaque carte) et B (moyenne de chaque partie : à droite des points, décalées pour ne pas se
+  chevaucher, liseré blanc).
+- Animations de tour par pictogramme (lot 7.9) : pas encore faites, à venir.
+
 ## Pour le lot 4
 
 - Les écrans Historique et Stats lisent `store.games` (parties closes) ; la partie en cours est à part (`store.current`).

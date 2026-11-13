@@ -4,7 +4,7 @@
 import { esc, topBar } from '../dom.js';
 import { BUILD } from '../build.js';
 import { store } from '../store.js';
-import { refresh } from '../nav.js';
+import { refresh, backFrom } from '../nav.js';
 import { variant, nativeInfo, isApk } from '../native.js';
 
 /** Politique de confidentialité publiée (adresse à donner à Google Play). */
@@ -38,7 +38,7 @@ export function aboutScreen() {
   const contact = BUILD.contact && BUILD.contact !== CONTACT_PLACEHOLDER ? BUILD.contact : '';
   // Dans l'APK, la politique s'ouvre dans le navigateur du téléphone (adresse publique) ; sur le web, à côté de la page.
   const privacyHref = v === 'web' ? 'confidentialite.html' : PRIVACY_URL;
-  return `<div class="screen">${topBar('À propos', '#/reglages')}
+  return `<div class="screen">${topBar('À propos', backFrom('#/reglages'))}
     <div class="pad about">
       <div class="about-head"><img src="assets/icon-192.png" width="64" height="64" alt="">
         <div><b>STRELA</b><small>Compteur de fléchettes X01 · стрела = flèche</small></div></div>
