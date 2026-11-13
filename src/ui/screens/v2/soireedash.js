@@ -7,6 +7,7 @@
 // Pire volée : sans les bust ni les volées de finition (comme les Stats).
 import { store, playerById, cumulativeDrinksFix, applyCumulativeFix, undoCumulativeFix, cumulativeFixed } from '../../store.js';
 import { infoSec, infoBox } from '../../info.js';
+import { tallyText, litersText } from '../../../engine/alcohol.js';
 import { esc, ico, topBar, avg, pct, plural, when } from '../../dom.js';
 import { avatarHtml, ICONS, iconSvg, initials, colorIndex } from '../../avatars.js';
 import { AVATAR_COLORS, AVATAR_INK } from '../../theme.js';
@@ -62,16 +63,17 @@ export function soireeDashScreen(sid) {
   } else if (withDrinks >= 2) {
     fix = `<button type="button" class="btn ghost" data-act="dash-fix-ask" data-arg="${esc(sid)}">${ico('glass')} VERRES RESAISIS À CHAQUE PARTIE ?</button>`;
   }
-  const drinkRows = m.rows.map(r => `<li><a href="#/stats/${esc(r.id)}">${avatarHtml(playerById(r.id), 24)}<span class="nm ell">${esc(r.name)}</span><b>${ico('glass')} x${r.drinks}</b></a></li>`).join('');
+  const drinkRows = m.rows.map(r => `<li><a href="#/stats/${esc(r.id)}">${avatarHtml(playerById(r.id), 32)}<span class="col"><span class="nm ell">${esc(r.name)}</span>
+      ${r.drinks ? `<small>${r.tally.pints ? `${tallyText(r.tally)} · ` : ''}${litersText(r.tally.liters)}</small>` : ''}</span><b>${ico('glass')}x${r.drinks}</b></a></li>`).join('');
   const btn = (kind, label) => `<button type="button" class="btn" data-act="dash-export" data-arg="${esc(`${kind}|${sid}`)}"${st.busy ? ' disabled' : ''}>${ico('download')} ${label}</button>`;
   return `<div class="screen dash2">${topBar('Soirée', backFrom('#/historique'))}
     <div class="dhead inv"><b>${ico('glass')} SOIRÉE DU ${dayFull(m.start).toUpperCase()}</b>
-      <span>${hhmm(m.start)} – ${hhmm(m.end)} · ${plural(m.games, 'partie', 'parties')} · ${plural(m.rows.length, 'joueur', 'joueurs')} · ${plural(m.drinks, 'verre', 'verres')}</span></div>
+      <span>${hhmm(m.start)} – ${hhmm(m.end)} · ${plural(m.games, 'partie', 'parties')} · ${plural(m.rows.length, 'joueur', 'joueurs')} · ${plural(m.drinks, 'verre', 'verres')}${m.drinks ? ` (${litersText(m.liters)})` : ''}</span></div>
     <div class="pad">
       ${podium}
       ${infoSec('Faits marquants', 'dash-hl')}${infoBox('dash-hl', 'Le meilleur et le pire de la soirée. Pire volée : sans les bust ni les volées de finition. Touchez un joueur (podium, tableau, verres) pour ouvrir ses stats ; le retour revient ici.')}<ul class="hls">${cards}</ul>
       ${infoSec('Joueurs', 'dash-table')}${infoBox('dash-table', 'P. parties, V. victoires, Moy. moyenne sur 3 fléchettes ; pire volée sans les bust ni les finitions ; Tripl. fléchettes dans un triple. Le tableau défile de côté.')}${table}
-      ${infoSec('Verres', 'dash-drinks', ` <span class="n">x${m.drinks}</span>`)}${infoBox('dash-drinks', 'Les verres de chacun sur toute la soirée. Un oubli ou une erreur dans une partie : ouvrez la partie (liste ci-dessous), section Verres, et corrigez avec − et +. Si les verres ont été resaisis dans chaque nouvelle partie (avant le mode soirée), le bouton ci-dessous ne garde que les verres nouveaux de chaque partie.')}
+      ${infoSec('Verres', 'dash-drinks', ` <span class="n">x${m.drinks}</span>`)}${infoBox('dash-drinks', 'Les verres de chacun sur toute la soirée, en verres de 25 cl : une pinte (50 cl) compte pour 2. Un oubli ou une erreur dans une partie : ouvrez la partie (liste ci-dessous), section Verres, et corrigez avec − et +. Si les verres ont été resaisis dans chaque nouvelle partie (avant le mode soirée), le bouton ci-dessous ne garde que les verres nouveaux de chaque partie.')}
       <ul class="dlist2">${drinkRows}</ul>${fix}
       ${infoSec('Parties', 'dash-games', ` <span class="n">${m.games}</span>`)}${infoBox('dash-games', 'Touchez une partie pour son détail tour par tour, sa fiche de score et ses verres.')}<ul class="hrows dlist">${glist}</ul>
       ${infoSec('Rapport à imprimer', 'dash-report', ' <span class="n">3 feuilles</span>')}${infoBox('dash-report', 'A · podium et cartes des joueurs · B · la soirée heure par heure, courbes, trophées · C · qui bat qui, chiffres comparés, cibles. IMAGE : les 3 feuilles l\'une sous l\'autre ; PDF : 3 pages A4, enregistrées dans Téléchargements/Strela puis le menu de partage s\'ouvre (Imprimer, Drive, mail…).')}

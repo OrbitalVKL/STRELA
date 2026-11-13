@@ -29,7 +29,7 @@ import { presetSettings2 } from './settings.js';
 const PLAYON = () => ({ ...cfg(['p1', 'p2', 'p3', 'p4'], 301, 'single'), playOn: true });
 const PO1 = 'T20 T20 T20  T20 T20 T20  T20 T20 T20  0 0 0  S20 S20 S1  S20 S20 S1  S20 S20 S1  0 0 0';
 // Verres (lot 7.1 : avec leur place dans la partie, `at` = fléchettes jouées à ce moment)
-const DRINKS = () => { const h = 3600e3, now = Date.now(); return { p1: [{ t: now - 2 * h, at: 0 }], p2: [{ t: now - h, at: 0 }, { t: now - 0.5 * h, at: 2 }, { t: now - 0.1 * h, at: 3 }] }; };
+const DRINKS = () => { const h = 3600e3, now = Date.now(); return { p1: [{ t: now - 2 * h, at: 0 }], p2: [{ t: now - h, at: 0 }, { t: now - 0.5 * h, at: 2, v: 0.5 }, { t: now - 0.1 * h, at: 3 }] }; }; // p2 : une pinte (0.8.2)
 const ds = text => text.trim().split(/\s+/).filter(Boolean).map(parseDart);
 const cfg = (players, startScore = 501, outMode = 'double', legsToWin = 1) => ({ players, startScore, outMode, legsToWin });
 

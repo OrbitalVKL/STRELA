@@ -164,7 +164,8 @@ export function mockSeason(players, now = Date.now()) {
       const drinks = {};
       for (const id of order) {
         const c = Math.floor(r() * 2.4);
-        if (c) drinks[id] = Array.from({ length: c }, (_, j) => ({ t: startedAt + (j + 1) * 600000, at: Math.min(darts.length, Math.floor(darts.length * (j + 1) / (c + 1))) }));
+        if (c) drinks[id] = Array.from({ length: c }, (_, j) => ({ t: startedAt + (j + 1) * 600000, at: Math.min(darts.length, Math.floor(darts.length * (j + 1) / (c + 1))),
+          ...((n + j + id.length) % 4 === 0 ? { v: 0.5 } : {}) })); // 0.8.2 : une pinte de temps en temps
       }
       const g = { id: `s${k + 1}g${i + 1}`, startedAt, config, darts, abandoned: stop !== null, soiree };
       const b = {}; for (const id of order) if (before[id]) b[id] = before[id];

@@ -85,7 +85,8 @@ src/ui/changelog.js       nouveautés de chaque version (écran #/nouveautes) ; 
 tools/animations.mjs      captures des animations de tour figées à plusieurs instants (lot 7.4)
 src/ui/sheet.js           fiche de score : modèle, dessin sur canvas (demi-page A5 paysage ou A4, lot 7.3), PDF (lot 7.1) ; screens/printsheet.js : boutons et envoi
 src/engine/ranking.js     classement, joueur en tête, derniers (tournée), célébrations des nuls (lot 7)
-src/engine/alcohol.js     alcoolémie estimée à partir des verres (lot 7)
+src/engine/alcohol.js     verres : comptes (verre 25 cl, pinte 50 cl = 2 verres, 0.8.2), place dans la partie, alcoolémie estimée (lot 7) ;
+                          src/ui/drinks.js : choix verre / pinte et affichage du compte (0.8.2)
 tests/                    tests node:test (*.test.js) ; helpers.js = aides (notation ds('T20 D16'))
                           Playwright (sautés s'il est absent) : chevauchement, couleurs, geste, stockage (base),
                           parcours (vraie appli, rechargements), photo, miseajour (service worker + base v2) ;
@@ -185,6 +186,10 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 - **0.8.1** (13/11) : export du rapport accepté par l'APK, correction des verres (détail d'une partie ; soirée aux verres
   resaisis à chaque partie, annulable), retour vers l'écran d'origine (`backFrom`), explications derrière (i) au
   tableau de bord et au détail de partie, valeurs sur les courbes. Détail : docs/interface.md « Version 0.8.1 ».
+- **0.8.2** (13/11) : verre (25 cl) ou pinte (50 cl, `v: 0.5`, compte pour 2 verres partout ; src/ui/drinks.js),
+  défilements gardés d'un rendu à l'autre et au retour (app.js › draw), plus aucun lien en bleu souligné. Détail :
+  docs/interface.md « Version 0.8.2 ». Idées d'amélioration proposées à Guillaume le 13/11 (à lui de choisir) :
+  docs/idees.md.
 - Ensuite : lot 7.9 (une animation de tour par pictogramme d'avatar), confirmé par Guillaume le 13/11 « dans un second
   temps ».
 

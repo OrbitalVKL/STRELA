@@ -31,6 +31,32 @@ export function bac(times, now) {
   return level;
 }
 
+// Version 0.8.2 : un verre (25 cl) ou une pinte (50 cl). La pinte porte `v: 0.5` ; sans `v`, c'est un verre de 25 cl
+// (tous les verres d'avant). Tous les comptes sont en verres de 25 cl : une pinte compte pour 2 (drinkUnits). Le détail
+// (« 1 verre + 2 pintes ») se lit avec drinkTally.
+export const GLASS_L = 0.25;
+export const PINT_L = 0.5;
+export const isPint = d => !!d && typeof d === 'object' && d.v === PINT_L;
+/** Ce que compte un verre enregistré : 1 (verre de 25 cl) ou 2 (pinte). */
+export const drinkUnits = d => (isPint(d) ? 2 : 1);
+/** Compte d'une liste de verres enregistrés, en verres de 25 cl. */
+export const unitsOf = list => (Array.isArray(list) ? list.reduce((n, d) => n + drinkUnits(d), 0) : 0);
+/** Détail d'une ou plusieurs listes : { units (verres de 25 cl), glasses, pints, liters }. */
+export function drinkTally(...lists) {
+  let glasses = 0, pints = 0;
+  for (const list of lists) for (const d of (Array.isArray(list) ? list : [])) { if (isPint(d)) pints += 1; else glasses += 1; }
+  return { units: glasses + 2 * pints, glasses, pints, liters: glasses * GLASS_L + pints * PINT_L };
+}
+/** « 1 verre + 2 pintes » ('' s'il n'y a rien). */
+export function tallyText(t) {
+  const parts = [];
+  if (t.glasses) parts.push(`${t.glasses} verre${t.glasses > 1 ? 's' : ''}`);
+  if (t.pints) parts.push(`${t.pints} pinte${t.pints > 1 ? 's' : ''}`);
+  return parts.join(' + ');
+}
+/** « 1,25 L » (ou « 75 cl » sous le litre). */
+export const litersText = l => (l < 1 ? `${Math.round(l * 100)} cl` : `${(Math.round(l * 100) / 100).toString().replace('.', ',')} L`);
+
 // Un verre enregistré (lot 7.1) : { t: instant (ms), at: nombre de fléchettes jouées dans la partie à ce moment }. `at`
 // le place dans l'historique de la partie, comme une fléchette. Les verres de la v0.7.0 sont de simples instants (pas
 // de `at`) : ils restent lus, rangés à la dernière volée du joueur.
@@ -43,7 +69,10 @@ export function drinkTimes(games, playerId, now) {
   for (const g of games) {
     const list = g && g.drinks && g.drinks[playerId];
     if (!Array.isArray(list)) continue;
-    for (const d of list) { const t = drinkTime(d); if (Number.isFinite(t) && t <= now && now - t <= WINDOW_MS) out.push(t); }
+    for (const d of list) {
+      const t = drinkTime(d);
+      if (Number.isFinite(t) && t <= now && now - t <= WINDOW_MS) for (let k = drinkUnits(d); k > 0; k--) out.push(t); // pinte : 2 verres
+    }
   }
   return out.sort((a, b) => a - b);
 }
@@ -70,17 +99,17 @@ export function drinksTimeline(state, drinks, ids, before = null) {
   ids.forEach((id, p) => {
     const list = Array.isArray(drinks[id]) ? drinks[id] : [];
     const slots = mine[p];
-    if (!slots.length || (!list.length && !start(id))) { totals[p] = start(id) + list.length; return; }
+    if (!slots.length || (!list.length && !start(id))) { totals[p] = start(id) + unitsOf(list); return; }
     const here = new Array(slots.length).fill(0);
     for (const d of list) {
       const at = drinkAt(d);
       let k = at === null ? -1 : slots.findIndex(s => s.end >= at);
       if (k < 0) k = slots.length - 1;
-      here[k] += 1;
+      here[k] += drinkUnits(d); // 0.8.2 : en verres de 25 cl (une pinte : 2)
     }
     let total = start(id);
     slots.forEach((s, k) => { total += here[k]; byVisit.set(s.key, { here: here[k], total, player: p }); });
-    totals[p] = start(id) + list.length;
+    totals[p] = start(id) + unitsOf(list);
   });
   return { byVisit, totals };
 }
@@ -98,7 +127,12 @@ export function cleanDrinks(drinks) {
   for (const [id, list] of Object.entries(drinks)) {
     if (!Array.isArray(list)) continue;
     const ok = list.filter(d => Number.isFinite(drinkTime(d)))
-      .map(d => (typeof d === 'number' ? d : drinkAt(d) === null ? { t: d.t } : { t: d.t, at: d.at }));
+      .map(d => {
+        if (typeof d === 'number') return d;
+        const out = drinkAt(d) === null ? { t: d.t } : { t: d.t, at: d.at };
+        if (isPint(d)) out.v = PINT_L; // 0.8.2 : pinte
+        return out;
+      });
     if (ok.length) out[id] = ok;
   }
   return Object.keys(out).length ? out : null;

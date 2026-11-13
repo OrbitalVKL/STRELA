@@ -735,6 +735,28 @@ tête du sommaire) montre ces écrans ; l'appli installée garde les écrans act
   chevaucher, liseré blanc).
 - Animations de tour par pictogramme (lot 7.9) : pas encore faites, à venir.
 
+## Version 0.8.2 : pintes, défilements gardés, liens sans bleu (13/11/2026)
+
+- **Verre ou pinte** (demande de Guillaume : « distinguer un verre 0,25 et une pinte 0,5 l ») :
+  - donnée : un verre enregistré porte `v: 0.5` si c'est une pinte (sinon 25 cl, comme tous les verres d'avant ;
+    aucune migration ; `cleanDrinks` garde `v`) ;
+  - **tous les comptes sont en verres de 25 cl, une pinte compte pour 2** (`drinkUnits`, `unitsOf`, alcohol.js) : cumul
+    en jeu et dans l'historique, `drinksBefore`, stats, classement, soirée, rapport ; le détail se lit avec `drinkTally`
+    ({ units, glasses, pints, liters }) et s'écrit « 1 verre + 2 pintes » (`tallyText`), les litres avec `litersText` ;
+  - saisie : src/ui/drinks.js — choix « VERRE 25 CL · PINTE 50 CL » au-dessus de chaque liste de verres (panneau des
+    verres et pause du jeu, écran Soirée, détail d'une partie) ; les boutons + ajoutent la taille choisie (icône verre
+    ou chope `pint`) ; − retire le dernier verre saisi, quelle que soit sa taille ;
+  - rapport de soirée : pinte dessinée en chope (cartes de la feuille A, chronologie de la feuille B, dont le cumul
+    monte de 2), total en litres dans le bandeau ; tableau de bord : détail et litres par joueur.
+- **Rien ne se remet à zéro** (app.js › draw) : d'un rendu à l'autre du même écran (même entrée de ROUTES : une action,
+  un autre joueur dans les Stats), la page et tout bloc qui défile (rangée de pastilles, tableau, panneau ; clé = balise
+  + classes + rang) gardent leur position ; en revenant à un écran déjà ouvert (`noteRoute` renvoie vrai : pile de
+  nav.js), la page reprend sa position (`pageY`) ; en avançant, elle part du haut. La courbe des Stats
+  (`data-hscroll="courbe:<joueur>"`) garde le même endroit au centre quand sa largeur change (zoom) ; jamais vue ou pas
+  encore défilante : calée à droite. Test : tests/defilement.test.js.
+- **Liens** : `:where(#app) a { color: inherit; text-decoration: none }` — plus aucun lien au bleu souligné du
+  navigateur (les noms du tableau et des verres du tableau de bord l'étaient) ; styles de `.dlist2` et `.fixlist`.
+
 ## Pour le lot 4
 
 - Les écrans Historique et Stats lisent `store.games` (parties closes) ; la partie en cours est à part (`store.current`).

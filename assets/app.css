@@ -258,6 +258,11 @@ label.btn { cursor: pointer; }
 .drinks .nm { font-weight: 700; font-size: 16px; }
 .drinks .cnt { display: inline-flex; align-items: center; gap: 2px; font-size: 18px; font-weight: 800; }
 .drinks .cnt .ico { width: 22px; height: 22px; }
+/* 0.8.2 : verre 25 cl ou pinte 50 cl (choix au-dessus de la liste), détail sous le compte */
+.dsize { margin: 10px 0; }
+.dsize button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; font-size: 12.5px; }
+.dsize .ico { width: 18px; height: 18px; }
+.dkd { display: block; font-size: 10.5px; color: var(--dim); letter-spacing: 0.04em; }
 .drinks .mv { flex: 0 0 48px; height: 48px; border: var(--rule); display: grid; place-items: center; }
 .drinks .mv:disabled { color: var(--faint); }
 .drinks .mv.add { flex-basis: 72px; display: flex; justify-content: center; gap: 2px; background: var(--inv-bg); color: var(--inv-fg); }
@@ -1267,6 +1272,21 @@ button.hrow { width: 100%; border: 0; border-bottom: var(--rule); background: va
 .dtable tbody th, .dtable thead th:first-child { position: sticky; left: 0; z-index: 1; background: var(--bg); text-align: left; border-right: var(--rule); }
 .dtable .pl { display: flex; align-items: center; gap: 6px; }
 .dtable .nm { max-width: 110px; overflow: hidden; text-overflow: ellipsis; font-weight: 700; }
+/* 0.8.2 : aucun lien ne prend le bleu souligné du navigateur (hors DA) ; chaque écran garde ses propres règles. */
+:where(#app) a { color: inherit; text-decoration: none; }
+.dtable a.pl { color: var(--fg); text-decoration: none; }
+.dlist2 { list-style: none; margin: 0 0 12px; padding: 0; border-top: var(--rule); }
+.dlist2 a { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 6px 0; border-bottom: var(--rule); color: var(--fg); text-decoration: none; }
+.dlist2 .av { flex-shrink: 0; }
+.dlist2 .col { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.dlist2 .nm { font-weight: 700; font-size: 14px; }
+.dlist2 small { font-size: 10.5px; color: var(--dim); letter-spacing: 0.04em; }
+.dlist2 b { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 2px; font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.dlist2 b .ico { width: 20px; height: 20px; }
+.fixlist { list-style: none; margin: 8px 0; padding: 0; border-top: var(--rule); }
+.fixlist li { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 36px; border-bottom: var(--rule); font-size: 13px; }
+.fixlist .nm { min-width: 0; font-weight: 700; }
+.fixlist b { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
 .dlist { border-top: var(--rule); }
 .dlist .hrow { padding-left: 0; padding-right: 0; }
 .hls .who .av, .dtable .pl .av, .podium .av, .hcard .av, .palm .av, .rank2 .av, .hrow .av, .hhead .av, .pchip .av { flex-shrink: 0; }

@@ -4,12 +4,13 @@
 // les parties gardent leurs verres et le cumul de la soirée (store.js, « soirée »).
 import {
   store, activePlayers, playerById, currentState, resumeRoute, startSoiree, endSoiree, joinSoiree, leaveSoiree,
-  soireeDrinks, soireeTotal, soireeAddDrink, soireeRemoveDrink,
+  soireeDrinks, soireeTotal, soireeAddDrink, soireeRemoveDrink, soireeDrinkTally,
 } from '../store.js';
 import { esc, ico, topBar, plural } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
 import { go, refresh, buzz, BUZZ } from '../nav.js';
 import { glassCount } from './game.js';
+import { drinkSizeSeg, plusDrink, plusLabel, pintMode, drinkCount } from '../drinks.js';
 
 let ending = false; // confirmation de TERMINER LA SOIRÉE
 
@@ -65,9 +66,9 @@ function running() {
   const rows = sv.players.map(id => {
     const p = playerById(id);
     const n = soireeDrinks(id);
-    return `<li>${avatarHtml(p, 32)}<div class="col"><span class="nm ell">${esc(p.name)}</span>${glassCount(n, 'cnt')}</div>
-      <button type="button" class="mv" data-act="soiree-minus" data-arg="${esc(id)}" ${n ? '' : 'disabled'} aria-label="Retirer un verre à ${esc(p.name)}">${ico('minus')}</button>
-      <button type="button" class="mv add" data-act="soiree-plus" data-arg="${esc(id)}" aria-label="Un verre de plus pour ${esc(p.name)}">${ico('plus')}${ico('glass')}</button>
+    return `<li>${avatarHtml(p, 32)}<div class="col"><span class="nm ell">${esc(p.name)}</span>${drinkCount(n, soireeDrinkTally(id))}</div>
+      <button type="button" class="mv" data-act="soiree-minus" data-arg="${esc(id)}" ${n ? '' : 'disabled'} aria-label="Retirer le dernier verre de ${esc(p.name)}">${ico('minus')}</button>
+      <button type="button" class="mv add" data-act="soiree-plus" data-arg="${esc(id)}" aria-label="${esc(plusLabel(p.name))}">${plusDrink()}</button>
       <button type="button" class="mv out" data-act="soiree-leave" data-arg="${esc(id)}" aria-label="${esc(p.name)} quitte la soirée">${ico('close')}</button></li>`;
   }).join('');
   const end = ending
@@ -84,8 +85,8 @@ function running() {
     <div class="soiree-head inv"><b>SOIRÉE EN COURS</b><span>DEPUIS ${hhmm(sv.startedAt)} · ${plural(games, 'PARTIE', 'PARTIES')} · ${glassCount(soireeTotal())}</span></div>
     <div class="pad">
       <div class="sec" style="margin-bottom:0">Joueurs et verres <span class="n">${sv.players.length}</span></div>
-      ${sv.players.length ? `<ul class="drinks soiree">${rows}</ul>` : '<p class="note">Plus personne dans la soirée : ajoutez des joueurs.</p>'}
-      <p class="note" style="margin:0">${playing ? 'Pendant la partie, un verre d\'un joueur de la partie y est noté, au tour où il a été pris.' : 'Les verres comptent depuis le début de la soirée, toutes parties confondues.'} Qui a bu ne conduit pas.</p>
+      ${sv.players.length ? `${drinkSizeSeg()}<ul class="drinks soiree">${rows}</ul>` : '<p class="note">Plus personne dans la soirée : ajoutez des joueurs.</p>'}
+      <p class="note" style="margin:0">Une pinte compte pour 2 verres. ${playing ? 'Pendant la partie, un verre d\'un joueur de la partie y est noté, au tour où il a été pris.' : 'Les verres comptent depuis le début de la soirée, toutes parties confondues.'} Qui a bu ne conduit pas.</p>
       <div class="sec">Ajouter à la soirée</div>
       ${poolHtml(sv.players, 'soiree-join')}
       <p class="note">Un joueur ajouté à une nouvelle partie rejoint aussi la soirée. ✕ : le joueur quitte la soirée (ses verres restent comptés s'il revient).</p>
@@ -103,7 +104,7 @@ export const actions = {
   'soiree-start'() { const d = draft(); if (!d.players.length) return; startSoiree(d.players); store.soireeDraft = null; buzz(BUZZ.dart); refresh(); },
   'soiree-join'(id) { joinSoiree([id]); store.setupDraft = null; refresh(); },
   'soiree-leave'(id) { leaveSoiree(id); store.setupDraft = null; refresh(); },
-  'soiree-plus'(id) { soireeAddDrink(id); buzz(BUZZ.dart); refresh(); },
+  'soiree-plus'(id) { soireeAddDrink(id, Date.now(), pintMode()); buzz(BUZZ.dart); refresh(); },
   'soiree-minus'(id) { soireeRemoveDrink(id); buzz(BUZZ.undo); refresh(); },
   'soiree-end'() { ending = true; refresh(); },
   'soiree-end-no'() { ending = false; refresh(); },

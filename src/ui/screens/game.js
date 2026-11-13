@@ -9,7 +9,8 @@
 //   hors de la cible ne compte rien).
 // Après la 3e fléchette ou un bust, la volée reste affichée jusqu'à VALIDER (turn.js) ; ANNULER reste possible.
 // À la validation, « À TOI, PSEUDO » occupe le haut de l'écran ~0,8 s, puis le bandeau du joueur glisse en place.
-import { store, currentState, playerById, archiveCurrent, deleteCurrent, animationsOn, saveCurrent, legEndPending, addDrink, removeDrink, drinksHere, gameDrinks, gameDrinking } from '../store.js';
+import { store, currentState, playerById, archiveCurrent, deleteCurrent, animationsOn, saveCurrent, legEndPending, addDrink, removeDrink, drinksHere, gameDrinks, gameDrinking, gameDrinkTally } from '../store.js';
+import { drinkSizeSeg, plusDrink, plusLabel, pintMode, drinkCount } from '../drinks.js';
 import { esc, ico, avg, OUT_SHORT, maquetteButtons } from '../dom.js';
 import { avatarHtml, colorIndex } from '../avatars.js';
 import { throwDart, undoDart, computeState } from '../../engine/x01.js';
@@ -519,15 +520,17 @@ export function drinksSection(ids, { edit = true, title = true } = {}) {
   const rows = ids.map(id => {
     const p = playerById(id);
     const n = gameDrinks(g, id); // lot 7.6 : avec les verres de la soirée avant la partie
-    const buttons = edit ? `<button type="button" class="mv" data-act="drink-minus" data-arg="${esc(id)}" ${drinksHere(id) ? '' : 'disabled'} aria-label="Retirer un verre à ${esc(p.name)}">${ico('minus')}</button>
-        <button type="button" class="mv add" data-act="drink-plus" data-arg="${esc(id)}" aria-label="Un verre de plus pour ${esc(p.name)}">${ico('plus')}${ico('glass')}</button>` : '';
+    const buttons = edit ? `<button type="button" class="mv" data-act="drink-minus" data-arg="${esc(id)}" ${drinksHere(id) ? '' : 'disabled'} aria-label="Retirer le dernier verre de ${esc(p.name)}">${ico('minus')}</button>
+        <button type="button" class="mv add" data-act="drink-plus" data-arg="${esc(id)}" aria-label="${esc(plusLabel(p.name))}">${plusDrink()}</button>` : '';
     return `<li>${avatarHtml(p, 32)}<div class="col"><span class="nm ell">${esc(p.name)}</span>
-        ${glassCount(n, 'cnt')}</div>${buttons}</li>`;
+        ${drinkCount(n, gameDrinkTally(g, id))}</div>${buttons}</li>`;
   }).join('');
   const soiree = g && g.soiree ? ' Les verres de la soirée continuent d\'une partie à l\'autre.' : '';
+  // 0.8.2 : verre de 25 cl ou pinte de 50 cl (elle compte pour 2), choisi au-dessus de la liste.
   return `${title ? `<div class="sec" style="margin-bottom:0">${g && g.soiree ? 'Verres de la soirée' : 'Verres'}</div>` : ''}
+    ${edit ? drinkSizeSeg() : ''}
     <ul class="drinks">${rows}</ul>
-    <p class="note" style="margin:0">Chaque verre est noté dans l'historique de la partie, au tour où il a été pris.${soiree} Qui a bu ne conduit pas.</p>`;
+    <p class="note" style="margin:0">Une pinte compte pour 2 verres. Chaque verre est noté dans l'historique de la partie, au tour où il a été pris.${soiree} Qui a bu ne conduit pas.</p>`;
 }
 
 /** Panneau des verres (lot 7.6) : ouvert par le bouton verre du bandeau, sans passer par la pause. Le joueur qui lance
@@ -907,7 +910,7 @@ export const actions = {
     buzz(BUZZ.dart);
     refresh();
   },
-  'drink-plus'(id) { addDrink(id); buzz(BUZZ.dart); refresh(); },
+  'drink-plus'(id) { addDrink(id, Date.now(), pintMode()); buzz(BUZZ.dart); refresh(); },
   'drinks-open'() { stopAnnounce(); store.current.ui.drinks = true; refresh(); },
   'drinks-close'() { store.current.ui.drinks = false; refresh(); },
   'drink-minus'(id) { removeDrink(id); buzz(BUZZ.undo); refresh(); },

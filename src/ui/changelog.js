@@ -2,6 +2,12 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.8.2', date: '2026-11-13', title: 'Pintes, et rien ne se remet à zéro', items: [
+    'Verres : verre de 25 cl ou pinte de 50 cl, à choisir au-dessus de la liste avant d\'appuyer sur + ; une pinte compte pour 2 verres, et le détail est écrit (« 1 verre + 2 pintes »).',
+    'Rapport de soirée : les pintes sont dessinées en chope, et le total est aussi donné en litres.',
+    'Navigation : la page, les rangées qui défilent et la courbe gardent leur position quand on change d\'indicateur ou de joueur ; au retour, un écran reprend là où on l\'avait laissé.',
+    'Tableau de bord d\'une soirée : les noms des joueurs ne sont plus en bleu souligné.',
+  ] },
   { v: '0.8.1', date: '2026-11-13', title: 'Corrections de la refonte', items: [
     'Rapport de soirée : l\'export en PDF ou en image marche dans l\'appli (nom de fichier refusé jusque-là).',
     'Verres : se corrigent dans le détail de chaque partie (− et +) ; une soirée où les verres ont été resaisis à chaque partie se corrige d\'un appui depuis son tableau de bord (et la correction s\'annule).',

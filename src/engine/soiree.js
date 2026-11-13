@@ -2,7 +2,7 @@
 // JS pur, sans affichage. Pire volée : sans les bust ni les volées de finition (comme les Stats).
 import { playerStats, gameState, gameWinner, playerSummary } from './stats.js';
 import { standings, lastPlaces } from './ranking.js';
-import { drinkTime } from './alcohol.js';
+import { drinkTime, isPint, unitsOf, drinkTally, tallyText } from './alcohol.js';
 
 const pad2 = n => String(n).padStart(2, '0');
 const hhmm = ms => { const d = new Date(ms); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
@@ -13,7 +13,7 @@ const avg = v => (v === null || v === undefined ? '—' : (Math.round(v * 10) / 
  * { start, end, games, drinks, rows: [{ id, played, won, average, best, worst, tons, max, busts, tripleRate, drinks }],
  *   highlights: [{ key, label, id, value, detail }], list: [{ id, at, startScore, winner, players, abandoned }],
  *   (lot 7.8, rapport en 3 feuilles) timeline: [{ id, n, at, end, startScore, players, winner, last: [ids], avg: {id},
- *   abandoned }] dans l'ordre du soir ; drinkTimes: {id: [instants]} ; versus: {a: {b: parties où a a fini devant b}} ;
+ *   abandoned }] dans l'ordre du soir ; drinkTimes: {id: [instants]} ; drinkList: {id: [{ t, pint }]} (0.8.2) ; versus: {a: {b: parties où a a fini devant b}} ;
  *   together: {a: {b: parties jouées ensemble}} ; sectors: {id: {1…20, bull}} (fléchettes) ; spread: {id: écart type des
  *   moyennes par partie, null sous 2 parties} ; trophies: [{ key, label, id, name, value, detail }] }
  * Les parties abandonnées ne comptent ni dans « qui bat qui » ni dans la tournée.
@@ -21,11 +21,13 @@ const avg = v => (v === null || v === undefined ? '—' : (Math.round(v * 10) / 
 export function soireeModel(games, name = id => id) {
   const gs = [...games].sort((a, b) => a.startedAt - b.startedAt);
   const ids = [...new Set(gs.flatMap(g => g.config.players))];
-  const drinksOf = id => gs.reduce((n, g) => n + (g.drinks && g.drinks[id] ? g.drinks[id].length : 0), 0);
+  // 0.8.2 : verres comptés en verres de 25 cl (une pinte : 2) ; `tally` garde le détail (verres, pintes, litres).
+  const drinksOf = id => gs.reduce((n, g) => n + unitsOf(g.drinks && g.drinks[id]), 0);
+  const tallyOf = id => drinkTally(...gs.map(g => g.drinks && g.drinks[id]));
   const rows = ids.map(id => {
     const s = playerStats(gs, id);
     return { id, name: name(id), played: s.played, won: s.won, average: s.average, best: s.bestVisit, worst: s.worstVisit,
-      tons: s.ton + s.ton40 + s.max, max: s.max, busts: s.busts, tripleRate: s.tripleRate, drinks: drinksOf(id) };
+      tons: s.ton + s.ton40 + s.max, max: s.max, busts: s.busts, tripleRate: s.tripleRate, drinks: drinksOf(id), tally: tallyOf(id) };
   }).sort((a, b) => b.won - a.won || (b.average ?? -1) - (a.average ?? -1));
   // Volées de la soirée (pour la meilleure et la pire, avec la partie et l'heure).
   const visits = [];
@@ -61,6 +63,9 @@ export function soireeModel(games, name = id => id) {
   });
   const drinkTimes = Object.fromEntries(ids.map(id => [id, gs.flatMap(g => (g.drinks && g.drinks[id]) || []).map(drinkTime)
     .filter(t => Number.isFinite(t)).sort((x, y) => x - y)]));
+  // 0.8.2 : les mêmes verres avec leur taille ({ t, pint }), pour dessiner les pintes à part.
+  const drinkList = Object.fromEntries(ids.map(id => [id, gs.flatMap(g => (g.drinks && g.drinks[id]) || [])
+    .map(d => ({ t: drinkTime(d), pint: isPint(d) })).filter(d => Number.isFinite(d.t)).sort((x, y) => x.t - y.t)]));
   const versus = Object.fromEntries(ids.map(a => [a, Object.fromEntries(ids.filter(b => b !== a).map(b => [b, 0]))]));
   const together = JSON.parse(JSON.stringify(versus));
   for (const g of gs) {
@@ -93,12 +98,12 @@ export function soireeModel(games, name = id => id) {
   if (low) trophy('worst', 'Pire volée', low.id, `${low.v.scored} point${low.v.scored > 1 ? 's' : ''}`, `partie ${gameNo(low.g)}`);
   const maxOf = key => rows.reduce((a, x) => (x[key] !== null && (!a || x[key] > a[key]) ? x : a), null);
   const bu = maxOf('busts'); if (bu && bu.busts) trophy('busts', 'Roi du bust', bu.id, `${bu.busts} bust`);
-  const dr = maxOf('drinks'); if (dr && dr.drinks) trophy('drinks', 'Le plus assoiffé', dr.id, `x${dr.drinks} verres`);
+  const dr = maxOf('drinks'); if (dr && dr.drinks) trophy('drinks', 'Le plus assoiffé', dr.id, `x${dr.drinks} verres`, dr.tally.pints ? tallyText(dr.tally) : '');
   const reg = ids.filter(id => spread[id] !== null).sort((x, y) => spread[x] - spread[y])[0];
   if (reg) trophy('regular', 'Le plus régulier', reg, `écart ${avg(spread[reg])} pts`);
   const list = [...gs].reverse().map(g => ({ id: g.id, at: g.startedAt, startScore: g.config.startScore, winner: gameWinner(g), players: g.config.players, abandoned: !!g.abandoned }));
   return { start: gs.length ? gs[0].startedAt : null, end: gs.length ? gs[gs.length - 1].startedAt : null, games: gs.length,
     drinks: rows.reduce((n, r) => n + r.drinks, 0), rows, highlights: hl, list,
-    timeline, drinkTimes, versus, together, sectors, spread, trophies };
+    liters: rows.reduce((n, r) => n + r.tally.liters, 0), timeline, drinkTimes, drinkList, versus, together, sectors, spread, trophies };
 }
 

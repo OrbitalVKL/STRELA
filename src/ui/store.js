@@ -11,7 +11,7 @@ import { computeState, STATUS, EVENTS } from '../engine/x01.js';
 import { deletePlayer as removePlayer, deletionImpact, isDeletedId } from '../engine/players.js';
 import { openDb, currentRecord, closedRecord, playerRecord, deletionOps, gameDeletionOps, soireeRecord, DB_VERSION } from '../data/db.js';
 import { makeBackup, importPlan } from '../data/backup.js';
-import { bac, drinkTimes, drinkTime } from '../engine/alcohol.js';
+import { bac, drinkTimes, drinkTime, unitsOf, drinkTally, PINT_L } from '../engine/alcohol.js';
 
 export const store = {
   players: [],
@@ -168,15 +168,18 @@ export function saveCurrent() {
 }
 
 // ------------------------------------------------------------------ verres (lot 7)
-/** Ajoute un verre (maintenant) au joueur `id` dans la partie en cours. */
-export function addDrink(id, now = Date.now()) {
+/** Un verre enregistré maintenant : `pint` vrai pour une pinte (50 cl), sinon un verre de 25 cl (0.8.2). */
+const drinkRec = (t, at, pint) => { const d = at === null ? { t } : { t, at }; if (pint) d.v = PINT_L; return d; };
+
+/** Ajoute un verre (maintenant) au joueur `id` dans la partie en cours ; `pint` : une pinte (compte pour 2). */
+export function addDrink(id, now = Date.now(), pint = false) {
   const g = store.current;
   if (!g) return;
   // Lot 7.6 : un joueur de la partie qui n'est pas (ou plus) dans la soirée de la partie la rejoint.
   if (g.soiree && store.soiree && store.soiree.id === g.soiree && !store.soiree.players.includes(id)) joinSoiree([id]);
   g.drinks = { ...(g.drinks || {}) };
   // Lot 7.1 : le verre prend sa place dans l'historique de la partie (nombre de fléchettes jouées à ce moment).
-  g.drinks[id] = [...(g.drinks[id] || []), { t: now, at: g.darts.length }];
+  g.drinks[id] = [...(g.drinks[id] || []), drinkRec(now, g.darts.length, pint)];
   saveCurrent();
 }
 
@@ -189,12 +192,25 @@ export function removeDrink(id) {
   saveCurrent();
 }
 
-/** Verres du joueur dans la partie en cours. */
+/** Verres enregistrés du joueur dans la partie en cours (nombre de saisies : une pinte compte pour une). */
 export const drinksHere = id => (store.current && store.current.drinks && store.current.drinks[id] ? store.current.drinks[id].length : 0);
 
 /** Lot 7.6 : verres à afficher pour le joueur `id` dans la partie `g` : ceux de la soirée avant la partie (s'il y en a
  *  une) plus ceux de la partie. Sans soirée : ceux de la partie seulement (comme avant). */
-export const gameDrinks = (g, id) => ((g && g.drinksBefore && g.drinksBefore[id]) || 0) + ((g && g.drinks && g.drinks[id] && g.drinks[id].length) || 0);
+export const gameDrinks = (g, id) => ((g && g.drinksBefore && g.drinksBefore[id]) || 0) + unitsOf(g && g.drinks && g.drinks[id]);
+
+/** 0.8.2 : détail des verres du joueur `id` à montrer avec la partie `g` ({ units, glasses, pints, liters }) : ceux de
+ *  la partie et, si elle est d'une soirée, ceux des parties d'avant de la même soirée (et les verres pris hors partie
+ *  si c'est la soirée en cours). */
+export function gameDrinkTally(g, id) {
+  if (!g) return drinkTally();
+  const lists = [g.drinks && g.drinks[id]];
+  if (g.soiree) {
+    for (const x of store.games) if (x !== g && x.soiree === g.soiree && x.startedAt < g.startedAt) lists.push(x.drinks && x.drinks[id]);
+    if (store.soiree && store.soiree.id === g.soiree) lists.push(store.soiree.drinks[id]);
+  }
+  return drinkTally(...lists);
+}
 
 /** Un verre au moins à montrer dans la partie `g` (de la partie ou de la soirée avant elle). */
 export const gameDrinking = g => !!(g && ((g.drinks && Object.values(g.drinks).some(l => l.length)) || (g.drinksBefore && Object.values(g.drinksBefore).some(n => n > 0))));
@@ -239,7 +255,7 @@ function recomputeSoiree(sid) {
     const before = {};
     for (const id of g.config.players) if (run[id]) before[id] = run[id];
     if (Object.keys(before).length) g.drinksBefore = before; else delete g.drinksBefore;
-    for (const [id, l] of Object.entries(g.drinks || {})) run[id] = (run[id] || 0) + l.length;
+    for (const [id, l] of Object.entries(g.drinks || {})) run[id] = (run[id] || 0) + unitsOf(l);
   }
   return games;
 }
@@ -250,13 +266,13 @@ const putGames = games => write(games.map(g => ({ store: 'games', put: closedRec
  * Version 0.8.1 : corrige les verres d'une partie de l'historique (détail de la partie) : `delta` +1 ajoute un verre au
  * joueur `id` (à la fin de la partie), -1 retire son dernier verre. Les cumuls de sa soirée sont recalculés.
  */
-export function editGameDrinks(gameId, id, delta) {
+export function editGameDrinks(gameId, id, delta, pint = false) {
   const g = store.games.find(x => x.id === gameId);
   if (!g || !g.config.players.includes(id)) return;
   const list = (g.drinks && g.drinks[id]) || [];
   if (delta < 0 && !list.length) return;
   const t = list.length ? drinkTime(list[list.length - 1]) : (g.endedAt || g.startedAt);
-  g.drinks = { ...(g.drinks || {}), [id]: delta > 0 ? [...list, { t, at: g.darts.length }] : list.slice(0, -1) };
+  g.drinks = { ...(g.drinks || {}), [id]: delta > 0 ? [...list, drinkRec(t, g.darts.length, pint)] : list.slice(0, -1) };
   if (!g.drinks[id].length) delete g.drinks[id];
   putGames(g.soiree ? recomputeSoiree(g.soiree) : [g]);
 }
@@ -281,8 +297,8 @@ export function cumulativeDrinksFix(sid) {
       const keep = list.length >= p ? list.slice(p) : list;
       if (keep.length) out[id] = keep;
       totals[id] = totals[id] || { before: 0, after: 0 };
-      totals[id].before += list.length;
-      totals[id].after += keep.length;
+      totals[id].before += unitsOf(list);
+      totals[id].after += unitsOf(keep);
       prev[id] = list.length;
     }
     lists.set(g.id, out);
@@ -352,8 +368,13 @@ export function leaveSoiree(id) {
 export function soireeDrinks(id) {
   const s = store.soiree;
   if (!s) return 0;
-  return ((s.drinks[id] && s.drinks[id].length) || 0)
-    + soireeGames().reduce((n, g) => n + ((g.drinks && g.drinks[id] && g.drinks[id].length) || 0), 0);
+  return unitsOf(s.drinks[id]) + soireeGames().reduce((n, g) => n + unitsOf(g.drinks && g.drinks[id]), 0);
+}
+
+/** 0.8.2 : détail des verres du joueur dans la soirée en cours ({ units, glasses, pints, liters }). */
+export function soireeDrinkTally(id) {
+  const s = store.soiree;
+  return s ? drinkTally(s.drinks[id], ...soireeGames().map(g => g.drinks && g.drinks[id])) : drinkTally();
 }
 
 /** Total des verres de la soirée (tous les joueurs). */
@@ -363,11 +384,11 @@ export const soireeTotal = () => (store.soiree ? store.soiree.players.reduce((n,
 const inSoireeGame = id => !!(store.soiree && store.current && store.current.soiree === store.soiree.id && store.current.config.players.includes(id));
 
 /** Un verre de plus pour `id` depuis l'écran Soirée : dans la partie en cours s'il y joue, sinon hors partie. */
-export function soireeAddDrink(id, now = Date.now()) {
+export function soireeAddDrink(id, now = Date.now(), pint = false) {
   const s = store.soiree;
   if (!s) return;
-  if (inSoireeGame(id)) { addDrink(id, now); return; }
-  s.drinks = { ...s.drinks, [id]: [...(s.drinks[id] || []), { t: now }] };
+  if (inSoireeGame(id)) { addDrink(id, now, pint); return; }
+  s.drinks = { ...s.drinks, [id]: [...(s.drinks[id] || []), drinkRec(now, null, pint)] };
   saveSoiree();
 }
 

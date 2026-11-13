@@ -8,6 +8,7 @@ import { store, playerById } from '../../store.js';
 import { esc, ico, topBar, avg, pct, int, plural, when, OUT_SHORT } from '../../dom.js';
 import { avatarHtml } from '../../avatars.js';
 import { playerStats, inPeriod, gameState } from '../../../engine/stats.js';
+import { unitsOf, drinkTally, tallyText } from '../../../engine/alcohol.js';
 import { refresh, backFrom } from '../../nav.js';
 import { board, countOf, tally, currentPeriod, pickedBoard } from '../stats.js';
 
@@ -40,9 +41,9 @@ export const METRICS = Object.freeze([
     info: 'Volées en bust (le reste repasse au-dessus de zéro, ou à 1 en sortie double). Moins il y en a, mieux c\'est. Au classement : par partie jouée.' },
   { k: 'max', label: '180', fmt: int, dir: 1, all: s => s.max, info: 'Nombre de 180 sur la période.' },
   { k: 'bestFinish', label: 'Meilleure finition', fmt: int, dir: 1, all: s => s.bestFinish, info: 'Plus grand reste fini en une volée.' },
-  { k: 'drinks', label: 'Verres', fmt: dec1, dir: 0, game: (s, g, id) => (g.drinks && g.drinks[id] ? g.drinks[id].length : 0),
-    all: (s, games, id) => (s.played ? games.reduce((n, g) => n + (g.drinks && g.drinks[id] ? g.drinks[id].length : 0), 0) / s.played : null),
-    gameFmt: int, unit: '/ partie', info: 'Verres notés pendant les parties. Au classement : par partie jouée. Ni mieux ni pire.' },
+  { k: 'drinks', label: 'Verres', fmt: dec1, dir: 0, game: (s, g, id) => unitsOf(g.drinks && g.drinks[id]),
+    all: (s, games, id) => (s.played ? games.reduce((n, g) => n + unitsOf(g.drinks && g.drinks[id]), 0) / s.played : null),
+    gameFmt: int, unit: '/ partie', info: 'Verres notés pendant les parties, en verres de 25 cl (une pinte de 50 cl compte pour 2). Au classement : par partie jouée. Ni mieux ni pire.' },
 ]);
 const metric = k => METRICS.find(m => m.k === k) || METRICS[0];
 
@@ -95,7 +96,7 @@ function series(games, pid, m) {
 const dayKey = ms => { const d = new Date(ms); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
 const hhmm = ms => { const d = new Date(ms); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 
-function chart(pts, m) {
+function chart(pts, m, pid) {
   const vals = pts.filter(p => p.v !== null && p.v !== undefined);
   if (vals.length < 2) return '<p class="note">Il faut au moins deux parties avec ce chiffre sur la période pour tracer la courbe.</p>';
   const scale = v => (m.pct ? v * 100 : v);
@@ -161,7 +162,7 @@ function chart(pts, m) {
     <line class="mean" x1="0" x2="${W.toFixed(0)}" y1="${y(meanV).toFixed(1)}" y2="${y(meanV).toFixed(1)}"/>
     <polyline class="ln" points="${line}"/>${dots}
   </svg>`;
-  return `<div class="chartbox">${axis}<div class="chscroll" data-hscroll="${esc(`${m.k}:${ui.zoom}:${n}`)}">${plot}</div></div>
+  return `<div class="chartbox">${axis}<div class="chscroll" data-hscroll="${esc(`courbe:${pid}`)}">${plot}</div></div>
     <div class="chlegend"><span><i class="lg-ln"></i> partie par partie</span><span><i class="lg-mean"></i> moyenne ${m.pct ? `${Math.round(meanV)} %` : dec1(meanV)}</span><span>${plural(n, 'partie', 'parties')} · ${plural(days.length, 'jour', 'jours')}</span></div>`;
 }
 
@@ -183,7 +184,7 @@ function chartBlock(games, pid) {
     ${infoBox('courbe', 'Chaque point est une partie, dans l\'ordre où elles ont été jouées : plusieurs parties du même soir ne s\'entassent plus. Les jours sont séparés par un filet et une bande grisée. La valeur est écrite au-dessus des points ; quand ils sont serrés, un sur deux ou trois : zoomez (×2 à ×8) pour les voir tous, puis faites glisser la courbe du doigt.')}
     <div class="chips2">${METRICS.filter(x => x.game).map(chip).join('')}</div>
     <div class="chtools"><span class="small dim caps">${esc(m.label)}${m.pct ? ' (%)' : ''}</span>${zoom}</div>
-    ${chart(pts, m)}
+    ${chart(pts, m, pid)}
     ${read}`;
 }
 
@@ -237,7 +238,8 @@ export function stats2Screen(id) {
       <button type="button" class="btn primary" data-act="period" data-arg="tout">VOIR DEPUIS TOUJOURS</button></div></div>`;
   }
   const k = (key, label, value, cls = '') => `<div class="kpi ${cls}" data-k="${key}"><small>${label}</small><b>${value}</b></div>`;
-  const drinks = games.filter(g => g.config.players.includes(pid)).reduce((n, g) => n + (g.drinks && g.drinks[pid] ? g.drinks[pid].length : 0), 0);
+  const drinkT = drinkTally(...games.filter(g => g.config.players.includes(pid)).map(g => g.drinks && g.drinks[pid]));
+  const drinks = drinkT.units;
   const h2h = Object.entries(st.headToHead).sort((a, b) => b[1].played - a[1].played).map(([oid, h]) => {
     const o = playerById(oid);
     return `<li><a class="h2h-row" href="#/face/${esc(pid)}/${esc(oid)}">${avatarHtml(o, 32)}<span class="nm ell b">${esc(o.name)}</span><span class="sc">${tally(h.won, h.lost)}</span>${ico('chev')}</a></li>`;
@@ -261,7 +263,7 @@ export function stats2Screen(id) {
       <div class="kpis">${k('bestFinish', 'Meilleure finition', int(st.bestFinish))}${k('shortest', 'Manche la + courte', `${st.shortestLeg ?? '—'}${st.shortestLeg ? '<small> fl.</small>' : ''}`)}</div>
       ${sec('Volées', null)}
       <div class="kpis"><div class="kpi wide tons"><div data-k="ton"><small>100+</small><b>${st.ton}</b></div><div data-k="ton40"><small>140+</small><b>${st.ton40}</b></div><div data-k="max"><small>180</small><b>${st.max}</b></div><div data-k="busts"><small>Bust</small><b>${st.busts}</b></div></div>
-        ${k('drinks', 'Verres', `${drinks}<small> en ${plural(st.played, 'partie', 'parties')}</small>`, 'wide')}</div>
+        ${k('drinks', `Verres${drinkT.pints ? ` · ${tallyText(drinkT)}` : ''}`, `${drinks}<small> en ${plural(st.played, 'partie', 'parties')}</small>`, 'wide')}</div>
       ${chartBlock(games, pid)}
       ${sec('Meilleures et pires volées', 'volees')}
       ${infoBox('volees', 'Les 10 meilleures volées de la période, et la pire volée de chaque partie (sans les bust ni les volées de finition). Touchez une ligne pour ouvrir la partie.')}
