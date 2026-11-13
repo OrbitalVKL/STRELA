@@ -78,11 +78,11 @@ export function storageLine() {
   if (isApk()) {
     // Lot 5 : la base est dans le dossier privé de l'appli (WebView) : Android ne l'efface qu'à la désinstallation.
     const s = callJson('storage');
-    const base = d.error ? `base : ${d.error}` : `base v${d.version} · ${store.players.length} j. · ${store.games.length + (store.current ? 1 : 0)} p.`;
+    const base = d.error ? `base : ${d.error}` : `base v${d.version} · ${store.players.length} j. · ${store.games.length + store.ckGames.length + (store.current || store.ck ? 1 : 0)} p.`;
     return `${base}${d.unreadable ? ` · ${d.unreadable} illisible(s)` : ''} · données dans l'appli${s ? ` (${s.dir}, ${mo(s.bytes)})` : ''} · stockage ${d.persisted === 'yes' ? 'persistant' : 'privé de l\'appli'}`;
   }
   const persist = { yes: 'persistant', no: 'non persistant (refusé par Chrome)', absent: 'persistant : fonction absente', error: 'persistant : erreur' }[d.persisted] || 'persistant : en attente';
-  const base = d.error ? `base : ${d.error}` : `base v${d.version} · ${store.players.length} j. · ${store.games.length + (store.current ? 1 : 0)} p.`;
+  const base = d.error ? `base : ${d.error}` : `base v${d.version} · ${store.players.length} j. · ${store.games.length + store.ckGames.length + (store.current || store.ck ? 1 : 0)} p.`;
   return `${base}${d.unreadable ? ` · ${d.unreadable} illisible(s)` : ''} · stockage ${persist}`;
 }
 
@@ -220,7 +220,7 @@ function backupBlock() {
     const what = `${plural(sm.players, 'joueur', 'joueurs')} · ${plural(sm.games, 'partie', 'parties')}${sm.current ? ' · une partie en cours' : ''}`;
     const head = `<div class="bk-prev"><b>SAUVEGARDE DU ${esc(fmtDate(sm.exportedAt))}</b><span>${what}${sm.app ? ` · Strela v${esc(sm.app)}` : ''}</span><span class="small dim ell">${esc(bk.file)}</span></div>`;
     if (bk.ask === 'replace') {
-      const nP = store.players.length, nG = store.games.length + (store.current ? 1 : 0);
+      const nP = store.players.length, nG = store.games.length + store.ckGames.length + (store.current || store.ck ? 1 : 0);
       box = `${head}<div class="confirm" role="alertdialog" aria-label="Tout remplacer ?"><p class="alert-h">REMPLACER TOUTES LES DONNÉES ?</p>
         <p class="small">Les ${plural(nP, 'joueur', 'joueurs')} et ${plural(nG, 'partie', 'parties')} de ce téléphone seront effacés et remplacés par ceux de la sauvegarde (réglages compris).</p>
         <div class="btns two"><button type="button" class="btn" data-act="backup-no">NON</button><button type="button" class="btn alert" data-act="backup-yes">REMPLACER</button></div></div>`;
@@ -390,7 +390,7 @@ export const actions = {
     if (!bk.preview || !bk.ask) return;
     const c = applyImport(bk.preview, bk.ask);
     bk.done = bk.ask === 'replace'
-      ? `Données remplacées : ${plural(store.players.length, 'joueur', 'joueurs')}, ${plural(store.games.length + (store.current ? 1 : 0), 'partie', 'parties')}.`
+      ? `Données remplacées : ${plural(store.players.length, 'joueur', 'joueurs')}, ${plural(store.games.length + store.ckGames.length + (store.current || store.ck ? 1 : 0), 'partie', 'parties')}.`
       : `Fusion faite : ${plural(c.playersAdded, 'joueur ajouté', 'joueurs ajoutés')}, ${plural(c.gamesAdded, 'partie ajoutée', 'parties ajoutées')}.`;
     Object.assign(bk, { preview: null, ask: null });
     applyTheme();

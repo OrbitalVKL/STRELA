@@ -74,7 +74,7 @@ export function home2() {
 
   const tiles = items.map(([href, icon, label, sub]) => `<a class="tile2" href="${href}">${ico(icon)}<b data-shrink>${label}</b><span data-shrink>${sub}</span>${href === '#/nouveautes' && !newsSeen() ? newsDot() : ''}</a>`).join('');
   return `<div class="screen home2 v-tableau">
-    <header class="t-head"><h1 class="home-title" data-shrink>STRELA</h1><p>Compteur de fléchettes X01</p></header>
+    <header class="t-head"><h1 class="home-title" data-shrink>STRELA</h1><p>Compteur de fléchettes · X01 · Cricket</p></header>
     <main class="t-main">${storageBanner()}${updateBadge()}
       ${welcome.html}${resume}${newGame}${soiree}
       <div class="hcards">${lastGameCard()}${leaderCard()}</div>

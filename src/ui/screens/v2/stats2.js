@@ -12,6 +12,7 @@ import { unitsOf, drinkTally, tallyText, averageByDrinks } from '../../../engine
 import { refresh, backFrom } from '../../nav.js';
 import { board, countOf, tally, currentPeriod, pickedBoard } from '../stats.js';
 import { vitrineHtml } from '../../honours.js';
+import { cricketPlayerStats } from '../../../engine/cricket.js';
 
 const dec1 = v => (v === null || v === undefined || Number.isNaN(v) ? '—' : (Math.round(v * 10) / 10).toFixed(1).replace('.', ','));
 const DAYS = ['DIM.', 'LUN.', 'MAR.', 'MER.', 'JEU.', 'VEN.', 'SAM.'];
@@ -281,6 +282,17 @@ function sectorTable(seg) {
 }
 
 // ------------------------------------------------------------------ écran Stats (joueur)
+/** Lot 10 : chiffres du Cricket du joueur sur la période (à part des chiffres X01), ou '' s'il n'en a pas joué. */
+function cricketBlock(pid) {
+  const c = cricketPlayerStats(inPeriod(store.ckGames, currentPeriod()), pid);
+  if (!c.played) return '';
+  const mpr = c.mpr === null ? '—' : (Math.round(c.mpr * 100) / 100).toFixed(2).replace('.', ',');
+  return `${sec('Cricket', 'cricket')}
+    ${infoBox('cricket', '<b>MPR</b> : marques par volée de 3 fléchettes (celles qui ferment une cible et celles qui rapportent des points). <b>Meilleure volée</b> : le plus de marques en une volée (9 au plus). Le Cricket est compté à part : il n\'entre dans aucun autre chiffre de cette page.')}
+    <div class="kpis"><div class="kpi" data-k="ckmpr"><small>MPR</small><b>${mpr}</b></div><div class="kpi" data-k="ckwon"><small>Victoires</small><b>${c.won}<small> / ${c.played}</small></b></div>
+      <div class="kpi" data-k="ckbest"><small>Meilleure volée</small><b>${c.best}<small> marques</small></b></div><div class="kpi" data-k="ckdarts"><small>Fléchettes</small><b>${c.darts}</b></div></div>`;
+}
+
 export function stats2Screen(id) {
   const players = store.players.filter(p => !p.archived || store.games.some(g => g.config.players.includes(p.id)));
   if (!players.length) return `<div class="screen">${topBar('Stats', '#/')}<div class="empty"><div class="big">AUCUN JOUEUR</div></div></div>`;
@@ -291,6 +303,8 @@ export function stats2Screen(id) {
   const chips = `<div class="chips">${players.map(q => `<a class="btn chip" href="#/stats/${esc(q.id)}" aria-pressed="${q.id === pid}">${avatarHtml(q, 38)}<span class="nm">${esc(q.name.split(' ')[0])}</span></a>`).join('')}</div>`;
   const head = `${topBar('Stats', backFrom('#/'))}${tabs('joueur')}${chips}<div class="pad" style="margin-top:10px">${periodSeg()}</div>`;
   if (!st.played) {
+    const ck = cricketBlock(pid);
+    if (ck) return `<div class="screen stats2">${head}<div class="pad"><p class="note">Aucune partie de 301 · 501 · 701 sur cette période.</p>${ck}</div></div>`;
     return `<div class="screen">${head}<div class="empty"><div class="big">AUCUNE PARTIE</div><p><span class="nm">${esc(p.name)}</span> n'a pas joué sur cette période.</p>
       <button type="button" class="btn primary" data-act="period" data-arg="tout">VOIR DEPUIS TOUJOURS</button></div></div>`;
   }
@@ -321,6 +335,7 @@ export function stats2Screen(id) {
       ${sec('Volées', null)}
       <div class="kpis"><div class="kpi wide tons"><div data-k="ton"><small>100+</small><b>${st.ton}</b></div><div data-k="ton40"><small>140+</small><b>${st.ton40}</b></div><div data-k="max"><small>180</small><b>${st.max}</b></div><div data-k="busts"><small>Bust</small><b>${st.busts}</b></div></div>
         ${k('drinks', `Verres${drinkT.pints ? ` · ${tallyText(drinkT)}` : ''}`, `${drinks}<small> en ${plural(st.played, 'partie', 'parties')}</small>`, 'wide')}</div>
+      ${cricketBlock(pid)}
       ${vitrineHtml(pid, sec, infoBox)}
       ${chartBlock(games, pid)}
       ${drinksBlock(games, pid)}

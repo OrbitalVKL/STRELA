@@ -12,6 +12,7 @@ import { gameState, gameWinner } from '../../../engine/stats.js';
 import { unitsOf } from '../../../engine/alcohol.js';
 import { refresh } from '../../nav.js';
 import { historyEmpty } from '../history.js';
+import { computeCricket, isCricket } from '../../../engine/cricket.js';
 
 const DAYS = ['DIM.', 'LUN.', 'MAR.', 'MER.', 'JEU.', 'VEN.', 'SAM.'];
 const MONTHS = ['JANVIER', 'FÉVRIER', 'MARS', 'AVRIL', 'MAI', 'JUIN', 'JUILLET', 'AOÛT', 'SEPTEMBRE', 'OCTOBRE', 'NOVEMBRE', 'DÉCEMBRE'];
@@ -44,7 +45,23 @@ const dayLabel = (ms, now = Date.now()) => {
 // Jour « de soirée » : une partie lancée avant 6 h du matin compte pour la veille.
 const eveningDay = ms => { const d = new Date(ms - 6 * 3600000); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
 
+/** Lot 10 : une partie de Cricket (détail #/cricket/partie/<id> ; pas de sélection : elle ne va pas dans une soirée). */
+function ckRow(g) {
+  let s = null;
+  try { s = computeCricket(g.config, g.darts); } catch (e) { /* illisible */ }
+  const w = s && s.status === 'finished' && !g.abandoned ? g.config.players[s.winner] : null;
+  const res = g.abandoned ? '<span class="tag red">ABANDON</span>'
+    : w ? `<span class="win">${ico('trophy')}<span class="nm ell">${esc(playerById(w).name)}</span></span>` : '<span class="tag">EN COURS</span>';
+  const inner = `<span class="t">${hhmm(g.startedAt)}</span>
+    <span class="g">CRIC.${s && g.config.legsToWin > 1 ? ` · ${s.legsWon.join('–')}` : ''}</span>
+    <span class="avs">${g.config.players.slice(0, 3).map(id => avatarHtml(playerById(id), 22)).join('')}${g.config.players.length > 3 ? `<small>+${g.config.players.length - 3}</small>` : ''}</span>
+    <span class="r">${res}</span>`;
+  if (sel) return `<li><span class="hrow pick off"><span class="box" aria-hidden="true"></span>${inner}</span></li>`;
+  return `<li><a class="hrow" href="#/cricket/partie/${esc(g.id)}">${inner}</a></li>`;
+}
+
 function row(g) {
+  if (isCricket(g)) return ckRow(g);
   const w = gameWinner(g);
   const s = gameState(g);
   const res = g.abandoned ? '<span class="tag red">ABANDON</span>'
@@ -103,7 +120,7 @@ function selDock() {
 }
 
 export function history2List() {
-  const all = [...store.games].sort((a, b) => b.startedAt - a.startedAt);
+  const all = [...store.games, ...store.ckGames].sort((a, b) => b.startedAt - a.startedAt); // lot 10 : Cricket compris
   if (!all.length) { sel = null; ask = null; return historyEmpty(); }
   const months = [...new Set(all.map(g => monthKey(g.startedAt)))];
   const games = all.filter(g => (!f.player || g.config.players.includes(f.player))
@@ -185,13 +202,13 @@ export const actions = {
   'h2-month'(k) { f.month = k; f.open = null; refresh(); },
   'h2-clear'() { presetHistory2(); refresh(); },
   'h2-open'(key) {
-    const all = [...store.games].sort((a, b) => b.startedAt - a.startedAt);
+    const all = [...store.games, ...store.ckGames].sort((a, b) => b.startedAt - a.startedAt);
     if (!f.open) f.open = new Set(groups(all).slice(0, 2).map(x => x.key));
     if (f.open.has(key)) f.open.delete(key); else f.open.add(key);
     refresh();
   },
   'h2-all'(v) {
-    f.open = v === '1' ? new Set(groups([...store.games]).map(x => x.key)) : new Set();
+    f.open = v === '1' ? new Set(groups([...store.games, ...store.ckGames]).map(x => x.key)) : new Set();
     refresh();
   },
 };

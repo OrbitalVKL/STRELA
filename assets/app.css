@@ -1384,3 +1384,113 @@ button.hrow { width: 100%; border: 0; border-bottom: var(--rule); background: va
 /* Lot 9 : aperçu du résumé de soirée à partager (image verticale). */
 .dsum { margin: 8px 0; display: flex; justify-content: center; }
 .dsum img { width: min(100%, 300px); height: auto; border: var(--rule); display: block; }
+
+/* ---------------------------------------------------------------- CRICKET (lot 10) */
+.ckgame .ckhead { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 4px 0 14px; flex: 0 0 auto; }
+.ckhead .t { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 800; font-size: 13px; letter-spacing: 0.1em; white-space: nowrap; }
+.ckhead .who { flex: 1 1 auto; min-width: 0; text-align: right; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ckhead .who .nm { font-weight: 800; }
+.ckhead .act { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 0; background: transparent; color: inherit; flex: 0 0 auto; }
+.mk { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: square; display: block; }
+.mk.m3 { stroke-width: 2.2; }
+/* A · face à face */
+.ckface { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding: 8px 12px 0; }
+.ckscore { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; gap: 8px; flex: 0 0 auto; }
+.cks { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; align-items: center; gap: 2px 8px; padding: 6px 8px; border: var(--rule); min-width: 0; }
+.cks .av { grid-row: 1; }
+.cks .nm { font-weight: 800; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; }
+.cks > b { grid-column: 1 / -1; font-size: 34px; font-weight: 800; line-height: 1.05; text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cks > b small, .ckc > b small { font-size: 0.5em; color: var(--dim); }
+.cks.on { background: var(--inv-bg); color: var(--inv-fg); border-color: var(--inv-bg); box-shadow: inset 0 -5px 0 var(--pc); }
+.cks.on > b small { color: inherit; }
+.ckscore .mode { align-self: center; font-size: 9.5px; letter-spacing: 0.1em; color: var(--dim); text-align: center; line-height: 1.4; }
+.ckrows { flex: 1 1 auto; min-height: 0; display: grid; grid-template-rows: repeat(7, minmax(0, 1fr)); margin-top: 8px; border-top: var(--rule); }
+.ckface .ckr { display: grid; grid-template-columns: minmax(0, 1fr) 76px minmax(0, 1fr); border-bottom: var(--rule); min-height: 0; }
+.ckr .c { display: flex; align-items: center; justify-content: center; min-height: 0; }
+.ckr .tg { display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 22px; font-variant-numeric: tabular-nums; border-left: var(--rule); border-right: var(--rule); }
+.ckr .tg:is(:only-child, :first-child) { border-left: 0; }
+.ckr.dead .tg { color: var(--faint); text-decoration: line-through; }
+.ckr.dead .mk { color: var(--faint); }
+/* B · grille */
+.ckgrid { flex: 1 1 auto; min-height: 0; display: grid; grid-template-rows: auto repeat(7, minmax(0, 1fr)); padding: 8px 12px 0; }
+.ckgrid .ckr { display: grid; grid-template-columns: 66px repeat(var(--n), minmax(0, 1fr)); border-bottom: var(--rule); min-height: 0; }
+.ckgrid .ckr.hd { border-bottom: var(--rule); }
+.ckgrid .ckr .tg { font-size: 16px; border-left: 0; }
+.ckgrid .ckr .c { border-right: var(--rule); }
+.ckgrid .ckr .c:last-child { border-right: 0; }
+.ckgrid .ckr .c.on { background: color-mix(in srgb, var(--fg) 8%, transparent); }
+.ckc { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 6px 2px; min-width: 0; }
+.ckc > b { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1; white-space: nowrap; }
+.ckc.on { background: var(--inv-bg); color: var(--inv-fg); box-shadow: inset 0 -4px 0 var(--pc, var(--inv-fg)); }
+.ckc.on > b small { color: inherit; }
+.ckgrid.small { padding: 0; margin-top: 4px; }
+.ckgrid.small .ckr { min-height: 32px; }
+.ckgrid.small .mk { width: 20px; height: 20px; }
+.ckgrid.small .ckr .tg { font-size: 15px; }
+/* Volée et pavé */
+.ckvisit { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.1fr); gap: 6px; padding: 8px 12px; flex: 0 0 auto; }
+.ckd { display: flex; align-items: center; justify-content: center; min-height: 46px; border: var(--rule); font-weight: 800; font-size: 18px; color: var(--faint); min-width: 0; white-space: nowrap; overflow: hidden; }
+.ckd.done { color: var(--fg); border-color: var(--fg); }
+.ckd.todo { border-color: var(--fg); border-style: dashed; }
+.ckd.undo { flex-direction: column; gap: 2px; background: var(--bg); color: var(--fg); font-size: 9.5px; letter-spacing: 0.08em; }
+.ckd.undo .ico { width: 20px; height: 20px; }
+.ckd.undo:disabled { color: var(--faint); }
+.ckpad { position: relative; flex: 0 0 auto; display: grid; grid-template-rows: repeat(3, minmax(56px, 9dvh)); gap: 1px; background: var(--faint); border-top: var(--rule); border-bottom: var(--rule); }
+.ckpad .krow { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ckpad .krow.mult { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ckk { border: 0; background: var(--bg); color: var(--fg); font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 0; overflow: hidden; white-space: nowrap; }
+.ckk.zero, .ckk[data-arg="25"] { font-size: 16px; letter-spacing: 0.06em; }
+.ckk.m { font-size: 15px; letter-spacing: 0.08em; }
+.ckk.m[aria-pressed="true"] { background: var(--inv-bg); color: var(--inv-fg); }
+.ckpad.m2 .krow:not(.mult) .ckk:not(:disabled) { box-shadow: inset 0 0 0 2px var(--fg); }
+.ckpad.m3 .krow:not(.mult) .ckk:not(:disabled) { background: var(--inv-bg); color: var(--inv-fg); }
+.ckk:active:not(:disabled) { background: var(--fg); color: var(--bg); }
+.ckk:disabled { color: var(--faint); }
+.ckpad .validate.over { height: 100%; }
+.cklegwon { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: stretch; justify-content: center; gap: 12px; padding: 12px; background: var(--bg); text-align: center; }
+.cklegwon > span { font-weight: 800; letter-spacing: 0.08em; font-size: 15px; }
+.ck-table td:first-child { max-width: 0; width: 46%; }
+.ckvis { list-style: none; margin: 0; padding: 0; border-top: var(--rule); }
+.ckvis li { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr) 28px; gap: 8px; align-items: baseline; padding: 6px 0; border-bottom: var(--rule); font-size: 12.5px; }
+.ckvis .nm { font-weight: 700; }
+.ckvis .ds { color: var(--dim); overflow-wrap: anywhere; }
+.ckvis li > b { text-align: right; font-variant-numeric: tabular-nums; }
+.hrow.pick.off { opacity: 0.45; }
+/* Cricket en paysage : le tableau à gauche, la volée et le pavé à droite */
+@media (orientation: landscape) and (max-height: 620px) {
+  .ckgame { max-width: 1100px; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); column-gap: 10px;
+    padding-left: max(env(safe-area-inset-left, 0px), 6px); padding-right: max(env(safe-area-inset-right, 0px), 6px); }
+  .ckgame .ckhead { grid-column: 1 / -1; min-height: 40px; }
+  .ckgame :is(.ckface, .ckgrid) { grid-column: 1; grid-row: 2 / 4; padding: 6px 0 0; }
+  .ckgame .ckvisit { grid-column: 2; grid-row: 2; padding: 6px 0; }
+  .ckgame .ckpad { grid-column: 2; grid-row: 3; grid-template-rows: repeat(3, minmax(0, 1fr)); border-top: var(--rule); }
+  .ckgame .ckd { min-height: 38px; }
+  .ckgame .cks > b { font-size: 26px; }
+  .ckgame .ckscore .cks { padding: 4px 8px; }
+  .ckgame .ckrows { margin-top: 6px; }
+  .ckgame .mk { width: 22px; height: 22px; }
+  .ckgame .ckr .tg { font-size: 17px; }
+}
+/* Cricket sur un écran bas (portrait) : pavé et volée plus serrés, le tableau garde la place */
+@media (orientation: portrait) and (max-height: 760px) {
+  .ckgame .ckhead { min-height: 42px; }
+  .ckgame .ckpad { grid-template-rows: repeat(3, minmax(42px, 7.5dvh)); }
+  .ckgame .ckvisit { padding: 5px 12px; }
+  .ckgame .ckd { min-height: 36px; }
+  .ckgame .cks > b { font-size: 26px; }
+  .ckgame .cks { padding: 4px 8px; }
+  .ckgame .ckface .ckr .tg { font-size: 17px; }
+  .ckgame .mk { width: 21px; height: 21px; }
+  .ckgame .ckc > b { font-size: 17px; }
+  .ckgame .ckc { padding: 4px 2px; }
+}
+@media (orientation: landscape) and (max-height: 400px) {
+  .ckgame .ckhead { min-height: 34px; }
+  .ckgame .ckr .tg, .ckgame .ckgrid .ckr .tg { font-size: 13px; }
+  .ckgame .mk { width: 17px; height: 17px; }
+  .ckgame .cks > b { font-size: 20px; }
+  .ckgame .cks .nm { font-size: 11px; }
+  .ckgame .ckc > b { font-size: 14px; }
+  .ckgame .ckc { padding: 2px; gap: 1px; }
+  .ckgame .ckc .av { --s: 18px !important; }
+}

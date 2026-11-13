@@ -41,7 +41,7 @@ export function aboutScreen() {
   return `<div class="screen">${topBar('À propos', backFrom('#/reglages'))}
     <div class="pad about">
       <div class="about-head"><img src="assets/icon-192.png" width="64" height="64" alt="">
-        <div><b>STRELA</b><small>Compteur de fléchettes X01 · стрела = flèche</small></div></div>
+        <div><b>STRELA</b><small>Compteur de fléchettes X01 et Cricket · стрела = flèche</small></div></div>
       <div class="sec">Version</div>
       <div class="kv"><span>Version</span><b>${esc(BUILD.version)}</b></div>
       <div class="kv"><span>Variante</span><b class="ell">${esc(VARIANT_LABELS[v])}</b></div>

@@ -16,6 +16,7 @@
 // Les écritures d'un import tiennent dans une seule transaction (tout ou rien).
 
 import { computeState } from '../engine/x01.js';
+import { computeCricket } from '../engine/cricket.js';
 import { playerRecord, withDrinks } from './db.js';
 
 export const BACKUP_FORMAT = 'strela-sauvegarde';
@@ -85,7 +86,7 @@ export function parseBackup(text) {
     if (!isObj(g) || !isId(g.id) || !Number.isFinite(g.startedAt) || !isObj(g.config) || !Array.isArray(g.darts)) throw bad();
     if (!(g.endedAt === null || Number.isFinite(g.endedAt))) throw bad();
     if (gameIds.has(g.id)) throw new BackupError(`Sauvegarde abîmée : partie n° ${i + 1} en double.`);
-    try { computeState(g.config, g.darts); } catch (e) { throw bad(); }
+    try { if (g.config.game === 'cricket') computeCricket(g.config, g.darts); else computeState(g.config, g.darts); } catch (e) { throw bad(); }
     gameIds.add(g.id);
     return gameOut(g);
   });

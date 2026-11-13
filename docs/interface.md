@@ -800,6 +800,29 @@ Cricket, 7, 8, 10, 11. Fait ici (choix techniques clairs) ; le reste attend son 
   mois par mois, filtre Tout / Badges / Records, 30 premiers puis VOIR TOUT), fin de partie « Badges gagnés » + voix.
 - **Cricket (A face à face pour 2 joueurs + B grille de 2 à 8)** : lot 10, dans une session neuve (voir CLAUDE.md).
 
+## Version 0.10.0 : lot 10, Cricket (13/11/2026)
+
+Choix de Guillaume sur images : A face à face (2 joueurs) + B grille (2 à 8) ; règles avec points (défaut), sans points,
+cut-throat. Moteur : docs/moteur-cricket.md.
+- **Nouvelle partie** : « Jeu » 301 · 501 · 701 / Cricket (`d.game`) ; pour le Cricket : Règles (`ckMode`), manches,
+  ordre ; pas de départ, sortie, handicap, défis ni jusqu'au bout. `lastSetup.game` / `ckMode` gardent le choix.
+- **Jeu** `#/cricket` (src/ui/screens/cricket.js) : bandeau (CRICKET · M n · TOUR n, À PSEUDO, verres de la soirée si une
+  soirée est en cours, pause) ; tableau face à face (`.ckface`, 2 joueurs par défaut) ou grille (`.ckgrid`, une colonne
+  par joueur, le lanceur en vidéo inverse ; au menu pause pour 2 joueurs : `ui.layout`) ; marques / ✕ ✕ cerclé (SVG
+  `markSvg`) ; cible fermée par tous barrée ; volée (3 cases + ANNULER) ; pavé 20…15, BULL, RATÉ + SIMPLE / DOUBLE /
+  TRIPLE (au relâcher du clic ; revient à simple après chaque fléchette). Après 3 fléchettes : VALIDER (`validated`
+  comme en X01) ; manche gagnée : MANCHE SUIVANTE. Paysage : tableau à gauche, volée et pavé à droite (CSS seul).
+- **Fin** `#/cricket/fin` : vainqueur, classement (points, MPR, meilleure volée en marques), tableau final, REVANCHE (le
+  premier lanceur tourne, ou nouveau tirage), ACCUEIL (range la partie), ANNULER LA DERNIÈRE FLÉCHETTE.
+- **Historique** : lignes « CRIC. » mêlées aux autres (pas de sélection ni de soirée) ; détail `#/cricket/partie/<id>`
+  (classement, tableau final, volées, supprimer). **Stats** du joueur : section « Cricket » (MPR, victoires, meilleure
+  volée, fléchettes) sur la période, à part. Accueil : REPRENDRE un Cricket en cours. Retour Android : en jeu, ouvre la
+  pause (`ck-pause`).
+- Hors du Cricket pour l'instant : verres dans la partie (on les note à l'écran Soirée), défis, badges, records,
+  classement global, rapport de soirée.
+- Sommaire : scènes `ck-…` (section Version 0.8.0). Tests : tests/cricket.test.js (moteur, rangement à part,
+  sauvegarde, suppression d'un joueur), tests/cricket-parcours.test.js (vraie appli).
+
 ## Pour le lot 4
 
 - Les écrans Historique et Stats lisent `store.games` (parties closes) ; la partie en cours est à part (`store.current`).

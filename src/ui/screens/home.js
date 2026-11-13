@@ -2,13 +2,15 @@
 // en cours : jeu, fin de manche ou fin de partie pas encore rangée), accueil du premier lancement (créer les joueurs ;
 // dans l'APK, importer la sauvegarde de la version web), étiquette du pied de page.
 // (L'accueil des lots 4 à 7.8, variantes « bande » et « filet », a laissé la place à l'accueil A « tableau de bord ».)
-import { store, currentState, playerById, resumeRoute } from '../store.js';
+import { store, currentState, playerById, resumeRoute, ckState } from '../store.js';
+import { CK_MODE_LABEL } from './cricket.js';
 import { esc, ico, OUT_SHORT } from '../dom.js';
 import { isApk } from '../native.js';
 
 export function resumeButtonHtml() { return resumeButton(); }
 
 function resumeButton() {
+  if (store.ck) return ckResume(); // lot 10 : Cricket en cours
   const s = currentState();
   if (!s) return '';
   const g = store.current;
@@ -23,6 +25,18 @@ function resumeButton() {
   return `<a class="btn primary resume" href="${resumeRoute()}">
       <span class="t">REPRENDRE</span>
       <small>${head} · ${line}</small>
+      <span class="go">${ico('chev')}</span></a>`;
+}
+
+function ckResume() {
+  const g = store.ck;
+  const s = ckState();
+  const line = s.status === 'finished'
+    ? `PARTIE TERMINÉE · <span class="nm">${esc(playerById(g.config.players[s.winner]).name)}</span> GAGNE`
+    : `${g.config.legsToWin > 1 ? `MANCHE ${s.legNumber}<br>` : ''}À <span class="nm">${esc(playerById(g.config.players[s.currentPlayer]).name)}</span>`;
+  return `<a class="btn primary resume" href="${resumeRoute()}">
+      <span class="t">REPRENDRE</span>
+      <small>CRICKET · ${CK_MODE_LABEL[g.config.mode]} · ${line}</small>
       <span class="go">${ico('chev')}</span></a>`;
 }
 

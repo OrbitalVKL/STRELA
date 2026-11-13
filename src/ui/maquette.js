@@ -1,7 +1,7 @@
 // Strela — données fictives du sommaire de maquette (?maquette) et des tests : chargé seulement dans ce cas
 // (import dynamique dans app.js). Tout reste en mémoire : la vraie base du téléphone n'est jamais ouverte.
 import { store } from './store.js';
-import { MOCK_PLAYERS, EXTRA_PLAYERS, mockGames, mockSeason } from './mock.js';
+import { MOCK_PLAYERS, EXTRA_PLAYERS, mockGames, mockSeason, mockCricket } from './mock.js';
 
 const clone = o => JSON.parse(JSON.stringify(o));
 
@@ -21,6 +21,8 @@ export function resetMock() {
   store.players = players;
   store.games = mockGames(players);
   store.current = null;
+  store.ckGames = mockCricket(players); // lot 10
+  store.ck = null;
   store.draft = null;
   store.setupDraft = null;
   store.soiree = null; // lot 7.6

@@ -8,8 +8,10 @@
 export const CLOSERS = [
   'fix-cancel',       // correction d'une fléchette
   'abandon-no',       // confirmations du menu pause
+  'ck-abandon-no',    // confirmations du menu pause du Cricket (lot 10)
   'defi-ok',          // carte d'un défi (lot 9)
   'resume',           // menu pause
+  'ck-resume',        // menu pause du Cricket
   'drinks-close',     // panneau des verres (lot 7.6)
   'soiree-end-no',    // terminer la soirée (lot 7.6)
   'close-panel',      // panneau cible + historique
@@ -35,6 +37,7 @@ export function handleBack(actions, go, root = document.getElementById('app')) {
     if (el && actions[act]) { actions[act](el.dataset.arg, el, null); return true; }
   }
   if (path === '/jeu') { if (actions.pause) actions.pause(); return true; }
+  if (path === '/cricket') { if (actions['ck-pause']) actions['ck-pause'](); return true; }
   const up = root.querySelector('header.top a.back');
   if (up) { go(up.getAttribute('href')); return true; }
   if (path === '/' || path === '') return false;

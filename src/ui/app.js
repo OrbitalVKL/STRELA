@@ -31,6 +31,7 @@ import { actions as infoActions } from './info.js';
 import { actions as drinkActions } from './drinks.js';
 import { weeklyAutoBackup } from './autobackup.js';
 import { honourScreen, actions as honourActions } from './honours.js';
+import { cricketScreen, cricketEnd, cricketDetail, actions as cricketActions } from './screens/cricket.js';
 
 // Version 0.8.0 : la refonte (lot 7.8, écrans de screens/v2/) remplace l'accueil, l'historique, les stats et les
 // réglages ; accueil A « tableau de bord » (choix de Guillaume, 13/11/2026).
@@ -49,6 +50,9 @@ const ROUTES = [
   [/^\/stats(?:\/(.+))?$/, stats2Screen],
   [/^\/classement$/, rankingScreen],
   [/^\/honneur$/, honourScreen],
+  [/^\/cricket$/, cricketScreen],
+  [/^\/cricket\/fin$/, cricketEnd],
+  [/^\/cricket\/partie\/(.+)$/, cricketDetail],
   [/^\/nouveautes$/, changelogScreen],
   [/^\/face\/([^/]+)\/(.+)$/, faceScreen],
   [/^\/reglages$/, settings2Screen],
@@ -61,7 +65,7 @@ const ROUTES = [
 const ACTIONS = {
   ...playerActions, ...newGameActions, ...gameActions, ...resultActions,
   ...statsActions, ...settingsActions, ...historyActions, ...photoActions, ...aboutActions, ...sheetActions, ...soireeActions,
-  ...stats2Actions, ...history2Actions, ...dashActions, ...infoActions, ...drinkActions, ...honourActions,
+  ...stats2Actions, ...history2Actions, ...dashActions, ...infoActions, ...drinkActions, ...honourActions, ...cricketActions,
 };
 const INPUTS = { ...playerInputs };
 
@@ -158,7 +162,7 @@ function draw() {
   if (path === '/jeu') syncTurnFx(turnFx(), animationsOn()); else leaveGameFx();
   if (path === '/recadrage') mountCrop();
   app.querySelector('[data-reveal]')?.scrollIntoView({ block: 'center' });
-  keepAwake(path === '/jeu' || path === '/manche'); // écran allumé pendant la partie, relâché en la quittant
+  keepAwake(path === '/jeu' || path === '/manche' || path === '/cricket'); // écran allumé pendant la partie, relâché en la quittant
   document.title = path === '/jeu' ? 'STRELA · partie' : 'STRELA';
   nativeBackHandled(backHandled(app)); // APK : retour prédictif (lot 6)
   autoUpdateCheck(path);
@@ -167,7 +171,7 @@ function draw() {
 // Recherche automatique de mise à jour (lot 6, APK « github ») : une fois par lancement, au premier écran hors partie,
 // si le réglage le permet ; la coquille n'interroge GitHub qu'une fois par 24 h au plus (sinon, état gardé).
 let autoChecked = false;
-const IN_GAME = new Set(['/jeu', '/manche', '/fin', '/recadrage']);
+const IN_GAME = new Set(['/jeu', '/manche', '/fin', '/recadrage', '/cricket', '/cricket/fin']);
 function autoUpdateCheck(path) {
   if (!weeklyChecked && !store.maquette && !IN_GAME.has(path)) { weeklyChecked = true; weeklyAutoBackup(); } // lot 9
   if (autoChecked || store.maquette || !hasUpdater() || IN_GAME.has(path)) return;

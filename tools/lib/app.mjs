@@ -120,6 +120,7 @@ export async function newGame(page, names, { startScore = 501, legsToWin = 1, sh
   // Derniers réglages repris : on retire d'abord les joueurs déjà choisis.
   while (await page.locator('.order [data-act="remove"]').count()) await page.click('.order [data-act="remove"] >> nth=0');
   for (const n of names) await page.click(`.pool button[data-act="add"]:has(.nm:text-is("${n}"))`);
+  if (await page.locator('[data-act="game"]').count()) await page.click('[data-act="game"][data-arg="x01"]'); // lot 10
   await page.click(`[data-act="score"][data-arg="${startScore}"]`);
   // Lot 7 : ordre tiré au sort (non par défaut dans les tests : ordre connu) ; jouer jusqu'au bout (3 joueurs et plus).
   // Absents des versions d'avant le lot 7 (essai de mise à jour en place sur émulateur : la partie est créée dans
