@@ -40,6 +40,28 @@ test('tableau de bord d’une soirée : classement, faits marquants, parties', (
   assert.deepEqual(m.list.map(x => x.id), ['g2', 'g1'], 'de la plus récente à la plus ancienne');
 });
 
+test('rapport de soirée en 3 feuilles : chronologie, verres, qui bat qui, secteurs, trophées', () => {
+  const m = soireeModel([G2, G1], id => ({ A: 'Alpha', B: 'Bravo' }[id]));
+  assert.deepEqual(m.timeline.map(t => [t.id, t.n]), [['g1', 1], ['g2', 2]], 'dans l’ordre du soir');
+  const [t1, t2] = m.timeline;
+  assert.equal(t1.winner, 'A'); assert.deepEqual(t1.last, ['B'], 'le dernier paie sa tournée');
+  assert.equal(t2.winner, 'B'); assert.deepEqual(t2.last, ['A']);
+  assert.equal(t1.end, 5000, 'sans fin enregistrée : jusqu’à la partie suivante');
+  // A dans g1 : 180 + 100 + bust (0) + 21 = 301 points en 9 fléchettes.
+  assert.equal(t1.avg.A, 301 / 9 * 3);
+  assert.deepEqual(m.drinkTimes, { A: [], B: [1, 2] });
+  assert.deepEqual(m.versus, { A: { B: 1 }, B: { A: 1 } });
+  assert.deepEqual(m.together, { A: { B: 2 }, B: { A: 2 } });
+  assert.equal(m.sectors.A[20], 7, 'A : T20 ×3, 20 20 T20, 20 → sept fléchettes dans le 20');
+  assert.equal(m.sectors.A[10], 1); assert.equal(m.sectors.A.bull, 0);
+  assert.ok(m.spread.A > 0 && m.spread.B > 0);
+  const tr = Object.fromEntries(m.trophies.map(t => [t.key, t]));
+  assert.equal(tr.best.value, '180'); assert.equal(tr.best.detail, 'partie 1');
+  assert.equal(tr.worst.name, 'Bravo'); assert.equal(tr.worst.value, '3 points');
+  assert.equal(tr.drinks.value, 'x2 verres');
+  assert.ok(tr.king && tr.regular && tr.busts);
+});
+
 test('nouveautés : une entrée par version, de la plus récente à la plus ancienne', () => {
   const vs = CHANGELOG.map(e => e.v);
   assert.equal(new Set(vs).size, vs.length);

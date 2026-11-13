@@ -7,6 +7,7 @@
 # Version : package.json (une seule source). Signature : clé chiffrée dans le dépôt (android/signing.p12.enc, AES-256,
 # PBKDF2 600 000 tours), générée au premier passage ; seule la phrase de passe, choisie par le propriétaire, est un
 # secret GitHub (STRELA_SIGNING_PASSPHRASE). Sans elle : APK de test, non publié (artefact), et un avertissement.
+# Grille de chevauchement réduite ici (la complète est passée sur la demande de fusion) : la release sort plus vite.
 name: apk
 on:
   push:
@@ -41,7 +42,7 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Tests et page embarquée
         run: |
-          node tools/build-site.mjs
+          STRELA_GRILLE=reduite node tools/build-site.mjs
           node -e "const t=require('./_site/tests.json'); console.log('tests', t.pass + '/' + t.total); if (t.total === null || t.fail) process.exit(1)"
           sh tools/apk-page.sh
           VER=$(node -p "require('./package.json').version")

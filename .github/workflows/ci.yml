@@ -25,14 +25,35 @@ jobs:
         run: |
           npm install --no-save --no-package-lock playwright@1.63.0
           npx playwright install --with-deps chromium
-      - name: Tests
-        run: node --test --test-reporter=spec
+      - name: Tests (sans la grille de chevauchement, lancée à part)
+        run: STRELA_GRILLE=aucune node --test --test-reporter=spec
+
+  # Grille complète de chevauchement (~11 min d'un bloc) : coupée en 4 parts lancées en parallèle.
+  grille:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Playwright
+        run: |
+          npm install --no-save --no-package-lock playwright@1.63.0
+          npx playwright install --with-deps chromium
+      - name: Grille de chevauchement, part ${{ matrix.part }}/4
+        run: STRELA_GRILLE=complete STRELA_GRILLE_PART=${{ matrix.part }}/4 node --test --test-reporter=spec tests/chevauchement.test.js
 
   # APK de test (non signé pour la publication, non publiés) : les deux variantes compilent avec la page du commit
   # (lot 6 : github et play, Android 16) ; manifeste fusionné de la variante play vérifié ; et la version 0.5.0
   # (release apk-v0.5.0) compilée avec la même clé de test, pour essayer la mise à jour en place sur l'émulateur.
   apk:
     runs-on: ubuntu-latest
+    outputs:
+      native: ${{ steps.natif.outputs.native }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -40,6 +61,16 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
+      # Essai sur émulateur (~6 min, parfois capricieux) : seulement si la demande de fusion touche la coquille Android ou
+      # ce qui lui parle (passerelle, retour, essai), et toujours sur main.
+      - name: Partie native touchée ?
+        id: natif
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then echo "native=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          files=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
+          echo "$files"
+          if echo "$files" | grep -qE '^(android/|src/ui/native\.js|src/ui/back\.js|tools/android-check\.mjs|tools/apk-page\.sh|manifest\.webmanifest|sw\.js|\.github/workflows/ci\.yml)'; then
+            echo "native=true" >> "$GITHUB_OUTPUT"; else echo "native=false" >> "$GITHUB_OUTPUT"; fi
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -88,6 +119,7 @@ jobs:
   # écran, variante play à côté.
   emulateur:
     needs: apk
+    if: needs.apk.outputs.native == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
