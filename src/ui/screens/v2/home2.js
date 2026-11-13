@@ -69,7 +69,7 @@ export function home2() {
     ['#/nouveautes', 'news', 'Nouveautés', 'ce qui change'],
   ];
   // Version en bas de page (demande de Guillaume), un appui ouvre les nouveautés.
-  const foot = `<footer class="home-foot foot2"><a class="foot-ver" href="#/nouveautes">VERSION ${esc(BUILD.version)}</a><span>${store.maquette ? 'Maquette · données fictives' : 'Enregistré sur ce téléphone'} · Orbital VKL</span></footer>
+  const foot = `<footer class="home-foot"><span>${store.maquette ? 'Maquette · données fictives' : 'Enregistré sur ce téléphone'} · Orbital VKL</span><a class="home-ver" href="#/nouveautes">v${esc(BUILD.version)}</a></footer>
     ${store.maquette ? `<div class="mq-row">${maquetteButtons('mq')}</div>` : ''}`;
 
   if (variant === 'console') {

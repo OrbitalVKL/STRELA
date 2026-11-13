@@ -9,11 +9,21 @@ Cahier des charges : [docs/cahier-des-charges.md](docs/cahier-des-charges.md).
   installer, quoi ouvrir, quoi tester), rien d'autre.
 - **Chaque lot se fait dans une session neuve.** Tout ce qu'une session suivante doit savoir va dans ce
   fichier et dans `docs/`. Mettre à jour « État » ci-dessous à la fin de chaque lot.
-- Travailler sur la branche de session, ouvrir une demande de fusion vers `main`, **la fusionner soi-même dès
-  que tout est vert** (CI `ci / tests`).
+- Travailler sur la branche de session, ouvrir une demande de fusion vers `main`, la fusionner dès que tout est vert
+  (CI `ci / tests` et les 4 `ci / grille`) — voir « Aller vite » pour l'accord de Guillaume.
 - **Plus d'architecte (10/11/2026)** : Claude est autonome sur le projet — il décide des choix techniques, tient ce
   fichier et `docs/` à jour (c'est là que va ce qu'une session suivante doit savoir), et ne pose à Guillaume que les
   questions qui sont vraiment les siennes (goûts, usage, contenu).
+- **Aller vite (13/11/2026, demande de Guillaume)** :
+  - **Proposer en images d'abord** : pour un choix de présentation, faire 2 ou 3 propositions en images (page HTML/SVG
+    hors dépôt, capture Playwright, envoyées à Guillaume) au lieu de coder la maquette ; ne coder que ce qu'il retient.
+  - **Regrouper** : plusieurs demandes dans une même branche et une seule publication.
+  - **Publier** : Guillaume a demandé que je publie dès que c'est vert, mais l'outil refuse encore la fusion tant qu'il ne
+    l'a pas écrit dans la conversation : lui demander « publie » dès que la CI est verte (une phrase, sans rapport).
+  - **CI** : la grille de chevauchement complète tourne en 4 parts parallèles (job `grille`) ; le job `tests` ne la lance
+    pas (`STRELA_GRILLE=aucune`) ; l'émulateur ne tourne sur une demande de fusion que si elle touche la partie native
+    (android/, native.js, back.js, android-check, manifeste, sw.js, ci.yml) ; Pages et APK prennent la grille réduite
+    (`STRELA_GRILLE=reduite`). Sur le poste : `node --test` (grille réduite) suffit avant d'envoyer.
 - Fin de lot : message court en deux parties — **Fait**, **À toi** (adresse à ouvrir sur son Pixel 10 Pro et quoi y
   vérifier). Plus de « Rapport pour l'architecte ».
 - **Interface entièrement en français.** Titre de l'appli en lettres latines : **STRELA** (lot 4 ; plus de titre russe).
@@ -69,7 +79,8 @@ src/ui/vowels.js          voyelles qui tombent quand Tsia lance (lot 7)
 src/ui/turnfx.js          animations de tour par joueur (lot 7.4) : ours, cravate, carabine, planète, étoile rouge ; sons et voix (lot 7.5)
 src/ui/screens/soiree.js  soirée (lot 7.6) : joueurs de la soirée, verres cumulés d'une partie à l'autre
 src/ui/screens/v2/        refonte en maquette (lot 7.8, store.preview) : home2.js, stats2.js (+ classement), history2.js,
-                          soireedash.js (tableau de bord d'une soirée) ; engine/soiree.js : son modèle (pur, testé)
+                          soireedash.js (tableau de bord d'une soirée) ; engine/soiree.js : son modèle (pur, testé) ;
+                          src/ui/soireereport.js : rapport de soirée en 3 feuilles A4 (A podium, B chronologie, C duels)
 src/ui/changelog.js       nouveautés de chaque version (lot 7.8, écran #/nouveautes en maquette)
 tools/animations.mjs      captures des animations de tour figées à plusieurs instants (lot 7.4)
 src/ui/sheet.js           fiche de score : modèle, dessin sur canvas (demi-page A5 paysage ou A4, lot 7.3), PDF (lot 7.1) ; screens/printsheet.js : boutons et envoi
@@ -105,7 +116,8 @@ Les tests sont dans `tests/` (et non `test/`) : avec `node --test`, tout fichier
 ## Commandes
 
 - Tests : `node --test` (ou `npm test`) ; détail lisible : `node --test --test-reporter=spec`. Sur le poste, le test de
-  chevauchement prend une grille réduite ; `STRELA_GRILLE=complete node --test` pour la grille de la CI.
+  chevauchement prend une grille réduite ; `STRELA_GRILLE=complete node --test` pour la grille de la CI ;
+  `STRELA_GRILLE=aucune` pour la sauter, `STRELA_GRILLE_PART=2/4` pour une part seulement.
 - Mise en page (Playwright, déjà présent dans les sessions ; sinon `npm install --no-save playwright` puis
   `npx playwright install chromium`) :
   `node tools/check-layout.mjs [--vite] [--clair] [--taille=410x914] [--police=1.3] [--etat=huit,#/reglages]` liste
@@ -159,9 +171,12 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 
 ## État (lot 7.8 : maquette de la refonte)
 
+- **Appli réelle, v0.7.8** (13/11) : accueil actuel avec STRELA centré (l'espacement des lettres rattrapé à droite) et
+  version en bas de page (demande de Guillaume, qui regardait l'accueil de l'appli) ; pire volée sans les bust.
+  Changelog : la refonte est annoncée en 0.8.0.
 - **Maquette seulement** : `store.preview` (posé par les scènes « v78-… » du sommaire ; jamais dans l'appli). Routes
   dans app.js : `pv(nouveau, actuel)` pour `/`, `/historique`, `/stats`, `/reglages` ; `/classement` et `/nouveautes`
-  n'existent qu'en maquette. Version inchangée (0.7.7) : l'appli installée ne change pas.
+  n'existent qu'en maquette. La refonte ne touche pas l'appli installée.
 - Fichiers : src/ui/screens/v2/ (home2.js : accueil A « tableau de bord » / B « console » + nouveautés ; stats2.js :
   stats joueur + classement, `METRICS` ; history2.js : historique groupé par soirée / jour, filtres, sélection pour
   regrouper en soirée ; soireedash.js : tableau de bord d'une soirée + feuille à imprimer, modèle dans
@@ -169,6 +184,7 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
   settings.js › `settings2Screen` (réglages en cartes) ; src/ui/changelog.js (nouveautés, à tenir à chaque version) ;
   mock.js › `mockSeason` (14 soirées), maquette.js › `seasonMock`. Détail : docs/interface.md « Lot 7.8 ».
 - Hors maquette, déjà effectif : pire volée sans les bust (engine/stats.js), aussi dans les Stats actuelles.
+- Rapport de soirée : Guillaume garde les 3 propositions (13/11) → 3 feuilles A4 (soireereport.js), aperçu, IMAGE, PDF.
 - À faire après le choix de Guillaume : retenir une variante d'accueil, retirer le drapeau `preview` (les écrans v2
   remplacent les actuels), retirer les anciens écrans et leurs scènes, puis tests de parcours sur les nouveaux écrans
   (sélection et suppression dans l'historique v2, classement, nouveautés).

@@ -1,5 +1,6 @@
 # Strela : construit le site (tools/build-site.mjs, tests compris) et le publie sur GitHub Pages à chaque push sur main.
 # La page affiche le résumé des tests du build ; le blocage sur test rouge est assuré par ci.yml.
+# Grille de chevauchement réduite ici (la complète est passée sur la demande de fusion) : la page sort en ~3 min.
 name: pages
 on:
   push:
@@ -26,7 +27,7 @@ jobs:
           npm install --no-save --no-package-lock playwright@1.63.0
           npx playwright install --with-deps chromium
       - name: Site
-        run: node tools/build-site.mjs
+        run: STRELA_GRILLE=reduite node tools/build-site.mjs
       # Pages doit être activé à la main (source : GitHub Actions) : le jeton des Actions ne peut pas le faire.
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4

@@ -676,8 +676,24 @@ tête du sommaire) montre ces écrans ; l'appli installée garde les écrans act
     SOIRÉE, SUPPRIMER ; un jour hors soirée déplié propose EN FAIRE UNE SOIRÉE.
   - **Tableau de bord d'une soirée** (`#/soiree/<id>`, v2/soireedash.js ; modèle pur engine/soiree.js) : podium
     (victoires puis moyenne), faits marquants (meilleure et pire volée, meilleure moyenne, plus de 180, de bust, de
-    verres), tableau des joueurs (défilant, pseudo figé), parties ; IMAGE / PDF (une page A4, réduite si besoin ;
-    livraison `deliverFile` de printsheet.js). Accès : groupe de soirée de l'historique, écran Soirée en cours.
+    verres), tableau des joueurs (défilant, pseudo figé), parties. Accès : groupe de soirée de l'historique, écran
+    Soirée en cours.
+  - **Rapport de soirée en 3 feuilles A4** (13/11, choix de Guillaume sur 3 propositions en images : il garde les trois ;
+    src/ui/soireereport.js, données `soireeModel` › timeline, drinkTimes, versus, together, sectors, spread, trophies) :
+    - A « podium et cartes » : podium, une carte par joueur (courbe de ses moyennes à son échelle, moyenne + barre,
+      meilleure / pire volée, 100+, verres dessinés, cible colorée en racine carrée, taux de triples ; cartes réduites
+      au-delà de 6 joueurs), tournée de chaque partie (au-delà de 10 parties : nombre de tournées par joueur).
+    - B « chronologie » : en-têtes de parties (vainqueur, ↓ dernier), une ligne par joueur avec ses verres à leur heure
+      et le cumul en escalier ; si la « soirée » dure plus de 14 h (parties regroupées à la main), une case par partie au
+      lieu de l'heure. Puis moyenne de chaque partie (une courbe par joueur, à sa couleur d'avatar), trophées (roi de la
+      soirée, meilleure / pire volée, roi du bust, le plus assoiffé, le plus régulier = plus petit écart type des
+      moyennes), liste des parties s'il reste de la place.
+    - C « duels et cibles » : qui bat qui (parties où la ligne a fini devant la colonne, sur les parties jouées ensemble,
+      abandons exclus), barres comparées (moyenne, 100+, triples, bust, verres), une cible chiffrée par joueur et ses 3
+      secteurs fétiches.
+    - Dessin dans une page logique 794 × 1123 agrandie à 1240 × 1754 ; avatars réels (pictogramme en SVG chargé comme
+      image, photo, sinon initiales). Écran : VOIR LES 3 FEUILLES (aperçu), IMAGE (les 3 empilées), PDF (3 pages) ;
+      livraison `deliverFile` de printsheet.js. Test : tests/rapport-soiree.test.js.
 
 ## Pour le lot 4
 

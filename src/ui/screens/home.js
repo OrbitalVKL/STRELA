@@ -67,7 +67,7 @@ export function home() {
     : store.db.error ? '<span class="red">Non enregistré</span>' : 'Enregistré sur ce téléphone';
   return `<div class="screen home v-${variant}">
     <header>
-      <div class="home-head"><h1 class="home-title" data-shrink>STRELA</h1><span class="home-ver">v${esc(BUILD.version)}</span></div>
+      <div class="home-head"><h1 class="home-title" data-shrink>STRELA</h1></div>
       <p class="home-sub">Compteur de fléchettes X01</p>
     </header>
     <main class="home-main">
@@ -79,7 +79,7 @@ export function home() {
         <a class="tile" href="#/reglages">${ico('settings')}<div><b data-shrink>Réglages</b><br><span data-shrink="2">thème · nuit</span></div></a>
       </nav>
     </main>
-    <footer class="home-foot"><span>${saved}</span><span>Orbital VKL</span></footer>
+    <footer class="home-foot"><span>${saved} · Orbital VKL</span><span class="home-ver">v${esc(BUILD.version)}</span></footer>
     ${store.maquette ? `<div class="mq-row">${maquetteButtons('mq')}</div>` : ''}
   </div>`;
 }

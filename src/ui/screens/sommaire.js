@@ -372,7 +372,8 @@ export function sommaire() {
         Données fictives, en mémoire : la maquette ne touche jamais aux joueurs et aux parties enregistrés sur le téléphone.</p>
     </div>
     <div class="pad"><div class="sec">Lot 7.8 · refonte (maquette)</div>
-      <p class="note" style="margin-top:0">Saison fictive : 14 soirées de 3 à 6 parties. Seule la maquette montre la refonte ; l'appli installée garde les écrans actuels tant qu'elle n'est pas validée.</p></div>
+      <p class="note" style="margin-top:0">La refonte n'existe que dans cette maquette : l'appli installée garde ses écrans tant qu'elle n'est pas validée. Ouvrez un accueil ci-dessous puis naviguez normalement (Stats, Classement, Historique, Réglages, Nouveautés) : tout est la nouvelle version, sur une saison fictive de 14 soirées.</p>
+      <div class="btns two" style="margin-bottom:12px"><button type="button" class="btn primary" data-act="scene" data-arg="v78-accueil">ACCUEIL A</button><button type="button" class="btn primary" data-act="scene" data-arg="v78-accueil-console">ACCUEIL B</button></div></div>
     <nav class="toc">
       ${L('v78-accueil', '★ Accueil A « tableau de bord »', 'à parcourir')}
       ${L('v78-accueil-console', '★ Accueil B « console »')}
