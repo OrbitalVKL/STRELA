@@ -2,7 +2,7 @@
 // difficiles à provoquer. Les états de jeu sont fabriqués avec le vrai moteur ; l'annonce « À TOI » et la loupe,
 // qui ne durent qu'un instant, restent figées jusqu'à la prochaine touche. Tout est en mémoire (données fictives de
 // maquette.js) : la base du téléphone n'est jamais ouverte. Chargé seulement avec ?maquette (import dynamique).
-import { store, startGame, freshUi, currentState, deletePlayer } from '../store.js';
+import { store, startGame, freshUi, currentState, deletePlayer, startCricket, freshCkUi } from '../store.js';
 import { resetMock, ensureExtraPlayers, givePhoto, SAMPLE_PHOTO, SAMPLE_SIZE } from '../maquette.js';
 import { openCrop, PHOTO_ERRORS } from './photo.js';
 import { polar, sectorAngle, RINGS } from '../../engine/board.js';
@@ -45,6 +45,21 @@ function setGame(setup, notation, ui = {}, pending = false) {
   store.current.ui = { ...freshUi(), ...ui };
   return currentState();
 }
+
+// Lot 10 : une partie de Cricket fabriquée (remplace celle en cours, sans rien ranger).
+function setCk(players, notation, { mode = 'points', legsToWin = 1, ui = {}, pending = false } = {}) {
+  ensureExtraPlayers(players);
+  store.current = null;
+  store.ck = null;
+  store.soiree = null;
+  startCricket({ players, ckMode: mode, legsToWin, shuffle: false });
+  store.ck.darts = ds(notation);
+  store.ck.validated = pending ? 0 : store.ck.darts.length;
+  store.ck.ui = { ...freshCkUi(), ...ui };
+  return '#/cricket';
+}
+const CK2 = 'T20 S20 0  T19 S19 0  T18 D20 S17  S20 S20 S19  S16 D18 0  T17 0 S1';
+const CK4 = 'T20 S20 0  T19 S19 0  T18 D20 S17  S20 S20 S19  S16 D18 0  T17 0 S1  S25 0 0  D16 S16 0  S15 S15 S15  0 0 0  T19';
 
 // Impacts réels (saisie sur la cible) : volée de Guillaume T20 · 20 · T5 en position, Mathilde T19 · 19 · 3.
 const at = (seg, r, da = 0) => polar(sectorAngle(seg) + da, r).map(v => Math.round(v * 1000) / 1000);
@@ -124,6 +139,22 @@ export const SCENES = {
   'v78-classement': v78('#/classement'),
   'v78-classement-info': v78('#/classement', () => presetStats2({ info: ['palmares', 'classement'], rank: 'worstVisit' })),
   'v78-classement-verres': v78('#/classement', () => presetStats2({ rank: 'drinks' })),
+  // Lot 10 : Cricket
+  'ck-nouvelle': () => { store.current = null; store.ck = null; store.setupDraft = { ...store.lastSetup, players: ['p1', 'p2', 'p3'], shuffle: false, game: 'cricket', ckMode: 'points', confirm: false }; return '#/nouvelle'; },
+  'ck-face': () => setCk(['p1', 'p2'], CK2),
+  'ck-face-valider': () => setCk(['p1', 'p2'], `${CK2}  S15 T15 S20`, { pending: true }),
+  'ck-face-triple': () => setCk(['p1', 'p2'], CK2, { ui: { mult: 3 } }),
+  'ck-face-grille': () => setCk(['p1', 'p2'], CK2, { ui: { layout: 'grille' } }),
+  'ck-grille': () => setCk(['p1', 'p2', 'p3', 'p4'], CK4),
+  'ck-grille-8': () => setCk(['p1', 'p2', 'p3', 'p4', 'p5', 'p7', 'p8', 'p10'], CK4, { mode: 'cutthroat' }),
+  'ck-sans': () => setCk(['p1', 'p2', 'p3'], CK4, { mode: 'sans' }),
+  'ck-manche': () => setCk(['p1', 'p2'], 'T20 T19 T18  0 0 0  T17 T16 T15  0 0 0  S25 D25', { mode: 'sans', legsToWin: 2, pending: true }),
+  'ck-pause': () => setCk(['p1', 'p2'], CK2, { ui: { pause: true } }),
+  'ck-fin': () => { setCk(['p1', 'p2', 'p3'], 'T20 T19 T18  S20 0 0  S5 0 0  T17 T16 T15  0 0 0  0 S19 0  S25 D25'); return '#/cricket/fin'; },
+  'ck-accueil': () => { setCk(['p1', 'p2'], CK2); return '#/'; },
+  'ck-detail': () => '#/cricket/partie/c2',
+  'ck-historique': () => { presetHistory2({ open: [] }); presetHistory2(); return '#/historique'; },
+  'ck-stats': () => { presetStats2({ info: ['cricket'] }); return '#/stats/p1'; },
   'v78-honneur': v78('#/honneur', () => presetHonour({ kind: 'tout' })), // lot 9 : tableau d'honneur
   'v78-honneur-badges': v78('#/honneur', () => presetHonour({ kind: 'badge' })),
   'v78-stats-vitrine': v78('#/stats/p1', () => presetStats2({ info: ['vitrine'] })),
@@ -394,6 +425,21 @@ export function sommaire() {
       ${L('v78-classement', '★ Classement', 'palmarès')}
       ${L('v78-classement-info', '★ Classement : pire volée', 'explications ouvertes')}
       ${L('v78-classement-verres', '★ Classement : verres')}
+      ${L('ck-nouvelle', '★ Cricket : nouvelle partie', 'lot 10')}
+      ${L('ck-face', '★ Cricket : face à face', '2 joueurs, avec points')}
+      ${L('ck-face-valider', '★ Cricket : volée à valider')}
+      ${L('ck-face-triple', '★ Cricket : triple armé')}
+      ${L('ck-face-grille', '★ Cricket : 2 joueurs en grille')}
+      ${L('ck-grille', '★ Cricket : grille à 4')}
+      ${L('ck-grille-8', '★ Cricket : grille à 8', 'cut-throat')}
+      ${L('ck-sans', '★ Cricket : sans points', '3 joueurs')}
+      ${L('ck-manche', '★ Cricket : manche gagnée', 'en 2 manches')}
+      ${L('ck-pause', '★ Cricket : pause')}
+      ${L('ck-fin', '★ Cricket : fin de partie')}
+      ${L('ck-accueil', '★ Cricket : REPRENDRE à l\'accueil')}
+      ${L('ck-detail', '★ Cricket : détail d\'une partie', 'historique')}
+      ${L('ck-historique', '★ Historique avec Cricket')}
+      ${L('ck-stats', '★ Stats : Cricket', 'MPR')}
       ${L('v78-honneur', '★ Tableau d\'honneur', 'badges et records, lot 9')}
       ${L('v78-honneur-badges', '★ Tableau d\'honneur : badges seuls')}
       ${L('v78-stats-vitrine', '★ Stats : records et badges', 'vitrine, lot 9')}

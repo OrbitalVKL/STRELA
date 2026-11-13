@@ -26,7 +26,7 @@ import { themeControls, storageBanner } from './settings.js';
 import { gameLog, selectLogCell, selectedLogCell } from './history.js';
 import { sound, dartSound, say, SPEECH } from '../feedback.js';
 import { correctDart, locateDart, visitStart, CORRECT_ERRORS } from '../../engine/correct.js';
-import { turnAnimOf, syncTurnFx } from '../turnfx.js';
+import { turnAnimOf, turnFxKind, syncTurnFx } from '../turnfx.js';
 import { leader, flop, lastPlaces, visitStanding } from '../../engine/ranking.js';
 import { playerRecords, isVisitRecord } from '../../engine/records.js';
 import { drawDefi, defiResult, DEFIS } from '../../engine/defis.js';
@@ -106,7 +106,7 @@ export function turnFx() {
   if (s.status === 'finished') return null;
   const v = view();
   if (!v.player || v.pend || v.darts.length) return null;
-  const kind = turnAnimOf(v.player);
+  const kind = turnFxKind(v.player); // lot 7.9 : « picto » = l'animation du pictogramme de son avatar
   if (kind === 'aucune' || kind === 'voyelles') return null;
   return { key: `${g.id}:${s.visits.length}`, kind, color: colorOf(v.player), say: (text, o) => say(text, o), sound: k => sound(k) };
 }

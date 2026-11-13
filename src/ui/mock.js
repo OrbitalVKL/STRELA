@@ -6,6 +6,7 @@
 import { computeState } from '../engine/x01.js';
 import { suggestCheckout } from '../engine/checkout.js';
 import { makeDart } from '../engine/darts.js';
+import { computeCricket } from '../engine/cricket.js';
 import { SECTORS } from '../engine/board.js';
 
 // Ordre des secteurs sur la cible (voisins pour les fléchettes ratées).
@@ -185,4 +186,46 @@ export function mockSeason(players, now = Date.now()) {
     games.push({ id: `iso${days}`, startedAt: t.getTime(), config, darts: simulateGame(config, order.map(id => skill[id]), 9000 + days), abandoned: false });
   }
   return games.sort((a, b) => b.startedAt - a.startedAt);
+}
+
+/**
+ * Lot 10 : un Cricket simulé (reproductible) — chacun vise sa première cible pas encore fermée (20 → 15, puis le bull),
+ * ou une cible fermée encore ouverte chez un adversaire ; `stopAt` : fléchettes jouées avant d'arrêter (partie en cours).
+ */
+export function simulateCricket(config, skills, seed, stopAt = null) {
+  const r = rng(seed);
+  const targets = [20, 19, 18, 17, 16, 15, 25];
+  const darts = [];
+  for (let k = 0; k < 900; k++) {
+    if (stopAt !== null && darts.length >= stopAt) break;
+    const s = computeCricket(config, darts);
+    if (s.status === 'finished') break;
+    const p = s.currentPlayer;
+    const mine = s.marks[p];
+    let aim = targets.find(t => mine[t] < 3);
+    if (aim === undefined || (config.mode !== 'sans' && r() < 0.3)) aim = targets.find(t => s.marks.some((m, q) => q !== p && m[t] < 3)) ?? aim ?? 20;
+    const skill = skills[p];
+    const x = r();
+    let dart;
+    if (x < skill * 0.35) dart = makeDart(aim, aim === 25 ? 2 : 3);
+    else if (x < skill * 0.55) dart = makeDart(aim, 2);
+    else if (x < skill + 0.25) dart = makeDart(aim, 1);
+    else dart = r() < 0.4 ? makeDart(0, 1) : makeDart(1 + Math.floor(r() * 14), 1);
+    darts.push(dart);
+  }
+  return darts;
+}
+
+/** Lot 10 : quelques parties de Cricket closes (historique, stats). */
+export function mockCricket(players, now = Date.now()) {
+  const skill = Object.fromEntries(players.map(p => [p.id, p.skill ?? 0.3]));
+  const plan = [[0, 22.4, 'points', ['p1', 'p2']], [2, 21.0, 'points', ['p1', 'p3', 'p4']], [8, 20.5, 'cutthroat', ['p2', 'p1', 'p5']], [14, 21.4, 'sans', ['p3', 'p1']]];
+  return plan.map(([days, hour, mode, ids], i) => {
+    const d = new Date(now - days * 86400000);
+    d.setHours(Math.floor(hour), Math.round((hour % 1) * 60), 0, 0);
+    if (d.getTime() > now) d.setTime(now - 2 * 3600000);
+    const config = { game: 'cricket', players: ids, mode, legsToWin: 1 };
+    const darts = simulateCricket(config, ids.map(id => skill[id]), 500 + i * 53);
+    return { id: `c${i + 1}`, startedAt: d.getTime(), endedAt: d.getTime() + 20 * 60e3, config, darts, validated: darts.length, abandoned: false };
+  });
 }

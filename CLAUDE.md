@@ -1,6 +1,6 @@
 # Strela — règles du projet
 
-Appli Android de fléchettes X01 pour Guillaume. Dépôt `OrbitalVKL/STRELA` (public, branche `main`).
+Appli Android de fléchettes (X01, et Cricket depuis la 0.10.0) pour Guillaume. Dépôt `OrbitalVKL/STRELA` (public, branche `main`).
 Cahier des charges : [docs/cahier-des-charges.md](docs/cahier-des-charges.md).
 
 ## Méthode de travail
@@ -59,6 +59,7 @@ src/data/backup.js        sauvegarde JSON (lot 3) : format, vérification, REMPL
 src/engine/               moteur de règles, JS pur sans dépendance ni DOM (docs/moteur-x01.md)
   darts.js                la fléchette (commune à tous les jeux)
   x01.js                  règles X01 : état recalculé depuis config + liste des fléchettes
+  cricket.js              règles du Cricket (lot 10, docs/moteur-cricket.md) ; index.js › stateOf : l'un ou l'autre
   checkout.js             table de finitions
   stats.js                statistiques recalculées depuis les fléchettes
   board.js                géométrie de la cible (position → segment, centre d'un segment, couleur de chaque zone)
@@ -77,6 +78,7 @@ src/ui/                   interface (docs/interface.md) : app.js, nav.js, store.
 src/ui/theme.js           palette (source de vérité des couleurs), contraste
 src/ui/vowels.js          voyelles qui tombent quand Tsia lance (lot 7)
 src/ui/turnfx.js          animations de tour par joueur (lot 7.4) : ours, cravate, carabine, planète, étoile rouge ; sons et voix (lot 7.5)
+src/ui/pictofx.js         une animation par pictogramme d'avatar (lot 7.9) : 37 saynètes ; tools/pictos.mjs : leurs captures
 src/ui/screens/soiree.js  soirée (lot 7.6) : joueurs de la soirée, verres cumulés d'une partie à l'autre
 src/ui/screens/v2/        écrans de la refonte (lot 7.8, dans l'appli depuis la 0.8.0) : home2.js, stats2.js (+ classement), history2.js,
                           soireedash.js (tableau de bord d'une soirée) ; engine/soiree.js : son modèle (pur, testé) ;
@@ -86,6 +88,7 @@ tools/animations.mjs      captures des animations de tour figées à plusieurs i
 src/ui/sheet.js           fiche de score : modèle, dessin sur canvas (demi-page A5 paysage ou A4, lot 7.3), PDF (lot 7.1) ; screens/printsheet.js : boutons et envoi
 src/engine/records.js     records personnels (lot 9) ; src/ui/autobackup.js : sauvegarde automatique (APK, lot 9)
 src/engine/defis.js       défis de soirée (lot 9, tirage déterministe) ; src/engine/badges.js : badges, tableau d'honneur
+src/ui/screens/cricket.js écrans du Cricket (lot 10) : jeu (face à face / grille), fin, détail d'une partie
 src/ui/honours.js         vitrine (Stats), tableau d'honneur #/honneur, badges de fin de partie ; src/ui/soireesummary.js :
                           résumé de soirée à partager (image 1080 × 1920)
 src/engine/ranking.js     classement, joueur en tête, derniers (tournée), célébrations des nuls (lot 7)
@@ -171,9 +174,9 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 7.6 | Tirage au sort revu (REVANCHE retirée au sort), bande du tour (TOUR n, qui a lancé), mode soirée (joueurs, verres cumulés d'une partie à l'autre), bouton verre en jeu, volée parmi les 3 meilleures / pires de la soirée, pavé double / triple bien distincts (v0.7.6) — **fait, en attente de validation sur le Pixel** |
 | 7.7 | Stats : meilleure et pire volée, pire volée de chaque partie ; moqueries plus cyniques ; 22 répliques de HPV en plus (v0.7.7) — **fait, en attente de validation sur le Pixel** |
 | 7.8 | Refonte (13/11/2026) : accueil A « tableau de bord », stats (courbe de n'importe quel chiffre, zoomable, explications (i), volées repliées, triples, cible chiffrée), classement global, historique (soirées, filtres, regrouper en soirée), tableau de bord et rapport de soirée en 3 feuilles, réglages en cartes, nouveautés ; CI plus rapide (v0.8.0) — **fait, en attente de validation sur le Pixel** |
-| 7.9 | (plus tard, demandé le 12/11/2026) Une animation de tour par pictogramme d'avatar, toutes différentes |
+| 7.9 | Une animation de tour par pictogramme d'avatar, toutes différentes (41), jouée d'office pour un avatar à pictogramme, aussi au Cricket (publié avec la v0.10.0) — **fait, en attente de validation sur le Pixel** |
 | 9 | Idées retenues le 13/11 (docs/idees.md) : tournée, moyenne au fil des verres, défis (B), résumé à partager (A), handicap, records et badges (A + B), comparer deux joueurs, sauvegarde automatique (v0.9.0) — **fait, en attente de validation sur le Pixel** |
-| 10 | Cricket : A face à face (2 joueurs) + B grille (2 à 8), avec points / sans points / cut-throat (docs/idees.md « Cricket ») — **à faire, session neuve** |
+| 10 | Cricket : A face à face (2 joueurs) + B grille (2 à 8), avec points / sans points / cut-throat (v0.10.0) — **fait, en attente de validation sur le Pixel** |
 | 8 | Recette |
 
 ## État (version 0.8.0 : la refonte dans l'appli)
@@ -201,10 +204,16 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
   Puis, sur images (« B, A, AB, AB ») : défis de soirée (tirage plein écran, src/engine/defis.js), résumé à partager
   (affiche 1080 × 1920, src/ui/soireesummary.js), badges et tableau d'honneur (src/engine/badges.js, src/ui/honours.js,
   `#/honneur`). Détail : docs/interface.md « Version 0.9.0 ». Bridge.saveFile accepte `strela-resume-…png`.
-- **Prochain lot : Cricket (lot 10)**, cadré dans docs/idees.md « Cricket ». Question ouverte à Guillaume : TOURNÉE SERVIE
-  aussi à chaque fin de manche (aujourd'hui en fin de partie seulement) ?
-- Ensuite : lot 7.9 (une animation de tour par pictogramme d'avatar), confirmé par Guillaume le 13/11 « dans un second
-  temps ».
+- **0.10.0** (13/11, lot 10) : **Cricket** — moteur src/engine/cricket.js (docs/moteur-cricket.md), écrans
+  src/ui/screens/cricket.js (`#/cricket`, `#/cricket/fin`, `#/cricket/partie/<id>`), parties rangées à part
+  (`store.ckGames`, `store.ck` ; `config.game: 'cricket'`, aucune migration). Détail : docs/interface.md « Version 0.10.0 ».
+  Pas encore pour le Cricket : verres dans la partie, défis, badges, records, rapport de soirée (à proposer si
+  Guillaume le veut).
+- Question ouverte à Guillaume : TOURNÉE SERVIE aussi à chaque fin de manche (aujourd'hui en fin de partie seulement) ?
+- **Lot 7.9** (13/11, dans la 0.10.0) : une animation de tour par pictogramme — src/ui/pictofx.js (37 saynètes + les 4
+  d'origine = 41), choix « SON PICTO » dans la fiche, d'office sans choix pour un avatar à pictogramme, aussi au
+  Cricket ; sons `fx-…`. Détail : docs/interface.md « Lot 7.9 ». Outil : tools/pictos.mjs.
+- Ensuite : recette (lot 8), ou ce que Guillaume demandera après essai (Cricket : verres, défis, badges ?).
 
 ## État (fin du lot 7.7)
 

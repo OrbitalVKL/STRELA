@@ -143,12 +143,18 @@ function finishHtml(d) {
 
 /** Animation de tour (lot 7.4) : jouée au début de chacune de ses volées ; un appui la choisit et la montre. */
 function turnAnimHtml(d) {
-  const cur = turnAnimOf({ name: d.name, turnAnim: d.turnAnim });
+  const cur = turnAnimOf({ name: d.name, turnAnim: d.turnAnim, avatar: d.avatar });
+  const picto = d.avatar && d.avatar.kind === 'icon' && ICONS[d.avatar.icon] ? d.avatar.icon : null;
   const btn = a => {
-    const pic = a.icon ? iconSvg(a.icon) : `<span class="glyph" aria-hidden="true">${a.key === 'voyelles' ? 'A·E' : '—'}</span>`;
+    // Lot 7.9 : « PICTOGRAMME » montre celui de l'avatar (un point d'interrogation sans pictogramme).
+    const pic = a.key === 'picto' ? (picto ? iconSvg(picto) : '<span class="glyph" aria-hidden="true">?</span>')
+      : a.icon ? iconSvg(a.icon) : `<span class="glyph" aria-hidden="true">${a.key === 'voyelles' ? 'A·E' : '—'}</span>`;
     return `<button type="button" data-act="turn-anim" data-arg="${a.key}" aria-pressed="${cur === a.key}">${pic}<span>${a.label}</span></button>`;
   };
-  const note = cur === 'voyelles'
+  const note = cur === 'picto'
+    ? (picto ? `L'animation de son pictogramme (${ICONS[picto][0]}) au début de chacune de ses volées : chaque pictogramme a la sienne. On peut lancer pendant, elle s'arrête à la première fléchette.${animationsOn() ? '' : ' Animations coupées dans les Réglages : elle ne se jouera pas.'}`
+      : 'Chaque pictogramme a son animation : choisis un pictogramme comme avatar (au-dessus) pour avoir la sienne. Avec des initiales ou une photo, rien ne se joue.')
+    : cur === 'voyelles'
     ? 'Les voyelles de l\'écran tombent pendant toute sa volée et reviennent pour le joueur suivant.'
     : cur === 'aucune'
       ? 'Rien de spécial au début de ses volées.'
@@ -216,7 +222,7 @@ export const actions = {
     store.draft.turnAnim = k;
     refresh();
     // Un aperçu, comme en jeu (sons et voix selon les réglages).
-    if (animationsOn()) previewTurnFx(k, store.draft.avatar.color, { say: (t, o) => say(t, o), sound: s => sound(s) });
+    if (animationsOn()) previewTurnFx(k, store.draft.avatar.color, { say: (t, o) => say(t, o), sound: s => sound(s), avatar: store.draft.avatar });
     if (k === 'voyelles') say(SPEECH.drunk(), { style: 'ivre' }); // lot 7.5 : la voix pâteuse de Tsia
   },
   'fin-bull'(v) { store.draft.checkout = checkoutPrefs({ ...store.draft.checkout, avoidBull: v === '1' }); refresh(); },

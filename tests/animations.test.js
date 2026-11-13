@@ -4,10 +4,11 @@
 // fois par volée, rien quand les animations sont coupées, choix gardé au rechargement.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { TURN_ANIMS, TURN_ANIM_KEYS, turnAnimOf, TIE_LINES, BEAR_SCENES, FX_KINDS } from '../src/ui/turnfx.js';
+import { TURN_ANIMS, TURN_ANIM_KEYS, turnAnimOf, turnFxKind, TIE_LINES, BEAR_SCENES, FX_KINDS, PICTO_KINDS } from '../src/ui/turnfx.js';
+import { PICTO_FX } from '../src/ui/pictofx.js';
 import { playerRecord, TURN_ANIM_VALUES } from '../src/data/db.js';
 import { makeBackup, parseBackup } from '../src/data/backup.js';
-import { ICONS } from '../src/ui/avatars.js';
+import { ICONS, ICON_KEYS } from '../src/ui/avatars.js';
 import { serve, loadPlaywright } from '../tools/lib/serve.mjs';
 import { openApp, throwDarts, validate, createPlayer, newGame, readDb, reload, ack } from '../tools/lib/app.mjs';
 
@@ -18,7 +19,7 @@ test('choix : liste de la fiche = valeurs de la base ; pictogrammes connus ; cra
   assert.deepEqual([...TURN_ANIM_KEYS], [...TURN_ANIM_VALUES]);
   for (const a of TURN_ANIMS) if (a.icon) assert.ok(ICONS[a.icon], a.icon);
   assert.equal(ICONS.cravate[0], 'CRAVATE');
-  assert.deepEqual([...FX_KINDS].sort(), ['carabine', 'cravate', 'etoile', 'ours', 'planete']);
+  assert.deepEqual(FX_KINDS.filter(k => !k.startsWith('picto:')).sort(), ['carabine', 'cravate', 'etoile', 'ours', 'planete']);
   assert.equal(BEAR_SCENES.length, 5);
   assert.ok(TIE_LINES.length >= 10);
   for (const l of TIE_LINES) assert.ok(l.length <= 70, l);
@@ -126,7 +127,8 @@ test('vraie appli : choix gardé au rechargement ; aucune animation quand elles 
 // ------------------------------------------------------------------ lot 7.5 : sons, voix d'homme, Tsia, moqueries
 import { SPEECH, FLOP_LINES, SOUNDS, VOICE_STYLES } from '../src/ui/feedback.js';
 
-const LOT75_SOUNDS = ['bear-growl', 'bear-grunt', 'bear-sniff', 'bear-scratch', 'bear-snore', 'bear-chomp', 'planet-orbit', 'planet-twinkle', 'planet-shoot', 'shot'];
+const LOT75_SOUNDS = ['fx-whoosh', 'fx-thud', 'fx-tick', 'fx-beep', 'fx-ding', 'fx-pop', 'fx-boing', 'fx-creak', 'fx-rumble', 'fx-hum', 'fx-howl', 'fx-grunt',
+  'fx-meow', 'fx-hoot', 'fx-screech', 'fx-caw', 'fx-slide', 'fx-gulp', 'fx-clink', 'fx-splash', 'fx-crackle', 'fx-zap', 'bear-growl', 'bear-grunt', 'bear-sniff', 'bear-scratch', 'bear-snore', 'bear-chomp', 'planet-orbit', 'planet-twinkle', 'planet-shoot', 'shot'];
 
 test('lot 7.5 : moqueries variées (sous 20), voix pâteuse prononçable, styles de voix', () => {
   for (const k of ['zero', 'low', 'bust', 'serie']) {
@@ -201,4 +203,114 @@ test('lot 7.5 : l’ours grogne, la planète sonne, HPV parle avec une voix d’
     await page.waitForFunction(() => window.__speech.some(s => s.rate && s.rate < 0.8), null, { timeout: 4000 });
     assert.deepEqual(errors, []);
   } finally { await browser.close(); await srv.close(); }
+});
+
+// ------------------------------------------------------------------ lot 7.9 : une animation par pictogramme
+const FX_SOUNDS = ['fx-whoosh', 'fx-thud', 'fx-tick', 'fx-beep', 'fx-ding', 'fx-pop', 'fx-boing', 'fx-creak', 'fx-rumble', 'fx-hum', 'fx-howl', 'fx-grunt',
+  'fx-meow', 'fx-hoot', 'fx-screech', 'fx-caw', 'fx-slide', 'fx-gulp', 'fx-clink', 'fx-splash', 'fx-crackle', 'fx-zap'];
+
+test('lot 7.9 : chaque pictogramme de la banque a son animation, toutes différentes', () => {
+  assert.deepEqual([...PICTO_KINDS].sort(), [...ICON_KEYS].sort(), 'les 41 pictogrammes');
+  assert.equal(new Set(PICTO_KINDS).size, ICON_KEYS.length);
+  const fns = Object.values(PICTO_FX);
+  assert.equal(new Set(fns).size, fns.length, 'une fonction par pictogramme');
+  assert.equal(new Set(fns.map(f => String(f))).size, fns.length, 'aucune saynète recopiée');
+  for (const k of Object.keys(PICTO_FX)) assert.ok(FX_KINDS.includes(`picto:${k}`), k);
+  // Sons cités par les saynètes : tous connus.
+  const cited = new Set(fns.flatMap(f => [...String(f).matchAll(/'(fx-[a-z]+)'/g)].map(m => m[1])));
+  for (const k of cited) assert.equal(typeof SOUNDS[k], 'function', k);
+  for (const k of FX_SOUNDS) assert.ok(cited.has(k), `${k} sert`);
+});
+
+test('lot 7.9 : sans choix, un joueur au pictogramme a l’animation de son pictogramme ; le choix de la fiche l’emporte', () => {
+  const fox = { name: 'Bob', avatar: { kind: 'icon', icon: 'renard', color: 2 } };
+  assert.equal(turnAnimOf(fox), 'picto');
+  assert.equal(turnFxKind(fox), 'picto:renard');
+  assert.equal(turnFxKind({ ...fox, turnAnim: 'aucune' }), 'aucune');
+  assert.equal(turnFxKind({ ...fox, turnAnim: 'carabine' }), 'carabine');
+  assert.equal(turnFxKind({ name: 'Bob', avatar: { kind: 'initials', color: 2 } }), 'aucune');
+  assert.equal(turnFxKind({ name: 'Bob', turnAnim: 'picto', avatar: { kind: 'photo', photo: 'data:image/jpeg;base64,AAAA' } }), 'aucune', 'picto sans pictogramme');
+  // Les quatre animations d'avant gardent leur pictogramme ; l'étoile du pictogramme n'est pas l'étoile rouge.
+  for (const k of ['ours', 'cravate', 'carabine', 'planete']) assert.equal(turnFxKind({ name: 'X', avatar: { kind: 'icon', icon: k } }), k);
+  assert.equal(turnFxKind({ name: 'X', avatar: { kind: 'icon', icon: 'etoile' } }), 'picto:etoile');
+  assert.equal(turnFxKind({ name: 'X', turnAnim: 'etoile', avatar: { kind: 'icon', icon: 'etoile' } }), 'etoile');
+  assert.equal(turnFxKind({ name: 'Tsia', avatar: { kind: 'icon', icon: 'etoile' } }), 'voyelles', 'Tsia garde ses voyelles');
+  assert.equal(playerRecord({ id: 'a', name: 'A', avatar: { kind: 'icon', icon: 'renard', color: 1 }, turnAnim: 'picto' }).turnAnim, 'picto');
+});
+
+test('lot 7.9 : les 37 saynètes se jouent sans erreur (portrait et paysage), durent 2,5 à 4,5 s et ne laissent rien', { skip, timeout: 120e3 }, async () => {
+  const srv = await serve();
+  const browser = await pw.chromium.launch();
+  try {
+    for (const viewport of [{ width: 410, height: 914 }, { width: 914, height: 410 }, { width: 360, height: 640 }]) {
+      const ctx = await browser.newContext({ viewport, isMobile: true, hasTouch: true });
+      const page = await ctx.newPage();
+      const errors = [];
+      page.on('pageerror', e => errors.push(e.message));
+      await page.goto(`${srv.url}?maquette#/sommaire`);
+      await page.waitForFunction(() => window.__strela);
+      await page.evaluate(() => { window.__strela.reset(); window.__strela.scene('jeu'); });
+      const out = await page.evaluate(async () => {
+        const m = await import('./src/ui/turnfx.js');
+        const res = {};
+        for (const kind of m.FX_KINDS.filter(k => k.startsWith('picto:'))) {
+          m.resetTurnFx();
+          let err = null;
+          try { m.syncTurnFx({ key: `t:${kind}`, kind, color: 'var(--av-0)', sound: () => {} }, true); } catch (e) { err = String(e); }
+          const anims = document.getAnimations().filter(a => a.effect && a.effect.target && a.effect.target.closest && a.effect.target.closest('#tfx'));
+          res[kind] = { err, nodes: document.querySelectorAll('#tfx .tfx-n').length, total: Math.max(0, ...anims.map(a => a.effect.getComputedTiming().endTime)) };
+        }
+        m.resetTurnFx();
+        res.left = document.querySelectorAll('#tfx .tfx-n').length;
+        return res;
+      });
+      assert.equal(out.left, 0, 'rien ne reste après l’arrêt');
+      const kinds = Object.keys(out).filter(k => k !== 'left');
+      assert.equal(kinds.length, 37);
+      for (const k of kinds) {
+        assert.equal(out[k].err, null, `${k} : ${out[k].err}`);
+        assert.ok(out[k].nodes >= 1, `${k} : dessiné`);
+        assert.ok(out[k].total >= 2500 && out[k].total <= 4500, `${k} : ${out[k].total} ms`);
+      }
+      assert.deepEqual(errors, [], `aucune erreur JS (${viewport.width}×${viewport.height})`);
+      await ctx.close();
+    }
+  } finally { await browser.close(); await srv.close(); }
+});
+
+test('lot 7.9 : vraie appli — sans rien choisir, le pictogramme du joueur s’anime à sa volée (X01 et Cricket) ; AUCUNE le coupe', { skip, timeout: 120e3 }, async () => {
+  const t = await setup();
+  try {
+    const { page } = t;
+    await createPlayer(page, 'Renard', { icon: 'renard' });
+    await createPlayer(page, 'Loup', { icon: 'loup', turnAnim: 'aucune' });
+    const db = await readDb(page);
+    assert.ok(!('turnAnim' in db.players.find(p => p.name === 'Renard')), 'rien d’enregistré sans choix');
+    const before = (await fxLog(page)).length;
+    await newGame(page, ['Renard', 'Loup'], { startScore: 501, shuffle: false });
+    await page.waitForSelector('#tfx .tfx-renard');
+    await throwDarts(page, 'S20 S20 S20');
+    await validate(page);
+    await page.waitForTimeout(300);
+    assert.equal(await fxCount(page), 0, 'Loup a choisi AUCUNE');
+    assert.deepEqual((await fxLog(page)).slice(before), ['picto:renard']);
+    // Cricket : même animation au début de la volée, arrêtée à la première fléchette.
+    await page.evaluate(() => { location.hash = '#/nouvelle'; });
+    await page.waitForSelector('[data-act="launch"]');
+    await page.click('[data-act="game"][data-arg="cricket"]');
+    await page.click('[data-act="launch"]');
+    await page.click('[data-act="launch-yes"]');
+    await page.waitForSelector('.ckgame');
+    await page.waitForSelector('#tfx .tfx-renard');
+    await page.click('[data-act="ck-hit"][data-arg="20"]');
+    await page.waitForFunction(() => !document.querySelector('#tfx .tfx-n'), null, { timeout: 2000 });
+    // Fiche : PICTOGRAMME allumé d'office, et l'aperçu joue celle du pictogramme.
+    await page.evaluate(() => { location.hash = '#/joueurs'; });
+    await page.click('a.item:has(.name:text-is("Renard"))');
+    await page.waitForSelector('[data-act="turn-anim"]');
+    assert.equal(await page.locator('[data-act="turn-anim"][aria-pressed="true"]').getAttribute('data-arg'), 'picto');
+    await page.click('[data-act="turn-anim"][data-arg="picto"]');
+    await page.waitForSelector('#tfx .tfx-renard');
+    assert.deepEqual(t.errors, []);
+  } finally { await t.close(); }
 });

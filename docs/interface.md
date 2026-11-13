@@ -800,6 +800,48 @@ Cricket, 7, 8, 10, 11. Fait ici (choix techniques clairs) ; le reste attend son 
   mois par mois, filtre Tout / Badges / Records, 30 premiers puis VOIR TOUT), fin de partie « Badges gagnés » + voix.
 - **Cricket (A face à face pour 2 joueurs + B grille de 2 à 8)** : lot 10, dans une session neuve (voir CLAUDE.md).
 
+## Version 0.10.0 : lot 10, Cricket (13/11/2026)
+
+Choix de Guillaume sur images : A face à face (2 joueurs) + B grille (2 à 8) ; règles avec points (défaut), sans points,
+cut-throat. Moteur : docs/moteur-cricket.md.
+- **Nouvelle partie** : « Jeu » 301 · 501 · 701 / Cricket (`d.game`) ; pour le Cricket : Règles (`ckMode`), manches,
+  ordre ; pas de départ, sortie, handicap, défis ni jusqu'au bout. `lastSetup.game` / `ckMode` gardent le choix.
+- **Jeu** `#/cricket` (src/ui/screens/cricket.js) : bandeau (CRICKET · M n · TOUR n, À PSEUDO, verres de la soirée si une
+  soirée est en cours, pause) ; tableau face à face (`.ckface`, 2 joueurs par défaut) ou grille (`.ckgrid`, une colonne
+  par joueur, le lanceur en vidéo inverse ; au menu pause pour 2 joueurs : `ui.layout`) ; marques / ✕ ✕ cerclé (SVG
+  `markSvg`) ; cible fermée par tous barrée ; volée (3 cases + ANNULER) ; pavé 20…15, BULL, RATÉ + SIMPLE / DOUBLE /
+  TRIPLE (au relâcher du clic ; revient à simple après chaque fléchette). Après 3 fléchettes : VALIDER (`validated`
+  comme en X01) ; manche gagnée : MANCHE SUIVANTE. Paysage : tableau à gauche, volée et pavé à droite (CSS seul).
+- **Fin** `#/cricket/fin` : vainqueur, classement (points, MPR, meilleure volée en marques), tableau final, REVANCHE (le
+  premier lanceur tourne, ou nouveau tirage), ACCUEIL (range la partie), ANNULER LA DERNIÈRE FLÉCHETTE.
+- **Historique** : lignes « CRIC. » mêlées aux autres (pas de sélection ni de soirée) ; détail `#/cricket/partie/<id>`
+  (classement, tableau final, volées, supprimer). **Stats** du joueur : section « Cricket » (MPR, victoires, meilleure
+  volée, fléchettes) sur la période, à part. Accueil : REPRENDRE un Cricket en cours. Retour Android : en jeu, ouvre la
+  pause (`ck-pause`).
+- Hors du Cricket pour l'instant : verres dans la partie (on les note à l'écran Soirée), défis, badges, records,
+  classement global, rapport de soirée.
+- Sommaire : scènes `ck-…` (section Version 0.8.0). Tests : tests/cricket.test.js (moteur, rangement à part,
+  sauvegarde, suppression d'un joueur), tests/cricket-parcours.test.js (vraie appli).
+
+## Lot 7.9 : une animation de tour par pictogramme (13/11/2026, publié avec la 0.10.0)
+
+Demande de Guillaume (12/11) : « une animation de tour par pictogramme d'avatar, toutes différentes ».
+- **src/ui/pictofx.js** : 37 saynètes (`PICTO_FX`, une fonction par pictogramme) ; avec l'ours, la cravate, la carabine
+  et la planète de turnfx.js, les 41 pictogrammes de la banque ont chacun la leur. Chaque saynète part de l'avatar, dure
+  3 à 4 s, n'utilise que le pictogramme (`hero`, agrandi sur grand écran), de petits dessins d'appoint (`bit`, `pop`,
+  `fly`), une étiquette (`ctx.label`) et de petits bruits (`fx-…`, 22 sons Web Audio dans feedback.js). Mêmes règles que
+  le lot 7.4 (calque `#tfx` sans appui, arrêt à la première fléchette, jamais pendant une célébration, réglage
+  Animations). Aucun rouge (l'étoile du pictogramme n'est pas l'ÉTOILE ROUGE de Guillaume, qui reste un choix à part).
+- **Cadrage** (question laissée ouverte au lot 7.6) : l'animation du pictogramme **ne remplace pas** le choix de la
+  fiche. Nouveau choix « SON PICTO » (`turnAnim: 'picto'`, ajouté à `TURN_ANIM_VALUES`, aucune migration) ; **sans
+  choix enregistré**, un joueur qui a un pictogramme pour avatar l'a d'office (avant : rien), Tsia garde ses voyelles,
+  initiales et photo : rien. `turnAnimOf` = bouton allumé de la fiche ; `turnFxKind` = ce qui se joue (`picto:<clé>`,
+  ou l'une des quatre animations d'origine pour leur pictogramme).
+- **Cricket** : `cricketTurnFx` (screens/cricket.js) — la même animation au début de chaque volée (pas les voyelles).
+- Outil : `node tools/pictos.mjs [--taille=…] [--seul=renard,loup] [--instants=700,1500,2300]` fige chaque saynète à
+  plusieurs instants → captures/picto-…png. Tests : tests/animations.test.js (« lot 7.9 »).
+- À voir avec Guillaume sur le Pixel : la taille, la durée, les bruits ; une saynète à changer se réécrit seule.
+
 ## Pour le lot 4
 
 - Les écrans Historique et Stats lisent `store.games` (parties closes) ; la partie en cours est à part (`store.current`).

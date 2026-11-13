@@ -12,11 +12,16 @@ import { deletePlayer as removePlayer, deletionImpact, isDeletedId } from '../en
 import { openDb, currentRecord, closedRecord, playerRecord, deletionOps, gameDeletionOps, soireeRecord, DB_VERSION } from '../data/db.js';
 import { makeBackup, importPlan } from '../data/backup.js';
 import { bac, drinkTimes, drinkTime, unitsOf, drinkTally, PINT_L } from '../engine/alcohol.js';
+import { computeCricket, isCricket } from '../engine/cricket.js';
 
 export const store = {
   players: [],
   games: [],
   current: null,     // { id, config, darts, startedAt, validated, ui: voir freshUi() }
+  // Lot 10 : le Cricket est rangé à part (le code X01 — stats, records, badges, soirée — ne voit jamais une partie de
+  // Cricket). Une seule partie en cours en tout : lancer l'un range l'autre (abandonnée si pas finie).
+  ckGames: [],       // parties de Cricket closes
+  ck: null,          // partie de Cricket en cours { id, config, darts, startedAt, validated, ui }
   lastSetup: null,   // derniers réglages de « Nouvelle partie »
   soiree: null,      // soirée en cours (lot 7.6) : { id, startedAt, players, drinks } (db.js › soireeRecord)
   soireeDraft: null, // écran « Soirée » avant de la débuter : { players }
@@ -73,6 +78,8 @@ export function resaveAll() {
     ...store.players.map(p => ({ store: 'players', put: playerRecord(p) })),
     ...store.games.map(g => ({ store: 'games', put: g })),
     ...(store.current ? [{ store: 'games', put: currentRecord(store.current) }] : []),
+    ...store.ckGames.map(g => ({ store: 'games', put: g })),
+    ...(store.ck ? [{ store: 'games', put: currentRecord(store.ck) }] : []),
     { store: 'settings', key: 'display', put: { ...store.settings } },
     ...(store.lastSetup ? [{ store: 'settings', key: 'lastSetup', put: store.lastSetup }] : []),
     ...(store.soiree ? [{ store: 'settings', key: 'soiree', put: store.soiree }] : []),
@@ -81,7 +88,7 @@ export function resaveAll() {
 }
 
 /** La base peut-elle relire cette partie ? (une partie illisible est gardée dans la base, pas affichée) */
-const readable = g => { try { computeState(g.config, g.darts); return true; } catch (e) { return false; } };
+const readable = g => { try { if (isCricket(g)) computeCricket(g.config, g.darts); else computeState(g.config, g.darts); return true; } catch (e) { return false; } };
 
 /**
  * Ouvre la base et charge tout (démarrage de l'appli). Réglages : la base fait foi ; au tout premier lancement, ceux
@@ -94,9 +101,12 @@ export async function openStorage({ onVersionChange } = {}) {
   store.players = data.players;
   const games = data.games.filter(readable);
   store.db.unreadable = data.games.length - games.length;
-  store.games = games;
+  store.games = games.filter(g => !isCricket(g));
+  store.ckGames = games.filter(isCricket);
   if (data.stale.length) write(data.stale.map(g => ({ store: 'games', put: g })));
-  store.current = data.current && readable(data.current) ? { ...data.current, ui: freshUi() } : null;
+  const cur = data.current && readable(data.current) ? { ...data.current, ui: freshUi() } : null;
+  store.current = cur && !isCricket(cur) ? cur : null;
+  store.ck = cur && isCricket(cur) ? { ...cur, ui: freshCkUi() } : null;
   store.lastSetup = data.settings.lastSetup || null;
   store.soiree = soireeRecord(data.settings.soiree);
   if (data.settings.display) {
@@ -415,6 +425,7 @@ export function playerBac(id, now = Date.now()) {
 /** Démarre une partie (la précédente, s'il y en a une, est d'abord rangée : abandonnée si elle n'était pas finie). */
 export function startGame(setup) {
   if (store.current) archiveCurrent(currentState().status !== STATUS.FINISHED);
+  if (store.ck) archiveCk(ckState().status !== 'finished'); // lot 10 : une seule partie en cours
   // Lot 7 : ordre tiré au sort au lancement (`shuffle`) et jouer jusqu'au bout (`playOn`, 3 joueurs ou plus). Les derniers
   // réglages gardent l'ordre choisi ; seule la partie prend l'ordre tiré. Rien à migrer : réglages absents = valeurs par
   // défaut (tirage OUI, jusqu'au bout NON).
@@ -430,7 +441,7 @@ export function startGame(setup) {
     // REVANCHE (ni l'un ni l'autre donné) garde les préférences d'avant
     shuffle: setup.shuffle ?? store.lastSetup?.shuffle ?? true, playOn: setup.playOn ?? store.lastSetup?.playOn ?? false,
     handicap: setup.handicap ?? store.lastSetup?.handicap ?? false, starts: { ...(setup.starts ?? store.lastSetup?.starts ?? {}) },
-    defis: setup.defis ?? store.lastSetup?.defis ?? 'non' };
+    defis: setup.defis ?? store.lastSetup?.defis ?? 'non', game: 'x01', ckMode: store.lastSetup?.ckMode ?? 'points' };
   store.current = { id: newId('g'), config, darts: [], startedAt: Date.now(), validated: 0, ui: freshUi() };
   // Lot 7.6 : l'ordre tiré est noté dans la partie, pour que la REVANCHE tire de nouveau au sort.
   if (setup.shuffle && players.length > 1) store.current.shuffled = true;
@@ -477,6 +488,7 @@ export function legEndPending() {
 
 /** Où reprendre la partie en cours : jeu, fin de manche (pas encore validée) ou fin de partie. */
 export function resumeRoute() {
+  if (store.ck) return ckState().status === 'finished' ? '#/cricket/fin' : '#/cricket';
   const s = currentState();
   if (!s) return '#/';
   if (s.status === STATUS.FINISHED) return '#/fin';
@@ -514,9 +526,11 @@ export function archiveCurrent(abandoned) {
 export function deleteGames(ids) {
   const gone = new Set(ids);
   const before = store.games.length;
+  const ckBefore = store.ckGames.length;
   store.games = store.games.filter(g => !gone.has(g.id));
+  store.ckGames = store.ckGames.filter(g => !gone.has(g.id));
   write(gameDeletionOps([...gone]));
-  return before - store.games.length;
+  return before - store.games.length + ckBefore - store.ckGames.length;
 }
 
 /** Supprime la partie en cours (partie d'essai) : elle n'entre pas dans l'historique. */
@@ -531,7 +545,7 @@ export function deleteCurrent() {
 /** Sauvegarde complète de ce qui est sur le téléphone (src/data/backup.js). */
 export function exportBackup(app) {
   const display = { ...store.settings };
-  return makeBackup({ players: store.players, games: store.games, current: store.current, display, lastSetup: store.lastSetup },
+  return makeBackup({ players: store.players, games: [...store.games, ...store.ckGames], current: store.current || store.ck, display, lastSetup: store.lastSetup },
     { app, dbVersion: store.db.version });
 }
 
@@ -539,7 +553,7 @@ export function exportBackup(app) {
  * Importe une sauvegarde vérifiée (parseBackup) : 'replace' (tout remplacer) ou 'merge' (ajouter ce qui manque).
  * Une seule transaction ; l'état en mémoire suit. Renvoie les chiffres de l'import.
  */
-const localData = () => ({ players: store.players, games: store.games, current: store.current, display: { ...store.settings }, lastSetup: store.lastSetup });
+const localData = () => ({ players: store.players, games: [...store.games, ...store.ckGames], current: store.current || store.ck, display: { ...store.settings }, lastSetup: store.lastSetup });
 
 /** Chiffres d'un import avant de le faire (texte des confirmations). */
 export const importCounts = (backup, mode) => importPlan(localData(), backup, mode).counts;
@@ -548,10 +562,13 @@ export function applyImport(backup, mode) {
   const local = localData();
   const plan = importPlan(local, backup, mode);
   store.players = plan.state.players.map(p => ({ ...p }));
-  store.games = plan.state.games;
-  store.current = plan.state.current
-    ? (plan.state.current === local.current ? local.current : { ...plan.state.current, ui: freshUi() })
+  store.games = plan.state.games.filter(g => !isCricket(g));
+  store.ckGames = plan.state.games.filter(isCricket);
+  const cur = plan.state.current
+    ? (plan.state.current === local.current ? local.current : { ...plan.state.current, ui: isCricket(plan.state.current) ? freshCkUi() : freshUi() })
     : null;
+  store.current = cur && !isCricket(cur) ? cur : null;
+  store.ck = cur && isCricket(cur) ? cur : null;
   store.lastSetup = plan.state.lastSetup || null;
   store.setupDraft = null;
   store.draft = null;
@@ -563,17 +580,18 @@ export function applyImport(backup, mode) {
 
 // ------------------------------------------------------------------ suppression d'un joueur
 /** Le joueur est-il dans la partie en cours ? (il ne peut alors pas être supprimé) */
-export const inCurrentGame = id => !!(store.current && store.current.config.players.includes(id));
+export const inCurrentGame = id => !!((store.current && store.current.config.players.includes(id)) || (store.ck && store.ck.config.players.includes(id)));
 
 /** Parties gardées (anonymisées) et effacées si l'on supprime ce joueur. */
-export const deletionPreview = id => deletionImpact(store.games, id);
+export const deletionPreview = id => deletionImpact([...store.games, ...store.ckGames], id);
 
 /** Supprime un joueur (fiche, stats) ; ses parties avec d'autres restent, anonymisées. Une seule transaction. */
 export function deletePlayer(id) {
   if (inCurrentGame(id)) return false;
-  const r = removePlayer(store.players, store.games, id);
+  const r = removePlayer(store.players, [...store.games, ...store.ckGames], id);
   store.players = r.players;
-  store.games = r.games;
+  store.games = r.games.filter(g => !isCricket(g));
+  store.ckGames = r.games.filter(isCricket);
   if (store.lastSetup) store.lastSetup = { ...store.lastSetup, players: store.lastSetup.players.filter(p => p !== id) };
   if (store.setupDraft) store.setupDraft.players = store.setupDraft.players.filter(p => p !== id);
   write(deletionOps(id, r, store.lastSetup));
@@ -615,3 +633,52 @@ export function saveSetting(key, value) {
 /** Le téléphone demande moins d'animations (réglage d'accessibilité) : les animations sont coupées d'office. */
 export const reducedMotion = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
 export const animationsOn = () => store.settings.anim && !reducedMotion();
+
+// ------------------------------------------------------------------ Cricket (lot 10)
+/** État d'affichage d'une partie de Cricket (non enregistré) : multiplicateur armé, menu pause, présentation. */
+export const freshCkUi = () => ({ mult: 1, pause: false, confirm: false, layout: null });
+
+export const ckState = () => (store.ck ? computeCricket(store.ck.config, store.ck.darts) : null);
+
+/** Enregistre la partie de Cricket en cours (à chaque fléchette, ANNULER, VALIDER). */
+export function saveCk() {
+  if (store.ck) write([{ store: 'games', put: currentRecord(store.ck) }]);
+}
+
+/** Démarre un Cricket ({ players, ckMode, legsToWin, shuffle }) ; la partie en cours (X01 ou Cricket) est d'abord rangée. */
+export function startCricket(setup) {
+  if (store.current) archiveCurrent(currentState().status !== STATUS.FINISHED);
+  if (store.ck) archiveCk(ckState().status !== 'finished');
+  const players = setup.shuffle ? shuffled(setup.players) : [...setup.players];
+  const mode = ['points', 'sans', 'cutthroat'].includes(setup.ckMode) ? setup.ckMode : 'points';
+  const config = { game: 'cricket', players, mode, legsToWin: setup.legsToWin || 1 };
+  store.lastSetup = { ...(store.lastSetup || { startScore: 501, outMode: 'double' }), players: [...setup.players], legsToWin: setup.legsToWin || 1,
+    shuffle: setup.shuffle ?? store.lastSetup?.shuffle ?? true, game: 'cricket', ckMode: mode };
+  store.ck = { id: newId('g'), config, darts: [], startedAt: Date.now(), validated: 0, ui: freshCkUi() };
+  if (setup.shuffle && players.length > 1) store.ck.shuffled = true;
+  write([{ store: 'games', put: currentRecord(store.ck) }, { store: 'settings', key: 'lastSetup', put: store.lastSetup }]);
+  return store.ck;
+}
+
+/** Range la partie de Cricket en cours (finie ou abandonnée) ; sans fléchette, elle est oubliée. */
+export function archiveCk(abandoned) {
+  const g = store.ck;
+  if (!g) return;
+  store.ck = null;
+  const s = computeCricket(g.config, g.darts);
+  if (g.darts.length && (abandoned || s.status === 'finished')) {
+    const rec = closedRecord(g, abandoned && s.status !== 'finished', Date.now());
+    store.ckGames.unshift(rec);
+    write([{ store: 'games', put: rec }]);
+  } else {
+    write([{ store: 'games', del: g.id }]);
+  }
+}
+
+/** Supprime la partie de Cricket en cours (partie d'essai). */
+export function deleteCk() {
+  const g = store.ck;
+  if (!g) return;
+  store.ck = null;
+  write(gameDeletionOps([g.id]));
+}

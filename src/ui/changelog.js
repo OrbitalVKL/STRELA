@@ -2,6 +2,16 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.10.0', date: '2026-11-13', title: 'Cricket, et une animation par pictogramme', items: [
+    'Animations de tour : chacun des 41 pictogrammes d\'avatar a maintenant la sienne, toutes différentes (le renard se faufile, la fusée décolle, la chope glisse sur le comptoir, le loup hurle à la lune…), avec de petits bruits.',
+    'Un joueur qui a un pictogramme pour avatar a son animation d\'office au début de chacune de ses volées ; dans sa fiche, « SON PICTO » la montre, « AUCUNE » la coupe, et les animations choisies à la main (ours, cravate, carabine, planète, étoile rouge, voyelles) ne changent pas.',
+    'Les animations de tour se jouent aussi au Cricket.',
+    'Nouveau jeu : le Cricket, à choisir dans Nouvelle partie (Jeu : 301 · 501 · 701 ou Cricket), de 1 à 8 joueurs, en une ou plusieurs manches.',
+    'Trois règles : avec points (par défaut), sans points (le premier qui ferme tout gagne) et cut-throat (les points vont aux adversaires, le moins de points gagne).',
+    'À 2 joueurs, le tableau en face à face (les numéros au milieu, les marques de chaque côté) ; de 3 à 8, une grille avec une colonne par joueur. À 2, la grille se choisit aussi dans le menu pause.',
+    'Pavé réduit aux cibles du Cricket : SIMPLE / DOUBLE / TRIPLE, puis 20 à 15, BULL ou RATÉ ; VALIDER après 3 fléchettes, ANNULER comme d\'habitude.',
+    'Les parties de Cricket sont dans l\'historique (avec leur détail) et dans les stats de chaque joueur (MPR : marques par volée), à part des chiffres du 301 / 501 / 701.',
+  ] },
   { v: '0.9.0', date: '2026-11-13', title: 'Soirée, défis, records et badges', items: [
     'Défis de soirée (option au lancement : parfois ou souvent) : de temps en temps, un défi tiré au sort s\'affiche en plein écran avant la volée (« UN TRIPLE, SINON UN VERRE », « UN BULL : LES AUTRES BOIVENT »…) ; il reste rappelé pendant la volée, et le gage se note d\'un appui.',
     'Badges : 16 à gagner (premier 180, finition 100+, 3 d\'affilée, bu et gagné, champion du mois…), dans une vitrine des stats de chaque joueur avec ses records datés ; annoncés en fin de partie.',

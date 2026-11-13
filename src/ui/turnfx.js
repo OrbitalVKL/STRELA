@@ -11,10 +11,12 @@
 import { ICONS } from './avatars.js';
 import { isTsia } from './vowels.js';
 import { esc } from './dom.js';
+import { PICTO_FX } from './pictofx.js';
 
 /** Choix de la fiche joueur, dans l'ordre affiché. `icon` : pictogramme de la banque montré sur le bouton. */
 export const TURN_ANIMS = Object.freeze([
   { key: 'aucune', label: 'AUCUNE', icon: null },
+  { key: 'picto', label: 'SON PICTO', icon: null }, // lot 7.9 : l'animation du pictogramme de son avatar
   { key: 'ours', label: 'OURS', icon: 'ours' },
   { key: 'cravate', label: 'CRAVATE', icon: 'cravate' },
   { key: 'carabine', label: 'CARABINE', icon: 'carabine' },
@@ -24,11 +26,34 @@ export const TURN_ANIMS = Object.freeze([
 ]);
 export const TURN_ANIM_KEYS = Object.freeze(TURN_ANIMS.map(a => a.key));
 
-/** Animation de tour d'un joueur : son choix ; sans choix, « voyelles » pour Tsia (lot 7), sinon aucune. */
+/**
+ * Choix d'animation de tour d'un joueur (bouton allumé dans sa fiche) : celui qu'il a fait ; sans choix, « voyelles »
+ * pour Tsia (lot 7), « picto » s'il a un pictogramme pour avatar (lot 7.9 : chaque pictogramme a son animation),
+ * sinon aucune.
+ */
 export function turnAnimOf(player) {
   const k = player && player.turnAnim;
   if (TURN_ANIM_KEYS.includes(k)) return k;
-  return player && isTsia(player.name) ? 'voyelles' : 'aucune';
+  if (player && isTsia(player.name)) return 'voyelles';
+  return pictoOf(player) ? 'picto' : 'aucune';
+}
+
+/** Pictogramme de l'avatar du joueur (clé de ICONS), ou null (initiales, photo). */
+const pictoOf = player => { const av = player && player.avatar; return av && av.kind === 'icon' && ICONS[av.icon] ? av.icon : null; };
+
+/** Animations des pictogrammes qui existaient avant le lot 7.9 (l'étoile du pictogramme n'est pas l'étoile rouge). */
+const PICTO_ALIAS = Object.freeze({ ours: 'ours', cravate: 'cravate', carabine: 'carabine', planete: 'planete' });
+
+/**
+ * Ce qui se joue vraiment pour un joueur : 'aucune', 'voyelles', une des cinq animations choisies à la main, ou
+ * `picto:<pictogramme>` (lot 7.9). « picto » sans pictogramme (initiales, photo) : aucune.
+ */
+export function turnFxKind(player) {
+  const k = turnAnimOf(player);
+  if (k !== 'picto') return k;
+  const icon = pictoOf(player);
+  if (!icon) return 'aucune';
+  return PICTO_ALIAS[icon] || `picto:${icon}`;
 }
 
 /** Une phrase du bonhomme en costume-cravate (humour beauf demandé par Guillaume). */
@@ -124,7 +149,8 @@ export function syncTurnFx(info, animate, deps = {}) {
 
 let previews = 0;
 /** Aperçu depuis la fiche joueur (lot 7.4) : part de l'avatar de la fiche ; lot 7.5 : avec sons et voix (réglages). */
-export function previewTurnFx(kind, color, { say = null, sound = null } = {}) {
+export function previewTurnFx(kind, color, { say = null, sound = null, avatar = null } = {}) {
+  if (kind === 'picto') kind = turnFxKind({ turnAnim: 'picto', avatar }); // lot 7.9 : celle du pictogramme choisi
   if (!PLAYERS[kind]) { stopTurnFx(true); return null; }
   return syncTurnFx({ key: `apercu:${++previews}`, kind, color: `var(--av-${Number.isInteger(color) ? color : 7})`, fromSel: '#app #preview .av', say, sound }, true);
 }
@@ -540,6 +566,9 @@ function redStar(ctx) {
   ], { duration: 700, delay: 700, iterations: 3, easing: 'ease-out' });
 }
 
-const PLAYERS = { ours: bear, cravate: suit, carabine: rifle, planete: planet, etoile: redStar };
+const PLAYERS = { ours: bear, cravate: suit, carabine: rifle, planete: planet, etoile: redStar,
+  ...Object.fromEntries(Object.entries(PICTO_FX).map(([k, fn]) => [`picto:${k}`, fn])) }; // lot 7.9
 /** Animations jouées par ce module (« voyelles » est à part, dans vowels.js). */
 export const FX_KINDS = Object.freeze(Object.keys(PLAYERS));
+/** Pictogrammes qui ont une animation (lot 7.9 : tous). */
+export const PICTO_KINDS = Object.freeze([...Object.keys(PICTO_ALIAS), ...Object.keys(PICTO_FX)]);
