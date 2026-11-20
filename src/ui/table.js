@@ -106,6 +106,6 @@ export function cellHtml(c, { key = '', selected = false } = {}) {
   const darts = v.darts.map((d, i) => `<i${i === v.faulty ? ' class="x"' : ''}>${d}</i>`).join('');
   return `<td class="c ${v.cls}${selected ? ' sel' : ''}" data-act="log-visit" data-arg="${attr(key)}" aria-label="${attr(v.label)}">`
     + `<span class="ds"${v.darts.length ? ' data-fit="3"' : ''}>${darts}</span><b>${v.big}</b><small>${v.small}</small>`
-    + (v.drinks ? `<em class="dk${v.drinks.fresh ? ' new' : ''}">${v.drinks.glasses || !v.drinks.pints ? `${GLASS}x${v.drinks.glasses}` : ''}${v.drinks.pints ? `${PINT}x${v.drinks.pints}` : ''}</em>` : '')
+    + (v.drinks ? `<em class="dk${v.drinks.fresh ? ' new' : ''}${v.drinks.glasses && v.drinks.pints ? ' two' : ''}">${v.drinks.pints ? `<span>${PINT}x${v.drinks.pints}</span>` : ''}${v.drinks.glasses || !v.drinks.pints ? `<span>${GLASS}x${v.drinks.glasses}</span>` : ''}</em>` : '')
     + (v.defi ? `<em class="df ${v.defi.ok === true ? 'ok' : v.defi.ok === false ? 'ko' : 'wait'}">${STAR(v.defi.ok === true)}<span>${attr(v.defi.short)}</span></em>` : '') + '</td>';
 }
