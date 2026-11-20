@@ -36,7 +36,7 @@ test('tableau de bord d’une soirée : classement, faits marquants, parties', (
   assert.equal(hl.worst.value, '3', 'la pire volée de la soirée (B, 1 1 1), sans le bust de A');
   assert.equal(hl.worst.name, 'Bravo');
   assert.equal(hl.busts.name, 'Alpha');
-  assert.equal(hl.drinks.value, 'x2');
+  assert.equal(hl.drinks.value, '2 verres', '0.11.2 : verres de 25 cl et pintes à part');
   assert.deepEqual(m.list.map(x => x.id), ['g2', 'g1'], 'de la plus récente à la plus ancienne');
 });
 
@@ -44,7 +44,7 @@ test('rapport de soirée en 3 feuilles : chronologie, verres, qui bat qui, secte
   const m = soireeModel([G2, G1], id => ({ A: 'Alpha', B: 'Bravo' }[id]));
   assert.deepEqual(m.timeline.map(t => [t.id, t.n]), [['g1', 1], ['g2', 2]], 'dans l’ordre du soir');
   const [t1, t2] = m.timeline;
-  assert.equal(t1.winner, 'A'); assert.deepEqual(t1.last, ['B'], 'le dernier paie sa tournée');
+  assert.equal(t1.winner, 'A'); assert.deepEqual(t1.last, ['B'], 'le dernier (classement ; plus de tournée depuis la 0.11.2)');
   assert.equal(t2.winner, 'B'); assert.deepEqual(t2.last, ['A']);
   assert.equal(t1.end, 5000, 'sans fin enregistrée : jusqu’à la partie suivante');
   // A dans g1 : 180 + 100 + bust (0) + 21 = 301 points en 9 fléchettes.
@@ -58,7 +58,7 @@ test('rapport de soirée en 3 feuilles : chronologie, verres, qui bat qui, secte
   const tr = Object.fromEntries(m.trophies.map(t => [t.key, t]));
   assert.equal(tr.best.value, '180'); assert.equal(tr.best.detail, 'partie 1');
   assert.equal(tr.worst.name, 'Bravo'); assert.equal(tr.worst.value, '3 points');
-  assert.equal(tr.drinks.value, 'x2 verres');
+  assert.equal(tr.drinks.value, '2 verres');
   assert.ok(tr.king && tr.regular && tr.busts);
 });
 

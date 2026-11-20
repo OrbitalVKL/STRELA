@@ -4,6 +4,7 @@
 // On dessine dans une page logique de 540 × 960 agrandie deux fois. Données : soireeModel() (engine/soiree.js) ;
 // `who(id)` → { name, color, initials, img?, photo? } comme pour le rapport (soireereport.js).
 import { mix } from './theme.js';
+import { drinksText } from '../engine/alcohol.js';
 
 export const SUM_W = 1080, SUM_H = 1920;
 const LW = 540, LH = 960, K = SUM_W / LW, MX = 24;
@@ -36,9 +37,15 @@ function face(x, p, X, Y, s) {
 
 /**
  * Les six cases du résumé, dans l'ordre : [{ label, id, value }]. Meilleure et pire volée, roi du bust, le plus assoiffé,
- * celui qui a payé le plus de tournées, record battu pendant la soirée (`record` : { id, label, value } ou null) ; il
+ * record battu pendant la soirée (0.11.2 : plus de case « Tournées ») (`record` : { id, label, value } ou null) ; il
  * en manque : roi des défis, le plus régulier, roi de la soirée.
  */
+/** « x3 » (verres seuls), « x2 + 1 PINTE » (2 verres et une pinte), « 2 PINTES » (pintes seules) : tient dans une case. */
+export function shortDrinks(t) {
+  const g = t.glasses ? `x${t.glasses}` : '', p = t.pints ? `${t.pints} PINTE${t.pints > 1 ? 'S' : ''}` : '';
+  return g && p ? `${g} + ${p}` : g || p || 'x0';
+}
+
 export function summaryTiles(m, record = null) {
   const tr = Object.fromEntries(m.trophies.map(t => [t.key, t]));
   const out = [];
@@ -46,12 +53,9 @@ export function summaryTiles(m, record = null) {
   if (tr.best) add('Meilleure volée', tr.best.id, tr.best.value);
   if (tr.worst) add('Pire volée', tr.worst.id, String(parseInt(tr.worst.value, 10)));
   if (tr.busts) add('Roi du bust', tr.busts.id, String(parseInt(tr.busts.value, 10)));
-  const dr = m.rows.filter(r => r.drinks).sort((a, b) => b.drinks - a.drinks)[0];
-  if (dr) add('Le plus assoiffé', dr.id, `x${dr.drinks}`);
-  const paid = {};
-  for (const t of m.timeline) for (const id of t.last) paid[id] = (paid[id] || 0) + 1 / t.last.length;
-  const payer = Object.entries(paid).sort((a, b) => b[1] - a[1])[0];
-  if (payer) add('Tournées', payer[0], `x${Math.round(payer[1] * 10) / 10}`.replace('.', ','));
+  // Le plus assoiffé : au volume bu (une pinte = deux verres de 25 cl), affiché en verres et pintes à part (0.11.2).
+  const dr = m.rows.filter(r => r.tally.liters).sort((a, b) => b.tally.liters - a.tally.liters)[0];
+  if (dr) add('Le plus assoiffé', dr.id, shortDrinks(dr.tally));
   if (record) add(`Record · ${record.label}`, record.id, record.value);
   // Valeurs courtes : « x2 » (défis réussis, victoires), « ±3,2 » (écart des moyennes).
   const n = v => `x${parseInt(v, 10)}`;
@@ -72,7 +76,7 @@ export function drawSoireeSummary(m, who, extra = {}, mk = (w, h) => { const c =
   const d = new Date(m.start);
   T(x, 'STRELA · SOIRÉE', LW / 2, 46, { px: 13, color: ON_RED, ls: 4, align: 'center' });
   T(x, `${DAYS[d.getDay()]} ${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}`, LW / 2, 104, { px: 44, w: 800, color: ON_RED, ls: 3, align: 'center' });
-  T(x, `${plural(m.games, 'PARTIE', 'PARTIES')} · ${plural(m.rows.length, 'JOUEUR', 'JOUEURS')}${m.drinks ? ` · ${plural(m.drinks, 'VERRE', 'VERRES')}` : ''}`,
+  T(x, `${plural(m.games, 'PARTIE', 'PARTIES')} · ${plural(m.rows.length, 'JOUEUR', 'JOUEURS')}${m.drinks ? ` · ${drinksText(m.tally).toUpperCase()}` : ''}`,
     LW / 2, 142, { px: 13, color: ON_RED, ls: 2, align: 'center', max: LW - 2 * MX });
   // Podium : 2e, 1er, 3e (ceux qui ont joué) ; marches en gris, la première en vidéo inverse.
   const pod = [[m.rows[1], 2, 118], [m.rows[0], 1, 168], [m.rows[2], 3, 88]];

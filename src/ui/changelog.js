@@ -2,6 +2,13 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.11.2', date: '2026-11-20', title: 'Verres et pintes, sans tournées', items: [
+    'Plus de tournées : « le dernier paie sa tournée » et TOURNÉE SERVIE disparaissent de la fin de partie, de la fiche de score, du rapport et du résumé de soirée. Le rapport montre à la place qui a gagné chaque partie.',
+    'Défis : plus aucun verre n\'est noté par un gage (l\'étoile réussi / raté reste). Le défi « moins de 20 : ta tournée » devient « moins de 20, sinon un verre ».',
+    'Verres de 25 cl et pintes comptés à part partout (« 3 verres · 1 pinte ») : en jeu, écran Soirée, historique, tableau de bord, rapport, fiche de score, stats. « Le plus assoiffé » est celui qui a bu le plus grand volume.',
+    'Les verres notés entre deux parties (écran Soirée) comptent maintenant dans le tableau de bord, le rapport et les stats.',
+    'Tableau de bord d\'une soirée, section Verres : RETIRER LES TOURNÉES NOTÉES enlève les verres notés à tous d\'un coup (tournée servie, gage d\'un défi, un verre pour tous), après confirmation ; REMETTRE LES TOURNÉES les rend.',
+  ] },
   { v: '0.11.1', date: '2026-11-20', title: 'Chiffres, défis et badges de la soirée', items: [
     'Tableau de bord d\'une soirée : sections repliables (touchez un titre pour l\'ouvrir ou le replier), et plus rien qui dépasse de l\'écran : une carte par joueur à la place du grand tableau, les badges en liste, le tableau « au fil des verres » à la largeur de l\'écran.',
     'Plus de chiffres : totaux de la soirée (fléchettes, 100+, 180, bust, défis réussis, badges), et pour chacun 9 premières, 140+, taux de doubles, plus grosse finition, manche la plus courte, fléchettes dans le 1, bulls, hors cible, défis, badges.',

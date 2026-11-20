@@ -100,7 +100,7 @@ export function newGame() {
       <p class="note">${(d.defis || 'non') === 'non' ? 'Un défi tiré au sort de temps en temps (« un triple, sinon un verre »), annoncé à voix haute et vérifié tout seul.' : `Environ une volée sur ${d.defis === 'souvent' ? 4 : 8} ; le gage est indicatif : un appui le note dans les verres.`}</p>
       ${d.players.length > 2 ? `<div class="sec">Jouer jusqu'au bout</div>
       <div class="seg">${seg('playon', 'non', 'Non', d.playOn ? 'oui' : 'non')}${seg('playon', 'oui', 'Oui', d.playOn ? 'oui' : 'non')}</div>
-      <p class="note">Oui : après le gagnant, les autres finissent pour les places ; le dernier paie sa tournée.</p>` : ''}`}
+      <p class="note">Oui : après le gagnant, les autres finissent pour les places ; tout le monde a sa place.</p>` : ''}`}
     </div>
     <div class="dock" data-layer>${launch}</div>
   </div>`;

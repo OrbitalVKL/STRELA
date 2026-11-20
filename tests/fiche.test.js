@@ -29,20 +29,20 @@ function fakeCanvas(w, h) {
   return { width: w, height: h, getContext: () => ctx, ctx };
 }
 
-test('contenu : vainqueur, classement avec verres, tournée, tableau de manche (lot 7.3 : rien d’autre)', () => {
+test('contenu : vainqueur, classement avec verres, tableau de manche (lot 7.3 : rien d’autre ; 0.11.2 : plus de tournée)', () => {
   const g = game();
   const m = sheetModel(g, computeState(g.config, g.darts), players);
   assert.equal(m.format, "301 · SORTIE SIMPLE · JUSQU'AU BOUT");
   assert.equal(m.date, 'ven. 6 nov. 2026, 21 h 05');
   assert.equal(m.status, 'VAINQUEUR : Alpha');
-  assert.deepEqual(m.ranking.map(r => [r.place, r.name, r.drinks]), [['1ER', 'Alpha', 0], ['2E', 'Charlie', 0], ['3E', 'Bravo', 2]]);
+  assert.deepEqual(m.ranking.map(r => [r.place, r.name, r.drinks.glasses, r.drinks.pints]), [['1ER', 'Alpha', 0, 0], ['2E', 'Charlie', 0, 0], ['3E', 'Bravo', 2, 0]]);
   assert.deepEqual(Object.keys(m.ranking[0]).sort(), ['drinks', 'legs', 'name', 'place', 'winner']);
   assert.equal(m.legsShown, false, 'une seule manche : pas de colonne Manches');
-  assert.deepEqual(m.payers, ['Bravo']);
+  assert.deepEqual(m.payers, [], '0.11.2 : personne ne paie sa tournée');
   assert.equal(m.drinking, true);
   assert.equal(m.legs.length, 1);
   assert.deepEqual(m.legs[0].columns, ['Alpha', 'Bravo', 'Charlie']);
-  assert.deepEqual(m.legs[0].rows[0].cells[1].drinks, { total: 1, fresh: true }, 'verre pris pendant la volée d’Alpha → volée suivante de Bravo');
+  assert.deepEqual(m.legs[0].rows[0].cells[1].drinks, { total: 1, fresh: true, glasses: 1, pints: 0 }, 'verre pris pendant la volée d’Alpha → volée suivante de Bravo');
   assert.equal(m.legs[0].rows[2].cells[0].cls, 'fin');
   assert.equal(sheetFileName(g.startedAt, 'pdf'), 'strela-fiche-20261106-2105.pdf');
 });
@@ -73,8 +73,8 @@ test('partie courte : une demi-feuille A4 en paysage (A5), sans titre STRELA, l�
     assert.equal(cs[0].height, HALF_H);
   }
   const t = texts(drawSheet(m, { paged: true, makeCanvas: fakeCanvas }));
-  for (const want of ['VAINQUEUR : Alpha', 'CLASSEMENT', 'VERRES', 'LE DERNIER PAIE SA TOURNÉE', 'Bravo', 'MANCHE 1', 'x2']) assert.ok(t.includes(want), want);
-  for (const t1 of t) assert.doesNotMatch(t1, /STRELA|fiche de score|Moy\.|Chaque case|page /i, `texte en trop : ${t1}`);
+  for (const want of ['VAINQUEUR : Alpha', 'CLASSEMENT', 'VERRES', 'Bravo', 'MANCHE 1', 'x2']) assert.ok(t.includes(want), want);
+  for (const t1 of t) assert.doesNotMatch(t1, /STRELA|fiche de score|Moy\.|Chaque case|page |TOURNÉE/i, `texte en trop : ${t1}`);
 });
 
 test('partie plus longue : une seule page A4, réduite si besoin ; très longue : des pages A4', () => {

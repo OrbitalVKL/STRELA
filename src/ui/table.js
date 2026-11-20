@@ -62,7 +62,10 @@ const GLASS = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="
 // Lot 7.8 : étoile du défi (même dessin que « star » / « starf » de dom.js) : pleine si réussi, vide sinon.
 const STAR = full => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5L14.8 9H21.5L16.1 13.2L18.2 20.5L12 16.2L5.8 20.5L7.9 13.2L2.5 9H9.2Z"${full ? ' fill="currentColor"' : ''}/></svg>`;
 const defiLabel = d => (!d ? '' : `, défi ${d.text.toLowerCase()} : ${d.ok === true ? 'réussi' : d.ok === false ? 'raté' : 'en cours'}`);
-const drinkLabel = d => (!d || !d.total ? '' : `, ${d.total} verre${d.total > 1 ? 's' : ''}${d.here ? `, dont ${d.here} pendant ce tour` : ''}`);
+// 0.11.2 : pinte (même dessin que « pint » de dom.js) ; verres de 25 cl et pintes comptés à part.
+const PINT = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4H16V21H5Z"/><path d="M16 8H20V16H16"/><path d="M5 9H16"/></svg>';
+const pairTxt = (g, p) => [g ? `${g} verre${g > 1 ? 's' : ''}` : '', p ? `${p} pinte${p > 1 ? 's' : ''}` : ''].filter(Boolean).join(' et ');
+const drinkLabel = d => (!d || !d.total ? '' : `, ${d.glasses !== undefined ? pairTxt(d.glasses, d.pints) : `${d.total} verre${d.total > 1 ? 's' : ''}`}${d.here ? ', dont un pendant ce tour' : ''}`);
 const DART = d => { const f = formatDart(d); return f.replace(/^S/, ''); };
 const attr = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
 
@@ -87,7 +90,8 @@ export function cellView(c) {
     // Lot 7.1 : verres du joueur jusqu'à cette volée (comme le reste) ; marqués s'il en a pris un pendant ce tour.
     // Lot 7.6 : case à jouer encore vide : le cumul seulement s'il vient d'un verre pris juste avant (le cumul d'avant, soirée
     // comprise, est déjà dans la case précédente).
-    drinks: c.drinks && c.drinks.total && !(c.open && !n && !c.drinks.here) ? { total: c.drinks.total, fresh: c.drinks.here > 0 } : null,
+    drinks: c.drinks && c.drinks.total && !(c.open && !n && !c.drinks.here)
+      ? { total: c.drinks.total, fresh: c.drinks.here > 0, glasses: c.drinks.glasses ?? c.drinks.total, pints: c.drinks.pints || 0 } : null,
   };
 }
 
@@ -102,6 +106,6 @@ export function cellHtml(c, { key = '', selected = false } = {}) {
   const darts = v.darts.map((d, i) => `<i${i === v.faulty ? ' class="x"' : ''}>${d}</i>`).join('');
   return `<td class="c ${v.cls}${selected ? ' sel' : ''}" data-act="log-visit" data-arg="${attr(key)}" aria-label="${attr(v.label)}">`
     + `<span class="ds"${v.darts.length ? ' data-fit="3"' : ''}>${darts}</span><b>${v.big}</b><small>${v.small}</small>`
-    + (v.drinks ? `<em class="dk${v.drinks.fresh ? ' new' : ''}">${GLASS}x${v.drinks.total}</em>` : '')
+    + (v.drinks ? `<em class="dk${v.drinks.fresh ? ' new' : ''}">${v.drinks.glasses || !v.drinks.pints ? `${GLASS}x${v.drinks.glasses}` : ''}${v.drinks.pints ? `${PINT}x${v.drinks.pints}` : ''}</em>` : '')
     + (v.defi ? `<em class="df ${v.defi.ok === true ? 'ok' : v.defi.ok === false ? 'ko' : 'wait'}">${STAR(v.defi.ok === true)}<span>${attr(v.defi.short)}</span></em>` : '') + '</td>';
 }

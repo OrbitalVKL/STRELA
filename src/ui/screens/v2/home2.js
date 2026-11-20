@@ -5,6 +5,7 @@
 // de page (un appui ouvre les nouveautés) ; repère NOUVEAU sur Nouveautés tant que la page de la version installée
 // n'a pas été ouverte (localStorage « strela.news »).
 import { store, activePlayers, playerById, soireeTotal } from '../../store.js';
+import { drinksText } from '../../../engine/alcohol.js';
 import { backFrom } from '../../nav.js';
 import { esc, ico, plural, when, topBar, avg, maquetteButtons } from '../../dom.js';
 import { avatarHtml } from '../../avatars.js';
@@ -58,7 +59,7 @@ export function home2() {
   // Une seule action forte : NOUVELLE PARTIE en aplat rouge, sauf derrière REPRENDRE ou l'accueil du premier lancement.
   const newGame = `<a class="btn ${resume || welcome.html ? 'accent-line' : 'accent'} big" href="#/nouvelle">${ico('target')} NOUVELLE PARTIE</a>`;
   const soiree = store.soiree
-    ? `<a class="btn soiree-btn on" href="#/soiree"><span class="t">${ico('glass')} SOIRÉE EN COURS</span><small>${plural(store.soiree.players.length, 'JOUEUR', 'JOUEURS')} · ${plural(soireeTotal(), 'VERRE', 'VERRES')}</small><span class="go">${ico('chev')}</span></a>`
+    ? `<a class="btn soiree-btn on" href="#/soiree"><span class="t">${ico('glass')} SOIRÉE EN COURS</span><small>${plural(store.soiree.players.length, 'JOUEUR', 'JOUEURS')} · ${drinksText(soireeTotal()).toUpperCase()}</small><span class="go">${ico('chev')}</span></a>`
     : welcome.first ? '' : `<a class="btn ghost soiree-btn" href="#/soiree"><span class="t">${ico('glass')} DÉBUTER UNE SOIRÉE</span></a>`;
   const items = [
     ['#/joueurs', 'players', 'Joueurs', n ? plural(n, 'joueur', 'joueurs') : 'aucun'],

@@ -179,9 +179,17 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 7.9 | Une animation de tour par pictogramme d'avatar, toutes différentes (41), jouée d'office pour un avatar à pictogramme, aussi au Cricket (publié avec la v0.10.0) — **fait, en attente de validation sur le Pixel** |
 | 9 | Idées retenues le 13/11 (docs/idees.md) : tournée, moyenne au fil des verres, défis (B), résumé à partager (A), handicap, records et badges (A + B), comparer deux joueurs, sauvegarde automatique (v0.9.0) — **fait, en attente de validation sur le Pixel** |
 | 10 | Cricket : A face à face (2 joueurs) + B grille (2 à 8), avec points / sans points / cut-throat (v0.10.0) — **fait, en attente de validation sur le Pixel** |
+| 0.11.2 | Plus de tournées ni de gages notés, verres de 25 cl et pintes à part, retrait des tournées notées (v0.11.2) — **fait, en attente de validation sur le Pixel** |
 | 0.11.1 | Tableau de bord de soirée repliable et sans débordement, chiffres enrichis, défis et badges (feuille D du rapport, stats du joueur) (v0.11.1) — **fait, en attente de validation sur le Pixel** |
 | 0.11 | Retours de la soirée du 20/11 : VALIDER en un appui, bandeau du défi, pastilles de rang, Tsia (menus, dégrisement), HPV, Atila et la moto d'Angelina, badges (fenêtre, rangs, soirée, roi des uns), 6 défis et étoiles, tirage vérifié (v0.11.0) — **fait, en attente de validation sur le Pixel** |
 | 8 | Recette |
+
+## État (version 0.11.2 : verres et pintes, sans tournées)
+
+- **0.11.2** (20/11) : plus aucune tournée (fin de partie, fiche, rapport, résumé), plus aucun gage de défi noté en
+  verres, verres de 25 cl et pintes comptés à part partout, verres hors partie comptés, bouton RETIRER LES TOURNÉES
+  NOTÉES au tableau de bord (annulable, `g.drinksTournee`). Détail : docs/interface.md « Version 0.11.2 ». Aucune migration.
+- À vérifier sur le Pixel : tableau de bord de la soirée du 20/11 → section Verres → RETIRER LES TOURNÉES NOTÉES.
 
 ## État (version 0.11.1 : chiffres, défis et badges de la soirée)
 

@@ -8,7 +8,7 @@ import { store, playerById } from '../../store.js';
 import { esc, ico, topBar, avg, pct, int, plural, when, OUT_SHORT } from '../../dom.js';
 import { avatarHtml } from '../../avatars.js';
 import { playerStats, inPeriod, gameState } from '../../../engine/stats.js';
-import { unitsOf, drinkTally, tallyText, averageByDrinks } from '../../../engine/alcohol.js';
+import { drinkTally, averageByDrinks } from '../../../engine/alcohol.js';
 import { refresh, backFrom } from '../../nav.js';
 import { board, countOf, tally, currentPeriod, pickedBoard } from '../stats.js';
 import { vitrineHtml, allHonours } from '../../honours.js';
@@ -52,9 +52,10 @@ export const METRICS = Object.freeze([
   // 0.11.1 : défis réussis sur la période (classement et palmarès).
   { k: 'defis', label: 'Défis réussis', fmt: int, dir: 1, game: (s, g, id) => defisOf([g], id).ok, gameFmt: int, all: (s, games, id) => { const d = defisOf(games, id); return d.n ? d.ok : null; },
     info: 'Défis tirés au sort pendant ses volées et réussis sur la période (parties lancées avec l\'option « Défis »).' },
-  { k: 'drinks', label: 'Verres', fmt: dec1, dir: 0, game: (s, g, id) => unitsOf(g.drinks && g.drinks[id]),
-    all: (s, games, id) => (s.played ? games.reduce((n, g) => n + unitsOf(g.drinks && g.drinks[id]), 0) / s.played : null),
-    gameFmt: int, unit: '/ partie', info: 'Verres notés pendant les parties, en verres de 25 cl (une pinte de 50 cl compte pour 2). Au classement : par partie jouée. Ni mieux ni pire.' },
+  // 0.11.2 : verres de 25 cl et pintes comptés à part ailleurs ; pour une courbe ou un classement, un seul nombre : le volume.
+  { k: 'drinks', label: 'Volume bu', fmt: int, dir: 0, game: (s, g, id) => Math.round(drinkTally(g.drinks && g.drinks[id]).liters * 100),
+    all: (s, games, id) => (s.played ? Math.round(drinkTally(...games.map(g => g.drinks && g.drinks[id])).liters * 100 / s.played) : null),
+    gameFmt: int, unit: 'cl / partie', info: 'Ce qui a été bu pendant les parties, en centilitres (un verre : 25 cl, une pinte : 50 cl). Au classement : par partie jouée. Ni mieux ni pire.' },
 ]);
 const metric = k => METRICS.find(m => m.k === k) || METRICS[0];
 
@@ -319,7 +320,6 @@ export function stats2Screen(id) {
   }
   const k = (key, label, value, cls = '') => `<div class="kpi ${cls}" data-k="${key}"><small>${label}</small><b>${value}</b></div>`;
   const drinkT = drinkTally(...games.filter(g => g.config.players.includes(pid)).map(g => g.drinks && g.drinks[pid]));
-  const drinks = drinkT.units;
   const h2h = Object.entries(st.headToHead).sort((a, b) => b[1].played - a[1].played).map(([oid, h]) => {
     const o = playerById(oid);
     return `<li><a class="h2h-row" href="#/face/${esc(pid)}/${esc(oid)}">${avatarHtml(o, 32)}<span class="nm ell b">${esc(o.name)}</span><span class="sc">${tally(h.won, h.lost)}</span>${ico('chev')}</a></li>`;
@@ -349,7 +349,7 @@ export function stats2Screen(id) {
       ${onesKpi(games, pid, st)}
       ${sec('Volées', null)}
       <div class="kpis"><div class="kpi wide tons"><div data-k="ton"><small>100+</small><b>${st.ton}</b></div><div data-k="ton40"><small>140+</small><b>${st.ton40}</b></div><div data-k="max"><small>180</small><b>${st.max}</b></div><div data-k="busts"><small>Bust</small><b>${st.busts}</b></div></div>
-        ${k('drinks', `Verres${drinkT.pints ? ` · ${tallyText(drinkT)}` : ''}`, `${drinks}<small> en ${plural(st.played, 'partie', 'parties')}</small>`, 'wide')}</div>
+        ${k('drinks', `Verres en ${plural(st.played, 'partie', 'parties')}`, `${drinkT.glasses}${drinkT.pints ? `<small> · ${plural(drinkT.pints, 'pinte', 'pintes')}</small>` : ''}`, 'wide')}</div>
       ${cricketBlock(pid)}
       ${vitrineHtml(pid, sec, infoBox, fold)}
       ${chartBlock(games, pid)}
@@ -367,13 +367,13 @@ export function stats2Screen(id) {
     </div></div>`;
 }
 
-/** 0.11.1 : défis du joueur sur la période (réussis, tirés, gages) et ses badges (depuis toujours). */
+/** 0.11.1 : défis du joueur sur la période (réussis, tirés, ratés : `gages`) et ses badges (depuis toujours). */
 export function defisOf(games, pid) {
   let ok = 0, n = 0, gages = 0;
   for (const g of games) {
     const p = g.config.players.indexOf(pid);
     if (p < 0 || !g.defis) continue;
-    for (const d of gameDefis(g, gameState(g))) if (d.player === p) { n += 1; if (d.ok) ok += 1; else if (d.gage && d.gage !== 'autres') gages += 1; }
+    for (const d of gameDefis(g, gameState(g))) if (d.player === p) { n += 1; if (d.ok) ok += 1; else gages += 1; } // 0.11.2 : gages = défis ratés (plus notés)
   }
   return { ok, n, gages };
 }
@@ -384,9 +384,9 @@ function defisBadgesKpis(games, pid, sec, k) {
   const tiers = [1, 2, 3].map(t => b.filter(x => x.tiers && x.tier === t).length);
   const last = got.filter(x => x.at).sort((a, c) => c.at - a.at)[0];
   return `${sec('Défis et badges', 'defisbadges')}
-    ${infoBox('defisbadges', '<b>Défis</b> : sur la période, défis tirés au sort pendant ses volées (option « Défis » au lancement), réussis et ratés ; gages : verres dus pour un défi raté. <b>Badges</b> : depuis toujours, gagnés sur les badges existants ; rangs : badges à rangs atteints en or, argent et bronze (le rang le plus haut de chacun).')}
+    ${infoBox('defisbadges', '<b>Défis</b> : sur la période, défis tirés au sort pendant ses volées (option « Défis » au lancement), réussis et ratés (les gages ne sont plus notés dans les verres). <b>Badges</b> : depuis toujours, gagnés sur les badges existants ; rangs : badges à rangs atteints en or, argent et bronze (le rang le plus haut de chacun).')}
     <div class="kpis">${k('defisOk', 'Défis réussis', d.n ? `${d.ok}<small> / ${d.n}</small>` : '—')}${k('defisRate', 'Taux de réussite', d.n ? pct(d.ok / d.n) : '—')}
-      ${k('gages', 'Gages des défis ratés', d.gages)}${k('badgesGot', 'Badges gagnés', `${got.length}<small> / ${b.length}</small>`)}
+      ${k('defisKo', 'Défis ratés', d.n ? d.gages : '—')}${k('badgesGot', 'Badges gagnés', `${got.length}<small> / ${b.length}</small>`)}
       ${k('tiers', 'Rangs or · argent · bronze', `${tiers[2]} · ${tiers[1]} · ${tiers[0]}`, 'wide')}
       ${last ? k('lastBadge', `Dernier badge · ${shortDateOf(last.at)}`, esc(last.name), 'wide') : ''}</div>`;
 }

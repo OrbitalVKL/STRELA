@@ -23,7 +23,7 @@ import { saveSetting } from '../store.js';
 import { seasonMock } from '../maquette.js';
 import { presetStats2 } from './v2/stats2.js';
 import { presetHonour, presetBadgeSheet } from '../honours.js';
-import { presetDashFolds } from './v2/soireedash.js';
+import { presetDashFolds, presetDashTourAsk } from './v2/soireedash.js';
 import { presetHistory2 } from './v2/history2.js';
 import { presetSettings2 } from './settings.js';
 
@@ -125,6 +125,14 @@ const prefer = id => { const p = store.players.find(q => q.id === id); if (p) p.
 const visitIndex = (config, darts, pick) => computeState(config, darts).visits.findIndex(pick);
 
 // Lot 7.8 (refonte, dans l'appli depuis la 0.8.0) : une saison de soirées, pour voir les nouveaux écrans remplis.
+/** 0.11.2 : une TOURNÉE SERVIE (même instant pour tous) dans la première partie de la soirée `sid` (données fictives). */
+function mockTournee(sid) {
+  const g = store.games.filter(x => x.soiree === sid).sort((a, b) => a.startedAt - b.startedAt)[0];
+  if (!g) return;
+  const t = g.startedAt + 1234;
+  g.drinks = { ...(g.drinks || {}) };
+  for (const id of g.config.players) g.drinks[id] = [...(g.drinks[id] || []), { t, at: g.darts.length }];
+}
 const v78 = (route, prep = () => {}) => () => { seasonMock(); presetStats2(); presetHistory2(); presetSettings2(); prep(); return route; };
 
 export const SCENES = {
@@ -169,6 +177,9 @@ export const SCENES = {
   'v78-nouveautes': v78('#/nouveautes'),
   'v78-soiree-dash': v78('#/soiree/s1', () => presetDashFolds()),
   'v78-soiree-dash-tout': v78('#/soiree/s1', () => presetDashFolds({ all: true })), // 0.11.1 : toutes les sections dépliées
+  // 0.11.2 : une tournée notée par l'ancienne version (même instant pour tous) dans la première partie de la soirée.
+  'v78-soiree-dash-tournees': v78('#/soiree/s1', () => { mockTournee('s1'); presetDashFolds({ open: ['dash-drinks'] }); }),
+  'v78-soiree-dash-tournees-ok': v78('#/soiree/s1', () => { mockTournee('s1'); presetDashFolds({ open: ['dash-drinks'] }); presetDashTourAsk('s1'); }),
   'v78-soiree-dash-ancienne': v78('#/soiree/s6'),
   'v78-historique-selection': v78('#/historique', () => { const ids = store.games.filter(g => !g.soiree).slice(0, 2).map(g => g.id); presetHistory2({ sel: [...ids, store.games[0].id], open: ['s:s1'] }); }),
   'v78-historique-ajouter': v78('#/historique', () => { presetHistory2({ sel: [store.games.find(g => !g.soiree).id], ask: 'attach' }); }),
@@ -477,6 +488,8 @@ export function sommaire() {
       ${L('v78-nouveautes', '★ Nouveautés', 'changelog')}
       ${L('v78-soiree-dash', '★ Tableau de bord d\'une soirée', 'hier soir, à imprimer')}
       ${L('v78-soiree-dash-tout', '★ Tableau de bord : tout déplié', '0.11.1 : défis, badges, chiffres')}
+      ${L('v78-soiree-dash-tournees', '★ Tableau de bord : tournées notées', '0.11.2 : RETIRER LES TOURNÉES NOTÉES')}
+      ${L('v78-soiree-dash-tournees-ok', '★ Tableau de bord : retirer les tournées ?', '0.11.2 : avant → après')}
       ${L('v78-soiree-dash-ancienne', '★ Tableau de bord d\'une soirée plus ancienne')}
       ${L('v78-historique-selection', '★ Historique : sélection', 'regrouper en soirée')}
       ${L('v78-historique-ajouter', '★ Historique : ajouter à une soirée')}
@@ -605,7 +618,7 @@ export function sommaire() {
       ${L('verres-soiree', 'Verres de la soirée en jeu', 'panneau')}
       ${L('verres-soiree-jeu', 'Verres de la soirée en jeu', 'Mathilde x3')}
       ${L('verres-soiree-histo', 'Verres de la soirée dans l\'historique')}
-      ${L('fin-tournee', 'Fin de partie : classement', 'le dernier paie')}
+      ${L('fin-tournee', 'Fin de partie : classement', 'jusqu\'au bout')}
       ${L('fin-egalite', 'Fin de partie : derniers à égalité')}
       ${L('fete-100', 'Célébration 100+', 'discrète')}
       ${L('fete-140', 'Célébration 140+', 'couleur du joueur')}

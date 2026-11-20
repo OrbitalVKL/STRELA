@@ -2,7 +2,7 @@
 // JS pur, sans affichage. Pire volée : sans les bust ni les volées de finition (comme les Stats).
 import { playerStats, gameState, gameWinner, playerSummary } from './stats.js';
 import { standings, lastPlaces } from './ranking.js';
-import { drinkTime, isPint, unitsOf, drinkTally, tallyText, averageByDrinks } from './alcohol.js';
+import { drinkTime, isPint, unitsOf, drinkTally, averageByDrinks, drinksText, litersText, addTally } from './alcohol.js';
 import { gameDefis } from './defis.js';
 
 const pad2 = n => String(n).padStart(2, '0');
@@ -69,7 +69,9 @@ export function soireeModel(games, name = id => id) {
   if (bestAvg) hl.push({ key: 'average', label: 'Meilleure moyenne', id: bestAvg.id, value: avg(bestAvg.average) });
   most('max', 'Le plus de 180');
   most('busts', 'Le plus de bust');
-  most('drinks', 'Le plus de verres', n => `x${n}`);
+  // 0.11.2 : verres de 25 cl et pintes comptés à part ; le plus de verres = le plus grand volume bu.
+  const thirsty = rows.reduce((a, x) => (x.tally.liters > 0 && (!a || x.tally.liters > a.tally.liters) ? x : a), null);
+  if (thirsty) hl.push({ key: 'drinks', label: 'Le plus de verres', id: thirsty.id, value: drinksText(thirsty.tally), detail: litersText(thirsty.tally.liters) });
   most('ones', 'Le plus de 1'); // lot 7.8 : le roi des uns de la soirée
   // 0.11.1 : faits marquants en plus
   most('tons', 'Le plus de 100+');
@@ -128,7 +130,7 @@ export function soireeModel(games, name = id => id) {
   if (low) trophy('worst', 'Pire volée', low.id, `${low.v.scored} point${low.v.scored > 1 ? 's' : ''}`, `partie ${gameNo(low.g)}`);
   const maxOf = key => rows.reduce((a, x) => (x[key] !== null && (!a || x[key] > a[key]) ? x : a), null);
   const bu = maxOf('busts'); if (bu && bu.busts) trophy('busts', 'Roi du bust', bu.id, `${bu.busts} bust`);
-  const dr = maxOf('drinks'); if (dr && dr.drinks) trophy('drinks', 'Le plus assoiffé', dr.id, `x${dr.drinks} verres`, dr.tally.pints ? tallyText(dr.tally) : '');
+  if (thirsty) trophy('drinks', 'Le plus assoiffé', thirsty.id, drinksText(thirsty.tally), litersText(thirsty.tally.liters));
   const df = rows.filter(r => r.defisOk).sort((a, b) => b.defisOk - a.defisOk || a.defisKo - b.defisKo)[0];
   if (df) trophy('defis', 'Roi des défis', df.id, `${df.defisOk} réussi${df.defisOk > 1 ? 's' : ''}`, df.defisKo ? `${df.defisKo} raté${df.defisKo > 1 ? 's' : ''}` : '');
   const reg = ids.filter(id => spread[id] !== null).sort((x, y) => spread[x] - spread[y])[0];
@@ -141,6 +143,6 @@ export function soireeModel(games, name = id => id) {
       busts: rows.reduce((n, r) => n + r.busts, 0), defisOk: defiList.filter(d => d.ok).length, defis: defiList.length },
     // Lot 9 : la moyenne de chacun au fil des verres de la soirée.
     levels: Object.fromEntries(ids.map(id => [id, averageByDrinks(gs.map(g => ({ state: gameState(g), game: g })), id)])),
-    liters: rows.reduce((n, r) => n + r.tally.liters, 0), timeline, drinkTimes, drinkList, versus, together, sectors, spread, trophies };
+    liters: rows.reduce((n, r) => n + r.tally.liters, 0), tally: addTally(...rows.map(r => r.tally)), /* 0.11.2 */ timeline, drinkTimes, drinkList, versus, together, sectors, spread, trophies };
 }
 
