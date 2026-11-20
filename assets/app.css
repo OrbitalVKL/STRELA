@@ -1387,13 +1387,13 @@ button.hrow { width: 100%; border: 0; border-bottom: var(--rule); background: va
 .hlist li > a > .rl { grid-area: rl; min-width: 0; font-size: 10.5px; color: var(--dim); letter-spacing: 0.06em; text-transform: uppercase; }
 .hlist li > a > b { grid-area: v; font-size: 20px; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; }
 .hlist li > a > small { grid-area: s; font-size: 10.5px; color: var(--dim); text-align: right; }
-.hlist li > button { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "av nm v" "av rl s"; align-items: center; gap: 2px 10px; padding: 8px 0; width: 100%; border: 0; text-align: left; }
-.hlist li > button > .av { grid-area: av; }
-.hlist li > button > .nm { grid-area: nm; font-weight: 700; font-size: 14px; }
-.hlist li > button > .rl { grid-area: rl; min-width: 0; font-size: 10.5px; color: var(--dim); letter-spacing: 0.06em; text-transform: uppercase; }
-.hlist li > button > small { grid-area: s; font-size: 10.5px; color: var(--dim); text-align: right; text-transform: uppercase; letter-spacing: 0.06em; }
-.hlist li.badge > button > b { grid-area: v; justify-self: end; display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; background: var(--fg); color: var(--bg); }
-.hlist li.badge > button > b .ico { width: 22px; height: 22px; }
+.recs.hlist li > button { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "av nm v" "av rl s"; align-items: center; gap: 2px 10px; padding: 8px 0; width: 100%; border: 0; text-align: left; }
+.recs.hlist li > button > .av { grid-area: av; }
+.recs.hlist li > button > .nm { grid-area: nm; font-weight: 700; font-size: 14px; }
+.recs.hlist li > button > .rl { grid-area: rl; min-width: 0; font-size: 10.5px; color: var(--dim); letter-spacing: 0.06em; text-transform: uppercase; }
+.recs.hlist li > button > small { grid-area: s; font-size: 10.5px; color: var(--dim); text-align: right; text-transform: uppercase; letter-spacing: 0.06em; }
+.recs.hlist li.badge > button > b { grid-area: v; justify-self: end; display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; background: var(--fg); color: var(--bg); }
+.recs.hlist li.badge > button > b .ico { width: 22px; height: 22px; }
 .honour .more { width: 100%; margin-top: 12px; }
 
 /* Lot 9 : aperçu du résumé de soirée à partager (image verticale). */
