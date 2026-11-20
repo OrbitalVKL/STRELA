@@ -43,7 +43,7 @@ const tile = (pid, b) => {
 };
 
 /** Vitrine d'un joueur (Stats) : ses records avec la date, puis ses badges (non gagnés en discret). */
-export function vitrineHtml(pid, sec, infoBox) {
+export function vitrineHtml(pid, sec, infoBox, fold = null) {
   const h = allHonours();
   const badges = playerBadges(h, pid);
   const got = badges.filter(b => b.earned).length;
@@ -54,9 +54,10 @@ export function vitrineHtml(pid, sec, infoBox) {
   const recs = [row('Meilleure volée', rec.bestVisit, 'visit'), row('Meilleure moyenne', rec.bestAverage === null ? null : fmt1(rec.bestAverage), 'avg'),
     row('Manche la plus courte', rec.shortestLeg === null ? null : `${rec.shortestLeg} fl.`, 'leg'), row('Plus grosse finition', rec.bestFinish, 'fin')].join('');
   return `${sec('Records et badges', 'vitrine', `<span class="n">${got} / ${BADGES.length}</span>`)}
-    ${infoBox('vitrine', 'Depuis toujours, quelle que soit la période choisie. Date d\'un record : la partie où il a été établi. Badges du mois : gagnés à la fin du mois, ×n s\'il a été gagné plusieurs fois. Badges à rangs (carrés) : bronze, argent puis or, cumulés sur toutes les parties ; le chiffre est le total, puis le seuil du rang suivant. Les badges pas encore gagnés sont en discret, avec ce qu\'il faut faire. Touchez un badge pour sa signification, et la partie et la volée où il a été gagné.')}
+    ${infoBox('vitrine', 'Depuis toujours, quelle que soit la période choisie. Date d\'un record : la partie où il a été établi. Badges du mois : gagnés à la fin du mois, ×n s\'il a été gagné plusieurs fois. Badges à rangs (carrés) : bronze, argent puis or, cumulés sur toutes les parties ; le chiffre est le total, puis le seuil du rang suivant. Les badges pas encore gagnés sont en discret, avec ce qu\'il faut faire. Touchez BADGES pour les déplier, puis un badge pour sa signification, et la partie et la volée où il a été gagné.')}
     ${recs ? `<ul class="vrecs">${recs}</ul>` : ''}
-    <ul class="badges">${badges.map(b => tile(pid, b)).join('')}</ul>
+    ${fold ? fold('badges', 'Badges', `${got} / ${BADGES.length}`, `<ul class="badges">${badges.map(b => tile(pid, b)).join('')}</ul>`) // 0.11.1 : repliable
+      : `<ul class="badges">${badges.map(b => tile(pid, b)).join('')}</ul>`}
     <a class="btn ghost honour-link" href="#/honneur">${ico('trophy')} TABLEAU D'HONNEUR</a>`;
 }
 

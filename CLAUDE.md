@@ -82,7 +82,8 @@ src/ui/pictofx.js         une animation par pictogramme d'avatar (lot 7.9) : 37 
 src/ui/screens/soiree.js  soirée (lot 7.6) : joueurs de la soirée, verres cumulés d'une partie à l'autre
 src/ui/screens/v2/        écrans de la refonte (lot 7.8, dans l'appli depuis la 0.8.0) : home2.js, stats2.js (+ classement), history2.js,
                           soireedash.js (tableau de bord d'une soirée) ; engine/soiree.js : son modèle (pur, testé) ;
-                          src/ui/soireereport.js : rapport de soirée en 3 feuilles A4 (A podium, B chronologie, C duels)
+                          src/ui/soireereport.js : rapport de soirée en 4 feuilles A4 (A podium, B chronologie, C duels,
+                          D chiffres, défis et badges — 0.11.1)
 src/ui/changelog.js       nouveautés de chaque version (écran #/nouveautes) ; src/ui/info.js : explications derrière (i) (0.8.1)
 tools/animations.mjs      captures des animations de tour figées à plusieurs instants (lot 7.4)
 src/ui/sheet.js           fiche de score : modèle, dessin sur canvas (demi-page A5 paysage ou A4, lot 7.3), PDF (lot 7.1) ; screens/printsheet.js : boutons et envoi
@@ -178,8 +179,17 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 7.9 | Une animation de tour par pictogramme d'avatar, toutes différentes (41), jouée d'office pour un avatar à pictogramme, aussi au Cricket (publié avec la v0.10.0) — **fait, en attente de validation sur le Pixel** |
 | 9 | Idées retenues le 13/11 (docs/idees.md) : tournée, moyenne au fil des verres, défis (B), résumé à partager (A), handicap, records et badges (A + B), comparer deux joueurs, sauvegarde automatique (v0.9.0) — **fait, en attente de validation sur le Pixel** |
 | 10 | Cricket : A face à face (2 joueurs) + B grille (2 à 8), avec points / sans points / cut-throat (v0.10.0) — **fait, en attente de validation sur le Pixel** |
+| 0.11.1 | Tableau de bord de soirée repliable et sans débordement, chiffres enrichis, défis et badges (feuille D du rapport, stats du joueur) (v0.11.1) — **fait, en attente de validation sur le Pixel** |
 | 0.11 | Retours de la soirée du 20/11 : VALIDER en un appui, bandeau du défi, pastilles de rang, Tsia (menus, dégrisement), HPV, Atila et la moto d'Angelina, badges (fenêtre, rangs, soirée, roi des uns), 6 défis et étoiles, tirage vérifié (v0.11.0) — **fait, en attente de validation sur le Pixel** |
 | 8 | Recette |
+
+## État (version 0.11.1 : chiffres, défis et badges de la soirée)
+
+- **0.11.1** (20/11) : tableau de bord de soirée en sections repliables, sans rien qui dépasse (cartes des joueurs,
+  badges et défis en listes), chiffres enrichis ; rapport en **4 feuilles** (D : chiffres, défis, badges) ; stats du
+  joueur : défis et badges. Détail : docs/interface.md « Version 0.11.1 ». Aucune migration.
+- Compris de la demande : « feuilles de KPI » = le rapport à imprimer (et les chiffres du tableau de bord et des stats) ;
+  « contenu des badges qui dépasse » = le tableau des badges de la soirée (défilait de côté) — à confirmer sur le Pixel.
 
 ## État (version 0.11.0 : retours de la soirée du 20/11)
 

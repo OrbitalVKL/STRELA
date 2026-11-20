@@ -267,6 +267,7 @@ test('vraie appli : un badge ouvre sa fenêtre (signification, partie, volée), 
     }
     // Vitrine des stats : une tuile ouvre la même fenêtre ; le retour d'Android la ferme.
     await page.evaluate(() => window.__strela.scene('v78-stats-vitrine'));
+    if (!(await page.locator('.badges li button').count())) await page.click('[data-act="v2-fold"][data-arg="badges"]'); // 0.11.1 : repliés
     await page.click('.badges li button >> nth=0');
     await page.waitForSelector('.bsheet');
     await page.evaluate(() => window.strelaBack && window.strelaBack());
@@ -274,7 +275,8 @@ test('vraie appli : un badge ouvre sa fenêtre (signification, partie, volée), 
     // Tableau de bord d'une soirée : badges de la soirée, joueur par joueur.
     await page.evaluate(() => window.__strela.scene('v78-soiree-dash'));
     await page.waitForSelector('.screen.dash2');
-    assert.ok(await page.locator('.btable, .dash2 .note').count());
+    assert.ok(await page.locator('.dash2 .bgroup, .dash2 .note').count(), 'badges de la soirée en liste (0.11.1)');
+    assert.equal(await page.locator('.dash2 .dtable').count(), 0, 'plus aucun tableau qui défile de côté');
     assert.deepEqual(t.errors, []);
   } finally { await t.close(); }
 });

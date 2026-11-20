@@ -11,7 +11,9 @@ import { playerStats, inPeriod, gameState } from '../../../engine/stats.js';
 import { unitsOf, drinkTally, tallyText, averageByDrinks } from '../../../engine/alcohol.js';
 import { refresh, backFrom } from '../../nav.js';
 import { board, countOf, tally, currentPeriod, pickedBoard } from '../stats.js';
-import { vitrineHtml } from '../../honours.js';
+import { vitrineHtml, allHonours } from '../../honours.js';
+import { playerBadges } from '../../../engine/badges.js';
+import { gameDefis } from '../../../engine/defis.js';
 import { cricketPlayerStats } from '../../../engine/cricket.js';
 import { onesOf } from '../../../engine/soiree.js';
 
@@ -47,6 +49,9 @@ export const METRICS = Object.freeze([
   // Lot 7.8 (retours du 20/11) : le classement « le plus de 1 » ; son détenteur est le roi des uns (KPI des stats).
   { k: 'ones', label: 'Le plus de 1', fmt: int, dir: 0, top: 'ROI DES UNS', game: s => onesOf(s), gameFmt: int, all: s => onesOf(s),
     info: 'Fléchettes tombées dans le 1 (simple, double ou triple) sur la période. Le premier du classement est le roi des uns. Ni mieux ni pire… en théorie.' },
+  // 0.11.1 : défis réussis sur la période (classement et palmarès).
+  { k: 'defis', label: 'Défis réussis', fmt: int, dir: 1, game: (s, g, id) => defisOf([g], id).ok, gameFmt: int, all: (s, games, id) => { const d = defisOf(games, id); return d.n ? d.ok : null; },
+    info: 'Défis tirés au sort pendant ses volées et réussis sur la période (parties lancées avec l\'option « Défis »).' },
   { k: 'drinks', label: 'Verres', fmt: dec1, dir: 0, game: (s, g, id) => unitsOf(g.drinks && g.drinks[id]),
     all: (s, games, id) => (s.played ? games.reduce((n, g) => n + unitsOf(g.drinks && g.drinks[id]), 0) / s.played : null),
     gameFmt: int, unit: '/ partie', info: 'Verres notés pendant les parties, en verres de 25 cl (une pinte de 50 cl compte pour 2). Au classement : par partie jouée. Ni mieux ni pire.' },
@@ -333,9 +338,12 @@ export function stats2Screen(id) {
       </div>
       ${sec('Précision', 'precision')}
       ${infoBox('precision', `<b>Triples</b> : ${metric('tripleRate').info} <b>Doubles</b> : ${metric('doubleRate').info}`)}
-      <div class="kpis">${k('triple', 'Taux de triples', pct(st.tripleRate))}${k('double', 'Taux de doubles', pct(st.doubleRate))}</div>
+      <div class="kpis">${k('triple', 'Taux de triples', pct(st.tripleRate))}${k('double', 'Taux de doubles', pct(st.doubleRate))}
+        ${k('t20', 'Triples 20', st.segments[20][2])}${k('bulls', 'Bulls (25 · 50)', st.segments[25][0] + st.segments[25][1])}
+        ${k('misses', 'Hors cible', `${st.segments.miss}<small> / ${st.segments.total} fl.</small>`, 'wide')}</div>
       ${sec('Finition', null)}
       <div class="kpis">${k('bestFinish', 'Meilleure finition', int(st.bestFinish))}${k('shortest', 'Manche la + courte', `${st.shortestLeg ?? '—'}${st.shortestLeg ? '<small> fl.</small>' : ''}`)}</div>
+      ${defisBadgesKpis(games, pid, sec, k)}
       ${sec('Le plus de 1', 'uns')}
       ${infoBox('uns', 'Fléchettes tombées dans le 1 sur la période. Le roi des uns est le joueur qui en a le plus (classement « Le plus de 1 »). Le badge Le Roi des Uns, lui, compte toutes les parties depuis toujours.')}
       ${onesKpi(games, pid, st)}
@@ -343,7 +351,7 @@ export function stats2Screen(id) {
       <div class="kpis"><div class="kpi wide tons"><div data-k="ton"><small>100+</small><b>${st.ton}</b></div><div data-k="ton40"><small>140+</small><b>${st.ton40}</b></div><div data-k="max"><small>180</small><b>${st.max}</b></div><div data-k="busts"><small>Bust</small><b>${st.busts}</b></div></div>
         ${k('drinks', `Verres${drinkT.pints ? ` · ${tallyText(drinkT)}` : ''}`, `${drinks}<small> en ${plural(st.played, 'partie', 'parties')}</small>`, 'wide')}</div>
       ${cricketBlock(pid)}
-      ${vitrineHtml(pid, sec, infoBox)}
+      ${vitrineHtml(pid, sec, infoBox, fold)}
       ${chartBlock(games, pid)}
       ${drinksBlock(games, pid)}
       ${sec('Meilleures et pires volées', 'volees')}
@@ -358,6 +366,31 @@ export function stats2Screen(id) {
         ${sectorTable(st.segments)}`)}
     </div></div>`;
 }
+
+/** 0.11.1 : défis du joueur sur la période (réussis, tirés, gages) et ses badges (depuis toujours). */
+export function defisOf(games, pid) {
+  let ok = 0, n = 0, gages = 0;
+  for (const g of games) {
+    const p = g.config.players.indexOf(pid);
+    if (p < 0 || !g.defis) continue;
+    for (const d of gameDefis(g, gameState(g))) if (d.player === p) { n += 1; if (d.ok) ok += 1; else if (d.gage && d.gage !== 'autres') gages += 1; }
+  }
+  return { ok, n, gages };
+}
+function defisBadgesKpis(games, pid, sec, k) {
+  const d = defisOf(games, pid);
+  const b = playerBadges(allHonours(), pid);
+  const got = b.filter(x => x.earned);
+  const tiers = [1, 2, 3].map(t => b.filter(x => x.tiers && x.tier === t).length);
+  const last = got.filter(x => x.at).sort((a, c) => c.at - a.at)[0];
+  return `${sec('Défis et badges', 'defisbadges')}
+    ${infoBox('defisbadges', '<b>Défis</b> : sur la période, défis tirés au sort pendant ses volées (option « Défis » au lancement), réussis et ratés ; gages : verres dus pour un défi raté. <b>Badges</b> : depuis toujours, gagnés sur les badges existants ; rangs : badges à rangs atteints en or, argent et bronze (le rang le plus haut de chacun).')}
+    <div class="kpis">${k('defisOk', 'Défis réussis', d.n ? `${d.ok}<small> / ${d.n}</small>` : '—')}${k('defisRate', 'Taux de réussite', d.n ? pct(d.ok / d.n) : '—')}
+      ${k('gages', 'Gages des défis ratés', d.gages)}${k('badgesGot', 'Badges gagnés', `${got.length}<small> / ${b.length}</small>`)}
+      ${k('tiers', 'Rangs or · argent · bronze', `${tiers[2]} · ${tiers[1]} · ${tiers[0]}`, 'wide')}
+      ${last ? k('lastBadge', `Dernier badge · ${shortDateOf(last.at)}`, esc(last.name), 'wide') : ''}</div>`;
+}
+const shortDateOf = ms => { const x = new Date(ms); return `${x.getDate()}/${String(x.getMonth() + 1).padStart(2, '0')}`; };
 
 /** Lot 7.8 : fléchettes du joueur dans le 1, et le détenteur du classement « le plus de 1 » (roi des uns). */
 function onesKpi(games, pid, st) {

@@ -23,6 +23,7 @@ import { saveSetting } from '../store.js';
 import { seasonMock } from '../maquette.js';
 import { presetStats2 } from './v2/stats2.js';
 import { presetHonour, presetBadgeSheet } from '../honours.js';
+import { presetDashFolds } from './v2/soireedash.js';
 import { presetHistory2 } from './v2/history2.js';
 import { presetSettings2 } from './settings.js';
 
@@ -157,7 +158,7 @@ export const SCENES = {
   'ck-stats': () => { presetStats2({ info: ['cricket'] }); return '#/stats/p1'; },
   'v78-honneur': v78('#/honneur', () => presetHonour({ kind: 'tout' })), // lot 9 : tableau d'honneur
   'v78-honneur-badges': v78('#/honneur', () => presetHonour({ kind: 'badge' })),
-  'v78-stats-vitrine': v78('#/stats/p1', () => presetStats2({ info: ['vitrine'] })),
+  'v78-stats-vitrine': v78('#/stats/p1', () => presetStats2({ info: ['vitrine'], folds: ['badges'] })), // 0.11.1 : badges dépliés
   'v78-historique': v78('#/historique'),
   'v78-historique-filtre': v78('#/historique', () => { const d = new Date(); presetHistory2({ player: 'p2', month: `${d.getFullYear()}-${d.getMonth()}` }); }),
   'v78-historique-tout': v78('#/historique', () => presetHistory2({ open: store.games.map(g => (g.soiree ? `s:${g.soiree}` : '')).filter(Boolean) })),
@@ -166,7 +167,8 @@ export const SCENES = {
   'v78-reglages-ouverts': v78('#/reglages', () => presetSettings2({ info: ['aff', 'son', 'vib'], diag: true })),
   'v78-reglages-apk': v78('#/reglages', () => { store.mockApk = true; store.mockUpdate = { current: '0.7.7', latest: '0.7.8', available: true }; }),
   'v78-nouveautes': v78('#/nouveautes'),
-  'v78-soiree-dash': v78('#/soiree/s1'),
+  'v78-soiree-dash': v78('#/soiree/s1', () => presetDashFolds()),
+  'v78-soiree-dash-tout': v78('#/soiree/s1', () => presetDashFolds({ all: true })), // 0.11.1 : toutes les sections dépliées
   'v78-soiree-dash-ancienne': v78('#/soiree/s6'),
   'v78-historique-selection': v78('#/historique', () => { const ids = store.games.filter(g => !g.soiree).slice(0, 2).map(g => g.id); presetHistory2({ sel: [...ids, store.games[0].id], open: ['s:s1'] }); }),
   'v78-historique-ajouter': v78('#/historique', () => { presetHistory2({ sel: [store.games.find(g => !g.soiree).id], ask: 'attach' }); }),
@@ -474,6 +476,7 @@ export function sommaire() {
       ${L('v78-reglages-apk', '★ Réglages : appli Android', 'mise à jour disponible')}
       ${L('v78-nouveautes', '★ Nouveautés', 'changelog')}
       ${L('v78-soiree-dash', '★ Tableau de bord d\'une soirée', 'hier soir, à imprimer')}
+      ${L('v78-soiree-dash-tout', '★ Tableau de bord : tout déplié', '0.11.1 : défis, badges, chiffres')}
       ${L('v78-soiree-dash-ancienne', '★ Tableau de bord d\'une soirée plus ancienne')}
       ${L('v78-historique-selection', '★ Historique : sélection', 'regrouper en soirée')}
       ${L('v78-historique-ajouter', '★ Historique : ajouter à une soirée')}
