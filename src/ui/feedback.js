@@ -166,6 +166,14 @@ export const SOUNDS = Object.freeze({
   'fx-zap': (ac, t) => { noise(ac, t, 0.22, 0.3, 'highpass', 1800, 0.8); tone(ac, 'sawtooth', [1500, 90], t, 0.2, 0.12); },
   shot: (ac, t) => { tone(ac, 'square', [1900, 140], t, 0.05, 0.16); tone(ac, 'sawtooth', [320, 45], t + 0.01, 0.22, 0.22); },
   flop: (ac, t) => [[392, 380], [370, 358], [349, 338], [330, 262]].forEach(([a, b], i) => tone(ac, 'sawtooth', [a, b], t + i * 0.26, i === 3 ? 0.7 : 0.22, 0.1)),
+  // Lot 7.8 : la moto d'Angelina (moteur qui monte, dérapage, chute dans le fossé) et la fanfare du roi des uns.
+  moto: (ac, t) => {
+    tone(ac, 'sawtooth', [70, 150], t, 0.7, 0.12); tone(ac, 'square', [140, 300], t, 0.7, 0.05);
+    noise(ac, t + 0.7, 0.35, 0.22, 'bandpass', [2400, 900], 2.5);
+    noise(ac, t + 1.05, 0.5, 0.45, 'lowpass', [900, 120], 0.8); tone(ac, 'sine', [160, 45], t + 1.05, 0.35, 0.3);
+    [1.6, 1.75, 1.95].forEach(d => noise(ac, t + d, 0.06, 0.14, 'highpass', 2000, 1));
+  },
+  uns: (ac, t) => [[523, 0], [523, 0.16], [523, 0.32], [415, 0.5]].forEach(([f, d], i) => tone(ac, 'square', f, t + d, i === 3 ? 0.6 : 0.12, 0.09)),
 });
 
 /** Joue un son (si le réglage « Sons » est sur OUI, ou `force` pour le test). Renvoie false si Web Audio manque. */
@@ -312,6 +320,14 @@ export const FLOP_LINES = Object.freeze({
     n => `Bust ! ${n}, la calculatrice est en option.`, n => `Bust. ${n} compte comme un pigeon.`,
     n => `Bust ! ${n}, compter à l'envers, c'est trop demander ?`, n => `Bust. Bel effort, ${n}. Pour rien.`,
     n => `Bust ! ${n} tenait la finition, et l'a lâchée.`, n => `Bust. ${n}, l'école devrait te rembourser.`],
+  // Lot 7.8 (Guillaume, 20/11) : « Atila, le roi des uns » (deux 1, ou un double ou un triple 1, sous 20 points).
+  uns: [n => `Atila, le roi des uns ! Là où passe ${n}, le vingt ne repousse pas.`, n => `${n}, le roi des uns. Le un te dit merci.`,
+    (n, v) => `${v} points, avec des uns. ${n}, Atila serait fier.`, n => `Le un, encore le un. ${n}, roi des uns, saison 1.`,
+    n => `Atila, le roi des uns, c'est ${n}. On s'incline.`],
+  // Lot 7.8 : Angelina, volée sous 20 : la moto part dans le fossé.
+  moto: [n => `Et ${n} part dans le fossé !`, (n, v) => `${v} points. ${n}, la moto est dans le fossé.`,
+    n => `${n} a raté le virage. Direction le fossé.`, n => `Accident de moto pour ${n}. Le fossé était là avant.`,
+    (n, v) => `${v} points, et ${n} au fossé. On appelle la dépanneuse ?`],
   serie: [(n, v) => `${v} volées ratées d'affilée. Bravo ${n} !`, (n, v) => `${v} de suite ! ${n} tient la distance.`,
     (n, v) => `${v} volées pourries d'affilée. ${n}, une tournée et ça repart.`,
     (n, v) => `${v} de suite. ${n} est constant, au moins dans la nullité.`,

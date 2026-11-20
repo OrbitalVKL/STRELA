@@ -71,6 +71,18 @@ const I = {
   sound: '<path d="M3 9H7L12 4V20L7 15H3Z"/><path d="M16 8C17.5 9.5 17.5 14.5 16 16M19 5C22 8 22 16 19 19"/>',
   phone: '<path d="M6 2H18V22H6Z"/><path d="M10 18H14"/>',
   wrench: '<path d="M14 3A5 5 0 0 0 9.5 10L3 16.5L7.5 21L14 14.5A5 5 0 0 0 21 10L17.5 13.5L13 12L11.5 7.5L15 4Z"/>',
+  // Lot 7.8 (retours du 20/11) : badges à rangs, défis, dégrisement express
+  crown: '<path d="M3 18L4 7L9 12L12 5L15 12L20 7L21 18Z"/><path d="M3 21H21"/>',
+  star: '<path d="M12 2.5L14.8 9H21.5L16.1 13.2L18.2 20.5L12 16.2L5.8 20.5L7.9 13.2L2.5 9H9.2Z"/>',
+  starf: '<path d="M12 2.5L14.8 9H21.5L16.1 13.2L18.2 20.5L12 16.2L5.8 20.5L7.9 13.2L2.5 9H9.2Z" fill="currentColor"/>',
+  sniper: '<path d="M12 5A7 7 0 1 0 12.01 5"/><path d="M12 1V8M12 16V23M1 12H8M16 12H23"/>',
+  fork: '<path d="M12 22V10"/><path d="M6 3V7C6 9.5 8 10 12 10S18 9.5 18 7V3M12 3V10"/>',
+  seal: '<path d="M9 2H15V8L13 10V13H11V10L9 8Z"/><path d="M4 13H20V17H4ZM4 21H20"/>',
+  burst: '<path d="M12 2V7M12 17V22M2 12H7M17 12H22M5 5L8.5 8.5M15.5 15.5L19 19M19 5L15.5 8.5M8.5 15.5L5 19"/>',
+  wall: '<path d="M3 4H21V20H3Z"/><path d="M3 9.3H21M3 14.7H21M12 4V9.3M7 9.3V14.7M17 9.3V14.7M12 14.7V20"/>',
+  plusplus: '<path d="M8 4V14M3 9H13"/><path d="M16 11V21M11 16H21"/>',
+  kombucha: '<path d="M10 2H14V5L16.5 8V22H7.5V8L10 5Z"/><path d="M7.5 11H16.5V18H7.5Z"/><path d="M9.5 15.5L11 13.5L12.5 15L14.5 13.5"/>',
+  flag: '<path d="M5 22V3"/><path d="M5 4H19L16 8.5L19 13H5"/>',
 };
 export const ico = (name, cls = 'ico') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${I[name] || ''}</svg>`;
 

@@ -2,6 +2,20 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.11.0', date: '2026-11-20', title: 'Retours de la soirée du 20/11', items: [
+    'VALIDER : un seul appui valide la volée et ferme la moquerie (ou le bandeau 100+, 140+, 180) ; un appui ailleurs ferme seulement le bandeau.',
+    'Défis : un bandeau sous celui du joueur, du début de la volée jusqu\'à VALIDER, avec le défi en grand ; le reste du joueur se voit dès le début. Une fois la volée finie : étoile rouge pleine si le défi est réussi, grise et vide s\'il est raté, et le gage à noter d\'un appui.',
+    'Six défis de plus : main gauche (à déclarer : FAIT ou PAS FAIT), tout pair, le voisin (le 20 puis le 1 et le 5 : les autres boivent), plus de 40 sans toucher le 20, l\'escalier, le grand écart. Les parties d\'avant gardent leurs défis.',
+    'Le tableau tour par tour de chaque partie montre le défi de chaque volée et son étoile.',
+    'Une pastille de rang (1, 2, 3…) sur chaque avatar de l\'écran de jeu, mise à jour à chaque fléchette.',
+    'Tsia : les voyelles ne tombent plus que sur l\'écran de jeu (menu pause, verres et panneau de la partie restent lisibles) ; dans le bandeau d\'un défi, DÉGRISEMENT EXPRESS (kombucha au gingembre) rend ses voyelles au texte du défi.',
+    'Moqueries : « Atila, le roi des uns » (sous 20 points avec deux 1, un double 1 ou un triple 1) ; Angelina, sous 20 points, part en moto dans le fossé. Neuf répliques de plus pour le costume-cravate.',
+    'Badges : un appui sur un badge (tableau d\'honneur, stats, fin de partie, soirée) ouvre sa fenêtre : ce qu\'il veut dire, la partie et la volée où il a été gagné, et VOIR LA PARTIE ouvre cette volée.',
+    'Sept badges à rangs bronze, argent, or, comptés sur toutes les parties depuis le début : Le Roi des Uns, Le Sniper, Le Fermier du 60, Le Notaire, Le Feu d\'Artifice, Décorateur de Murs, Monsieur Plus.',
+    'Tableau de bord d\'une soirée : les badges gagnés ce soir-là, joueur par joueur ; et « le plus de 1 » parmi les faits marquants.',
+    'Stats : classement « Le plus de 1 », et le roi des uns dans les chiffres de chaque joueur.',
+    'Ordre de passage tiré au sort : vérifié et rendu strictement équitable (chaque joueur a autant de chances de commencer).',
+  ] },
   { v: '0.10.0', date: '2026-11-13', title: 'Cricket, et une animation par pictogramme', items: [
     'Animations de tour : chacun des 41 pictogrammes d\'avatar a maintenant la sienne, toutes différentes (le renard se faufile, la fusée décolle, la chope glisse sur le comptoir, le loup hurle à la lune…), avec de petits bruits.',
     'Un joueur qui a un pictogramme pour avatar a son animation d\'office au début de chacune de ses volées ; dans sa fiche, « SON PICTO » la montre, « AUCUNE » la coupe, et les animations choisies à la main (ours, cravate, carabine, planète, étoile rouge, voyelles) ne changent pas.',

@@ -13,9 +13,11 @@ import { formatDart } from '../engine/darts.js';
  * Renvoie { number, columns: [rang du joueur], rows: [{ round, cells: [case | null] }], currentRound (ou null), winner }
  *   case = { visitIdx (rang dans state.visits, ou 'open'), player, darts, total, remaining, bust, finish, open }
  */
-export function legTable(state, legNumber, { live = false, drinks = null } = {}) {
+export function legTable(state, legNumber, { live = false, drinks = null, defis = null } = {}) {
   // Lot 7.1 : drinks = drinksTimeline(…).byVisit (alcohol.js) ; chaque case reçoit { here, total } ou null.
   const dk = key => (drinks && drinks.get(key)) || null;
+  // Lot 7.8 : defis = Map(rang de la volée ou 'open' → { short, text, ok (true, false, ou null : en cours / à déclarer) }).
+  const df = key => (defis && defis.get(key)) || null;
   const leg = state.legs.find(l => l.number === legNumber);
   if (!leg) return null;
   const n = state.config.players.length;
@@ -40,6 +42,7 @@ export function legTable(state, legNumber, { live = false, drinks = null } = {})
       finish: v.finish,
       open: false,
       drinks: dk(state.visits.indexOf(v)),
+      defi: df(state.visits.indexOf(v)),
     });
   }
   let currentRound = null;
@@ -47,7 +50,7 @@ export function legTable(state, legNumber, { live = false, drinks = null } = {})
     const v = state.visit;
     currentRound = put(v.player, {
       visitIdx: 'open', player: v.player, darts: v.darts, total: v.total,
-      remaining: v.startRemaining - v.total, bust: false, finish: false, open: true, drinks: dk('open'),
+      remaining: v.startRemaining - v.total, bust: false, finish: false, open: true, drinks: dk('open'), defi: df('open'),
     });
   }
   return { number: legNumber, columns, rows, currentRound, winner: leg.winner };
@@ -56,6 +59,9 @@ export function legTable(state, legNumber, { live = false, drinks = null } = {})
 // ------------------------------------------------------------------ contenu d'une case (lot 1.3)
 // Verre (même dessin que l'icône « glass » de dom.js, recopié ici : ce module reste sans dépendance d'interface).
 const GLASS = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3H18L16.5 21H7.5Z"/><path d="M6.7 9H17.3"/></svg>';
+// Lot 7.8 : étoile du défi (même dessin que « star » / « starf » de dom.js) : pleine si réussi, vide sinon.
+const STAR = full => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5L14.8 9H21.5L16.1 13.2L18.2 20.5L12 16.2L5.8 20.5L7.9 13.2L2.5 9H9.2Z"${full ? ' fill="currentColor"' : ''}/></svg>`;
+const defiLabel = d => (!d ? '' : `, défi ${d.text.toLowerCase()} : ${d.ok === true ? 'réussi' : d.ok === false ? 'raté' : 'en cours'}`);
 const drinkLabel = d => (!d || !d.total ? '' : `, ${d.total} verre${d.total > 1 ? 's' : ''}${d.here ? `, dont ${d.here} pendant ce tour` : ''}`);
 const DART = d => { const f = formatDart(d); return f.replace(/^S/, ''); };
 const attr = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
@@ -75,7 +81,9 @@ export function cellView(c) {
     faulty: c.bust ? n - 1 : -1,
     big: c.bust ? 'BUST' : c.open && !n ? '…' : String(c.total),
     small: c.finish ? 'GAGNÉ' : c.open ? (n ? `${n}/3` : 'À JOUER') : String(c.remaining),
-    label: `${n ? `${darts.join(', ')} : ` : ''}${c.bust ? `bust, reste ${c.remaining}` : c.finish ? `${c.total}, manche gagnée` : c.open ? `volée en cours, ${c.total}` : `${c.total}, reste ${c.remaining}`}${drinkLabel(c.drinks)}`,
+    label: `${n ? `${darts.join(', ')} : ` : ''}${c.bust ? `bust, reste ${c.remaining}` : c.finish ? `${c.total}, manche gagnée` : c.open ? `volée en cours, ${c.total}` : `${c.total}, reste ${c.remaining}`}${drinkLabel(c.drinks)}${defiLabel(c.defi)}`,
+    // Lot 7.8 : défi de la volée (texte court et résultat), ou null.
+    defi: c.defi || null,
     // Lot 7.1 : verres du joueur jusqu'à cette volée (comme le reste) ; marqués s'il en a pris un pendant ce tour.
     // Lot 7.6 : case à jouer encore vide : le cumul seulement s'il vient d'un verre pris juste avant (le cumul d'avant, soirée
     // comprise, est déjà dans la case précédente).
@@ -94,5 +102,6 @@ export function cellHtml(c, { key = '', selected = false } = {}) {
   const darts = v.darts.map((d, i) => `<i${i === v.faulty ? ' class="x"' : ''}>${d}</i>`).join('');
   return `<td class="c ${v.cls}${selected ? ' sel' : ''}" data-act="log-visit" data-arg="${attr(key)}" aria-label="${attr(v.label)}">`
     + `<span class="ds"${v.darts.length ? ' data-fit="3"' : ''}>${darts}</span><b>${v.big}</b><small>${v.small}</small>`
-    + (v.drinks ? `<em class="dk${v.drinks.fresh ? ' new' : ''}">${GLASS}x${v.drinks.total}</em>` : '') + '</td>';
+    + (v.drinks ? `<em class="dk${v.drinks.fresh ? ' new' : ''}">${GLASS}x${v.drinks.total}</em>` : '')
+    + (v.defi ? `<em class="df ${v.defi.ok === true ? 'ok' : v.defi.ok === false ? 'ko' : 'wait'}">${STAR(v.defi.ok === true)}<span>${attr(v.defi.short)}</span></em>` : '') + '</td>';
 }

@@ -1,6 +1,8 @@
 // Strela — « les voyelles tombent » (lot 7). Quand le joueur au pseudo Tsia lance, les voyelles de tout le texte de
 // l'écran de jeu se décrochent et tombent au bas de l'écran ; elles restent absentes le temps de sa volée (jusqu'à
 // VALIDER, volée en attente comprise) et reviennent pour le joueur suivant. Les chiffres ne bougent pas.
+// Lot 7.8 (retours du 20/11) : l'écran de jeu seulement — ni le menu pause, ni les verres, ni le panneau cible +
+// historique, ni la correction (ce qui est marqué [data-vkeep] non plus : DÉGRISEMENT EXPRESS, le défi dégrisé).
 //
 // Mécanique : après chaque rendu de l'écran de jeu, chaque voyelle est mise dans un <span class="vw">. La première
 // fois pour une volée donnée (clé), chaque voyelle visible est doublée dans un calque fixe hors de #app (#vfall) qui
@@ -12,6 +14,8 @@ const VOWEL_CLASS = 'aeiouyàâäáãåéèêëíìîïóòôöõúùûüýÿæ�
 const VOWEL = new RegExp(`[${VOWEL_CLASS}]`, 'iu');
 const VOWELS = new RegExp(`([${VOWEL_CLASS}])`, 'giu');
 const MAX_FALLING = 180; // au-delà, les voyelles disparaissent sans tomber (téléphone lent)
+/** Ce qui garde ses voyelles : dessins, menus et panneaux par-dessus le jeu (lot 7.8), textes marqués [data-vkeep]. */
+const KEEP = 'svg, script, style, .vw, [data-vkeep], .sheet-bg, .fixer, .loupe';
 
 export const isVowel = ch => VOWEL.test(ch);
 
@@ -31,6 +35,12 @@ let fallen = null; // clé de la volée dont les voyelles sont déjà tombées
 /** Remet à zéro (tests, nouvelle partie). */
 export function resetVowels() { fallen = null; }
 
+/** Lot 7.8 : en quittant l'écran de jeu, les voyelles encore en train de tomber disparaissent. */
+export function clearVowelFall(doc = globalThis.document) {
+  const el = doc && doc.getElementById('vfall');
+  if (el) el.replaceChildren();
+}
+
 /** Met chaque voyelle du texte sous `root` dans un <span class="vw"> ; renvoie ces spans. Dessins SVG exclus. */
 export function wrapVowels(root) {
   const doc = root.ownerDocument;
@@ -38,7 +48,7 @@ export function wrapVowels(root) {
   const nodes = [];
   for (let t = walker.nextNode(); t; t = walker.nextNode()) {
     const el = t.parentElement;
-    if (!el || el.closest('svg, script, style, .vw, [data-vkeep]')) continue;
+    if (!el || el.closest(KEEP)) continue;
     if (VOWEL.test(t.textContent)) nodes.push(t);
   }
   const spans = [];

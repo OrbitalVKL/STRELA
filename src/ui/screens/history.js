@@ -9,6 +9,7 @@ import { gameState, gameWinner, playerSummary } from '../../engine/stats.js';
 import { formatDart } from '../../engine/darts.js';
 import { boardSvg, impactsFor, markIcon } from '../board.js';
 import { legTable, cellHtml } from '../table.js';
+import { gameDefis, defiOf, DEFIS } from '../../engine/defis.js';
 import { drinksTimeline, drinkTally } from '../../engine/alcohol.js';
 import { drinkSizeSeg, plusDrink, plusLabel, pintMode, drinkCount } from '../drinks.js';
 import { sheetSection } from './printsheet.js';
@@ -83,6 +84,7 @@ export function historyDetail(id) {
 // colonne par joueur (avatar et pseudo en tête), une ligne par tour ; chaque case donne les 3 fléchettes du tour, le
 // total de la volée en gros et le reste après la volée en petit (table.js, cellHtml). Toucher une case montre ses 3 fléchettes et leur place sur la cible.
 let openRow = null; // « idPartie|rangVolée » ou « idPartie|open »
+let revealRow = false; // lot 7.8 : case ouverte depuis la fenêtre d'un badge, à faire défiler jusqu'à l'écran une fois
 
 const cell = (g, c) => {
   const key = c ? `${g.id}|${c.visitIdx}` : '';
@@ -96,9 +98,13 @@ function detail(g, s, t, players) {
   const p = players[c.player];
   const darts = [0, 1, 2].map(k => `<span>${c.darts[k] ? dl(c.darts[k]) : '–'}</span>`).join('');
   const sum = c.bust ? '<b class="red">BUST</b> · aucun point' : c.finish ? `<b>${c.total}</b> · manche gagnée` : `<b>${c.total}</b> · reste ${c.remaining}`;
-  return `<div class="vdet${c.bust ? ' bust' : ''}"><div class="vb">${boardSvg({ size: 200, impacts: impactsFor(g, s, c.visitIdx, { previous: false }), label: 'Impacts de la volée' })}
+  // Lot 7.8 : défi de la volée, en entier, et son résultat.
+  const df = c.defi ? `<span class="small vdefi ${c.defi.ok === true ? 'ok' : c.defi.ok === false ? 'ko' : ''}">${ico(c.defi.ok === true ? 'starf' : 'star')}${esc(c.defi.text)}${c.defi.ok === true ? ' · RÉUSSI' : c.defi.ok === false ? ' · RATÉ' : ''}</span>` : '';
+  const reveal = revealRow ? ' data-reveal' : '';
+  revealRow = false;
+  return `<div class="vdet${c.bust ? ' bust' : ''}"${reveal}><div class="vb">${boardSvg({ size: 200, impacts: impactsFor(g, s, c.visitIdx, { previous: false }), label: 'Impacts de la volée' })}
     <div class="vtxt"><span class="small dim caps">Tour ${round}</span><span class="nm ell b">${esc(p.name)}</span>
-      <div class="vdarts">${darts}</div><span class="small">${sum}</span>
+      <div class="vdarts">${darts}</div><span class="small">${sum}</span>${df}
       <p class="note">${markIcon(true)}fléchette 1, 2, 3<br>Pavé : centre du segment.</p></div></div></div>`;
 }
 
@@ -111,9 +117,10 @@ function detail(g, s, t, players) {
 export function gameLog(g, s, { live = false, abandoned = false, reverse = false, details = true } = {}) {
   const players = g.config.players.map(playerById);
   const timeline = drinksTimeline(s, g.drinks, g.config.players, g.drinksBefore); // lot 7.1 : verres dans le tableau
+  const defis = defiMap(g, s, live); // lot 7.8 : défi de chaque volée et son résultat
   const shown = s.legs.filter(l => l.visits.length || (live && l.number === s.legNumber));
   const legs = (reverse ? [...shown].reverse() : shown).map(l => {
-    const t = legTable(s, l.number, { live, drinks: timeline.byVisit });
+    const t = legTable(s, l.number, { live, drinks: timeline.byVisit, defis });
     const winner = l.winner !== null ? players[l.winner] : null;
     const wd = winner ? l.visits.filter(v => v.player === l.winner).reduce((n, v) => n + v.darts.length, 0) : 0;
     const info = winner ? `<span class="nm">${esc(winner.name)}</span> en ${wd} fl.` : abandoned ? 'interrompue' : 'en cours';
@@ -125,11 +132,27 @@ export function gameLog(g, s, { live = false, abandoned = false, reverse = false
     return `<div class="leg-h"><b>MANCHE ${l.number}</b><span>${info}</span></div>${table}`;
   }).join('');
   // Version 0.8.1 : l'explication est derrière le (i) du titre.
-  return `<div class="pad">${infoSec('Tour par tour', 'log')}${infoBox('log', `Chaque case : les fléchettes du tour, le total de la volée en gros, le reste après la volée en petit${g.drinks || g.drinksBefore ? ', les verres du joueur jusque-là (encadrés : pris pendant ce tour)' : ''}${g.drinksBefore ? ' — soirée comprise' : ''}${live ? ' ; la ligne en inverse est le tour en cours' : ''}. Touchez une case pour voir ses fléchettes sur la cible${details ? '' : ' au-dessus'}.`)}</div>${legs}`;
+  return `<div class="pad">${infoSec('Tour par tour', 'log')}${infoBox('log', `Chaque case : les fléchettes du tour, le total de la volée en gros, le reste après la volée en petit${g.drinks || g.drinksBefore ? ', les verres du joueur jusque-là (encadrés : pris pendant ce tour)' : ''}${g.drinksBefore ? ' — soirée comprise' : ''}${g.defis ? ' ; une volée avec un défi le rappelle en bas de sa case, avec une étoile rouge pleine s\'il est réussi, grise et vide s\'il est raté' : ''}${live ? ' ; la ligne en inverse est le tour en cours' : ''}. Touchez une case pour voir ses fléchettes sur la cible${details ? '' : ' au-dessus'}.`)}</div>${legs}`;
 }
 
-/** Case ouverte d'avance (sommaire de maquette, ouverture du panneau du jeu) : « idPartie|rangVolée », ou null. */
-export const selectLogCell = key => { openRow = key; };
+/** Lot 7.8 : défis d'une partie pour le tableau : Map(rang de volée ou 'open' → { short, text, ok }). */
+function defiMap(g, s, live) {
+  if (!g.defis) return null;
+  const out = new Map();
+  for (const d of gameDefis(g, s)) {
+    const pending = d.declare && d.declared === undefined && live && d.index === s.visits.length - 1;
+    out.set(d.index, { short: DEFIS[d.key].short, text: DEFIS[d.key].text, ok: pending ? null : d.ok });
+  }
+  if (live && s.status === 'playing' && s.visit) {
+    const key = defiOf(g, s.visits.length, s.visit.darts.length ? s.visit.startRemaining : s.remaining[s.currentPlayer]);
+    if (key) out.set('open', { short: DEFIS[key].short, text: DEFIS[key].text, ok: null });
+  }
+  return out;
+}
+
+/** Case ouverte d'avance (sommaire de maquette, ouverture du panneau du jeu, fenêtre d'un badge) : « idPartie|rangVolée »,
+ *  ou null ; `reveal` : l'écran défile jusqu'à elle au prochain affichage. */
+export const selectLogCell = (key, reveal = false) => { openRow = key; revealRow = !!(key && reveal); };
 /** Case touchée (« idPartie|rangVolée » ou « idPartie|open »), ou null. */
 export const selectedLogCell = () => openRow;
 

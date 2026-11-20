@@ -120,7 +120,11 @@ test('historique et statistiques comparés aux calculs à la main', { skip: !pw 
       average: '128,8', first9: '141,0', won: '2 / 3', triple: '67 %', double: '100 %',
       bestFinish: '121', shortest: '6 fl.', bestVisit: '180', worstVisit: '100', ton: '2', ton40: '1', max: '2', busts: '1',
       drinks: '0 en 3 parties',
+      // Lot 7.8 : fléchettes dans le 1 (partie 1 : « 1 D10 », partie 3 : « T20 T20 1 ») ; Bravo en a 2 aussi (« T20 1 1 »),
+      // Alpha, avec plus de parties, est le roi des uns.
+      ones: '2', king: 'Alpha',
     });
+    assert.match(await page.innerText('.kpi.king.me'), /ex æquo avec 1\sautre/);
     await page.click('[data-act="v2-fold"][data-arg="worst"]');
     const worst = await page.$$eval('.worst li', lis => lis.map(li => li.querySelector('.w b').textContent.trim()));
     assert.deepEqual(worst, ['180', '171', '100'], 'pire volée de chaque partie, de la plus récente');
@@ -143,7 +147,7 @@ test('historique et statistiques comparés aux calculs à la main', { skip: !pw 
     assert.deepEqual(await kpis(page), {
       average: '105,5', first9: '105,5', won: '0 / 2', triple: '50 %', double: '—',
       bestFinish: '—', shortest: '—', bestVisit: '180', worstVisit: '60', ton: '1', ton40: '0', max: '1', busts: '0',
-      drinks: '0 en 2 parties',
+      drinks: '0 en 2 parties', ones: '2', king: 'Bravo', // lot 7.8 : à égalité avec Alpha, roi des uns lui aussi
     });
     // Liste des joueurs : moyenne, parties, victoires.
     await page.evaluate(() => { location.hash = '#/joueurs'; });

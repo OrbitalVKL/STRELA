@@ -7,7 +7,7 @@ import { setRenderer, noteRoute, keepAwake, go } from './nav.js';
 import { playersList, playerForm, avatarBank, actions as playerActions, inputs as playerInputs } from './screens/players.js';
 import { newGame, actions as newGameActions } from './screens/newgame.js';
 import { game, key, mountGame, vowelKey, turnFx, actions as gameActions } from './screens/game.js';
-import { applyVowels } from './vowels.js';
+import { applyVowels, clearVowelFall } from './vowels.js';
 import { syncTurnFx, leaveGameFx } from './turnfx.js';
 import { legEnd, matchEnd, actions as resultActions } from './screens/results.js';
 import { historyDetail, leaveHistory, actions as historyActions } from './screens/history.js';
@@ -30,7 +30,7 @@ import { soireeDashScreen, actions as dashActions } from './screens/v2/soireedas
 import { actions as infoActions } from './info.js';
 import { actions as drinkActions } from './drinks.js';
 import { weeklyAutoBackup } from './autobackup.js';
-import { honourScreen, actions as honourActions } from './honours.js';
+import { honourScreen, badgeSheetHtml, closeBadgeSheet, actions as honourActions } from './honours.js';
 import { cricketScreen, cricketEnd, cricketDetail, cricketTurnFx, actions as cricketActions } from './screens/cricket.js';
 
 // Version 0.8.0 : la refonte (lot 7.8, écrans de screens/v2/) remplace l'accueil, l'historique, les stats et les
@@ -118,7 +118,7 @@ function restoreScrolls(root, saved) {
 function draw() {
   const path = decodeURIComponent(location.hash.replace(/^#/, ''));
   const returning = noteRoute(location.hash || '#/');
-  if (path !== lastPath) { leaveHistory(path); leaveHistory2(path); } // sélection et confirmations de l'historique oubliées en changeant d'écran
+  if (path !== lastPath) { leaveHistory(path); leaveHistory2(path); } closeBadgeSheet(path); // sélection et confirmations de l'historique oubliées en changeant d'écran ; fenêtre d'un badge fermée (lot 7.8)
   let html = null;
   let screenIdx = -1;
   for (const [i, [re, screen]] of ROUTES.entries()) {
@@ -127,6 +127,7 @@ function draw() {
   }
   if (html === null) { go('#/', { replace: true }); return; }
   if (!html) return; // l'écran a redirigé
+  html += badgeSheetHtml(); // lot 7.8 : fenêtre d'un badge, par-dessus l'écran qui l'a ouverte
   const sameScreen = screenIdx === lastScreen;
   const y = window.scrollY;
   if (lastHash !== null) pageY.set(lastHash, y);
@@ -162,6 +163,7 @@ function draw() {
   if (path === '/jeu') syncTurnFx(turnFx(), animationsOn());
   else if (path === '/cricket') syncTurnFx(cricketTurnFx(), animationsOn()); // lot 7.9 : aussi au Cricket
   else leaveGameFx();
+  if (path !== '/jeu') clearVowelFall(); // lot 7.8 : les voyelles de Tsia restent sur l'écran de jeu
   if (path === '/recadrage') mountCrop();
   app.querySelector('[data-reveal]')?.scrollIntoView({ block: 'center' });
   keepAwake(path === '/jeu' || path === '/manche' || path === '/cricket'); // écran allumé pendant la partie, relâché en la quittant

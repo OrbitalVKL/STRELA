@@ -16,7 +16,8 @@ import { soireeModel } from '../../../engine/soiree.js';
 import { pdfFromJpegs, sheetFonts, PAGE_W, PAGE_H } from '../../sheet.js';
 import { deliverFile } from '../printsheet.js';
 import { drawSoireeSummary, summaryFileName } from '../../soireesummary.js';
-import { allHonours } from '../../honours.js';
+import { allHonours, badgeOpen, tierHtml } from '../../honours.js';
+import { badgesOfGame, badgeByKey } from '../../../engine/badges.js';
 import { refresh, go, backFrom } from '../../nav.js';
 
 const DAYS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
@@ -73,14 +74,31 @@ export function soireeDashScreen(sid) {
     ${m.rows.map(r => { const lv = m.levels[r.id]; return `<tr><th><a class="pl" href="#/stats/${esc(r.id)}">${avatarHtml(playerById(r.id), 22)}<span class="nm">${esc(r.name)}</span></a></th>
       ${lv.levels.map(L => `<td${L.level === lv.best ? ' class="best"' : ''}>${L.darts ? avg(L.average) : '·'}</td>`).join('')}</tr>`; }).join('')}
     </tbody></table></div>` : '';
+  // Lot 7.8 (retours du 20/11) : badges gagnés pendant la soirée, joueur par joueur, avec leur description courte.
+  const h = allHonours();
+  const order = new Map(m.rows.map((r, i) => [r.id, i]));
+  const won = games.slice().sort((a, b) => a.startedAt - b.startedAt).flatMap(g => badgesOfGame(h, g.id).map(x => ({ ...x, at: g.startedAt })))
+    .filter(x => order.has(x.id)).sort((a, b) => order.get(a.id) - order.get(b.id) || a.at - b.at);
+  const byWho = new Map();
+  for (const x of won) { if (!byWho.has(x.id)) byWho.set(x.id, []); byWho.get(x.id).push(x); }
+  const badgeRows = [...byWho.entries()].map(([id, list]) => list.map((x, k) => {
+    const b = badgeByKey(x.key);
+    return `<tr>${k ? '' : `<th rowspan="${list.length}"><a class="pl" href="#/stats/${esc(id)}">${avatarHtml(playerById(id), 22)}<span class="nm">${esc(playerById(id).name)}</span></a></th>`}
+      <td class="bdg"><button type="button" ${badgeOpen(id, x.key, x.tier)}>${ico(b.icon)}<b>${esc(b.name)}</b>${x.tier ? tierHtml(x.tier) : ''}</button></td>
+      <td class="bds">${esc(b.tiers ? `${b.tiers[x.tier - 1]} ${b.what[b.tiers[x.tier - 1] > 1 ? 1 : 0]}` : b.desc)}</td></tr>`;
+  }).join('')).join('');
+  const badgesTable = won.length
+    ? `<div class="dtable btable"><table><thead><tr><th>Joueur</th><th>Badge</th><th>Ce qu'il a fait</th></tr></thead><tbody>${badgeRows}</tbody></table></div>`
+    : '<p class="note">Aucun badge gagné ce soir.</p>';
   const btn = (kind, label) => `<button type="button" class="btn" data-act="dash-export" data-arg="${esc(`${kind}|${sid}`)}"${st.busy ? ' disabled' : ''}>${ico('download')} ${label}</button>`;
   return `<div class="screen dash2">${topBar('Soirée', backFrom('#/historique'))}
     <div class="dhead inv"><b>${ico('glass')} SOIRÉE DU ${dayFull(m.start).toUpperCase()}</b>
       <span>${hhmm(m.start)} – ${hhmm(m.end)} · ${plural(m.games, 'partie', 'parties')} · ${plural(m.rows.length, 'joueur', 'joueurs')} · ${plural(m.drinks, 'verre', 'verres')}${m.drinks ? ` (${litersText(m.liters)})` : ''}</span></div>
     <div class="pad">
       ${podium}
-      ${infoSec('Faits marquants', 'dash-hl')}${infoBox('dash-hl', 'Le meilleur et le pire de la soirée. Pire volée : sans les bust ni les volées de finition. Touchez un joueur (podium, tableau, verres) pour ouvrir ses stats ; le retour revient ici.')}<ul class="hls">${cards}</ul>
+      ${infoSec('Faits marquants', 'dash-hl')}${infoBox('dash-hl', 'Le meilleur et le pire de la soirée. Pire volée : sans les bust ni les volées de finition. Le plus de 1 : fléchettes tombées dans le 1 (le roi des uns de la soirée). Touchez un joueur (podium, tableau, verres) pour ouvrir ses stats ; le retour revient ici.')}<ul class="hls">${cards}</ul>
       ${infoSec('Joueurs', 'dash-table')}${infoBox('dash-table', 'P. parties, V. victoires, Moy. moyenne sur 3 fléchettes ; pire volée sans les bust ni les finitions ; Tripl. fléchettes dans un triple. Le tableau défile de côté.')}${table}
+      ${infoSec('Badges de la soirée', 'dash-badges', ` <span class="n">${won.length}</span>`)}${infoBox('dash-badges', 'Les badges gagnés pendant les parties de la soirée, joueur par joueur : un badge n\'est gagné qu\'une fois (le premier 180…), sauf les badges à rangs (bronze, argent, or), cumulés sur toutes les parties. Touchez un badge pour sa signification, et la partie et la volée où il a été gagné.')}${badgesTable}
       ${infoSec('Verres', 'dash-drinks', ` <span class="n">x${m.drinks}</span>`)}${infoBox('dash-drinks', 'Les verres de chacun sur toute la soirée, en verres de 25 cl : une pinte (50 cl) compte pour 2. Un oubli ou une erreur dans une partie : ouvrez la partie (liste ci-dessous), section Verres, et corrigez avec − et +. Si les verres ont été resaisis dans chaque nouvelle partie (avant le mode soirée), le bouton ci-dessous ne garde que les verres nouveaux de chaque partie.')}
       <ul class="dlist2">${drinkRows}</ul>${fix}
       ${anyDrinks ? `${infoSec('Au fil des verres', 'dash-levels')}${infoBox('dash-levels', 'Moyenne sur 3 fléchettes de chacun selon le nombre de verres déjà bus quand il lance (0, 1, 2… ; une pinte compte pour 2). Encadré : le niveau où il a le mieux joué ce soir (9 fléchettes au moins). Le détail est dans ses stats.')}${lvTable}` : ''}

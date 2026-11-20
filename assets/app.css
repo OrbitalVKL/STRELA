@@ -743,8 +743,8 @@ label.btn { cursor: pointer; }
 .agrid button[aria-pressed="true"] { color: var(--inv-fg); background: var(--inv-bg); }
 
 /* Animations coupées (réglage ou demande du téléphone) */
-html.still .gband.slide, html.still .announce, html.still .cele, html.still .cele b { animation: none; }
-@media (prefers-reduced-motion: reduce) { .gband.slide, .announce, .cele, .cele b { animation: none; } }
+html.still .gband.slide, html.still .announce, html.still .cele, html.still .cele b, html.still .cele .cscene * { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .gband.slide, .announce, .cele, .cele b, .cele .cscene * { animation: none !important; } }
 
 /* ---------------------------------------------------------------- fins de manche / de partie */
 .result-head { padding: 18px 16px; display: flex; align-items: center; gap: 16px; }
@@ -1357,15 +1357,25 @@ button.hrow { width: 100%; border: 0; border-bottom: var(--rule); background: va
 .vrecs li > b { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .vrecs li > small { font-size: 10.5px; color: var(--dim); text-align: right; }
 .badges { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 6px; }
-.badges li { border: var(--rule); padding: 8px 6px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 3px; min-width: 0; }
+.badges li { border: var(--rule); min-width: 0; display: flex; }
+/* Lot 7.8 : chaque badge est un bouton qui ouvre sa fenêtre */
+.badges li > button { flex: 1; min-width: 0; border: 0; padding: 8px 6px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 3px; color: inherit; background: none; }
 .badges li .ico { width: 24px; height: 24px; }
-.badges li > b { font-size: 11px; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; text-transform: uppercase; letter-spacing: 0.03em; }
-.badges li > small { font-size: 9.5px; line-height: 1.25; overflow-wrap: anywhere; }
+.badges li button > b { font-size: 11px; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; text-transform: uppercase; letter-spacing: 0.03em; }
+.badges li button > small { font-size: 9.5px; line-height: 1.25; overflow-wrap: anywhere; }
 .badges li.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
 .badges li.off { color: var(--dim); }
 .badges li.off .ico { color: var(--faint); }
 .honour-link { margin-top: 10px; width: 100%; }
 .gbadges li > b .ico { width: 22px; height: 22px; }
+.gbadges li { display: block; padding: 0; }
+.gbadges li > button { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "av nm v" "av rl s"; align-items: center; gap: 2px 10px; width: 100%; padding: 8px 0; border: 0; text-align: left; }
+.gbadges button > .av { grid-area: av; }
+.gbadges button > .nm { grid-area: nm; font-weight: 700; font-size: 14px; }
+.gbadges button > .rl { grid-area: rl; min-width: 0; font-size: 10.5px; color: var(--dim); letter-spacing: 0.06em; text-transform: uppercase; }
+.gbadges button > b { grid-area: v; justify-self: end; }
+.gbadges button > b .ico { width: 22px; height: 22px; }
+.gbadges button > small { grid-area: s; font-size: 10.5px; color: var(--dim); text-align: right; }
 .htop { list-style: none; margin: 0 0 6px; padding: 0; border-top: var(--rule); }
 .htop li { display: grid; grid-template-columns: 22px auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 7px 0; border-bottom: var(--rule); }
 .htop .rk { font-weight: 800; }
@@ -1377,8 +1387,13 @@ button.hrow { width: 100%; border: 0; border-bottom: var(--rule); background: va
 .hlist li > a > .rl { grid-area: rl; min-width: 0; font-size: 10.5px; color: var(--dim); letter-spacing: 0.06em; text-transform: uppercase; }
 .hlist li > a > b { grid-area: v; font-size: 20px; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; }
 .hlist li > a > small { grid-area: s; font-size: 10.5px; color: var(--dim); text-align: right; }
-.hlist li.badge > a > b { justify-self: end; display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; background: var(--fg); color: var(--bg); }
-.hlist li.badge > a > b .ico { width: 22px; height: 22px; }
+.hlist li > button { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "av nm v" "av rl s"; align-items: center; gap: 2px 10px; padding: 8px 0; width: 100%; border: 0; text-align: left; }
+.hlist li > button > .av { grid-area: av; }
+.hlist li > button > .nm { grid-area: nm; font-weight: 700; font-size: 14px; }
+.hlist li > button > .rl { grid-area: rl; min-width: 0; font-size: 10.5px; color: var(--dim); letter-spacing: 0.06em; text-transform: uppercase; }
+.hlist li > button > small { grid-area: s; font-size: 10.5px; color: var(--dim); text-align: right; text-transform: uppercase; letter-spacing: 0.06em; }
+.hlist li.badge > button > b { grid-area: v; justify-self: end; display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; background: var(--fg); color: var(--bg); }
+.hlist li.badge > button > b .ico { width: 22px; height: 22px; }
 .honour .more { width: 100%; margin-top: 12px; }
 
 /* Lot 9 : aperçu du résumé de soirée à partager (image verticale). */
@@ -1498,3 +1513,170 @@ button.hrow { width: 100%; border: 0; border-bottom: var(--rule); background: va
 #tfx .tfx-line { background: var(--fg); box-shadow: 0 0 0 1px var(--bg); }
 #tfx .tfx-chain { background: repeating-linear-gradient(to bottom, var(--fg) 0 8px, transparent 8px 13px); }
 #tfx .tfx-flashbg { background: var(--fg); }
+
+/* ---------------------------------------------------------------- Lot 7.8 (retours de soirée du 20/11) */
+/* Rang d'un badge à rangs : trois carrés (pleins jusqu'au rang) et le nom du rang ; pas de couleur de métal (DA) */
+.tier { display: inline-flex; align-items: center; gap: 5px; font-size: 9.5px; font-weight: 800; letter-spacing: 0.1em; }
+.tier .sq { display: inline-flex; gap: 2px; }
+.tier .sq i { width: 8px; height: 8px; border: 1.5px solid currentColor; }
+.tier .sq i.on { background: currentColor; }
+.badges li.tiered.off .tier { color: var(--faint); }
+/* Fenêtre d'un badge (honours.js) */
+.bsheet .body { padding-top: 14px; padding-bottom: 8px; }
+.bhero { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 18px 12px; border: 2px solid var(--fg); text-align: center; }
+.bhero.on { background: var(--fg); color: var(--bg); }
+.bhero.off { color: var(--dim); border-color: var(--faint); }
+.bhero .ico { width: 44px; height: 44px; }
+.bhero > b { font-size: 20px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+.bhero .tier { font-size: 12px; }
+.bhero .tier .sq i { width: 12px; height: 12px; }
+.bwho { display: flex; align-items: center; gap: 10px; }
+.bwho .nm { font-weight: 800; font-size: 15px; }
+.bmean { margin: 0; font-size: 14px; line-height: 1.5; }
+.bkv { list-style: none; margin: 0; padding: 0; border-top: var(--rule); }
+.bkv li { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 8px 0; border-bottom: var(--rule); min-width: 0; }
+.bkv li > span { flex: 0 0 auto; font-size: 10.5px; color: var(--dim); letter-spacing: 0.08em; text-transform: uppercase; }
+.bkv li > b { min-width: 0; font-size: 13.5px; font-weight: 800; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bkv li > b em { font-style: normal; font-weight: 600; color: var(--dim); }
+.btiers { list-style: none; margin: 0; padding: 0; border-top: var(--rule); }
+.btiers li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto 36px; align-items: center; gap: 10px; min-height: 44px; padding: 4px 0; border-bottom: var(--rule); color: var(--dim); }
+.btiers li.on { color: var(--fg); }
+.btiers li.cur { box-shadow: inset 3px 0 0 var(--fg); padding-left: 10px; }
+.btiers .th { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.btiers small { font-size: 10.5px; letter-spacing: 0.04em; }
+.btiers .tsee { width: 36px; height: 36px; display: grid; place-items: center; border: var(--rule); }
+.btiers .tsee .ico { width: 18px; height: 18px; }
+/* Badges de la soirée (tableau de bord) */
+.btable table { width: 100%; }
+.btable th, .btable td { white-space: normal; }
+.btable td.bdg, .btable td.bds { text-align: left; }
+.btable td.bdg button { display: flex; align-items: center; gap: 6px; border: 0; padding: 0; min-height: 32px; font-weight: 700; text-align: left; }
+.btable td.bdg .ico { width: 20px; height: 20px; flex: 0 0 auto; }
+.btable td.bdg b { font-weight: 800; }
+.btable td.bds { color: var(--dim); min-width: 0; font-size: 11.5px; }
+.btable tbody th { vertical-align: top; }
+/* Stats : roi des uns */
+.kpi small .ico { width: 1.25em; height: 1.25em; vertical-align: -0.28em; }
+.kpi.king b { font-size: 20px; line-height: 1.4; }
+.kpi.king b .nm { display: block; }
+.kpi.king > small:last-child { margin-top: 2px; text-transform: none; letter-spacing: 0.02em; white-space: normal; }
+.kpi.king.me { background: var(--inv-bg); color: var(--inv-fg); }
+.kpi.king.me small { color: inherit; opacity: 0.75; }
+
+/* Bandeau du défi (game.js › defiBand) : sous le bandeau du joueur, toute la volée ; vidéo inverse pendant la volée,
+   puis le résultat (étoile rouge pleine : réussi, exception au rouge demandée ; grise vide : raté) */
+.dfb { flex: 0 0 auto; display: flex; align-items: stretch; min-height: 54px; background: var(--inv-bg); color: var(--inv-fg); box-shadow: 0 1px 0 var(--bg); }
+.dfb .dfc { flex: 1 1 auto; min-width: 0; max-height: 104px; overflow: hidden; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 6px 12px 7px; }
+.dfb .dfl { display: flex; align-items: center; gap: 5px; margin-bottom: 3px; font-size: 10.5px; font-weight: 800; letter-spacing: 0.16em; line-height: 1.3; }
+.dfb .dfl .ico { width: 13px; height: 13px; flex: 0 0 auto; }
+.dfb .dfh { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dfb .dft { font-size: 21px; font-weight: 800; line-height: 1.15; letter-spacing: 0.01em; overflow-wrap: anywhere; }
+.dfb .dfh { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; line-height: 1.3; opacity: 0.78; }
+.dfb .kombu { flex: 0 0 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 4px; border: 0; border-left: 1px solid currentColor; color: inherit; font-size: 8.5px; font-weight: 800; letter-spacing: 0.05em; line-height: 1.15; text-align: center; }
+.dfb .kombu .ico { width: 26px; height: 26px; }
+.dfb .kombu:active { background: var(--bg); color: var(--fg); }
+.dfb .kombu[aria-pressed="true"] { opacity: 0.6; }
+.dfb.res { align-items: center; min-height: 48px; background: var(--bg); color: var(--fg); box-shadow: inset 0 0 0 2px var(--fg); }
+.dfb.res .dfs { flex: 0 0 auto; width: 30px; height: 30px; margin-left: 12px; }
+.dfb.res.ok .dfs { color: var(--red); }
+.dfb.res.ko .dfs, .dfb.res.ask .dfs { color: var(--dim); }
+.dfb.res .dfc { padding-left: 10px; }
+.dfb.res .dfl { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dfb.res .dft { font-size: 17px; }
+.dfb.res .kombu { align-self: stretch; border-left-color: var(--faint); }
+.dfb .dfg { flex: 0 0 auto; align-self: stretch; padding: 0 12px; border: 0; background: var(--inv-bg); color: var(--inv-fg); font-size: 13px; font-weight: 800; letter-spacing: 0.04em; }
+.dfb .dfg.done { display: flex; align-items: center; gap: 4px; background: none; color: var(--dim); font-size: 11px; }
+.dfb .dfg.done .ico { width: 14px; height: 14px; }
+.dfb .dfask { flex: 0 0 auto; align-self: stretch; display: flex; }
+.dfb .dfask button { border: 0; border-left: 2px solid var(--fg); padding: 0 12px; font-size: 13px; font-weight: 800; letter-spacing: 0.04em; }
+.dfb .dfask button:first-child { background: var(--inv-bg); color: var(--inv-fg); border-left-color: var(--inv-bg); }
+.dfb .dfchg { flex: 0 0 44px; align-self: stretch; display: grid; place-items: center; border: 0; border-left: 1px solid var(--faint); }
+.dfb .dfchg .ico { width: 18px; height: 18px; }
+/* Écran bas (portrait jusqu'à 800 px, paysage) : bandeau serré (« DÉFI » sur la ligne du texte), le reste du joueur
+   rapetisse pendant la volée du défi pour laisser le pavé entier */
+@media (orientation: portrait) and (max-height: 800px) {
+  .dfb { min-height: 0; }
+  .dfb .dfc { max-height: 62px; padding: 4px 10px 5px; gap: 1px; }
+  .dfb .dft { font-size: 16px; line-height: 1.12; }
+  .dfb .dft .dfl { display: inline-flex; vertical-align: 0.1em; margin: 0 6px 0 0; font-size: 9.5px; letter-spacing: 0.1em; }
+  .dfb .dfh { font-size: 9px; }
+  .dfb .kombu { flex-basis: 64px; font-size: 7.5px; }
+  .dfb .kombu .ico { width: 22px; height: 22px; }
+  .dfb.res { min-height: 40px; }
+  .dfb.res .dfs { width: 24px; height: 24px; margin-left: 10px; }
+  .dfb.res .dft { font-size: 14px; }
+  .toparea:has(.dfb) .rest { min-height: 64px; }
+}
+@media (orientation: portrait) and (max-height: 680px) {
+  .dfb .dfc { max-height: 52px; }
+  .dfb .dft { font-size: 14px; }
+  .toparea:has(.dfb) .rest { min-height: 52px; }
+  .toparea:has(.dfb) .rest .meta { display: none; }
+  .toparea:has(.dfb) .rest .big { margin-top: 2px; }
+}
+.land .dfb { min-height: 0; }
+.land .dfb .dfc { max-height: 52px; padding: 3px 10px 4px; gap: 1px; }
+.land .dfb .dft { font-size: 15px; line-height: 1.12; }
+.land .dfb .dft .dfl { display: inline-flex; vertical-align: 0.1em; margin: 0 6px 0 0; font-size: 9.5px; letter-spacing: 0.1em; }
+.land .dfb .dfh { font-size: 9px; }
+.land .dfb .kombu { flex-basis: 64px; font-size: 7.5px; }
+.land .dfb .kombu .ico { width: 20px; height: 20px; }
+.land .dfb.res { min-height: 38px; }
+.land .dfb.res .dfs { width: 22px; height: 22px; }
+.land .dfb.res .dft { font-size: 14px; }
+.land .toparea:has(.dfb) .rest { min-height: 60px; }
+@media (orientation: landscape) and (max-height: 400px) {
+  .land .toparea:has(.dfb) .rest { min-height: 42px; }
+  .land .toparea:has(.dfb) .rest .meta { display: none; }
+  .land .toparea:has(.dfb) .rest .big { margin-top: 2px; }
+  .land .dfb .dfc { max-height: 46px; }
+  .land .dfb .dft { font-size: 13px; }
+}
+/* Paysage très bas (≈ 360 px) : pendant un défi, son bandeau prend la place de la bande du tour (verres : menu pause) */
+@media (orientation: landscape) and (max-height: 380px) {
+  .land:has(.dfb) .round { display: none; }
+}
+
+/* Pastille de rang sur chaque avatar de l'écran de jeu (game.js › withRank) : carré, angles droits */
+.avr { position: relative; display: inline-grid; flex: 0 0 auto; }
+.rkp { position: absolute; right: -4px; bottom: -4px; min-width: 15px; height: 15px; padding: 0 2px; display: grid; place-items: center; font-style: normal; font-size: 10px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; background: var(--fg); color: var(--bg); box-shadow: 0 0 0 1.5px var(--bg); }
+.gband .rkp { right: -6px; bottom: -6px; min-width: 22px; height: 22px; font-size: 14px; background: var(--av-ink); color: var(--pc); box-shadow: 0 0 0 2px var(--pc); }
+.round .rkp, .others.many .rkp { right: -5px; bottom: -4px; min-width: 12px; height: 12px; padding: 0 1px; font-size: 8.5px; box-shadow: 0 0 0 1px var(--bg); }
+.land .gband .rkp { min-width: 18px; height: 18px; font-size: 12px; }
+
+/* Défi dans le tableau tour par tour (table.js) : étoile et texte court en bas de la case */
+.lt .c .df { display: flex; align-items: center; justify-content: flex-end; gap: 2px; margin-top: 1px; font-style: normal; font-size: 9px; font-weight: 800; letter-spacing: 0.02em; line-height: 1.3; white-space: nowrap; overflow: hidden; }
+.lt .c .df span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.lt .c .df .ico { flex: 0 0 auto; width: 11px; height: 11px; }
+.lt .c .df.ok .ico { color: var(--red); }
+.lt .c .df.ko { color: var(--dim); }
+.lt .c:has(.df) .dk { bottom: 19px; }
+.vdet .vdefi { display: flex; align-items: center; gap: 5px; font-weight: 700; }
+.vdet .vdefi .ico { width: 14px; height: 14px; flex: 0 0 auto; }
+.vdet .vdefi.ok .ico { color: var(--red); }
+.vdet .vdefi.ko { color: var(--dim); }
+
+/* Saynètes des bandeaux (game.js) : la moto d'Angelina qui part dans le fossé, la couronne du roi des uns */
+.cele.scene { grid-template-rows: auto auto auto auto; }
+.cele .cscene { grid-column: 1 / -1; grid-row: 3; justify-self: center; width: min(100%, 300px); height: auto; margin-top: 2px; fill: none; stroke: currentColor; stroke-width: 2.5; overflow: visible; }
+.cele.scene .ok { grid-row: 4; }
+.cele.nul-uns .cscene { width: 96px; }
+.cele .cscene .helmet { fill: currentColor; }
+.moto-sc .moto { transform: translate(204px, 40px) rotate(165deg); }
+.moto-sc .dust { stroke-width: 1.5; fill: currentColor; }
+.cele.enter .moto-sc .moto { animation: moto-ride 2s cubic-bezier(.45, 0, .7, 1) both; }
+.cele.enter .moto-sc .dust { animation: moto-dust 2s both; }
+@keyframes moto-ride {
+  0% { transform: translate(-30px, 33px) rotate(0); }
+  15% { transform: translate(20px, 32px) rotate(-6deg); }
+  55% { transform: translate(150px, 33px) rotate(0); }
+  66% { transform: translate(176px, 36px) rotate(30deg); }
+  80% { transform: translate(196px, 46px) rotate(110deg); }
+  90% { transform: translate(203px, 38px) rotate(172deg); }
+  100% { transform: translate(204px, 40px) rotate(165deg); }
+}
+@keyframes moto-dust { 0%, 82% { opacity: 0; } 100% { opacity: 1; } }
+.crown-sc .crown { stroke-width: 3; }
+.crown-sc .one { stroke-width: 4; }
+.cele.enter .crown-sc .crown { animation: crown-drop 1.1s cubic-bezier(.3, 1.5, .5, 1) 0.2s both; }
+@keyframes crown-drop { from { transform: translateY(-60px) rotate(-25deg); opacity: 0; } 30% { opacity: 1; } to { transform: none; } }

@@ -7,6 +7,8 @@ import { gameDefis } from './defis.js';
 
 const pad2 = n => String(n).padStart(2, '0');
 const hhmm = ms => { const d = new Date(ms); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+/** Lot 7.8 : fléchettes dans le 1 (simple, double, triple) d'un résultat de playerStats. */
+export const onesOf = s => (s.segments && s.segments[1] ? s.segments[1].reduce((n, x) => n + x, 0) : 0);
 const avg = v => (v === null || v === undefined ? '—' : (Math.round(v * 10) / 10).toFixed(1).replace('.', ','));
 
 /**
@@ -31,7 +33,8 @@ export function soireeModel(games, name = id => id) {
   const rows = ids.map(id => {
     const s = playerStats(gs, id);
     return { id, name: name(id), played: s.played, won: s.won, average: s.average, best: s.bestVisit, worst: s.worstVisit,
-      tons: s.ton + s.ton40 + s.max, max: s.max, busts: s.busts, tripleRate: s.tripleRate, drinks: drinksOf(id), tally: tallyOf(id), defisOk: defis[id].ok, defisKo: defis[id].ko };
+      tons: s.ton + s.ton40 + s.max, max: s.max, busts: s.busts, tripleRate: s.tripleRate, drinks: drinksOf(id), tally: tallyOf(id), defisOk: defis[id].ok, defisKo: defis[id].ko,
+      ones: onesOf(s) }; // lot 7.8 : fléchettes dans le 1
   }).sort((a, b) => b.won - a.won || (b.average ?? -1) - (a.average ?? -1));
   // Volées de la soirée (pour la meilleure et la pire, avec la partie et l'heure).
   const visits = [];
@@ -53,6 +56,7 @@ export function soireeModel(games, name = id => id) {
   most('max', 'Le plus de 180');
   most('busts', 'Le plus de bust');
   most('drinks', 'Le plus de verres', n => `x${n}`);
+  most('ones', 'Le plus de 1'); // lot 7.8 : le roi des uns de la soirée
   for (const h of hl) h.name = name(h.id);
   // Rapport en 3 feuilles (lot 7.8) : la soirée dans l'ordre, verres horodatés, duels, secteurs, trophées.
   const timeline = gs.map((g, k) => {
