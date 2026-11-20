@@ -9,9 +9,8 @@ import {
 import { esc, ico, topBar, plural } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
 import { go, refresh, buzz, BUZZ } from '../nav.js';
-import { glassCount } from './game.js';
 import { autoBackup } from '../autobackup.js';
-import { drinkSizeSeg, plusDrink, plusLabel, pintMode, drinkCount } from '../drinks.js';
+import { drinkSizeSeg, plusDrink, plusLabel, pintMode, drinkCount, drinkPair } from '../drinks.js';
 
 let ending = false; // confirmation de TERMINER LA SOIRÉE
 
@@ -67,7 +66,7 @@ function running() {
   const rows = sv.players.map(id => {
     const p = playerById(id);
     const n = soireeDrinks(id);
-    return `<li>${avatarHtml(p, 32)}<div class="col"><span class="nm ell">${esc(p.name)}</span>${drinkCount(n, soireeDrinkTally(id))}</div>
+    return `<li>${avatarHtml(p, 32)}<div class="col"><span class="nm ell">${esc(p.name)}</span>${drinkCount(soireeDrinkTally(id))}</div>
       <button type="button" class="mv" data-act="soiree-minus" data-arg="${esc(id)}" ${n ? '' : 'disabled'} aria-label="Retirer le dernier verre de ${esc(p.name)}">${ico('minus')}</button>
       <button type="button" class="mv add" data-act="soiree-plus" data-arg="${esc(id)}" aria-label="${esc(plusLabel(p.name))}">${plusDrink()}</button>
       <button type="button" class="mv out" data-act="soiree-leave" data-arg="${esc(id)}" aria-label="${esc(p.name)} quitte la soirée">${ico('close')}</button></li>`;
@@ -83,11 +82,11 @@ function running() {
     ? `<a class="btn primary big" href="${resumeRoute()}">REPRENDRE LA PARTIE</a>`
     : '<a class="btn primary big" href="#/nouvelle">NOUVELLE PARTIE</a>';
   return `<div class="screen has-dock">${topBar('Soirée', '#/')}
-    <div class="soiree-head inv"><b>SOIRÉE EN COURS</b><span>DEPUIS ${hhmm(sv.startedAt)} · ${plural(games, 'PARTIE', 'PARTIES')} · ${glassCount(soireeTotal())}</span></div>
+    <div class="soiree-head inv"><b>SOIRÉE EN COURS</b><span>DEPUIS ${hhmm(sv.startedAt)} · ${plural(games, 'PARTIE', 'PARTIES')} · ${drinkPair(soireeTotal(), 'dk dpair')}</span></div>
     <div class="pad">
       <div class="sec" style="margin-bottom:0">Joueurs et verres <span class="n">${sv.players.length}</span></div>
       ${sv.players.length ? `${drinkSizeSeg()}<ul class="drinks soiree">${rows}</ul>` : '<p class="note">Plus personne dans la soirée : ajoutez des joueurs.</p>'}
-      <p class="note" style="margin:0">Une pinte compte pour 2 verres. ${playing ? 'Pendant la partie, un verre d\'un joueur de la partie y est noté, au tour où il a été pris.' : 'Les verres comptent depuis le début de la soirée, toutes parties confondues.'} Qui a bu ne conduit pas.</p>
+      <p class="note" style="margin:0">Les verres de 25 cl et les pintes sont comptés à part. ${playing ? 'Pendant la partie, un verre d\'un joueur de la partie y est noté, au tour où il a été pris.' : 'Les verres comptent depuis le début de la soirée, toutes parties confondues.'} Qui a bu ne conduit pas.</p>
       <div class="sec">Ajouter à la soirée</div>
       ${poolHtml(sv.players, 'soiree-join')}
       <p class="note">Un joueur ajouté à une nouvelle partie rejoint aussi la soirée. ✕ : le joueur quitte la soirée (ses verres restent comptés s'il revient).</p>

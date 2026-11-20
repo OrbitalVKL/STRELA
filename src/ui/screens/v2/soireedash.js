@@ -7,9 +7,10 @@
 // Pire volée : sans les bust ni les volées de finition (comme les Stats).
 // 0.11.1 (demande de Guillaume) : sections repliables, plus aucun tableau qui dépasse de l'écran (cartes des joueurs au
 // lieu du tableau large, badges et défis en listes), chiffres enrichis, défis de la soirée ; rapport en 4 feuilles.
-import { store, playerById, cumulativeDrinksFix, applyCumulativeFix, undoCumulativeFix, cumulativeFixed } from '../../store.js';
+import { store, playerById, cumulativeDrinksFix, applyCumulativeFix, undoCumulativeFix, cumulativeFixed, tourneeDrinks, applyTourneeFix, undoTourneeFix, tourneeFixed } from '../../store.js';
 import { infoSec, infoBox, infoBtn } from '../../info.js';
-import { tallyText, litersText } from '../../../engine/alcohol.js';
+import { tallyText, litersText, drinksText } from '../../../engine/alcohol.js';
+import { drinkPair } from '../../drinks.js';
 import { esc, ico, topBar, avg, pct, plural, when } from '../../dom.js';
 import { avatarHtml, ICONS, iconSvg, initials, colorIndex } from '../../avatars.js';
 import { AVATAR_COLORS, AVATAR_INK } from '../../theme.js';
@@ -50,7 +51,6 @@ const hhmm = ms => { const d = new Date(ms); return `${pad2(d.getHours())}:${pad
 export { soireeModel };
 const dayFull = ms => { const d = new Date(ms); return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`; };
 
-const GAGE_TXT = { verre: '+1 verre', pinte: '+1 pinte', autres: 'les autres boivent', tournee: 'sa tournée' };
 /** Ce qu'a fait un joueur pour un badge (rang `tier` d'un badge à rangs), en une ligne. */
 export const badgeShort = (b, tier = 0) => (b.tiers && tier ? `${b.tiers[tier - 1]} ${b.what[b.tiers[tier - 1] > 1 ? 1 : 0]}` : b.desc);
 
@@ -65,6 +65,8 @@ export function soireeBadges(games, m) {
 
 // ------------------------------------------------------------------ écran
 const status = new Map(); // id de soirée → { busy, msg }
+/** Sommaire (0.11.2) : ouvre la confirmation « retirer les tournées notées » de la soirée `sid`. */
+export function presetDashTourAsk(sid) { status.set(sid, { tourAsk: true }); }
 
 export function soireeDashScreen(sid) {
   const games = store.games.filter(g => g.soiree === sid);
@@ -88,11 +90,11 @@ export function soireeDashScreen(sid) {
       kp('180', r.max), kp('Bust', r.busts), kp('Triples', pct(r.tripleRate)),
       kp('Doubles', pct(r.doubleRate)), kp('Finition', r.bestFinish || '—'), kp('Manche', r.shortestLeg ? `${r.shortestLeg} fl.` : '—'),
       kp('Dans le 1', r.ones), kp('Bulls', r.bulls), kp('Hors cible', r.misses),
-      kp('Défis', r.defisOk + r.defisKo ? `${r.defisOk}<small>/${r.defisOk + r.defisKo}</small>` : '—'), kp('Badges', nBadges(r.id)), kp('Verres', `x${r.drinks}`),
+      kp('Défis', r.defisOk + r.defisKo ? `${r.defisOk}<small>/${r.defisOk + r.defisKo}</small>` : '—'), kp('Badges', nBadges(r.id)), kp('Verres · pintes', `${r.tally.glasses}<small> · ${r.tally.pints}</small>`),
     ].join('')}</div></li>`).join('')}</ul>`;
   // 0.11.1 : les défis de la soirée, dans l'ordre (étoile rouge pleine : réussi ; grise vide : raté).
   const defiRows = m.defiList.map(d => `<li class="${d.ok ? 'ok' : 'ko'}"><a href="#/partie/${esc(d.gameId)}">${ico(d.ok ? 'starf' : 'star', 'ico ds')}
-      <span class="t">P${d.game}</span>${avatarHtml(playerById(d.id), 22)}<span class="col"><b class="ell">${esc(DEFIS[d.key].short)}</b><small class="ell">${esc(playerById(d.id).name)} · ${d.ok ? 'réussi' : 'raté'}${d.gage ? ` · ${GAGE_TXT[d.gage]}` : ''}</small></span></a></li>`).join('');
+      <span class="t">P${d.game}</span>${avatarHtml(playerById(d.id), 22)}<span class="col"><b class="ell">${esc(DEFIS[d.key].short)}</b><small class="ell">${esc(playerById(d.id).name)} · ${d.ok ? 'réussi' : 'raté'}</small></span></a></li>`).join('');
   const defisBody = m.defiList.length
     ? `<ul class="dfl2">${m.rows.filter(r => r.defisOk + r.defisKo).map(r => `<li>${avatarHtml(playerById(r.id), 22)}<span class="nm ell">${esc(r.name)}</span>
         <span class="st">${ico('starf', 'ico ok')}${r.defisOk}</span><span class="st">${ico('star', 'ico ko')}${r.defisKo}</span></li>`).join('')}</ul>
@@ -120,8 +122,28 @@ export function soireeDashScreen(sid) {
   } else if (withDrinks >= 2) {
     fix = `<button type="button" class="btn ghost" data-act="dash-fix-ask" data-arg="${esc(sid)}">${ico('glass')} VERRES RESAISIS À CHAQUE PARTIE ?</button>`;
   }
+  // 0.11.2 : tournées notées (TOURNÉE SERVIE, gages « tournée » ou « les autres boivent », un verre pour tous) : personne
+  // ne les a bues. Bouton à confirmer, liste avant → après, annulable.
+  const tfixed = tourneeFixed(sid);
+  let tfix = '';
+  const tour = tourneeDrinks(sid);
+  if (st.tourAsk && tour.groups.length) {
+    const lines = m.rows.filter(r => tour.totals[r.id])
+      .map(r => `<li><span class="nm ell">${esc(r.name)}</span><b>${esc(drinksText(tour.totals[r.id].before))} → ${esc(drinksText(tour.totals[r.id].after))}</b></li>`).join('');
+    const when = tour.groups.map(x => `<li><span class="nm ell">PARTIE ${x.n} · ${hhmm(x.t)}</span><b>${x.pint ? 'UNE PINTE' : 'UN VERRE'} × ${x.ids.length}</b></li>`).join('');
+    tfix = `<div class="confirm" role="alertdialog" aria-label="Retirer les tournées notées ?"><p class="alert-h">RETIRER LES TOURNÉES NOTÉES ?</p>
+      <p class="small">Verres notés à plusieurs joueurs au même instant (TOURNÉE SERVIE, gage d'un défi, un verre pour tous) :</p>
+      <ul class="fixlist">${when}</ul><ul class="fixlist stack">${lines}</ul>
+      <p class="small">Ces verres sont retirés de la soirée. Le retrait peut être annulé.</p>
+      <div class="btns two"><button type="button" class="btn" data-act="dash-tour-no" data-arg="${esc(sid)}">NON</button><button type="button" class="btn alert" data-act="dash-tour" data-arg="${esc(sid)}">RETIRER</button></div></div>`;
+  } else if (tour.groups.length) {
+    tfix = `<button type="button" class="btn ghost" data-act="dash-tour-ask" data-arg="${esc(sid)}">${ico('glass')} RETIRER LES TOURNÉES NOTÉES</button>`;
+  } else if (tfixed) {
+    tfix = `<p class="note">Tournées notées retirées : ces verres ne comptent plus.</p>
+      <button type="button" class="btn ghost" data-act="dash-tour-undo" data-arg="${esc(sid)}">REMETTRE LES TOURNÉES</button>`;
+  }
   const drinkRows = m.rows.map(r => `<li><a href="#/stats/${esc(r.id)}">${avatarHtml(playerById(r.id), 28)}<span class="col"><span class="nm ell">${esc(r.name)}</span>
-      ${r.drinks ? `<small>${r.tally.pints ? `${tallyText(r.tally)} · ` : ''}${litersText(r.tally.liters)}</small>` : ''}</span><b>${ico('glass')}x${r.drinks}</b></a></li>`).join('');
+      ${r.drinks ? `<small>${drinksText(r.tally)} · ${litersText(r.tally.liters)}</small>` : ''}</span>${drinkPair(r.tally, 'dpair big')}</a></li>`).join('');
   // Lot 9 : la moyenne de chacun au fil des verres (0, 1, 2, 3, 4, 5 et +), en tableau ; 0.11.1 : un tableau qui
   // tient dans l'écran (avatar seul en tête de ligne, colonnes égales).
   const anyDrinks = m.drinks > 0;
@@ -141,7 +163,7 @@ export function soireeDashScreen(sid) {
   const btn = (kind, label) => `<button type="button" class="btn" data-act="dash-export" data-arg="${esc(`${kind}|${sid}`)}"${st.busy ? ' disabled' : ''}>${ico('download')} ${label}</button>`;
   return `<div class="screen dash2">${topBar('Soirée', backFrom('#/historique'))}
     <div class="dhead inv"><b>${ico('glass')} SOIRÉE DU ${dayFull(m.start).toUpperCase()}</b>
-      <span>${hhmm(m.start)} – ${hhmm(m.end)} · ${plural(m.games, 'partie', 'parties')} · ${plural(m.rows.length, 'joueur', 'joueurs')} · ${plural(m.drinks, 'verre', 'verres')}${m.drinks ? ` (${litersText(m.liters)})` : ''}</span></div>
+      <span>${hhmm(m.start)} – ${hhmm(m.end)} · ${plural(m.games, 'partie', 'parties')} · ${plural(m.rows.length, 'joueur', 'joueurs')} · ${drinksText(m.tally)}${m.drinks ? ` (${litersText(m.liters)})` : ''}</span></div>
     <div class="pad">
       ${podium}
       <ul class="dtot">
@@ -151,9 +173,9 @@ export function soireeDashScreen(sid) {
       </ul>
       ${fsec('dash-hl', 'Faits marquants', ` <span class="n">${m.highlights.length}</span>`, 'Le meilleur et le pire de la soirée. Pire volée : sans les bust ni les volées de finition. Le plus de 1 : fléchettes tombées dans le 1 (le roi des uns de la soirée). Hors cible : fléchettes à 0 (RATÉ). Taux de triples : 30 fléchettes au moins. Touchez un joueur (podium, cartes, verres) pour ouvrir ses stats ; le retour revient ici.', `<ul class="hls">${cards}</ul>`)}
       ${fsec('dash-players', 'Joueurs', ` <span class="n">${m.rows.length}</span>`, 'Une carte par joueur, dans l\'ordre du podium. Moyenne et 9 premières : sur 3 fléchettes ; pire volée sans les bust ni les finitions ; 140+ compte les 180 ; triples : fléchettes dans un triple ; doubles : fléchettes qui ont fini la manche quand une seule pouvait finir ; finition : plus grand reste fini en une volée ; manche : la plus courte gagnée, en fléchettes ; défis : réussis / tirés ; badges : gagnés ce soir.', pcards)}
-      ${fsec('dash-defis', 'Défis de la soirée', ` <span class="n">${m.totals.defis}</span>`, 'Les défis tirés au sort pendant les parties de la soirée, dans l\'ordre (P2 : 2e partie de la soirée), avec leur résultat : étoile rouge pleine si réussi, grise et vide si raté, et le gage. En haut, les réussis et les ratés de chacun. Touchez un défi pour ouvrir sa partie.', defisBody)}
+      ${fsec('dash-defis', 'Défis de la soirée', ` <span class="n">${m.totals.defis}</span>`, 'Les défis tirés au sort pendant les parties de la soirée, dans l\'ordre (P2 : 2e partie de la soirée), avec leur résultat : étoile rouge pleine si réussi, grise et vide si raté (les gages ne sont pas notés dans les verres). En haut, les réussis et les ratés de chacun. Touchez un défi pour ouvrir sa partie.', defisBody)}
       ${fsec('dash-badges', 'Badges de la soirée', ` <span class="n">${won.length}</span>`, 'Les badges gagnés pendant les parties de la soirée, joueur par joueur : un badge n\'est gagné qu\'une fois (le premier 180…), sauf les badges à rangs (bronze, argent, or), cumulés sur toutes les parties. Touchez un badge pour sa signification, et la partie et la volée où il a été gagné.', badgesBody)}
-      ${fsec('dash-drinks', 'Verres', ` <span class="n">x${m.drinks}</span>`, 'Les verres de chacun sur toute la soirée, en verres de 25 cl : une pinte (50 cl) compte pour 2. Un oubli ou une erreur dans une partie : ouvrez la partie (section Parties), section Verres, et corrigez avec − et +. Si les verres ont été resaisis dans chaque nouvelle partie (avant le mode soirée), le bouton ci-dessous ne garde que les verres nouveaux de chaque partie.', `<ul class="dlist2">${drinkRows}</ul>${fix}`)}
+      ${fsec('dash-drinks', 'Verres', ` <span class="n">${drinksText(m.tally)}</span>`, 'Les verres de chacun sur toute la soirée : verres de 25 cl et pintes de 50 cl comptés à part, et le volume bu ; les verres pris entre deux parties (écran Soirée) comptent aussi. Un oubli ou une erreur dans une partie : ouvrez la partie (section Parties), section Verres, et corrigez avec − et +. Si les verres ont été resaisis dans chaque nouvelle partie (avant le mode soirée), le bouton ci-dessous ne garde que les verres nouveaux de chaque partie. Les tournées notées par l\'ancienne version (TOURNÉE SERVIE, gages des défis, un verre pour tous) peuvent être retirées d\'un appui, et remises.', `<ul class="dlist2">${drinkRows}</ul>${tfix}${fix}`)}
       ${anyDrinks ? fsec('dash-levels', 'Au fil des verres', '', 'Moyenne sur 3 fléchettes de chacun selon le nombre de verres déjà bus quand il lance (0, 1, 2… ; une pinte compte pour 2). Encadré : le niveau où il a le mieux joué ce soir (9 fléchettes au moins). Touchez un avatar pour ses stats.', lvTable) : ''}
       ${fsec('dash-games', 'Parties', ` <span class="n">${m.games}</span>`, 'Touchez une partie pour son détail tour par tour, sa fiche de score et ses verres.', `<ul class="hrows dlist">${glist}</ul>`)}
       ${fsec('dash-summary', 'Résumé à partager', '', 'Une image verticale (format téléphone) à envoyer dans la conversation des joueurs : podium, six faits marquants, défis et badges de la soirée. Elle est enregistrée dans Téléchargements/Strela puis le menu de partage s\'ouvre.', `${st.summary ? `<div class="dsum"><img src="${st.summary}" alt="Résumé de la soirée"></div>` : ''}
@@ -293,5 +315,9 @@ export const actions = {
   'dash-fix-ask'(sid) { status.set(sid, { ...(status.get(sid) || {}), fixAsk: true }); refresh(); },
   'dash-fix-no'(sid) { status.set(sid, { ...(status.get(sid) || {}), fixAsk: false }); refresh(); },
   'dash-fix'(sid) { applyCumulativeFix(sid); status.set(sid, { ...(status.get(sid) || {}), fixAsk: false, preview: null }); refresh(); },
+  'dash-tour-ask'(sid) { status.set(sid, { ...(status.get(sid) || {}), tourAsk: true }); refresh(); },
+  'dash-tour-no'(sid) { status.set(sid, { ...(status.get(sid) || {}), tourAsk: false }); refresh(); },
+  'dash-tour'(sid) { applyTourneeFix(sid); status.set(sid, { ...(status.get(sid) || {}), tourAsk: false, preview: null }); refresh(); },
+  'dash-tour-undo'(sid) { undoTourneeFix(sid); status.set(sid, { ...(status.get(sid) || {}), preview: null }); refresh(); },
   'dash-unfix'(sid) { undoCumulativeFix(sid); status.set(sid, { ...(status.get(sid) || {}), preview: null }); refresh(); },
 };

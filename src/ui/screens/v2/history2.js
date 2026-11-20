@@ -9,7 +9,7 @@ import { store, playerById, deleteGames, setGamesSoiree, newSoireeId } from '../
 import { esc, ico, topBar, plural } from '../../dom.js';
 import { avatarHtml } from '../../avatars.js';
 import { gameState, gameWinner } from '../../../engine/stats.js';
-import { unitsOf } from '../../../engine/alcohol.js';
+import { drinkTally, drinksText } from '../../../engine/alcohol.js';
 import { refresh } from '../../nav.js';
 import { historyEmpty } from '../history.js';
 import { computeCricket, isCricket } from '../../../engine/cricket.js';
@@ -151,13 +151,14 @@ export function history2List() {
       lastMonth = mk;
     }
     const isOpen = open.has(grp.key);
-    const drinks = grp.games.reduce((n, g) => n + (g.drinks ? Object.values(g.drinks).reduce((a, l) => a + unitsOf(l), 0) : 0), 0);
+    const drinkT = drinkTally(...grp.games.flatMap(g => (g.drinks ? Object.values(g.drinks) : [])));
+    const drinks = drinkT.units;
     const players = [...new Set(grp.games.flatMap(g => g.config.players))];
     const span = grp.games.length > 1 ? `${hhmm(first.startedAt)} – ${hhmm(grp.games[0].startedAt)}` : hhmm(first.startedAt);
     body += `<li class="hgroup${isOpen ? ' open' : ''}">
       <button type="button" class="hhead" data-act="h2-open" data-arg="${esc(grp.key)}" aria-expanded="${isOpen}">
         <span class="d">${grp.soiree ? `${ico('glass')} ` : ''}${dayLabel(first.startedAt)}</span>
-        <span class="k">${grp.soiree ? 'SOIRÉE · ' : ''}${plural(grp.games.length, 'PARTIE', 'PARTIES')}${drinks ? ` · ${drinks} VERRES` : ''}</span>
+        <span class="k">${grp.soiree ? 'SOIRÉE · ' : ''}${plural(grp.games.length, 'PARTIE', 'PARTIES')}${drinks ? ` · ${drinksText(drinkT).toUpperCase()}` : ''}</span>
         <span class="avs">${players.slice(0, 3).map(id => avatarHtml(playerById(id), 20)).join('')}${players.length > 3 ? `<small>+${players.length - 3}</small>` : ''}</span>
         <span class="sp">${span}</span>${ico(isOpen ? 'up' : 'down')}</button>
       ${isOpen ? `<ul class="hrows">${grp.games.map(row).join('')}</ul>

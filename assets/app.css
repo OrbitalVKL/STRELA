@@ -855,6 +855,9 @@ html.still .gband.slide, html.still .announce, html.still .cele, html.still .cel
 .lt .c .dk { position: absolute; left: 3px; bottom: 4px; display: inline-flex; align-items: center; gap: 1px; padding: 0 2px; font-style: normal; font-size: 10px; font-weight: 800; line-height: 1.3; border: 1px solid transparent; }
 .lt .c .dk.new { border-color: currentColor; }
 .lt .c .dk .ico { width: 10px; height: 10px; }
+/* 0.11.2 : verres et pintes à part ; les deux à la fois : la pinte au-dessus du verre (la case est étroite). */
+.lt .c .dk > span { display: inline-flex; align-items: center; gap: 1px; }
+.lt .c .dk.two { flex-direction: column; align-items: flex-start; }
 .lt .c b { font-size: 20px; font-weight: 800; line-height: 1.2; }
 /* Fléchettes : toujours toutes visibles, sans « … » ; paliers (fit.js) : séparateurs resserrés, deux lignes, plus petit */
 /* (calées à droite par la marge auto du premier : ce qui dépasse sort à droite, où fit.js le voit) */
@@ -1748,3 +1751,14 @@ button.hrow { width: 100%; border: 0; border-bottom: var(--rule); background: va
 .lvt2 th:first-child { width: 36px; border-right: var(--rule); }
 .lvt2 th a { display: inline-grid; }
 .lvt2 td.best { font-weight: 800; outline: 1px solid var(--fg); outline-offset: -3px; }
+
+/* 0.11.2 : verres de 25 cl et pintes comptés à part : « [verre] x3 [pinte] x1 » (src/ui/drinks.js › drinkPair). */
+.dpair { display: inline-flex; align-items: center; gap: 0.45em; white-space: nowrap; }
+.dpair .dg, .dpair .dp { display: inline-flex; align-items: center; gap: 1px; }
+.dpair .x { text-transform: none; }
+.dpair .ico { width: 1.2em; height: 1.2em; flex: 0 0 auto; }
+.dpair.big { flex: 0 0 auto; margin-left: auto; font-size: 15px; font-weight: 800; }
+.rest .meta .dk.dpair { vertical-align: bottom; }
+/* 0.11.2 : avant → après en verres et pintes : trop long pour une ligne, le nom au-dessus. */
+.fixlist.stack li { flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; padding: 6px 0; }
+.fixlist.stack li b { flex: 0 1 auto; max-width: 100%; font-weight: 400; font-size: 12px; }

@@ -3,9 +3,8 @@
 // Les deux montrent la cible : volée de la finition numérotée, volées précédentes du vainqueur dans la manche en discret.
 // La fin de manche sert de validation de la volée gagnante (pas de VALIDER en jeu pour une finition) : MANCHE SUIVANTE
 // l'enregistre (`validated`), une reprise avant cela revient sur cet écran.
-import { store, currentState, playerById, archiveCurrent, startGame, saveCurrent, gameDrinking, addDrink } from '../store.js';
+import { store, currentState, playerById, archiveCurrent, startGame, saveCurrent, gameDrinking } from '../store.js';
 import { gameRecords } from '../../engine/records.js';
-import { drinkSizeSeg, pintMode, plusDrink } from '../drinks.js';
 import { esc, avg, int, OUT_LABEL, maquetteButtons } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
 import { formatDart } from '../../engine/darts.js';
@@ -13,7 +12,7 @@ import { playerSummary } from '../../engine/stats.js';
 import { boardSvg, impactsFor, markIcon } from '../board.js';
 import { go } from '../nav.js';
 import { undo, celebrationHtml, placeLabel, drinksSection, recordsOf } from './game.js';
-import { standings, lastPlaces } from '../../engine/ranking.js';
+import { standings } from '../../engine/ranking.js';
 import { sheetSection } from './printsheet.js';
 import { gameBadgesHtml } from '../honours.js';
 
@@ -65,11 +64,11 @@ export function matchEnd() {
   if (s.status !== 'finished') { go('#/jeu', { replace: true }); return ''; }
   const w = s.winner;
   const p = playerById(g.config.players[w]);
-  // Lot 7 : résumé dans l'ordre du classement (place en première colonne) et le dernier, qui paie sa tournée.
+  // Lot 7 : résumé dans l'ordre du classement (place en première colonne). 0.11.2 (Guillaume : personne ne paie sa
+  // tournée) : plus de « le dernier paie sa tournée » ni de TOURNÉE SERVIE.
   const ranked = standings(s);
   const rows = ranked.map(r => ({ i: r.player, place: r.place, p: playerById(g.config.players[r.player]), sum: playerSummary(s, r.player) }));
   const multi = g.config.players.length > 1;
-  const payers = lastPlaces(s).map(i => playerById(g.config.players[i]));
   const winVisit = [...s.visits].reverse().find(v => v.finish && v.player === w);
   const legsTxt = g.config.legsToWin > 1 ? `${s.legsWon[w]} MANCHES À ${Math.max(...s.legsWon.filter((_, i) => i !== w), 0)}` : '';
   const nextFirst = playerById(g.config.players[1 % g.config.players.length]);
@@ -78,7 +77,6 @@ export function matchEnd() {
       <b class="caps" style="letter-spacing:.12em">Partie terminée</b><span class="small b">${g.config.startScore} · ${OUT_LABEL[g.config.outMode]}</span></div>
     <div class="result-head">${avatarHtml(p, 88)}<div style="min-width:0"><span class="t dim">VAINQUEUR</span><span class="nm">${esc(p.name)}</span>
       ${legsTxt ? `<span class="small b">${legsTxt}</span>` : ''}</div></div>
-    ${payers.length ? tourneeHtml(payers, g) : ''}
     ${recordsHtml(g, s)}
     ${gameBadgesHtml(g)}
     ${finishBoard(g, s, winVisit, p)}
@@ -98,22 +96,6 @@ export function matchEnd() {
       <button type="button" class="btn" data-act="finish-home">ACCUEIL</button>
     </div>
     ${celebrationHtml()}
-  </div>`;
-}
-
-/**
- * Le dernier paie sa tournée (lot 7) ; à égalité, ils la partagent. C'est une indication (demande de Guillaume) : rien
- * n'est noté tant qu'on n'appuie pas sur TOURNÉE SERVIE (lot 9), qui ajoute un verre (ou une pinte) à chaque joueur,
- * une seule fois.
- */
-function tourneeHtml(payers, g) {
-  const one = payers.length === 1;
-  const served = !!g.ui.served;
-  return `<div class="tournee inv" role="note">
-    <span class="t">${one ? 'LE DERNIER PAIE SA TOURNÉE' : 'DERNIERS À ÉGALITÉ : ILS PARTAGENT LA TOURNÉE'}</span>
-    <div class="who">${payers.map(q => `<span class="pl">${avatarHtml(q, 40)}<b class="nm">${esc(q.name)}</b></span>`).join('')}</div>
-    ${served ? `<span class="served">TOURNÉE SERVIE : ${g.ui.served} POUR CHACUN, NOTÉ DANS LES VERRES</span>`
-      : `<div class="tserve">${drinkSizeSeg()}<button type="button" class="btn" data-act="tournee-serve">${plusDrink()} TOURNÉE SERVIE</button></div>`}
   </div>`;
 }
 
@@ -161,12 +143,4 @@ export const actions = {
     go('#/jeu', { replace: true });
   },
   'finish-home'() { archiveCurrent(false); go('#/'); },
-  'tournee-serve'() {
-    const g = store.current;
-    if (!g || g.ui.served) return;
-    const now = Date.now();
-    for (const id of g.config.players) addDrink(id, now, pintMode());
-    g.ui.served = pintMode() ? 'UNE PINTE' : 'UN VERRE';
-    go('#/fin', { replace: true });
-  },
 };

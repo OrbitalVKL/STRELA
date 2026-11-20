@@ -5,7 +5,8 @@
 // défi. Le tirage est déterministe (empreinte de l'identifiant de la partie et du rang de la volée) : rien d'autre à
 // enregistrer, et une reprise ou le recalcul des stats retrouvent les mêmes défis. Un défi porte sur la volée entière
 // du joueur qui lance ; il est vérifié tout seul quand la volée est close. Le gage est indicatif : l'écran propose de le
-// noter dans les verres d'un appui.
+// noter dans les verres d'un appui ; 0.11.2 (demande de Guillaume) : plus aucun gage n'est noté dans les verres, le
+// gage n'est plus qu'indicatif (texte du défi, annonce).
 // Lot 7.8 : jeux de défis. Les parties d'avant (sans `defiSet`) tirent dans les 8 défis du lot 9 (jeu 1), pour que leurs
 // défis, déjà joués, ne changent pas ; les nouvelles parties (`defiSet: 2`) tirent dans les 14. « Main gauche » ne se
 // vérifie pas aux fléchettes : le joueur le déclare (`game.defiDecl` : { rang de la volée: vrai | faux }) ; non déclaré =
@@ -38,7 +39,8 @@ export const DEFIS = Object.freeze({
     ok: v => v.darts.some(d => d.segment === 25) },
   moyenne: { text: 'MIEUX QUE TA MOYENNE, SINON UN VERRE', short: '> TA MOY.', say: 'mieux que ta moyenne, sinon un verre', gage: 'verre', minRest: 100,
     ok: (v, ctx) => !v.bust && ctx.average !== null && v.scored > ctx.average },
-  tournee: { text: 'MOINS DE 20 : TA TOURNÉE', short: 'PAS SOUS 20', say: 'moins de vingt, et c\'est ta tournée', gage: 'tournee', minRest: 100,
+  // 0.11.2 (Guillaume : personne ne paie sa tournée) : « moins de 20 : ta tournée » devient « sinon un verre ».
+  tournee: { text: 'MOINS DE 20, SINON UN VERRE', short: 'PAS SOUS 20', say: 'pas moins de vingt, sinon un verre', gage: 'verre', minRest: 100,
     ok: v => !v.bust && v.scored >= 20 },
   // Lot 7.8 (Guillaume, 20/11) : six défis de plus. `hint` : précision sous le texte, dans le bandeau du défi.
   gauche: { text: 'TOUTE LA VOLÉE MAIN GAUCHE, SINON UN VERRE', short: 'MAIN GAUCHE', say: 'toute la volée de la main gauche, sinon un verre',

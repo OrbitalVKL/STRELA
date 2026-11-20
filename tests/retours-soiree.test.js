@@ -218,8 +218,7 @@ test('vraie appli : bandeau du défi pendant toute la volée, reste visible, ré
     await page.click('[data-key="20"]'); await page.click('[data-key="1"]');
     await page.waitForSelector('.dfb.res.ko');
     assert.match(await page.locator('.dfb').textContent(), /DÉFI RATÉ/);
-    await page.click('.dfb .dfg');
-    assert.match(await page.locator('.dfb').textContent(), /NOTÉ/);
+    assert.equal(await page.locator('.dfb .dfg').count(), 0, '0.11.2 : plus de gage à noter en verres');
     // Tableau de la partie : l'étoile vide de la volée ratée.
     await page.evaluate(() => window.__strela.scene('jeu-defi-histo'));
     await page.waitForSelector('.lt .df');

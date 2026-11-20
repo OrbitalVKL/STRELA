@@ -1,7 +1,7 @@
 // Fiche de score à imprimer (lot 7.1) : boutons IMAGE et PDF en fin de partie et au détail d'une partie de
 // l'historique. Livraison : dans l'APK, Téléchargements/Strela/<nom> puis menu de partage d'Android (imprimer, Drive,
 // mail… ; strelaNative.saveFile) ; dans le navigateur, partage du fichier s'il est possible, sinon téléchargement.
-import { store, playerById } from '../store.js';
+import { store, playerById, beforeTallies } from '../store.js';
 import { infoSec, infoBox } from '../info.js';
 import { esc, ico } from '../dom.js';
 import { gameState } from '../../engine/stats.js';
@@ -64,7 +64,7 @@ export async function exportSheet(kind, id) {
   refresh();
   let msg;
   try {
-    const f = await sheetFile(g, gameState(g), g.config.players.map(playerById), kind, BUILD.version);
+    const f = await sheetFile(g, gameState(g), g.config.players.map(playerById), kind, BUILD.version, beforeTallies(g)); // 0.11.2
     msg = await deliverFile(f);
     if (msg === null) { status.set(id, {}); refresh(); return; }
   } catch (e) {

@@ -909,6 +909,30 @@ badges et du tableau de bord de soirée qui dépassait de l'écran, sections rep
   20, bulls, hors cible ; chiffre `defis` au classement ; vitrine : les badges dans un pli (`fold('badges')`).
 - Maquette : les deux dernières soirées fictives ont des défis ; scène `v78-soiree-dash-tout` (tout déplié).
 
+## Version 0.11.2 : verres et pintes, sans tournées (20/11/2026)
+
+Retour de Guillaume après la soirée du 20/11 : « personne ne paie sa tournée », retirer les gages des défis, compter
+verres et pintes à part. Choix de Guillaume : tout retirer ; aucun gage noté ; verres de 25 cl et pintes comptés à part ;
+soirées passées : bouton à confirmer.
+- **Tournées retirées** : fin de partie (plus de bloc « le dernier paie sa tournée » ni TOURNÉE SERVIE, plus d'annonce),
+  fiche de score (`payers: []`), rapport (page A : « QUI A GAGNÉ CHAQUE PARTIE » à la place, page B : plus de ↓ ni de
+  « tournée : »), résumé (plus de case « Tournées »). `lastPlaces` reste dans ranking.js (classement).
+- **Défis** : plus de bouton de gage (action `defi-gage` retirée) ; `DEFIS.tournee` garde sa clé (parties d'avant) mais
+  dit « MOINS DE 20, SINON UN VERRE ». Stats : « Défis ratés » à la place des gages.
+- **Comptage** : `drinksText` / `addTally` (alcohol.js), `drinkPair` (drinks.js, `.dpair`) : verres de 25 cl et pintes
+  à part partout ; `drinksTimeline` donne `glasses` / `pints` par case ; `sheetModel(g, s, players, beforeTally)` et
+  `beforeTallies(g)` (store.js) pour le cumul d'une soirée en détail. Pour un seul nombre (courbe, classement, « le plus
+  assoiffé ») : le volume (cl). `unitsOf` (pinte = 2) reste pour `drinksBefore`, la moyenne au fil des verres et le
+  badge « Bu et gagné ».
+- **Verres hors partie** (écran Soirée) : versés dans la partie suivante du joueur à son lancement (`claimSoireeDrinks`,
+  `at: 0`), ou dans sa dernière partie de la soirée à `endSoiree()` : ils ne se perdent plus.
+- **Tournées notées** (soirées passées) : `tourneeDrinks(sid)` repère les verres notés au même instant (à la ms) à au
+  moins deux joueurs d'une partie ; `applyTourneeFix` les range dans `g.drinksTournee` (db.js › withDrinks, aucune
+  migration), `undoTourneeFix` les remet. Tableau de bord, section Verres : RETIRER LES TOURNÉES NOTÉES (liste par
+  partie, avant → après par joueur, confirmation), puis REMETTRE LES TOURNÉES. « UN VERRE POUR TOUS » (gardé) donne
+  depuis la 0.11.2 un instant différent à chacun (`now + i`) pour ne pas être pris pour une tournée. Les gages d'un seul
+  joueur ne se distinguent pas d'un verre ordinaire : à corriger à la main (détail de la partie, − / +).
+
 ## Pour le lot 4
 
 - Les écrans Historique et Stats lisent `store.games` (parties closes) ; la partie en cours est à part (`store.current`).

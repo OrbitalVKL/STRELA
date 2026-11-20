@@ -49,7 +49,7 @@ test('ordre tiré au sort : la partie prend un ordre mélangé, les réglages ga
   } finally { await t.close(); }
 });
 
-test('jouer jusqu’au bout : places, joueur en tête, nul célébré, classement et tournée', { skip, timeout: 120e3 }, async () => {
+test('jouer jusqu’au bout : places, joueur en tête, nul célébré, classement (plus de tournée depuis la 0.11.2)', { skip, timeout: 120e3 }, async () => {
   const t = await setup();
   const { page } = t;
   try {
@@ -93,9 +93,8 @@ test('jouer jusqu’au bout : places, joueur en tête, nul célébré, classemen
     await throwDarts(page, '0 0 0');
     await validate(page);
     await throwDarts(page, 'T20 S20 D19'); // Charlie : 118 → 0, 2e ; Bravo reste seul, dernier
-    await page.waitForSelector('.tournee');
-    assert.match(await page.locator('.tournee .t').textContent(), /LE DERNIER PAIE SA TOURNÉE/);
-    assert.equal(await page.locator('.tournee .nm').textContent(), 'Bravo');
+    await page.waitForSelector('.rank-table');
+    assert.equal(await page.locator('.tournee, [data-act="tournee-serve"]').count(), 0, '0.11.2 : plus de tournée');
     assert.equal((await page.locator('.drinks li:has-text("Bravo") .cnt').textContent()).trim(), 'x2', 'verres en fin de partie');
     const ranks = await page.locator('.rank-table tbody tr').evaluateAll(rows => rows.map(r => r.querySelector('.pl').textContent.replace(/\s+/g, ' ').trim()));
     assert.deepEqual(ranks, ['1ERAlpha', '2ECharlie', '3EBravo']);

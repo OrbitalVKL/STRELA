@@ -1,7 +1,7 @@
 // Historique : la liste est celle de la version 0.8.0 (screens/v2/history2.js) ; ici, l'écran vide et le détail.
 // Détail : manche par manche, un tableau tour par tour (une colonne par joueur), fléchettes et impacts de chaque volée
 // sur la cible (gameLog, partagé avec le panneau « Partie en cours » du jeu).
-import { store, playerById, deleteGames, editGameDrinks, gameDrinks } from '../store.js';
+import { store, playerById, deleteGames, editGameDrinks, beforeTallies } from '../store.js';
 import { infoSec, infoBox } from '../info.js';
 import { esc, ico, topBar, when, avg, plural, OUT_LABEL } from '../dom.js';
 import { avatarHtml, iconSvg } from '../avatars.js';
@@ -10,7 +10,7 @@ import { formatDart } from '../../engine/darts.js';
 import { boardSvg, impactsFor, markIcon } from '../board.js';
 import { legTable, cellHtml } from '../table.js';
 import { gameDefis, defiOf, DEFIS } from '../../engine/defis.js';
-import { drinksTimeline, drinkTally } from '../../engine/alcohol.js';
+import { drinksTimeline, drinkTally, drinksText, addTally } from '../../engine/alcohol.js';
 import { drinkSizeSeg, plusDrink, plusLabel, pintMode, drinkCount } from '../drinks.js';
 import { sheetSection } from './printsheet.js';
 import { go, refresh, backFrom } from '../nav.js';
@@ -65,14 +65,14 @@ export function historyDetail(id) {
   const drinkRows = g.config.players.map(pid => {
     const p = playerById(pid);
     const here = drinkTally(g.drinks && g.drinks[pid]);
-    const total = gameDrinks(g, pid);
+    const before = g.soiree ? (beforeTallies(g) || {})[pid] : null; // 0.11.2 : verres et pintes à part
     const records = (g.drinks && g.drinks[pid] && g.drinks[pid].length) || 0;
     return `<li>${avatarHtml(p, 32)}<div class="col"><span class="nm ell">${esc(p.name)}</span>
-        ${drinkCount(here.units, here)}${g.soiree && total !== here.units ? `<small class="dkd">x${total} depuis le début de la soirée</small>` : ''}</div>
+        ${drinkCount(here)}${before && (before.glasses || before.pints) ? `<small class="dkd">${drinksText(addTally(before, here))} depuis le début de la soirée</small>` : ''}</div>
       <button type="button" class="mv" data-act="gdrink-minus" data-arg="${esc(`${g.id}|${pid}`)}" ${records ? '' : 'disabled'} aria-label="Retirer le dernier verre de ${esc(p.name)}">${ico('minus')}</button>
       <button type="button" class="mv add" data-act="gdrink-plus" data-arg="${esc(`${g.id}|${pid}`)}" aria-label="${esc(plusLabel(p.name))}">${plusDrink()}</button></li>`;
   }).join('');
-  const drinks = `<div class="pad" style="margin-top:18px">${infoSec('Verres', 'detail-drinks')}${infoBox('detail-drinks', 'Les verres pris pendant cette partie, à corriger avec − et + (un verre ajouté ici compte à la fin de la partie). Verre de 25 cl ou pinte de 50 cl : une pinte compte pour 2 verres. Dans une soirée, les parties suivantes reprennent le nouveau cumul.')}
+  const drinks = `<div class="pad" style="margin-top:18px">${infoSec('Verres', 'detail-drinks')}${infoBox('detail-drinks', 'Les verres pris pendant cette partie, à corriger avec − et + (un verre ajouté ici compte à la fin de la partie). Verre de 25 cl ou pinte de 50 cl, comptés à part. Dans une soirée, les parties suivantes reprennent le nouveau cumul.')}
     ${drinkSizeSeg()}<ul class="drinks">${drinkRows}</ul></div>`;
   return `<div class="screen">${topBar('Détail de la partie', backFrom('#/historique'))}${head}${table}${gameLog(g, s, { abandoned: g.abandoned })}${drinks}
     <div class="pad" style="margin-top:22px">${sheetSection(g)}</div>
@@ -116,7 +116,7 @@ function detail(g, s, t, players) {
  */
 export function gameLog(g, s, { live = false, abandoned = false, reverse = false, details = true } = {}) {
   const players = g.config.players.map(playerById);
-  const timeline = drinksTimeline(s, g.drinks, g.config.players, g.drinksBefore); // lot 7.1 : verres dans le tableau
+  const timeline = drinksTimeline(s, g.drinks, g.config.players, g.drinksBefore, beforeTallies(g)); // lot 7.1 : verres dans le tableau ; 0.11.2 : verres et pintes
   const defis = defiMap(g, s, live); // lot 7.8 : défi de chaque volée et son résultat
   const shown = s.legs.filter(l => l.visits.length || (live && l.number === s.legNumber));
   const legs = (reverse ? [...shown].reverse() : shown).map(l => {

@@ -66,11 +66,14 @@ test('lot 7.1 : verres rangés dans l’historique de la partie (cumul par volé
     b: [{ t: 3, at: 0 }, { t: 4, at: 10 }],           // avant sa première volée ; pendant sa volée en cours
   };
   const { byVisit, totals } = drinksTimeline(s, drinks, ['a', 'b']);
-  assert.deepEqual(byVisit.get(0), { here: 1, total: 1, player: 0 });
-  assert.deepEqual(byVisit.get(2), { here: 2, total: 3, player: 0 });
-  assert.deepEqual(byVisit.get(1), { here: 1, total: 1, player: 1 });
-  assert.deepEqual(byVisit.get('open'), { here: 1, total: 2, player: 1 });
+  // 0.11.2 : chaque case dit aussi le cumul en verres de 25 cl et en pintes, comptés à part.
+  assert.deepEqual(byVisit.get(0), { here: 1, total: 1, player: 0, glasses: 1, pints: 0 });
+  assert.deepEqual(byVisit.get(2), { here: 2, total: 3, player: 0, glasses: 3, pints: 0 });
+  assert.deepEqual(byVisit.get(1), { here: 1, total: 1, player: 1, glasses: 1, pints: 0 });
+  assert.deepEqual(byVisit.get('open'), { here: 1, total: 2, player: 1, glasses: 2, pints: 0 });
   assert.deepEqual(totals, [3, 2]);
+  const withPint = drinksTimeline(s, { a: [{ t: 1, at: 1 }, { t: 2, at: 4, v: 0.5 }] }, ['a', 'b']).byVisit.get(2);
+  assert.deepEqual(withPint, { here: 2, total: 3, player: 0, glasses: 1, pints: 1 }, 'une pinte : à part (elle compte pour 2 dans total)');
   assert.equal(drinksTimeline(s, null, ['a', 'b']).byVisit.size, 0);
   // Enregistrement : la place est gardée, l'ancien format aussi.
   assert.deepEqual(cleanDrinks({ a: [{ t: 5, at: 2 }, { t: 6 }, 7, { at: 3 }] }), { a: [{ t: 5, at: 2 }, { t: 6 }, 7] });

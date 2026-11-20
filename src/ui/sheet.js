@@ -8,8 +8,8 @@
 // La fiche est livrée par exportSheet() : dans l'APK, Téléchargements/Strela puis menu de partage d'Android
 // (strelaNative.saveFile) ; dans le navigateur, partage du fichier s'il est possible, sinon téléchargement.
 import { legTable, cellView } from './table.js';
-import { drinksTimeline } from '../engine/alcohol.js';
-import { standings, lastPlaces } from '../engine/ranking.js';
+import { drinksTimeline, drinkTally, addTally } from '../engine/alcohol.js';
+import { standings } from '../engine/ranking.js';
 import { OUT_LABEL } from './dom.js';
 
 // ------------------------------------------------------------------ modèle
@@ -26,16 +26,19 @@ const placeLabel = n => (n === 1 ? '1ER' : `${n}E`);
  *   g : partie ({ config, darts, startedAt, endedAt, abandoned, drinks }) ; s : son état ; players : fiches des joueurs
  *   (même ordre que config.players).
  */
-export function sheetModel(g, s, players) {
+export function sheetModel(g, s, players, beforeTally = null) {
   const n = g.config.players.length;
   const finished = s.status === 'finished';
-  const timeline = drinksTimeline(s, g.drinks, g.config.players, g.drinksBefore);
+  // 0.11.2 : verres de 25 cl et pintes comptés à part (beforeTally : ceux des parties d'avant de la soirée).
+  const timeline = drinksTimeline(s, g.drinks, g.config.players, g.drinksBefore, beforeTally);
   const drinking = timeline.totals.some(x => x > 0);
   const order = finished ? standings(s) : g.config.players.map((_, i) => ({ player: i, place: null }));
   // Lot 7.3 : place, joueur, manches gagnées, verres ; plus de moyenne ni d'autres statistiques.
   const ranking = order.map(r => ({
     place: r.place && n > 1 ? placeLabel(r.place) : '', name: players[r.player].name, winner: finished && r.player === s.winner,
-    legs: String(s.legsWon[r.player]), drinks: drinking ? timeline.totals[r.player] : null,
+    legs: String(s.legsWon[r.player]),
+    drinks: drinking ? addTally(beforeTally && beforeTally[g.config.players[r.player]] ? beforeTally[g.config.players[r.player]]
+      : { units: 0, glasses: (g.drinksBefore && g.drinksBefore[g.config.players[r.player]]) || 0, pints: 0, liters: 0 }, drinkTally(g.drinks && g.drinks[g.config.players[r.player]])) : null,
   }));
   const legs = s.legs.filter(l => l.visits.length).map(l => {
     const t = legTable(s, l.number, { drinks: timeline.byVisit });
@@ -52,7 +55,7 @@ export function sheetModel(g, s, players) {
     format: `${g.config.startScore} · ${OUT_LABEL[g.config.outMode]}${legsTxt}${g.config.playOn ? ' · JUSQU\'AU BOUT' : ''}`,
     date: sheetDate(g.startedAt),
     status: finished ? (n > 1 ? `VAINQUEUR : ${players[s.winner].name}` : `${players[s.winner].name} : PARTIE FINIE`) : g.abandoned ? 'PARTIE ABANDONNÉE' : 'PARTIE EN COURS',
-    payers: finished ? lastPlaces(s).map(i => players[i].name) : [],
+    payers: [], // 0.11.2 (Guillaume : personne ne paie sa tournée) : plus de « le dernier paie sa tournée »
     multi: n > 1,
     legsShown: g.config.legsToWin > 1,
     drinking,
@@ -111,15 +114,32 @@ function glass(ctx, x, y, size, color) { // même dessin que l'icône « glass �
 }
 
 
-/** Verre + « x3 » à (x, y) = ligne de base ; renvoie la largeur. */
-function glassCount(ctx, n, x, y, px, { align = 'left', color = INK } = {}) {
+function pintGlyph(ctx, x, y, size, color) { // même dessin que l'icône « pint » (grille 24)
+  const k = size / 24;
+  ctx.save(); ctx.translate(x, y); ctx.scale(k, k);
+  ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.lineJoin = 'miter';
+  ctx.strokeRect(5, 4, 11, 17);
+  ctx.beginPath(); ctx.moveTo(16, 8); ctx.lineTo(20, 8); ctx.lineTo(20, 16); ctx.lineTo(16, 16); ctx.moveTo(5, 9); ctx.lineTo(16, 9); ctx.stroke();
+  ctx.restore();
+}
+
+/** Verres de 25 cl et pintes (0.11.2) : « [verre] x3 [pinte] x1 » à (x, y) = ligne de base ; renvoie la largeur.
+ *  `t` : { glasses, pints } (ou un nombre : des verres). */
+function glassCount(ctx, t, x, y, px, { align = 'left', color = INK } = {}) {
+  const tt = typeof t === 'number' ? { glasses: t, pints: 0 } : t;
   const g = Math.round(px * 1.15);
   ctx.font = font(px, 800);
-  const tw = ctx.measureText(`x${n}`).width;
-  const wAll = g + 2 + tw;
-  const x0 = align === 'right' ? x - wAll : x;
-  glass(ctx, x0, y - g + Math.round(px * 0.18), g, color);
-  text(ctx, `x${n}`, x0 + g + 2, y, { px, w: 800, color });
+  const parts = [];
+  if (tt.glasses || !tt.pints) parts.push([glass, `x${tt.glasses}`]);
+  if (tt.pints) parts.push([pintGlyph, `x${tt.pints}`]);
+  const ws = parts.map(([, s]) => g + 2 + ctx.measureText(s).width);
+  const wAll = ws.reduce((a, b) => a + b, 0) + (parts.length - 1) * Math.round(px * 0.5);
+  let x0 = align === 'right' ? x - wAll : x;
+  parts.forEach(([draw, s], k) => {
+    draw(ctx, x0, y - g + Math.round(px * 0.18), g, color);
+    text(ctx, s, x0 + g + 2, y, { px, w: 800, color });
+    x0 += ws[k] + Math.round(px * 0.5);
+  });
   return wAll;
 }
 
@@ -200,7 +220,7 @@ function legBlocks(m, x, w, rh) {
         let left = 8;
         if (v.drinks) {
           const gx = x0 + 8;
-          const gw = glassCount(ctx, v.drinks.total, gx, y + small + 6, small - 1);
+          const gw = glassCount(ctx, v.drinks, gx, y + small + 6, small - 1);
           if (v.drinks.fresh) { ctx.strokeStyle = INK; ctx.lineWidth = 1.2; ctx.strokeRect(gx - 3, y + 4, gw + 6, small + 6); }
           left = 8 + gw + 10;
         }
@@ -348,9 +368,9 @@ export async function sheetFonts() {
 }
 
 /** Fichier de la fiche : { name, mime, bytes }. kind : 'png' ou 'pdf'. */
-export async function sheetFile(g, s, players, kind, version = '') {
+export async function sheetFile(g, s, players, kind, version = '', beforeTally = null) {
   await sheetFonts();
-  const model = sheetModel(g, s, players);
+  const model = sheetModel(g, s, players, beforeTally);
   if (kind === 'png') {
     const [c] = drawSheet(model, { paged: false });
     return { name: sheetFileName(g.startedAt, 'png'), mime: 'image/png', bytes: dataUrlBytes(c.toDataURL('image/png')) };

@@ -9,8 +9,8 @@
 //   hors de la cible ne compte rien).
 // Après la 3e fléchette ou un bust, la volée reste affichée jusqu'à VALIDER (turn.js) ; ANNULER reste possible.
 // À la validation, « À TOI, PSEUDO » occupe le haut de l'écran ~0,8 s, puis le bandeau du joueur glisse en place.
-import { store, currentState, playerById, archiveCurrent, deleteCurrent, animationsOn, saveCurrent, legEndPending, addDrink, removeDrink, drinksHere, gameDrinks, gameDrinking, gameDrinkTally } from '../store.js';
-import { drinkSizeSeg, plusDrink, plusLabel, pintMode, drinkCount } from '../drinks.js';
+import { store, currentState, playerById, archiveCurrent, deleteCurrent, animationsOn, saveCurrent, legEndPending, addDrink, removeDrink, drinksHere, gameDrinking, gameDrinkTally } from '../store.js';
+import { drinkSizeSeg, plusDrink, plusLabel, pintMode, drinkCount, drinkPair } from '../drinks.js';
 import { esc, ico, avg, OUT_SHORT, maquetteButtons } from '../dom.js';
 import { avatarHtml, colorIndex } from '../avatars.js';
 import { throwDart, undoDart, computeState } from '../../engine/x01.js';
@@ -27,7 +27,7 @@ import { gameLog, selectLogCell, selectedLogCell } from './history.js';
 import { sound, dartSound, say, SPEECH } from '../feedback.js';
 import { correctDart, locateDart, visitStart, CORRECT_ERRORS } from '../../engine/correct.js';
 import { turnAnimOf, turnFxKind, syncTurnFx } from '../turnfx.js';
-import { leader, flop, lastPlaces, visitStanding, standings } from '../../engine/ranking.js';
+import { leader, flop, visitStanding, standings } from '../../engine/ranking.js';
 import { playerRecords, isVisitRecord } from '../../engine/records.js';
 import { defiOf, defiResult, DEFIS } from '../../engine/defis.js';
 import { gameBadgesSay } from '../honours.js';
@@ -221,9 +221,8 @@ function rest(v) {
   const id = cfg.players[shown];
   // Lot 7.6 : avec une soirée, les verres d'avant la partie comptent aussi.
   const drinking = gameDrinking(store.current);
-  const n = gameDrinks(store.current, id);
-  // Lot 7.2 (demande de Guillaume) : des verres, pas leur équivalent en alcool : « [verre] x3 ».
-  const alc = drinking ? `${glassCount(n)} · ` : '';
+  // Lot 7.2 (demande de Guillaume) : des verres, pas leur équivalent en alcool ; 0.11.2 : verres et pintes à part.
+  const alc = drinking ? `${drinkPair(gameDrinkTally(store.current, id), 'dk dpair')} · ` : '';
   return `<section class="rest${badge ? ' ranked' : ''}" aria-label="Reste à faire">
       <div class="meta"><span class="ell">${cfg.starts ? `DÉPART ${cfg.starts[shown]}` : cfg.startScore} · ${OUT_SHORT[cfg.outMode]}</span><span>${alc}MOY. ${avg(legAvg)}</span></div>
       <div class="big" id="remaining" aria-label="${remaining}" data-shrink>${rollHtml(`r:${s.legNumber}:${shown}`, remaining)}</div>${badge}
@@ -307,7 +306,6 @@ export function defiNow(v) {
   const key = defiOf(g, idx, s.visit && s.visit.darts.length ? s.visit.startRemaining : s.remaining[s.currentPlayer]);
   return key ? { id: `${g.id}:${idx}`, key, player: s.currentPlayer, index: idx, open: true } : null;
 }
-const GAGE = { verre: '+1 VERRE', pinte: '+1 PINTE', autres: '+1 AUX AUTRES', tournee: '+1 À TOUS' };
 
 /** Annonce à voix haute du défi, une fois, au début de la volée. */
 function sayDefiStart(v, d) {
@@ -320,7 +318,7 @@ function sayDefiStart(v, d) {
 /**
  * Bandeau du défi (lot 7.8, retours du 20/11) : sous le bandeau du joueur, de tout le début de la volée (avant la 1re
  * fléchette, le reste du joueur visible dessous) jusqu'à VALIDER, texte en grand ; une fois la volée close, le résultat
- * (étoile rouge pleine : réussi ; grise vide : raté) et le gage à noter d'un appui. « Main gauche » se déclare : FAIT /
+ * (étoile rouge pleine : réussi ; grise vide : raté) ; 0.11.2 : plus de gage à noter. « Main gauche » se déclare : FAIT /
  * PAS FAIT. Quand Tsia lance, DÉGRISEMENT EXPRESS (kombucha au gingembre) rend ses voyelles au texte du défi.
  */
 function defiBand(v) {
@@ -342,12 +340,10 @@ function defiBand(v) {
       <div class="dfc"><small class="dfl">DÉFI À DÉCLARER</small><b class="dft"${keep} data-shrink>${esc(def.short)} ?</b></div>
       <div class="dfask"><button type="button" data-act="defi-decl" data-arg="${esc(`${d.id}|1`)}">FAIT</button><button type="button" data-act="defi-decl" data-arg="${esc(`${d.id}|0`)}">PAS FAIT</button></div>${kombu}</section>`;
   }
-  const gage = r.gage && v.ui.defiDone !== d.id
-    ? `<button type="button" class="dfg" data-act="defi-gage" data-arg="${esc(d.id)}">${GAGE[r.gage]}</button>`
-    : r.gage ? `<span class="dfg done">${ico('check')} NOTÉ</span>` : '';
+  // 0.11.2 (demande de Guillaume) : plus de gage à noter d'un appui ; le résultat seul.
   const change = r.declare ? `<button type="button" class="dfchg" data-act="defi-decl" data-arg="${esc(`${d.id}|x`)}" aria-label="Changer la déclaration">${ico('undo')}</button>` : '';
   return `<section class="dfb res ${r.ok ? 'ok' : 'ko'}" role="status" aria-label="Défi ${r.ok ? 'réussi' : 'raté'} : ${esc(def.text)}">${ico(r.ok ? 'starf' : 'star', 'ico dfs')}
-    <div class="dfc"><small class="dfl">${r.ok ? 'DÉFI RÉUSSI' : 'DÉFI RATÉ'}</small><b class="dft"${keep} data-shrink>${esc(def.short)}</b></div>${change}${gage}${kombu}</section>`;
+    <div class="dfc"><small class="dfl">${r.ok ? 'DÉFI RÉUSSI' : 'DÉFI RATÉ'}</small><b class="dft"${keep} data-shrink>${esc(def.short)}</b></div>${change}${kombu}</section>`;
 }
 
 /**
@@ -620,11 +616,10 @@ export function drinksSection(ids, { edit = true, title = true } = {}) {
   const g = store.current;
   const rows = ids.map(id => {
     const p = playerById(id);
-    const n = gameDrinks(g, id); // lot 7.6 : avec les verres de la soirée avant la partie
     const buttons = edit ? `<button type="button" class="mv" data-act="drink-minus" data-arg="${esc(id)}" ${drinksHere(id) ? '' : 'disabled'} aria-label="Retirer le dernier verre de ${esc(p.name)}">${ico('minus')}</button>
         <button type="button" class="mv add" data-act="drink-plus" data-arg="${esc(id)}" aria-label="${esc(plusLabel(p.name))}">${plusDrink()}</button>` : '';
     return `<li>${avatarHtml(p, 32)}<div class="col"><span class="nm ell">${esc(p.name)}</span>
-        ${drinkCount(n, gameDrinkTally(g, id))}</div>${buttons}</li>`;
+        ${drinkCount(gameDrinkTally(g, id))}</div>${buttons}</li>`;
   }).join('');
   const soiree = g && g.soiree ? ' Les verres de la soirée continuent d\'une partie à l\'autre.' : '';
   // 0.8.2 : verre de 25 cl ou pinte de 50 cl (elle compte pour 2), choisi au-dessus de la liste.
@@ -632,7 +627,7 @@ export function drinksSection(ids, { edit = true, title = true } = {}) {
     ${edit ? drinkSizeSeg() : ''}
     <ul class="drinks">${rows}</ul>
     ${edit && ids.length > 1 ? `<button type="button" class="btn ghost all-drinks" data-act="drink-all">${plusDrink()} ${pintMode() ? 'UNE PINTE' : 'UN VERRE'} POUR TOUS</button>` : ''}
-    <p class="note" style="margin:0">Une pinte compte pour 2 verres. Chaque verre est noté dans l'historique de la partie, au tour où il a été pris.${soiree} Qui a bu ne conduit pas.</p>`;
+    <p class="note" style="margin:0">Les verres de 25 cl et les pintes sont comptés à part. Chaque verre est noté dans l'historique de la partie, au tour où il a été pris.${soiree} Qui a bu ne conduit pas.</p>`;
 }
 
 /** Panneau des verres (lot 7.6) : ouvert par le bouton verre du bandeau, sans passer par la pause. Le joueur qui lance
@@ -645,11 +640,6 @@ function drinksSheet(v) {
       ${drinksSection(ids, { title: false })}
       <button type="button" class="btn primary big" data-act="drinks-close">${ico('play')} RETOUR AU JEU</button>
     </div></div></div>`;
-}
-
-/** « [verre] x3 » (lot 7.2) : verres du joueur dans la partie. */
-export function glassCount(n, cls = 'dk') {
-  return `<span class="${cls}" aria-label="${n} verre${n > 1 ? 's' : ''}">${ico('glass')}<span class="x">x${n}</span></span>`;
 }
 
 // ------------------------------------------------------------------ après le rendu : annonce, saisie sur la cible
@@ -828,8 +818,7 @@ function play(dart, key, pos = null) {
         // dernier paie sa tournée.
         const place = st.finishOrder.indexOf(v.player) + 1;
         later(() => say(place > 1 ? SPEECH.place(place, name(v.player)) : SPEECH.match(name(v.player))));
-        const payers = lastPlaces(st).map(name);
-        if (payers.length) setTimeout(() => say(SPEECH.lastPays(payers)), 2600);
+        const payers = []; // 0.11.2 : plus de tournée du dernier (personne ne la paie)
         const badges = gameBadgesSay(g); // lot 9 : badges gagnés dans la partie
         if (badges) setTimeout(() => say(badges), payers.length ? 5200 : 2600);
       }
@@ -948,7 +937,7 @@ function sayDefi(g, st) {
   const n = playerById(g.config.players[r.player]).name;
   if (r.declare && r.declared === undefined) { setTimeout(() => say(`${n}, ${DEFIS[r.key].short.toLowerCase()} : fait, ou pas fait ?`), 1800); return; }
   const txt = r.ok ? (r.gage === 'autres' ? `Défi réussi ! Les autres boivent.` : `Défi réussi, ${n} !`)
-    : r.gage === 'tournee' ? `Défi raté. ${n}, c'est ta tournée !` : `Défi raté. ${r.gage === 'pinte' ? 'Une pinte' : 'Un verre'} pour ${n} !`;
+    : `Défi raté. ${r.gage === 'pinte' ? 'Une pinte' : 'Un verre'} pour ${n} !`;
   setTimeout(() => say(txt), 1800);
 }
 
@@ -1085,25 +1074,15 @@ export const actions = {
     if (!d || d.id !== id || d.open || !DEFIS[d.key].declare) return;
     g.defiDecl = { ...(g.defiDecl || {}) };
     if (val === 'x') delete g.defiDecl[d.index]; else g.defiDecl[d.index] = val === '1';
-    if (val !== '1') g.ui.defiDone = null;
     saveCurrent();
     buzz(BUZZ.dart);
     if (val === '1') later(() => say(`Défi réussi, ${playerById(g.config.players[d.player]).name} !`));
     else if (val === '0') later(() => say(`Défi raté. Un verre pour ${playerById(g.config.players[d.player]).name} !`));
     refresh();
   },
-  // Gage d'un défi (indicatif) : noté d'un appui dans les verres (lot 9).
-  'defi-gage'(id) {
-    const g = store.current;
-    const d = defiNow(view());
-    if (!d || d.id !== id || !d.result || !d.result.gage) return;
-    const now = Date.now();
-    const who = d.result.gage === 'tournee' ? g.config.players : d.result.gage === 'autres' ? g.config.players.filter((_, i) => i !== d.player) : [g.config.players[d.player]];
-    for (const pid of who) addDrink(pid, now, d.result.gage === 'pinte');
-    g.ui.defiDone = id;
-    buzz(BUZZ.dart); refresh();
-  },
-  'drink-all'() { const now = Date.now(); for (const id of store.current.config.players) addDrink(id, now, pintMode()); buzz(BUZZ.dart); refresh(); },
+  // 0.11.2 : un instant différent (à la milliseconde) pour chacun, pour ne pas être pris pour une tournée notée par
+  // l'ancienne version (même instant pour tous, voir store.js › tourneeDrinks).
+  'drink-all'() { const now = Date.now(); store.current.config.players.forEach((id, i) => addDrink(id, now + i, pintMode())); buzz(BUZZ.dart); refresh(); },
   'drinks-open'() { stopAnnounce(); store.current.ui.drinks = true; refresh(); },
   'drinks-close'() { store.current.ui.drinks = false; refresh(); },
   'drink-minus'(id) { removeDrink(id); buzz(BUZZ.undo); refresh(); },

@@ -54,6 +54,21 @@ export function tallyText(t) {
   if (t.pints) parts.push(`${t.pints} pinte${t.pints > 1 ? 's' : ''}`);
   return parts.join(' + ');
 }
+/** 0.11.2 (demande de Guillaume : compter les verres de 25 cl et les pintes à part) : « 3 verres · 1 pinte »,
+ *  « 2 pintes », « 1 verre », « aucun verre ». */
+export function drinksText(t) {
+  if (!t || (!t.glasses && !t.pints)) return 'aucun verre';
+  const parts = [];
+  if (t.glasses) parts.push(`${t.glasses} verre${t.glasses > 1 ? 's' : ''}`);
+  if (t.pints) parts.push(`${t.pints} pinte${t.pints > 1 ? 's' : ''}`);
+  return parts.join(' · ');
+}
+/** Somme de détails de verres (drinkTally). */
+export const addTally = (...ts) => {
+  const o = { units: 0, glasses: 0, pints: 0, liters: 0 };
+  for (const t of ts) if (t) { o.units += t.units; o.glasses += t.glasses; o.pints += t.pints; o.liters += t.liters; }
+  return o;
+};
 /** « 1,25 L » (ou « 75 cl » sous le litre). */
 export const litersText = l => (l < 1 ? `${Math.round(l * 100)} cl` : `${(Math.round(l * 100) / 100).toString().replace('.', ',')} L`);
 
@@ -84,8 +99,10 @@ export function drinkTimes(games, playerId, now) {
  * verre de la v0.7.0, sans place) va à sa volée en cours, sinon à sa dernière volée.
  *   drinks : g.drinks ; ids : config.players ; renvoie Map(clé → { here, total }) et totals[rang du joueur].
  *   before (lot 7.6) : g.drinksBefore, verres de la soirée avant la partie ({ [joueur]: n }) : le cumul part de là.
+ *   beforeTally (0.11.2) : { [joueur]: drinkTally } des parties d'avant de la soirée ; chaque case porte alors aussi
+ *   glasses et pints (cumuls des verres de 25 cl et des pintes ; sans beforeTally, ceux d'avant comptent en verres).
  */
-export function drinksTimeline(state, drinks, ids, before = null) {
+export function drinksTimeline(state, drinks, ids, before = null, beforeTally = null) {
   const byVisit = new Map();
   const start = id => (before && Number.isInteger(before[id]) && before[id] > 0 ? before[id] : 0);
   const totals = ids.map(id => start(id));
@@ -101,14 +118,18 @@ export function drinksTimeline(state, drinks, ids, before = null) {
     const slots = mine[p];
     if (!slots.length || (!list.length && !start(id))) { totals[p] = start(id) + unitsOf(list); return; }
     const here = new Array(slots.length).fill(0);
+    const hg = new Array(slots.length).fill(0), hp = new Array(slots.length).fill(0); // 0.11.2 : verres, pintes
     for (const d of list) {
       const at = drinkAt(d);
       let k = at === null ? -1 : slots.findIndex(s => s.end >= at);
       if (k < 0) k = slots.length - 1;
       here[k] += drinkUnits(d); // 0.8.2 : en verres de 25 cl (une pinte : 2)
+      if (isPint(d)) hp[k] += 1; else hg[k] += 1;
     }
     let total = start(id);
-    slots.forEach((s, k) => { total += here[k]; byVisit.set(s.key, { here: here[k], total, player: p }); });
+    const b = beforeTally && beforeTally[id];
+    let glasses = b ? b.glasses : start(id), pints = b ? b.pints : 0;
+    slots.forEach((s, k) => { total += here[k]; glasses += hg[k]; pints += hp[k]; byVisit.set(s.key, { here: here[k], total, player: p, glasses, pints }); });
     totals[p] = start(id) + unitsOf(list);
   });
   return { byVisit, totals };

@@ -2,11 +2,11 @@
 // ajoute des verres (panneau des verres et menu pause du jeu, écran Soirée, détail d'une partie) :
 // - un choix « VERRE 25 CL · PINTE 50 CL » au-dessus de la liste : les boutons + ajoutent ce qui est choisi (une tournée
 //   de pintes : on choisit PINTE une fois, puis + pour chacun) ; le choix dure le temps de la session ;
-// - le compte reste « [verre] x5 », en verres de 25 cl : une pinte compte pour 2 ; s'il y a des pintes, le détail est
-//   écrit dessous (« 1 verre + 2 pintes »).
+// - 0.11.2 : le compte montre les verres de 25 cl et les pintes à part (« [verre] x3 [pinte] x1 ») ; les équivalents
+//   en verres de 25 cl (une pinte = 2) ne servent plus qu'au badge « Bu et gagné » et à la moyenne au fil des verres.
 import { ico } from './dom.js';
 import { refresh } from './nav.js';
-import { tallyText } from '../engine/alcohol.js';
+import { drinksText } from '../engine/alcohol.js';
 
 let pint = false;
 /** Les boutons + ajoutent une pinte (vrai) ou un verre de 25 cl. */
@@ -24,10 +24,15 @@ export const plusDrink = () => `${ico('plus')}${ico(pint ? 'pint' : 'glass')}`;
 /** Libellé d'un bouton + pour les lecteurs d'écran. */
 export const plusLabel = name => (pint ? `Une pinte de plus pour ${name}` : `Un verre de plus pour ${name}`);
 
-/** « [verre] x5 » et, s'il y a des pintes, le détail dessous. `units` : compte en verres de 25 cl ; `tally` : drinkTally. */
-export function drinkCount(units, tally = null, cls = 'cnt') {
-  const detail = tally && tally.pints ? `<small class="dkd">${tallyText(tally)}</small>` : '';
-  return `<span class="${cls}" aria-label="${units} verre${units > 1 ? 's' : ''}${tally && tally.pints ? ` (${tallyText(tally)})` : ''}">${ico('glass')}<span class="x">x${units}</span></span>${detail}`;
+/** 0.11.2 (demande de Guillaume) : verres de 25 cl et pintes comptés à part : « [verre] x3 [pinte] x1 » (la pinte
+ *  seulement s'il y en a). `tally` : drinkTally. */
+export function drinkPair(tally, cls = 'dpair') {
+  const t = tally || { glasses: 0, pints: 0 };
+  return `<span class="${cls}" aria-label="${drinksText(t)}"><span class="dg">${ico('glass')}<span class="x">x${t.glasses}</span></span>${t.pints ? `<span class="dp">${ico('pint')}<span class="x">x${t.pints}</span></span>` : ''}</span>`;
+}
+/** Le compte d'une liste de verres : la paire verres / pintes (0.11.2 ; avant : « x5 » en verres de 25 cl). */
+export function drinkCount(tally, cls = 'cnt') {
+  return drinkPair(tally, `${cls} dpair`);
 }
 
 export const actions = {

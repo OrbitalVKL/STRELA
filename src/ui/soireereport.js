@@ -1,7 +1,7 @@
 // Strela — rapport d'une soirée en 4 feuilles A4 (lot 7.8, version 0.8.0 ; choix de Guillaume le 13/11 : les trois ;
 // 0.11.1 : feuille D, demande de Guillaume « inclure les badges et les défis aux feuilles de KPI, enrichir les KPI »).
 //   A · PODIUM ET CARTES : podium, une carte par joueur (courbe de ses moyennes, moyenne, meilleure / pire volée, 100+,
-//       verres dessinés, cible colorée là où il a lancé, taux de triples), qui a payé chaque tournée.
+//       verres dessinés, cible colorée là où il a lancé, taux de triples), qui a gagné chaque partie (0.11.2 : plus de tournée).
 //   B · CHRONOLOGIE : la soirée heure par heure (parties, vainqueur, dernier, verres de chacun à leur heure), moyenne de
 //       chaque partie par joueur, trophées, liste des parties.
 //   C · DUELS ET CIBLES : qui bat qui (parties où la ligne a fini devant la colonne), barres comparées (moyenne, 100+,
@@ -13,7 +13,7 @@
 // Les données viennent de soireeModel() (engine/soiree.js) ; `who(id)` donne { name, color, initials, img }.
 import { PAGE_W, PAGE_H } from './sheet.js';
 import { mix } from './theme.js';
-import { litersText } from '../engine/alcohol.js';
+import { litersText, drinksText } from '../engine/alcohol.js';
 import { DEFIS } from '../engine/defis.js';
 
 const LW = 794, LH = 1123, MX = 34;
@@ -123,7 +123,7 @@ function header(x, m, page, label) {
   T(x, m.oneDay ? `${DAYS[d.getDay()]} ${dm(d)}` : `DU ${dm(d)} AU ${dm(e)}`, MX + 16, 79, { px: 22, w: 700, color: ON_RED, ls: 2.6, max: 380 });
   const R = LW - MX - 16;
   T(x, `${m.oneDay ? `${hhmm(m.start)} → ${hhmm(m.endAt)} · ` : ''}${plural(m.games, 'PARTIE', 'PARTIES')} · ${plural(m.rows.length, 'JOUEUR', 'JOUEURS')}`, R, 58, { px: 11, color: ON_RED, ls: 0.7, align: 'right' });
-  const w = T(x, `x${m.drinks} VERRE${m.drinks > 1 ? 'S' : ''}${m.drinks ? ` · ${litersText(m.liters).toUpperCase()}` : ''}`, R, 77, { px: 11, color: ON_RED, ls: 0.7, align: 'right' });
+  const w = T(x, `${drinksText(m.tally).toUpperCase()}${m.drinks ? ` · ${litersText(m.liters).toUpperCase()}` : ''}`, R, 77, { px: 11, color: ON_RED, ls: 0.7, align: 'right' });
   glass(x, R - w - 13, 67, 8, ON_RED);
 }
 const PAGES = 4;
@@ -171,27 +171,27 @@ function pageA(x, m, who) {
     card(x, m, who, r, i, cw / s, maxAvg);
     x.restore();
   });
-  // Tournées
-  h2(x, 'QUI A PAYÉ SA TOURNÉE', MX, tourTop + 8);
-  if (m.timeline.length > 10) { tourneeTally(x, m, who, tourTop + 20); footer(x, 1); return; }
+  // 0.11.2 (Guillaume : personne ne paie sa tournée) : qui a gagné chaque partie, à la place des tournées.
+  h2(x, 'QUI A GAGNÉ CHAQUE PARTIE', MX, tourTop + 8);
+  if (m.timeline.length > 10) { winsTally(x, m, who, tourTop + 20); footer(x, 1); return; }
   const gs = m.timeline, n = Math.max(1, gs.length), g6 = 6;
   const bw = (LW - 2 * MX - g6 * (n - 1)) / n;
   gs.forEach((g, k) => {
     const X = MX + k * (bw + g6), Y = tourTop + 20;
     frame(x, X, Y, bw, 66);
     T(x, hhmm(g.at), X + bw / 2, Y + 13, { px: bw < 44 ? 7 : 9, color: MUT, align: 'center' });
-    if (g.abandoned || !g.last.length) { T(x, g.abandoned ? 'ABANDON' : '—', X + bw / 2, Y + 40, { px: bw < 50 ? 6.5 : 8, w: 700, color: MUT, align: 'center', max: bw - 4 }); return; }
-    const p = who(g.last[0]), s = Math.min(24, bw - 10);
+    if (g.abandoned || !g.winner) { T(x, g.abandoned ? 'ABANDON' : '—', X + bw / 2, Y + 40, { px: bw < 50 ? 6.5 : 8, w: 700, color: MUT, align: 'center', max: bw - 4 }); return; }
+    const p = who(g.winner), s = Math.min(24, bw - 10);
     face(x, p, X + bw / 2 - s / 2, Y + 20, s);
-    T(x, (g.last.length > 1 ? `${p.name} +${g.last.length - 1}` : p.name).toUpperCase(), X + bw / 2, Y + 58, { px: bw < 50 ? 6.5 : 8.5, w: 700, align: 'center', max: bw - 6 });
+    T(x, p.name.toUpperCase(), X + bw / 2, Y + 58, { px: bw < 50 ? 6.5 : 8.5, w: 700, align: 'center', max: bw - 6 });
   });
   footer(x, 1);
 }
 
-/** Plus de 10 parties : combien de tournées chacun a payées (une case par joueur, du plus au moins). */
-function tourneeTally(x, m, who, Y) {
+/** Plus de 10 parties : combien de parties chacun a gagnées (une case par joueur, du plus au moins). */
+function winsTally(x, m, who, Y) {
   const count = Object.fromEntries(m.rows.map(r => [r.id, 0]));
-  for (const g of m.timeline) for (const id of g.last) count[id] = (count[id] || 0) + 1;
+  for (const g of m.timeline) if (g.winner && !g.abandoned) count[g.winner] = (count[g.winner] || 0) + 1;
   const ids = m.rows.map(r => r.id).sort((a, b) => count[b] - count[a]);
   const n = ids.length, gap = 6, bw = (LW - 2 * MX - gap * (n - 1)) / n;
   ids.forEach((id, k) => {
@@ -199,7 +199,7 @@ function tourneeTally(x, m, who, Y) {
     frame(x, X, Y, bw, 66);
     face(x, p, X + bw / 2 - s / 2, Y + 8, s);
     T(x, p.name.toUpperCase(), X + bw / 2, Y + 44, { px: 8.5, w: 700, align: 'center', max: bw - 6 });
-    T(x, count[id] ? plural(count[id], 'TOURNÉE', 'TOURNÉES') : 'AUCUNE', X + bw / 2, Y + 58, { px: 8.5, color: count[id] ? RED : MUT, align: 'center', max: bw - 6 });
+    T(x, count[id] ? plural(count[id], 'VICTOIRE', 'VICTOIRES') : 'AUCUNE', X + bw / 2, Y + 58, { px: 8.5, w: count[id] ? 700 : 400, color: count[id] ? INK : MUT, align: 'center', max: bw - 6 });
   });
 }
 
@@ -236,7 +236,7 @@ function card(x, m, who, r, i, W, maxAvg) {
   const list = m.drinkList[r.id] || [];
   const gn = Math.min(list.length, Math.floor((W - 172) / 9.5));
   for (let k = 0; k < gn; k++) drinkGlyph(x, list[k], 10 + k * 9.5, 146, 7.5);
-  T(x, r.drinks ? `x${r.drinks}` : 'aucun verre', 10 + gn * 9.5 + (gn ? 4 : 0), 155, { px: 10, color: MUT });
+  T(x, drinksText(r.tally), 10 + gn * 9.5 + (gn ? 4 : 0), 155, { px: 10, color: MUT, max: W - 172 - gn * 9.5 });
   // Cible et triples, à droite.
   board(x, m.sectors[r.id] || {}, W - 66, 66, 52);
   T(x, `TRIPLES ${pct(r.tripleRate)}`, W - 66, 138, { px: 9, color: MUT, ls: 0.6, align: 'center' });
@@ -248,11 +248,9 @@ function pageB(x, m, who) {
   h2(x, 'LA SOIRÉE HEURE PAR HEURE', MX, 112);
   let lx = MX;
   lx += T(x, 'Carré : vainqueur · ', lx, 130, { px: 9, color: MUT });
-  lx += T(x, '↓', lx, 130, { px: 9, w: 700, color: RED });
-  lx += T(x, ' : dernier, il paie sa tournée · ', lx, 130, { px: 9, color: MUT });
   glass(x, lx + 1, 122, 6.5, MUT);
   lx += 9 + T(x, ' : un verre, à son heure', lx + 9, 130, { px: 9, color: MUT });
-  if (m.rows.some(r => r.tally.pints)) { pintGlyph(x, lx + 8, 123, 6.5, MUT); T(x, ' : une pinte (2 verres)', lx + 17, 130, { px: 9, color: MUT }); }
+  if (m.rows.some(r => r.tally.pints)) { pintGlyph(x, lx + 8, 123, 6.5, MUT); T(x, ' : une pinte', lx + 17, 130, { px: 9, color: MUT }); }
   const n = m.rows.length;
   const L = MX + 94, R = LW - MX - 4;
   const lastDrink = Math.max(0, ...Object.values(m.drinkTimes).flat());
@@ -285,7 +283,6 @@ function pageB(x, m, who) {
       const p = who(g.winner), q = Math.min(11, w - 4);
       rect(x, x0 + (w > 16 ? 4 : 2), hy + 29, q, q, p.color);
       if (w > 44) T(x, p.initials, x0 + 19, hy + 38, { px: 8, w: 700 });
-      if (w > 64 && g.last.length) T(x, `↓${who(g.last[0]).initials}`, x0 + 36, hy + 38, { px: 7.5, w: 700, color: RED });
     } else if (g.abandoned && w > 40) T(x, 'ABANDON', x0 + 4, hy + 38, { px: 7, color: MUT });
   });
   // Joueurs : verres à leur heure, et le cumul en escalier.
@@ -293,7 +290,7 @@ function pageB(x, m, who) {
     const p = who(r.id), y = laneTop + j * laneH, base = y + laneH - 8, s = Math.min(24, laneH - 8);
     face(x, p, MX, y + 1, s);
     T(x, p.name.toUpperCase(), MX + s + 6, y + Math.min(12, laneH / 2), { px: laneH < 26 ? 8 : 9, w: 700, max: L - MX - s - 10 });
-    if (laneH >= 22) T(x, `x${r.drinks} verre${r.drinks > 1 ? 's' : ''}`, MX + s + 6, y + Math.min(23, laneH - 6), { px: 8, color: MUT });
+    if (laneH >= 22) T(x, drinksText(r.tally), MX + s + 6, y + Math.min(23, laneH - 6), { px: 8, color: MUT });
     hline(x, L, R, base, RULE, 0.6);
     const ds = m.drinkList[r.id] || [];
     const stepH = Math.min(2, (laneH - 16) / Math.max(1, r.drinks));
@@ -387,7 +384,6 @@ function pageB(x, m, who) {
       T(x, hhmm(g.at), MX + 34, Y, { px: 9, color: MUT });
       T(x, `${g.startScore}`, MX + 82, Y, { px: 9, color: MUT });
       T(x, g.abandoned ? 'abandonnée' : g.winner ? `gagnée par ${who(g.winner).name}` : '—', MX + 122, Y, { px: 9, w: 700, max: 250 });
-      if (g.last.length) T(x, `tournée : ${g.last.map(id => who(id).name).join(', ')}`, MX + 380, Y, { px: 9, color: RED, max: 200 });
       T(x, plural(g.players.length, 'joueur', 'joueurs'), LW - MX, Y, { px: 9, color: MUT, align: 'right' });
     });
   }
@@ -430,7 +426,7 @@ function pageC(x, m, who) {
     ['VOLÉES 100+', r => r.tons, v => String(v)],
     ['TAUX DE TRIPLES', r => r.tripleRate, v => pct(v)],
     ['BUST', r => r.busts, v => String(v)],
-    ['VERRES', r => r.drinks, v => String(v)],
+    ['VOLUME BU', r => r.tally.liters, v => (v ? litersText(v) : '0')], // 0.11.2 : verres et pintes à part, ici le volume
   ];
   const rh = Math.max(7, Math.min(11, (470 - metrics.length * 18) / (metrics.length * n)));
   let y = 128;
@@ -471,7 +467,6 @@ function pageC(x, m, who) {
 }
 
 // ------------------------------------------------------------------ feuille D : chiffres, défis et badges (0.11.1)
-const GAGE = { verre: '+1 verre', pinte: '+1 pinte', autres: 'les autres boivent', tournee: 'sa tournée' };
 function pageD(x, m, who, extra) {
   header(x, m, 'D', 'CHIFFRES, DÉFIS ET BADGES');
   const n = m.rows.length, W = LW - 2 * MX, LBL = 150, cw = (W - LBL) / Math.max(1, n);
@@ -494,7 +489,7 @@ function pageD(x, m, who, extra) {
     ['FLÉCHETTES', r => r.darts, r => r.darts, 0], ['DANS LE 1', r => r.ones, r => r.ones, 0], ['BULLS', r => r.bulls, r => r.bulls, 1],
     ['TRIPLES 20', r => r.t20, r => r.t20, 1], ['HORS CIBLE', r => r.misses, r => r.misses, -1],
     ['DÉFIS RÉUSSIS', r => (r.defisOk + r.defisKo ? `${r.defisOk} / ${r.defisOk + r.defisKo}` : '—'), r => r.defisOk, 1],
-    ['BADGES', r => badgesOf(r.id), r => badgesOf(r.id), 1], ['VERRES', r => `x${r.drinks}`, r => r.drinks, 0],
+    ['BADGES', r => badgesOf(r.id), r => badgesOf(r.id), 1], ['VERRES 25 CL', r => r.tally.glasses, r => r.tally.glasses, 0], ['PINTES', r => r.tally.pints, r => r.tally.pints, 0],
   ];
   const rh = 16.5;
   let y = 160;
@@ -542,7 +537,7 @@ function pageD(x, m, who, extra) {
       const p = who(d.id);
       rect(x, X + 38, Y + 2, 9, 9, p.color);
       T(x, DEFIS[d.key] ? DEFIS[d.key].short : d.key, X + 52, Y + 10, { px: 9, w: 700, max: 96 });
-      T(x, `${p.name}${d.gage ? ` · ${GAGE[d.gage]}` : ''}`, X + 152, Y + 10, { px: 8.5, color: MUT, max: colW - 158 });
+      T(x, `${p.name} · ${d.ok ? 'réussi' : 'raté'}`, X + 152, Y + 10, { px: 8.5, color: MUT, max: colW - 158 });
     });
     if (shown.length < defis.length) T(x, `… et ${defis.length - shown.length} de plus (liste complète dans l'appli).`, MX + colW, dy + Math.ceil(shown.length / 2) * lh + 10, { px: 8.5, color: MUT });
     dy += Math.ceil(shown.length / 2) * lh + 6;

@@ -39,9 +39,9 @@ test('historique : le cumul des verres part des verres de la soirée d’avant l
   const s = computeState(cfg(['a', 'b']), ds('T20 S20 S5  S1 S1 S1  T20 S20 S5'));
   const t = drinksTimeline(s, { a: [{ t: 1, at: 4 }] }, ['a', 'b'], { a: 2, b: 3 });
   assert.deepEqual(t.totals, [3, 3]);
-  assert.deepEqual(t.byVisit.get(0), { here: 0, total: 2, player: 0 });
-  assert.deepEqual(t.byVisit.get(2), { here: 1, total: 3, player: 0 });
-  assert.deepEqual(t.byVisit.get(1), { here: 0, total: 3, player: 1 }, 'Bravo : rien bu pendant la partie, 3 avant');
+  assert.deepEqual(t.byVisit.get(0), { here: 0, total: 2, player: 0, glasses: 2, pints: 0 });
+  assert.deepEqual(t.byVisit.get(2), { here: 1, total: 3, player: 0, glasses: 3, pints: 0 });
+  assert.deepEqual(t.byVisit.get(1), { here: 0, total: 3, player: 1, glasses: 3, pints: 0 }, 'Bravo : rien bu pendant la partie, 3 avant');
   // Sans soirée : comme avant.
   assert.deepEqual(drinksTimeline(s, null, ['a', 'b']).totals, [0, 0]);
 });
@@ -49,7 +49,7 @@ test('historique : le cumul des verres part des verres de la soirée d’avant l
 test('case à jouer encore vide : pas de cumul répété, sauf un verre pris juste avant', () => {
   const open = { darts: [], open: true, total: 0, remaining: 301, drinks: { here: 0, total: 2 } };
   assert.equal(cellView(open).drinks, null);
-  assert.deepEqual(cellView({ ...open, drinks: { here: 1, total: 3 } }).drinks, { total: 3, fresh: true });
+  assert.deepEqual(cellView({ ...open, drinks: { here: 1, total: 3, glasses: 1, pints: 1 } }).drinks, { total: 3, fresh: true, glasses: 1, pints: 1 });
 });
 
 test('volée parmi les 3 meilleures ou les 3 pires (rang partagé à égalité)', () => {

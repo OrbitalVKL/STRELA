@@ -82,7 +82,7 @@ test('pinte : cumul dans l’historique de la partie, cumul de la soirée, modè
   const st = computeState(config, darts);
   const tl = drinksTimeline(st, { A: [P(1, 4)], B: [V(1, 0)] }, config.players, { A: 1 });
   assert.deepEqual(tl.totals, [3, 1], 'A : 1 verre de la soirée + une pinte = 3');
-  assert.deepEqual(tl.byVisit.get(2), { here: 2, total: 3, player: 0 }, 'la pinte tombe à la 2e volée de A et y compte 2');
+  assert.deepEqual(tl.byVisit.get(2), { here: 2, total: 3, player: 0, glasses: 1, pints: 1 }, 'la pinte tombe à la 2e volée de A et y compte 2');
   store.soiree = null;
   store.games = [game('g1', 1, { A: [V(1), P(2)] }), game('g2', 2, { A: [P(3)], B: [V(3)] })];
   editGameDrinks('g2', 'B', 1, true); // une pinte ajoutée à la main
@@ -96,10 +96,10 @@ test('pinte : cumul dans l’historique de la partie, cumul de la soirée, modè
   assert.equal(m.drinks, 8); assert.equal(m.liters, 2);
   assert.deepEqual(m.drinkList.A, [{ t: 1, pint: false }, { t: 2, pint: true }, { t: 3, pint: true }]);
   const tr = m.trophies.find(t => t.key === 'drinks');
-  assert.equal(tr.value, 'x5 verres'); assert.equal(tr.detail, '1 verre + 2 pintes');
+  assert.equal(tr.value, '1 verre · 2 pintes'); assert.equal(tr.detail, '1,25 L'); // 0.11.2 : verres et pintes à part, puis le volume
 });
 
-test('résumé à partager (lot 9) : six cases au plus, record de la soirée, tournées partagées', () => {
+test('résumé à partager (lot 9) : six cases au plus, record de la soirée, plus de tournées (0.11.2)', () => {
   const config = { startScore: 301, outMode: 'single', legsToWin: 1, players: ['A', 'B', 'C'] };
   const g = (id, t, darts, drinks) => ({ id, startedAt: t, soiree: 's', config, darts: ds(darts), drinks });
   const games = [
@@ -110,7 +110,7 @@ test('résumé à partager (lot 9) : six cases au plus, record de la soirée, to
   const tiles = summaryTiles(m, { id: 'A', label: 'volée', value: '62' });
   assert.ok(tiles.length <= 6);
   assert.deepEqual(tiles.map(t => t.label).slice(0, 2), ['Meilleure volée', 'Pire volée']);
-  assert.deepEqual(tiles.find(t => t.label === 'Le plus assoiffé'), { label: 'Le plus assoiffé', id: 'B', value: 'x3' });
+  assert.deepEqual(tiles.find(t => t.label === 'Le plus assoiffé'), { label: 'Le plus assoiffé', id: 'B', value: 'x1 + 1 PINTE' }, '0.11.2 : un verre et une pinte, à part');
   assert.ok(tiles.some(t => t.label === 'Record · volée' && t.value === '62'));
-  assert.deepEqual(tiles.find(t => t.label === 'Tournées').value, 'x1', 'C puis B : une tournée chacun');
+  assert.ok(!tiles.some(t => /tourn/i.test(t.label)), 'plus de case « Tournées »');
 });

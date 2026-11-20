@@ -16,6 +16,7 @@
 //             « soiree » (lot 7.6, soirée en cours : soireeRecord ; absente sinon)
 //   games, lot 7.6 : shuffled?, soiree?, drinksBefore? facultatifs (withDrinks) : aucune migration
 //   games, lot 7.8 : defiSet?, defiDecl? facultatifs (withDrinks) : aucune migration
+//   games, 0.11.2 : drinksTournee? facultatif (tournées notées retirées, withDrinks) : aucune migration
 //
 // Toutes les écritures passent par write(ops) : une seule transaction pour la liste d'opérations, durabilité
 // « strict » (écrite sur le disque avant d'être annoncée faite). Les transactions sont exécutées dans l'ordre où
@@ -183,6 +184,8 @@ export function withDrinks(g, rec) {
   if (before) rec.drinksBefore = before;
   // Version 0.8.1 : verres d'avant la correction « resaisis à chaque partie » (pour pouvoir l'annuler) ; facultatif.
   if (g.drinksRaw && typeof g.drinksRaw === 'object') rec.drinksRaw = cleanDrinks(g.drinksRaw) || {};
+  // 0.11.2 : tournées notées retirées d'une soirée (annulable), gardées à part.
+  if (g.drinksTournee && typeof g.drinksTournee === 'object') rec.drinksTournee = cleanDrinks(g.drinksTournee) || {};
   return rec;
 }
 
