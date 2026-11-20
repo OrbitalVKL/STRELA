@@ -51,7 +51,9 @@ export function lastPlaces(state) {
 //   'serie' : 3 mauvaises volées d'affilée ou plus dans la manche (mauvaise = moins de 20 points, bust compris) ;
 //   'bust'  : bust ;
 //   'zero'  : volée à 0 point ;
-//   'low'   : volée sous 20 points (sous 10 jusqu'au lot 7.4 ; relevé au lot 7.5, demande de Guillaume).
+//   'low'   : volée sous 20 points (sous 10 jusqu'au lot 7.4 ; relevé au lot 7.5, demande de Guillaume) ;
+//   'uns'   : lot 7.8 (Guillaume, 20/11) « Atila, le roi des uns » : volée sous 20 points avec deux 1 simples, ou un
+//             double 1, ou un triple 1 ; passe avant la série et la volée basse (et avant la moto d'Angelina, à l'écran).
 // Près de la fin (reste de départ de la volée sous 60), marquer peu est normal : seuls le bust et le 0 comptent, et la
 // volée ne compte ni pour ni contre une série.
 export const FLOP_BAD = 20;
@@ -62,10 +64,18 @@ export const FLOP_NEAR = 60;
 const counts = v => v.startRemaining >= FLOP_NEAR;
 const bad = v => v.bust || v.scored < FLOP_BAD;
 
+/** Volée du roi des uns (lot 7.8) : sous 20 points, sans bust, avec deux 1 simples, un double 1 ou un triple 1. */
+export function kingOfOnes(v) {
+  if (!v || v.bust || v.scored >= FLOP_LOW) return false;
+  const ones = v.darts.filter(d => d.segment === 1);
+  return ones.filter(d => d.multiplier === 1).length >= 2 || ones.some(d => d.multiplier > 1);
+}
+
 /** { kind, value } pour la dernière volée close de `state` (value : points, ou longueur de la série), ou null. */
 export function flop(state) {
   const v = state.lastVisit;
   if (!v || v.finish || (state.lastEvent !== 'visit_end' && state.lastEvent !== 'bust')) return null;
+  if (counts(v) && kingOfOnes(v)) return { kind: 'uns', value: v.scored };
   if (counts(v) && bad(v)) {
     let run = 0;
     const mine = state.visits.filter(x => x.player === v.player && x.leg === v.leg && counts(x));

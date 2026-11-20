@@ -99,6 +99,16 @@ export const TIE_LINES = Object.freeze([
   "La sieste après le gigot, c'est sacré.",
   "Ça, c'est un lancer de beauf. Et j'assume.",
   "Faut pas pousser mémé dans les orties, hein.",
+  // Lot 7.8 (Guillaume, 20/11)
+  'Triple 5, on s\'en bat les couilles.',
+  'J\'suis d\'vant, j\'vous laisse le temps.',
+  'Eh doucement les gonzesses.',
+  'On en reparle en réunion.',
+  'Ça, c\'est pas dans mes objectifs.',
+  'Je valide, mais je m\'en fous.',
+  'Je mets ça dans le compte rendu.',
+  'J\'ai un call à 15 heures, dépêchez.',
+  'C\'est pas un sujet.',
 ]);
 
 /** Saynètes de l'ours (une tirée au sort à chaque volée). */

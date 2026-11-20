@@ -13,6 +13,7 @@ import { refresh, backFrom } from '../../nav.js';
 import { board, countOf, tally, currentPeriod, pickedBoard } from '../stats.js';
 import { vitrineHtml } from '../../honours.js';
 import { cricketPlayerStats } from '../../../engine/cricket.js';
+import { onesOf } from '../../../engine/soiree.js';
 
 const dec1 = v => (v === null || v === undefined || Number.isNaN(v) ? '—' : (Math.round(v * 10) / 10).toFixed(1).replace('.', ','));
 const DAYS = ['DIM.', 'LUN.', 'MAR.', 'MER.', 'JEU.', 'VEN.', 'SAM.'];
@@ -43,6 +44,9 @@ export const METRICS = Object.freeze([
     info: 'Volées en bust (le reste repasse au-dessus de zéro, ou à 1 en sortie double). Moins il y en a, mieux c\'est. Au classement : par partie jouée.' },
   { k: 'max', label: '180', fmt: int, dir: 1, all: s => s.max, info: 'Nombre de 180 sur la période.' },
   { k: 'bestFinish', label: 'Meilleure finition', fmt: int, dir: 1, all: s => s.bestFinish, info: 'Plus grand reste fini en une volée.' },
+  // Lot 7.8 (retours du 20/11) : le classement « le plus de 1 » ; son détenteur est le roi des uns (KPI des stats).
+  { k: 'ones', label: 'Le plus de 1', fmt: int, dir: 0, top: 'ROI DES UNS', game: s => onesOf(s), gameFmt: int, all: s => onesOf(s),
+    info: 'Fléchettes tombées dans le 1 (simple, double ou triple) sur la période. Le premier du classement est le roi des uns. Ni mieux ni pire… en théorie.' },
   { k: 'drinks', label: 'Verres', fmt: dec1, dir: 0, game: (s, g, id) => unitsOf(g.drinks && g.drinks[id]),
     all: (s, games, id) => (s.played ? games.reduce((n, g) => n + unitsOf(g.drinks && g.drinks[id]), 0) / s.played : null),
     gameFmt: int, unit: '/ partie', info: 'Verres notés pendant les parties, en verres de 25 cl (une pinte de 50 cl compte pour 2). Au classement : par partie jouée. Ni mieux ni pire.' },
@@ -332,6 +336,9 @@ export function stats2Screen(id) {
       <div class="kpis">${k('triple', 'Taux de triples', pct(st.tripleRate))}${k('double', 'Taux de doubles', pct(st.doubleRate))}</div>
       ${sec('Finition', null)}
       <div class="kpis">${k('bestFinish', 'Meilleure finition', int(st.bestFinish))}${k('shortest', 'Manche la + courte', `${st.shortestLeg ?? '—'}${st.shortestLeg ? '<small> fl.</small>' : ''}`)}</div>
+      ${sec('Le plus de 1', 'uns')}
+      ${infoBox('uns', 'Fléchettes tombées dans le 1 sur la période. Le roi des uns est le joueur qui en a le plus (classement « Le plus de 1 »). Le badge Le Roi des Uns, lui, compte toutes les parties depuis toujours.')}
+      ${onesKpi(games, pid, st)}
       ${sec('Volées', null)}
       <div class="kpis"><div class="kpi wide tons"><div data-k="ton"><small>100+</small><b>${st.ton}</b></div><div data-k="ton40"><small>140+</small><b>${st.ton40}</b></div><div data-k="max"><small>180</small><b>${st.max}</b></div><div data-k="busts"><small>Bust</small><b>${st.busts}</b></div></div>
         ${k('drinks', `Verres${drinkT.pints ? ` · ${tallyText(drinkT)}` : ''}`, `${drinks}<small> en ${plural(st.played, 'partie', 'parties')}</small>`, 'wide')}</div>
@@ -350,6 +357,19 @@ export function stats2Screen(id) {
         <p class="note center">Chiffre sur chaque secteur : impacts dans ce secteur (simple, double et triple), au centre : le bull (25 et 50). ${readBoard}</p>
         ${sectorTable(st.segments)}`)}
     </div></div>`;
+}
+
+/** Lot 7.8 : fléchettes du joueur dans le 1, et le détenteur du classement « le plus de 1 » (roi des uns). */
+function onesKpi(games, pid, st) {
+  const mine = onesOf(st);
+  const rows = rankingData(games).filter(r => r.vals.ones > 0).sort((a, b) => b.vals.ones - a.vals.ones || b.s.played - a.s.played);
+  const king = rows[0] || null;
+  const tie = king ? rows.filter(r => r.vals.ones === king.vals.ones).length - 1 : 0;
+  const me = !!king && rows.some(r => r.id === pid && r.vals.ones === king.vals.ones);
+  const name = king ? esc(playerById(king.id).name) : '—';
+  return `<div class="kpis"><div class="kpi" data-k="ones"><small>Fléchettes dans le 1</small><b>${mine}</b></div>
+    <div class="kpi king${me ? ' me' : ''}" data-k="king"><small>${ico('crown')} Roi des uns</small><b><span class="nm ell">${me ? esc(playerById(pid).name) : name}</span></b>
+      <small>${!king ? 'personne pour l\'instant' : `${plural(king.vals.ones, 'fléchette', 'fléchettes')} dans le 1${tie ? ` · ex æquo avec ${plural(tie, 'autre', 'autres')}` : ''}`}</small></div></div>`;
 }
 
 // ------------------------------------------------------------------ classement global
@@ -399,7 +419,7 @@ export function rankingScreen() {
   const chip = x => `<button type="button" class="chip2" data-act="v2-rank" data-arg="${x.k}" aria-pressed="${x.k === m.k}">${esc(x.label)}</button>`;
   const table = list.map((r, i) => {
     const v = r.vals[m.k];
-    const tag = i === 0 && v !== null ? `<span class="tag inv">${m.dir ? 'EN TÊTE' : 'LE PLUS'}</span>` : i === last && i > 0 ? `<span class="tag">${m.dir ? 'LANTERNE ROUGE' : 'LE MOINS'}</span>` : '';
+    const tag = i === 0 && v !== null ? `<span class="tag inv">${m.top || (m.dir ? 'EN TÊTE' : 'LE PLUS')}</span>` : i === last && i > 0 ? `<span class="tag">${m.dir ? 'LANTERNE ROUGE' : 'LE MOINS'}</span>` : '';
     const p = playerById(r.id);
     return `<li class="${i === 0 ? 'first' : ''}"><a href="#/stats/${esc(r.id)}"><span class="rk">${v === null || v === undefined ? '–' : i + 1}</span>${avatarHtml(p, 34)}
       <span class="nmc"><span class="nm ell">${esc(p.name)}</span>${tag}</span>

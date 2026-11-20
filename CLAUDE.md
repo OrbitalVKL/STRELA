@@ -91,7 +91,8 @@ src/engine/defis.js       défis de soirée (lot 9, tirage déterministe) ; src/
 src/ui/screens/cricket.js écrans du Cricket (lot 10) : jeu (face à face / grille), fin, détail d'une partie
 src/ui/honours.js         vitrine (Stats), tableau d'honneur #/honneur, badges de fin de partie ; src/ui/soireesummary.js :
                           résumé de soirée à partager (image 1080 × 1920)
-src/engine/ranking.js     classement, joueur en tête, derniers (tournée), célébrations des nuls (lot 7)
+src/engine/ranking.js     classement, joueur en tête, derniers (tournée), célébrations des nuls (lot 7), roi des uns (0.11)
+src/engine/shuffle.js     tirage au sort de l'ordre (Fisher-Yates sans biais, 0.11.0 ; tests/tirage.test.js)
 src/engine/alcohol.js     verres : comptes (verre 25 cl, pinte 50 cl = 2 verres, 0.8.2), place dans la partie, alcoolémie estimée (lot 7) ;
                           src/ui/drinks.js : choix verre / pinte et affichage du compte (0.8.2)
 tests/                    tests node:test (*.test.js) ; helpers.js = aides (notation ds('T20 D16'))
@@ -177,7 +178,24 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 7.9 | Une animation de tour par pictogramme d'avatar, toutes différentes (41), jouée d'office pour un avatar à pictogramme, aussi au Cricket (publié avec la v0.10.0) — **fait, en attente de validation sur le Pixel** |
 | 9 | Idées retenues le 13/11 (docs/idees.md) : tournée, moyenne au fil des verres, défis (B), résumé à partager (A), handicap, records et badges (A + B), comparer deux joueurs, sauvegarde automatique (v0.9.0) — **fait, en attente de validation sur le Pixel** |
 | 10 | Cricket : A face à face (2 joueurs) + B grille (2 à 8), avec points / sans points / cut-throat (v0.10.0) — **fait, en attente de validation sur le Pixel** |
+| 0.11 | Retours de la soirée du 20/11 : VALIDER en un appui, bandeau du défi, pastilles de rang, Tsia (menus, dégrisement), HPV, Atila et la moto d'Angelina, badges (fenêtre, rangs, soirée, roi des uns), 6 défis et étoiles, tirage vérifié (v0.11.0) — **fait, en attente de validation sur le Pixel** |
 | 8 | Recette |
+
+## État (version 0.11.0 : retours de la soirée du 20/11)
+
+- **0.11.0** (20/11) : tous les points du document « lot 7.8, retours de soirée du 20/11 » (détail : docs/interface.md
+  « Version 0.11.0 »). Aucune migration (champs facultatifs `defiSet`, `defiDecl` des parties).
+- Choix faits sans Guillaume (à lui dire, à changer s'il veut) : VALIDER ferme **tous** les bandeaux d'une volée (pas
+  seulement les moqueries) ; bandeau du défi sous le bandeau du joueur (écran bas : serré, le reste rapetisse) ; défi
+  « main gauche » non déclaré = raté ; « le voisin » réussi = les autres boivent ; Angelina reconnue à son pseudo (comme
+  Tsia) ; badges à rangs comptés sur les parties X01 seulement ; pas de couleur de métal pour bronze / argent / or
+  (carrés pleins, DA).
+- Les parties d'avant gardent leurs défis (jeu 1) ; les nouvelles tirent dans les 14 (jeu 2) : ne jamais changer
+  l'ordre de `DEFI_SETS` — ajouter un défi = un jeu 3.
+- Tirage au sort : déjà juste avant (Fisher-Yates) ; rendu strictement sans biais et testé (tests/tirage.test.js).
+- À vérifier sur le Pixel : bandeau du défi lisible de loin ; pastilles de rang ; moto et couronne ; fenêtre d'un badge
+  et VOIR LA PARTIE ; badges à rangs gagnés rétroactivement (le tableau d'honneur se remplit d'anciens rangs datés).
+- Questions toujours ouvertes : TOURNÉE SERVIE à chaque fin de manche ? Cricket : verres, défis, badges ?
 
 ## État (version 0.8.0 : la refonte dans l'appli)
 

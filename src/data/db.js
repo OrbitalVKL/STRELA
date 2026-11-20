@@ -15,6 +15,7 @@
 //             legsToWin, shuffle?, playOn? (lot 7) }, « storage » { asked, persisted } (demande de stockage persistant),
 //             « soiree » (lot 7.6, soirée en cours : soireeRecord ; absente sinon)
 //   games, lot 7.6 : shuffled?, soiree?, drinksBefore? facultatifs (withDrinks) : aucune migration
+//   games, lot 7.8 : defiSet?, defiDecl? facultatifs (withDrinks) : aucune migration
 //
 // Toutes les écritures passent par write(ops) : une seule transaction pour la liste d'opérations, durabilité
 // « strict » (écrite sur le disque avant d'être annoncée faite). Les transactions sont exécutées dans l'ordre où
@@ -174,11 +175,23 @@ export function withDrinks(g, rec) {
   if (g.shuffled === true) rec.shuffled = true;
   if (typeof g.soiree === 'string' && g.soiree) rec.soiree = g.soiree;
   if (g.defis === 'parfois' || g.defis === 'souvent') rec.defis = g.defis; // lot 9 : défis de soirée
+  // Lot 7.8 : jeu de défis de la partie (absent = jeu 1, celui du lot 9) et déclarations « main gauche ».
+  if (Number.isInteger(g.defiSet) && g.defiSet > 1) rec.defiSet = g.defiSet;
+  const decl = cleanDecl(g.defiDecl);
+  if (decl) rec.defiDecl = decl;
   const before = cleanBefore(g.drinksBefore);
   if (before) rec.drinksBefore = before;
   // Version 0.8.1 : verres d'avant la correction « resaisis à chaque partie » (pour pouvoir l'annuler) ; facultatif.
   if (g.drinksRaw && typeof g.drinksRaw === 'object') rec.drinksRaw = cleanDrinks(g.drinksRaw) || {};
   return rec;
+}
+
+/** Déclarations d'une partie (lot 7.8, défi « main gauche ») : { rang de volée: true | false } nettoyé, ou null. */
+export function cleanDecl(x) {
+  if (!x || typeof x !== 'object' || Array.isArray(x)) return null;
+  const out = {};
+  for (const [k, v] of Object.entries(x)) if (/^\d+$/.test(k) && (v === true || v === false)) out[k] = v;
+  return Object.keys(out).length ? out : null;
 }
 
 /** `drinksBefore` nettoyé (entiers positifs seulement), ou null. */

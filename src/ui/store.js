@@ -7,6 +7,8 @@
 //     `ui` (état d'affichage : multiplicateur armé, panneaux, vue de la cible…) n'est pas enregistré.
 // Sommaire de maquette (?maquette) : aucune base, données fictives en mémoire (src/ui/maquette.js), rien n'est écrit.
 
+import { shuffled } from '../engine/shuffle.js';
+import { DEFI_SET } from '../engine/defis.js';
 import { computeState, STATUS, EVENTS } from '../engine/x01.js';
 import { deletePlayer as removePlayer, deletionImpact, isDeletedId } from '../engine/players.js';
 import { openDb, currentRecord, closedRecord, playerRecord, deletionOps, gameDeletionOps, soireeRecord, DB_VERSION } from '../data/db.js';
@@ -454,7 +456,7 @@ export function startGame(setup) {
     if (Object.keys(before).length) store.current.drinksBefore = before;
   }
   // Lot 9 : défis de soirée (tirés au sort pendant la partie, voir engine/defis.js).
-  if (setup.defis === 'parfois' || setup.defis === 'souvent') store.current.defis = setup.defis;
+  if (setup.defis === 'parfois' || setup.defis === 'souvent') { store.current.defis = setup.defis; store.current.defiSet = DEFI_SET; } // lot 7.8 : 14 défis
   // Ordre tiré : « À TOI, PSEUDO » annonce le premier à lancer.
   if (setup.shuffle && players.length > 1) store.current.ui.announce = 0;
   write([{ store: 'games', put: currentRecord(store.current) }, { store: 'settings', key: 'lastSetup', put: store.lastSetup }]);
@@ -466,15 +468,8 @@ export function startGame(setup) {
  * panneau cible + historique ouvert ('board' | null), correction d'une fléchette en cours (`fix`), vue de la cible agrandie ('visit' | 'leg'), annonce du joueur suivant (rang), glissement du bandeau,
  * loupe figée du sommaire ({ x, y }), `frozen` : annonce figée (sommaire de maquette).
  */
-/** Copie mélangée (Fisher-Yates ; hasard du téléphone si disponible). */
-export function shuffled(list) {
-  const out = [...list];
-  const rnd = k => {
-    try { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % k; } catch (e) { return Math.floor(Math.random() * k); }
-  };
-  for (let i = out.length - 1; i > 0; i--) { const j = rnd(i + 1); [out[i], out[j]] = [out[j], out[i]]; }
-  return out;
-}
+/** Copie mélangée (Fisher-Yates sans biais, hasard du téléphone : engine/shuffle.js, vérifié au lot 7.8). */
+export { shuffled };
 
 export const freshUi = () => ({ mult: 1, pause: false, confirm: false, panel: null, boardView: 'visit', announce: null, slide: false, loupe: null, frozen: false, fix: null, cele: null, drinks: false });
 

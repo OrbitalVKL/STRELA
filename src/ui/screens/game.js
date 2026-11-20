@@ -27,9 +27,9 @@ import { gameLog, selectLogCell, selectedLogCell } from './history.js';
 import { sound, dartSound, say, SPEECH } from '../feedback.js';
 import { correctDart, locateDart, visitStart, CORRECT_ERRORS } from '../../engine/correct.js';
 import { turnAnimOf, turnFxKind, syncTurnFx } from '../turnfx.js';
-import { leader, flop, lastPlaces, visitStanding } from '../../engine/ranking.js';
+import { leader, flop, lastPlaces, visitStanding, standings } from '../../engine/ranking.js';
 import { playerRecords, isVisitRecord } from '../../engine/records.js';
-import { drawDefi, defiResult, DEFIS } from '../../engine/defis.js';
+import { defiOf, defiResult, DEFIS } from '../../engine/defis.js';
 import { gameBadgesSay } from '../honours.js';
 
 export const ANNOUNCE_MS = 800;
@@ -45,6 +45,20 @@ const dartLabel = d => {
   return f === '0' ? '0' : f.replace(/^S/, '');
 };
 const colorOf = p => `var(--av-${colorIndex(p.avatar?.color)})`;
+
+// Pastille de rang (lot 7.8, retours du 20/11) : sur chaque avatar de l'écran de jeu, la place du joueur en ce moment
+// (classement de ranking.js : manches gagnées, puis reste ; mise à jour à chaque fléchette). Rien tant que tout le
+// monde est à égalité (début de manche) ni en solo.
+export function placesOf(s) {
+  if (s.config.players.length < 2) return null;
+  const st = standings(s);
+  if (st.every(r => r.place === 1)) return null;
+  const out = [];
+  for (const r of st) out[r.player] = r.place;
+  return out;
+}
+const withRank = (av, places, i) => (places
+  ? `<span class="avr">${av}<i class="rkp${places[i] === 1 ? ' first' : ''}" data-layer aria-label="${places[i] === 1 ? '1er' : `${places[i]}e`}">${places[i]}</i></span>` : av);
 
 /** Retour visuel : la touche appuyée passe en inverse un court instant (même après redessin). */
 function flash(key) {
@@ -130,7 +144,7 @@ function band(v, slide) {
     + (pend ? (pend.bust ? '<b>BUST</b>' : place ? `<b>${placeLabel(place)}</b>` : '<b><span class="lg">VOLÉE </span>TERMINÉE</b>')
       : `<b><span class="lg">FLÉCHETTE</span><span class="sh">FL.</span> ${s.dartNumber}/3</b>`);
   return `<header class="gband${slide ? ' slide' : ''}" style="--pc:${colorOf(player)};--n:${[...player.name].length}">
-      ${avatarHtml(player, 56)}
+      ${withRank(avatarHtml(player, 56), placesOf(s), v.shown)}
       <div class="who"><span class="nm" data-shrink>${esc(player.name)}</span>
         <span class="legs" data-fit="5">${leader(s) === v.shown && !pend ? '<b class="ld"><span class="lg">EN TÊTE</span><span class="sh">1ER</span></b>' : ''}${state}<span class="mn"><span class="lg">MANCHE </span><span class="sh">M</span>${s.legNumber}</span>${legs}</span></div>
       <button type="button" class="pause" data-act="pause" data-press aria-label="Pause">${ico('pause')}</button>
@@ -261,6 +275,7 @@ function others(v) {
   // Lot 7 : le joueur en tête a son reste en vidéo inverse ; un joueur qui a fini (jouer jusqu'au bout) montre sa place.
   const lead = leader(s);
   const placed = s.placing ? s.finishOrder : [];
+  const places = placesOf(s);
   return `<section class="others${many ? ' many' : ''}" aria-label="Autres joueurs">${order.map(i => {
     const p = playerById(cfg.players[i]);
     const isNext = i === next;
@@ -268,7 +283,7 @@ function others(v) {
     const label = isNext ? 'Joueur suivant' : i === lead ? 'En tête' : pl ? `Fini, ${placeLabel(pl).toLowerCase()}` : '';
     const score = pl ? `<span class="r place">${placeLabel(pl)}</span>`
       : `<span class="r" data-shrink>${rollHtml(`o:${s.legNumber}:${i}`, s.remaining[i])}</span>`;
-    return `<div class="op${isNext ? ' next' : ''}${i === lead ? ' lead' : ''}${pl ? ' out' : ''}"${label ? ` aria-label="${label}"` : ''}>${avatarHtml(p, many ? 20 : 34, 'mono')}
+    return `<div class="op${isNext ? ' next' : ''}${i === lead ? ' lead' : ''}${pl ? ' out' : ''}"${label ? ` aria-label="${label}"` : ''}>${withRank(avatarHtml(p, many ? 20 : 34, 'mono'), places, i)}
       <div class="col"><span class="l1"><span class="nm ell"${isNext ? ' data-fit="1"' : ''}>${esc(p.name)}</span>${isNext ? `<span class="tag-next"><span class="lg">SUIVANT</span><span class="sh">${ico('chev')}</span></span>` : ''}</span>${score}</div></div>`;
   }).join('')}</section>`;
 }
@@ -276,8 +291,8 @@ function others(v) {
 /** Tour en cours (lot 7.6) : celui de la volée montrée (en cours, ou en attente de VALIDER). */
 const tourOf = v => roundOf(v.s, v.pend ? v.s.visits.length - 1 : 'open');
 
-// ------------------------------------------------------------------ défis de soirée (lot 9, variante B)
-/** Défi de la volée montrée : { id, key, player, open (pas encore close), result? } ou null. */
+// ------------------------------------------------------------------ défis de soirée (lot 9 ; bandeau : lot 7.8)
+/** Défi de la volée montrée : { id, key, player, index, open (pas encore close), result? } ou null. */
 export function defiNow(v) {
   const g = v.g;
   if (!g.defis) return null;
@@ -285,31 +300,54 @@ export function defiNow(v) {
   if (v.pend) {
     const idx = s.visits.length - 1;
     const r = defiResult(g, s, idx);
-    return r ? { id: `${g.id}:${idx}`, key: r.key, player: r.player, open: false, result: r } : null;
+    return r ? { id: `${g.id}:${idx}`, key: r.key, player: r.player, index: idx, open: false, result: r } : null;
   }
   if (s.status !== 'playing' || s.currentPlayer === null) return null;
   const idx = s.visits.length;
-  const key = drawDefi(g.id, idx, g.defis, s.remaining[s.currentPlayer]);
-  return key ? { id: `${g.id}:${idx}`, key, player: s.currentPlayer, open: true } : null;
+  const key = defiOf(g, idx, s.visit && s.visit.darts.length ? s.visit.startRemaining : s.remaining[s.currentPlayer]);
+  return key ? { id: `${g.id}:${idx}`, key, player: s.currentPlayer, index: idx, open: true } : null;
 }
 const GAGE = { verre: '+1 VERRE', pinte: '+1 PINTE', autres: '+1 AUX AUTRES', tournee: '+1 À TOUS' };
-/** Carte plein écran au début de la volée (jusqu'à C'EST PARTI ou la première fléchette), annoncée à voix haute. */
-function defiCard(v, d) {
-  if (!d || !d.open || v.darts.length || v.ui.defiSeen === d.id) return '';
+
+/** Annonce à voix haute du défi, une fois, au début de la volée. */
+function sayDefiStart(v, d) {
+  if (!d || !d.open || v.darts.length || v.ui.defiSaid === d.id) return;
+  v.ui.defiSaid = d.id;
   const p = playerById(v.cfg.players[d.player]);
-  if (v.ui.defiSaid !== d.id) { v.ui.defiSaid = d.id; setTimeout(() => say(`Défi pour ${p.name} : ${DEFIS[d.key].say}`), 400); }
-  return `<div class="defi-card" role="dialog" aria-label="Défi" data-layer style="--pc:${colorOf(p)}">
-    <small>DÉFI TIRÉ AU SORT</small>
-    <div class="dc">${avatarHtml(p, 64)}<b class="nm ell">${esc(p.name)}</b><span class="dt" data-shrink="2">${esc(DEFIS[d.key].text)}</span></div>
-    <button type="button" class="btn" data-act="defi-ok" data-arg="${esc(d.id)}">C'EST PARTI</button></div>`;
+  setTimeout(() => say(`Défi pour ${p.name} : ${DEFIS[d.key].say}`), 400);
 }
-/** Dans la bande du tour : rappel du défi pendant la volée, puis son résultat (et le gage à noter d'un appui). */
-function defiChip(v, d) {
+
+/**
+ * Bandeau du défi (lot 7.8, retours du 20/11) : sous le bandeau du joueur, de tout le début de la volée (avant la 1re
+ * fléchette, le reste du joueur visible dessous) jusqu'à VALIDER, texte en grand ; une fois la volée close, le résultat
+ * (étoile rouge pleine : réussi ; grise vide : raté) et le gage à noter d'un appui. « Main gauche » se déclare : FAIT /
+ * PAS FAIT. Quand Tsia lance, DÉGRISEMENT EXPRESS (kombucha au gingembre) rend ses voyelles au texte du défi.
+ */
+function defiBand(v) {
+  const d = defiNow(v);
   if (!d) return '';
-  if (d.open) return `<span class="dfi" aria-label="Défi : ${esc(DEFIS[d.key].text)}">⚑ ${esc(DEFIS[d.key].short)}</span>`;
+  sayDefiStart(v, d);
+  const def = DEFIS[d.key];
+  const sober = v.ui.degrise === d.id;
+  const keep = sober ? ' data-vkeep' : '';
+  const kombu = vowelKey() ? `<button type="button" class="kombu" data-act="degrise" data-arg="${esc(d.id)}" aria-pressed="${sober}" data-vkeep
+      aria-label="Dégrisement express : les voyelles du défi reviennent">${ico('kombucha')}<span>${sober ? 'DÉGRISÉ' : 'DÉGRISEMENT EXPRESS'}</span></button>` : '';
+  if (d.open) {
+    return `<section class="dfb open" role="status" aria-label="Défi : ${esc(def.text)}">
+      <div class="dfc"><b class="dft"${keep} data-shrink><span class="dfl">${ico('flag')}DÉFI</span> ${esc(def.text)}</b>${def.hint ? `<small class="dfh"${keep}>${esc(def.hint)}</small>` : ''}</div>${kombu}</section>`;
+  }
   const r = d.result;
-  if (r.gage && v.ui.defiDone !== d.id) return `<button type="button" class="dfi gage" data-act="defi-gage" data-arg="${esc(d.id)}">${r.ok ? 'RÉUSSI · ' : 'RATÉ · '}${GAGE[r.gage]}</button>`;
-  return `<span class="dfi${r.ok ? ' ok' : ''}">${r.ok ? 'DÉFI RÉUSSI' : 'DÉFI RATÉ'}</span>`;
+  if (r.declare && r.declared === undefined) {
+    return `<section class="dfb res ask" role="status" aria-label="Défi à déclarer">${ico('star', 'ico dfs')}
+      <div class="dfc"><small class="dfl">DÉFI À DÉCLARER</small><b class="dft"${keep} data-shrink>${esc(def.short)} ?</b></div>
+      <div class="dfask"><button type="button" data-act="defi-decl" data-arg="${esc(`${d.id}|1`)}">FAIT</button><button type="button" data-act="defi-decl" data-arg="${esc(`${d.id}|0`)}">PAS FAIT</button></div>${kombu}</section>`;
+  }
+  const gage = r.gage && v.ui.defiDone !== d.id
+    ? `<button type="button" class="dfg" data-act="defi-gage" data-arg="${esc(d.id)}">${GAGE[r.gage]}</button>`
+    : r.gage ? `<span class="dfg done">${ico('check')} NOTÉ</span>` : '';
+  const change = r.declare ? `<button type="button" class="dfchg" data-act="defi-decl" data-arg="${esc(`${d.id}|x`)}" aria-label="Changer la déclaration">${ico('undo')}</button>` : '';
+  return `<section class="dfb res ${r.ok ? 'ok' : 'ko'}" role="status" aria-label="Défi ${r.ok ? 'réussi' : 'raté'} : ${esc(def.text)}">${ico(r.ok ? 'starf' : 'star', 'ico dfs')}
+    <div class="dfc"><small class="dfl">${r.ok ? 'DÉFI RÉUSSI' : 'DÉFI RATÉ'}</small><b class="dft"${keep} data-shrink>${esc(def.short)}</b></div>${change}${gage}${kombu}</section>`;
 }
 
 /**
@@ -323,11 +361,12 @@ function roundStrip(v) {
   const r = tourOf(v);
   // Verres (lot 7.6) : un appui ouvre le panneau des verres, sans passer par la pause.
   const glass = `<button type="button" class="glass" data-act="drinks-open" data-press aria-label="Verres">${ico('glass')}<span>+1</span></button>`;
-  const dfi = defiChip(v, defiNow(v)); // lot 9 : défi de la volée, à la place de « ENCORE n »
-  if (n < 2) return `<section class="round" aria-label="Tour ${r}"><b class="rt">TOUR ${r}</b>${dfi}${glass}</section>`;
+  // Lot 7.8 : le défi n'est plus ici mais dans son bandeau, sous celui du joueur (defiBand).
+  if (n < 2) return `<section class="round" aria-label="Tour ${r}"><b class="rt">TOUR ${r}</b>${glass}</section>`;
   const count = new Array(n).fill(0);
   for (const x of s.visits) if (x.leg === s.legNumber) count[x.player] += 1;
   const placed = s.placing ? s.finishOrder : [];
+  const places = placesOf(s);
   const cells = [];
   let left = 0;
   for (let k = 0; k < n; k++) {
@@ -339,10 +378,10 @@ function roundStrip(v) {
     if (!out && !done && !now) left += 1;
     const st = out ? 'out' : now ? 'now' : done ? 'done' : 'todo';
     const label = { out: 'a fini', now: 'lance', done: 'a lancé', todo: 'à lancer' }[st];
-    cells.push(`<li class="rd ${st}" aria-label="${esc(p.name)} : ${label}">${avatarHtml(p, n > 5 ? 19 : 22, 'mono')}</li>`);
+    cells.push(`<li class="rd ${st}" aria-label="${esc(p.name)} : ${label}">${withRank(avatarHtml(p, n > 5 ? 19 : 22, 'mono'), places, i)}</li>`);
   }
   const tail = left ? `<span class="rl"><span class="lg">ENCORE </span><span class="sh">+</span>${left}</span>` : '<span class="rl"><span class="lg">DERNIER</span><span class="sh">FIN</span></span>';
-  return `<section class="round${n > 5 ? ' many' : ''}${v.pend ? ' wait' : ''}" aria-label="Tour ${r}" data-fit="4"><b class="rt"><span class="lg">TOUR </span><span class="sh">T</span>${r}</b><ol class="rds">${cells.join('')}</ol>${dfi || (v.pend ? '' : tail)}${glass}</section>`;
+  return `<section class="round${n > 5 ? ' many' : ''}${v.pend ? ' wait' : ''}" aria-label="Tour ${r}" data-fit="4"><b class="rt"><span class="lg">TOUR </span><span class="sh">T</span>${r}</b><ol class="rds">${cells.join('')}</ol>${v.pend ? '' : tail}${glass}</section>`;
 }
 
 /** « 1ER », « 2E »… */
@@ -358,9 +397,6 @@ function validateButton(v, cls = '') {
 }
 
 function announce(v) {
-  // Lot 9 : au début d'une volée avec défi, la carte du défi (avec le nom du joueur) remplace « À TOI ».
-  const card = v.pend ? '' : defiCard(v, defiNow(v));
-  if (card) return card;
   const a = v.ui.announce;
   if (a === null || a !== v.s.currentPlayer || v.pend) return '';
   const p = playerById(v.cfg.players[a]);
@@ -415,7 +451,7 @@ export function game() {
     </section>`;
 
   return `<div class="game port">
-    <div class="toparea">${band(v, slide)}${rest(v)}${announce(v)}</div>
+    <div class="toparea">${band(v, slide)}${defiBand(v)}${rest(v)}${announce(v)}</div>
     <div class="vblock"><div class="vcol">${visitBoxes(v)}${checkoutLine(v)}</div>${smallBoard(v)}</div>
     ${roundStrip(v)}${others(v)}${pad}
     ${overlays}${celebrationHtml()}
@@ -428,7 +464,7 @@ function landscape(v, slide, overlays) {
   const impacts = impactsFor(g, v.s, v.visitIdx, { previous: false }); // comme la petite cible : la volée seule
   return `<div class="game land">
     <div class="lcol">
-      <div class="toparea">${band(v, slide)}
+      <div class="toparea">${band(v, slide)}${defiBand(v)}
         <div class="mid">${rest(v)}<div class="side">${visitBoxes(v)}${checkoutLine(v)}</div></div>
         ${announce(v)}</div>
       ${roundStrip(v)}${others(v)}
@@ -740,10 +776,8 @@ function play(dart, key, pos = null) {
   const g = store.current;
   if (!g) return;
   stopAnnounce();
-  const before = currentState();
   const r = throwDart(g.config, g.darts, dart);
   if (!r.ok) { buzz(BUZZ.undo); return; }
-  if (g.defis) g.ui.defiSeen = `${g.id}:${before.visits.length}`; // lot 9 : la carte du défi part à la première fléchette
   g.darts = r.darts;
   // Position réelle du doigt (paysage), gardée avec la fléchette pour marquer l'impact.
   if (pos) g.darts[g.darts.length - 1] = { segment: dart.segment, multiplier: dart.multiplier, pos: pos.map(c => Math.round(c * 1000) / 1000) };
@@ -754,12 +788,13 @@ function play(dart, key, pos = null) {
   const v = st.lastVisit;
   const name = i => playerById(g.config.players[i]).name;
   // Lot 7 : célébration des nuls (volée à 0, sous 10, bust, série de mauvaises volées), ironique : bandeau, son de
-  // trombone, annonce moqueuse à la place du total.
-  const f = flop(st);
+  // trombone, annonce moqueuse à la place du total. Lot 7.8 : « Atila, le roi des uns » (ranking.js) ; Angelina, sous
+  // 20 points, part en moto dans le fossé (le roi des uns passe avant).
+  const f = motoFlop(flop(st), v, name);
   switch (st.lastEvent) {
     case 'visit_end':
       buzz(BUZZ.dart);
-      sound(v.total === 180 ? 'max' : f ? 'flop' : dartSound(dart));
+      sound(v.total === 180 ? 'max' : f ? (f.kind === 'moto' || f.kind === 'uns' ? f.kind : 'flop') : dartSound(dart));
       later(() => say(f ? SPEECH.flop(f.kind, name(v.player), f.value) : SPEECH.total(v.total), { strong: v.total === 180 }));
       // Lot 9 : record personnel (meilleure volée de toutes ses parties) annoncé après le total ; puis le défi.
       if (!v.bust && visitIsRecord(g, st)) later(() => say(`Record personnel pour ${name(v.player)} !`, { strong: true }));
@@ -809,6 +844,15 @@ function play(dart, key, pos = null) {
 /** Après le rendu : l'annonce vocale ne passe jamais avant l'écran. */
 const later = fn => setTimeout(fn, 0);
 
+/** Lot 7.8 : le pseudo Angelina (sans tenir compte de la casse, des accents ni des espaces autour). */
+export const isAngelina = name => String(name ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase() === 'angelina';
+
+/** Lot 7.8 : la moquerie d'Angelina (volée sous 20, hors bust) devient la moto dans le fossé ; le roi des uns d'abord. */
+export function motoFlop(f, v, name) {
+  if (!f || !v || v.bust || f.kind === 'uns' || f.kind === 'bust' || v.scored >= 20) return f;
+  return isAngelina(name(v.player)) ? { kind: 'moto', value: v.scored } : f;
+}
+
 // ------------------------------------------------------------------ célébration 100+ / 140+ / 180 / finition (lot 3)
 // Bandeau en haut de l'écran, gradué : discret en vidéo inverse pour 100+, plus haut à la couleur du joueur pour 140+,
 // la moitié haute de l'écran pour 180 ; un bandeau pour chaque finition (à la couleur du joueur si elle fait 100 ou
@@ -820,7 +864,23 @@ const later = fn => setTimeout(fn, 0);
 // Lot 7 : les nuls ont aussi leur bandeau (vidéo inverse, chiffre qui tangue) ; jamais le rouge non plus.
 const CELE_TEXT = { ton: '100 +', ton40: '140 +', max: 'CENT QUATRE-VINGTS', finish: 'FINITION', 'finish-big': 'GROSSE FINITION',
   place: 'FINI · PLACE', 'nul-zero': 'BRAVO ! ZÉRO POINT', 'nul-low': 'QUEL TALENT', 'nul-bust': 'BUST · ON APPLAUDIT',
-  'nul-serie': 'VOLÉES NULLES D\'AFFILÉE' };
+  'nul-serie': 'VOLÉES NULLES D\'AFFILÉE', 'nul-uns': 'ATILA, LE ROI DES UNS', 'nul-moto': 'MOTO DANS LE FOSSÉ' };
+
+// Lot 7.8 : saynètes des bandeaux (trait à l'encre du bandeau, angles droits). Animées à l'entrée du bandeau
+// (classe enter), sinon montrées à leur dernière image : la moto renversée dans le fossé, la couronne posée sur le 1.
+const MOTO_SCENE = `<svg class="cscene moto-sc" viewBox="0 0 260 74" aria-hidden="true">
+  <path class="road" d="M0 40H168L184 66H226L240 40H260"/><path class="grass" d="M176 54L180 50M232 52L236 48M214 66V60M196 66V61"/>
+  <g class="moto"><g class="bike">
+    <path d="M-14 0A7 7 0 1 0 -13.99 0M16 0A7 7 0 1 0 16.01 0"/>
+    <path d="M-14 0L-4 -9H10L16 0M-4 -9L2 0H10M10 -9L13 -16H17"/>
+    <path d="M-2 -10L2 -22L9 -18L6 -10"/><path d="M0 -28H7V-22H0Z" class="helmet"/>
+  </g></g>
+  <g class="dust"><path d="M190 56H194V60H190ZM204 50H207V53H204ZM218 56H222V60H218ZM198 44H200V46H198Z"/></g>
+</svg>`;
+const CROWN_SCENE = `<svg class="cscene crown-sc" viewBox="0 0 120 74" aria-hidden="true">
+  <g class="crown"><path d="M38 30L40 10L52 22L60 6L68 22L80 10L82 30Z"/><path d="M38 35H82"/></g>
+  <path class="one" d="M52 46L62 40V72M52 72H72"/>
+</svg>`;
 
 export function celebrate(kind, value, player) {
   const g = store.current;
@@ -843,7 +903,10 @@ const swallowEv = ev => { ev.preventDefault(); ev.stopImmediatePropagation(); };
 window.addEventListener('pointerdown', ev => {
   if (!(store.current && store.current.ui.cele)) return;
   if (!document.querySelector('.cele')) { endCele(); return; } // on a quitté l'écran : la fête est passée
-
+  // Lot 7.8 (retours du 20/11) : un appui sur VALIDER ferme le bandeau ET valide la volée, en un seul appui ; l'appui
+  // continue vers VALIDER (app.js, au relâcher).
+  const val = ev.target && ev.target.closest && ev.target.closest('.validate.go');
+  if (val && !val.disabled) { store.current.ui.cele = null; document.querySelector('.cele')?.remove(); return; }
   ackPointer = ev.pointerId;
   swallowEv(ev);
 }, true);
@@ -871,9 +934,10 @@ export function celebrationHtml() {
   const enter = c.fresh && animationsOn() ? ' enter' : '';
   c.fresh = false;
   const nul = c.kind.startsWith('nul-') ? ' nul' : '';
-  return `<div class="cele ${c.kind}${nul}${enter}" role="status" aria-live="polite" data-layer style="--pc:${colorOf(p)}">
-    <small>${CELE_TEXT[c.kind]}</small><b data-shrink>${c.value}</b><span class="nm ell">${esc(p.name)}</span>
-    <span class="ok" aria-hidden="true">TOUCHER POUR CONTINUER</span></div>`;
+  const scene = c.kind === 'nul-moto' ? MOTO_SCENE : c.kind === 'nul-uns' ? CROWN_SCENE : '';
+  return `<div class="cele ${c.kind}${nul}${scene ? ' scene' : ''}${enter}" role="status" aria-live="polite" data-layer style="--pc:${colorOf(p)}">
+    <small>${CELE_TEXT[c.kind]}</small><b data-shrink>${c.value}</b><span class="nm ell">${esc(p.name)}</span>${scene}
+    <span class="ok" aria-hidden="true">${location.hash === '#/jeu' && store.current && pendingVisit(currentState(), store.current.validated) ? 'VALIDER, OU TOUCHER POUR FERMER' : 'TOUCHER POUR CONTINUER'}</span></div>`;
 }
 
 /** Lot 9 : résultat du défi de la volée qui vient de se fermer, dit après le total. */
@@ -882,6 +946,7 @@ function sayDefi(g, st) {
   const r = defiResult(g, st, st.visits.length - 1);
   if (!r) return;
   const n = playerById(g.config.players[r.player]).name;
+  if (r.declare && r.declared === undefined) { setTimeout(() => say(`${n}, ${DEFIS[r.key].short.toLowerCase()} : fait, ou pas fait ?`), 1800); return; }
   const txt = r.ok ? (r.gage === 'autres' ? `Défi réussi ! Les autres boivent.` : `Défi réussi, ${n} !`)
     : r.gage === 'tournee' ? `Défi raté. ${n}, c'est ta tournée !` : `Défi raté. ${r.gage === 'pinte' ? 'Une pinte' : 'Un verre'} pour ${n} !`;
   setTimeout(() => say(txt), 1800);
@@ -894,6 +959,11 @@ export function undo() {
   stopAnnounce();
   g.darts = undoDart(g.config, g.darts).darts;
   g.validated = validatedAfterUndo(g.validated, g.darts.length);
+  // Lot 7.8 : une volée rouverte perd sa déclaration (« main gauche »).
+  if (g.defiDecl) {
+    const closed = currentState().visits.length;
+    for (const k of Object.keys(g.defiDecl)) if (Number(k) >= closed) delete g.defiDecl[k];
+  }
   g.ui.mult = 1;
   g.ui.cele = null;
   saveCurrent();
@@ -997,7 +1067,31 @@ export const actions = {
   },
   'drink-plus'(id) { addDrink(id, Date.now(), pintMode()); buzz(BUZZ.dart); refresh(); },
   // Lot 9 : un verre (ou une pinte) pour chaque joueur de la partie, d'un appui (tournée servie).
-  'defi-ok'(id) { store.current.ui.defiSeen = id; store.current.ui.announce = null; refresh(); },
+  // Lot 7.8 : DÉGRISEMENT EXPRESS (Tsia) : les voyelles du défi reviennent, le temps de la volée.
+  degrise(id) {
+    const g = store.current;
+    if (!g || g.ui.degrise === id) return;
+    g.ui.degrise = id;
+    buzz(BUZZ.dart);
+    sound('fx-gulp');
+    later(() => say('Kombucha au gingembre. Ça dégrise !'));
+    refresh();
+  },
+  // Lot 7.8 : défi « main gauche », déclaré par le joueur (1 : fait, 0 : pas fait, x : à redéclarer).
+  'defi-decl'(arg) {
+    const g = store.current;
+    const [id, val] = String(arg).split('|');
+    const d = g && defiNow(view());
+    if (!d || d.id !== id || d.open || !DEFIS[d.key].declare) return;
+    g.defiDecl = { ...(g.defiDecl || {}) };
+    if (val === 'x') delete g.defiDecl[d.index]; else g.defiDecl[d.index] = val === '1';
+    if (val !== '1') g.ui.defiDone = null;
+    saveCurrent();
+    buzz(BUZZ.dart);
+    if (val === '1') later(() => say(`Défi réussi, ${playerById(g.config.players[d.player]).name} !`));
+    else if (val === '0') later(() => say(`Défi raté. Un verre pour ${playerById(g.config.players[d.player]).name} !`));
+    refresh();
+  },
   // Gage d'un défi (indicatif) : noté d'un appui dans les verres (lot 9).
   'defi-gage'(id) {
     const g = store.current;

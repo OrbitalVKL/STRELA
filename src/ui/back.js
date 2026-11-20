@@ -6,10 +6,10 @@
 
 // Commandes qui ferment quelque chose, de la plus « au-dessus » à la plus « en dessous ».
 export const CLOSERS = [
+  'badge-close',      // fenêtre d'un badge (lot 7.8)
   'fix-cancel',       // correction d'une fléchette
   'abandon-no',       // confirmations du menu pause
   'ck-abandon-no',    // confirmations du menu pause du Cricket (lot 10)
-  'defi-ok',          // carte d'un défi (lot 9)
   'resume',           // menu pause
   'ck-resume',        // menu pause du Cricket
   'drinks-close',     // panneau des verres (lot 7.6)

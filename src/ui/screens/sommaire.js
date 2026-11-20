@@ -22,7 +22,7 @@ import { makeBackup, parseBackup } from '../../data/backup.js';
 import { saveSetting } from '../store.js';
 import { seasonMock } from '../maquette.js';
 import { presetStats2 } from './v2/stats2.js';
-import { presetHonour } from '../honours.js';
+import { presetHonour, presetBadgeSheet } from '../honours.js';
 import { presetHistory2 } from './v2/history2.js';
 import { presetSettings2 } from './settings.js';
 
@@ -318,9 +318,29 @@ export const SCENES = {
   // Lot 9 : handicap (Karim et Mathilde partent de 701, les autres de 501), et une partie en handicap.
   'nouvelle-handicap': () => { store.current = null; store.setupDraft = { ...store.lastSetup, players: ['p1', 'p2', 'p3', 'p4'], shuffle: false, handicap: true, starts: { p1: 701, p2: 301 }, confirm: false }; return '#/nouvelle'; },
   // Lot 9 : défi tiré (partie « defi21 », volée 2 : « le 20 trois fois ou une pinte »), puis raté (en attente de VALIDER).
-  'jeu-defi': () => { setGame({ ...cfg(['p1', 'p2']), defis: 'souvent' }, 'T20 S20 S5'); store.current.id = 'defi21'; return '#/jeu'; },
-  'jeu-defi-rappel': () => { setGame({ ...cfg(['p1', 'p2']), defis: 'souvent' }, 'T20 S20 S5  S20'); store.current.id = 'defi21'; store.current.ui.defiSeen = 'defi21:1'; return '#/jeu'; },
-  'jeu-defi-resultat': () => { setGame({ ...cfg(['p1', 'p2']), defis: 'souvent' }, 'T20 S20 S5  S20 S20 S1', {}, true); store.current.validated = 3; store.current.id = 'defi21'; return '#/jeu'; },
+  // Lot 7.8 : partie « defi30 » (14 défis), volée 2 : « le 20 trois fois ou une pinte » ; bandeau pendant toute la volée.
+  'jeu-defi': () => { setGame({ ...cfg(['p1', 'p2']), defis: 'souvent' }, 'T20 S20 S5'); store.current.id = 'defi30'; return '#/jeu'; },
+  'jeu-defi-rappel': () => { setGame({ ...cfg(['p1', 'p2']), defis: 'souvent' }, 'T20 S20 S5  S20'); store.current.id = 'defi30'; return '#/jeu'; },
+  'jeu-defi-resultat': () => { setGame({ ...cfg(['p1', 'p2']), defis: 'souvent' }, 'T20 S20 S5  S20 S20 S1', {}, true); store.current.validated = 3; store.current.id = 'defi30'; return '#/jeu'; },
+  'jeu-defi-reussi': () => { setGame({ ...cfg(['p1', 'p2']), defis: 'souvent' }, 'T20 S20 S5  S20 T20 S20', {}, true); store.current.validated = 3; store.current.id = 'defi30'; celebrate('ton', 100, 1); return '#/jeu'; },
+  'jeu-defi-ecart': () => { setGame({ ...cfg(['p1', 'p2']), defis: 'souvent' }, 'T20 S20 S5'); store.current.id = 'defi16'; return '#/jeu'; },
+  'jeu-defi-gauche': () => { setGame({ ...cfg(['p1', 'p2']), defis: 'souvent' }, 'T20 S20 S5  S20 S1 S5', {}, true); store.current.validated = 3; store.current.id = 'defi31'; return '#/jeu'; },
+  'jeu-defi-tsia': () => { setGame({ ...cfg(['p1', 'p11']), defis: 'souvent' }, 'T20 S20 S5'); store.current.id = 'defi9'; resetVowels(); return '#/jeu'; },
+  'jeu-defi-paysage': () => { setGame({ ...cfg(['p1', 'p2', 'p3']), defis: 'souvent' }, 'T20 S20 S5'); store.current.id = 'defi16'; return '#/jeu'; },
+  'jeu-defi-histo': () => {
+    setGame({ ...cfg(['p1', 'p2']), defis: 'souvent' }, 'T20 S20 S5  S20 S20 S1  T20 T20 S20  S20 T20 S20');
+    store.current.id = 'defi30';
+    Object.assign(store.current.ui, { panel: 'board' });
+    return '#/jeu';
+  },
+  // Lot 7.8 : moqueries (Atila, le roi des uns ; la moto d'Angelina)
+  'nul-uns': () => { setGame(cfg(['p1', 'p2']), 'S1 S1 S5', {}, true); celebrate('nul-uns', 7, 0); return '#/jeu'; },
+  'nul-moto': () => { setGame(cfg(['p12', 'p2']), 'S5 S3 S1', {}, true); celebrate('nul-moto', 9, 0); return '#/jeu'; },
+  // Lot 7.8 : pastilles de rang (4 joueurs en cours de partie)
+  'jeu-rangs': () => { setGame(cfg(['p1', 'p2', 'p3', 'p4']), 'T20 S20 S5  S20 S20 S1  T19 S19 S3  S1 S5 S20  T20 T20 S20'); return '#/jeu'; },
+  // Lot 7.8 : fenêtre d'un badge (badge à rangs, puis badge simple)
+  'v78-badge-rangs': v78('#/honneur', () => { presetHonour({ kind: 'badge' }); presetBadgeSheet({ pid: 'p1', key: 'fermier', tier: 0 }); }),
+  'v78-badge-180': v78('#/stats/p1', () => { presetStats2({}); presetBadgeSheet({ pid: 'p1', key: 'max', tier: 0 }); }),
   'jeu-handicap': () => { setGame({ ...cfg(['p1', 'p2']), starts: [701, 301] }, 'T20 S20 S5'); return '#/jeu'; },
   'nouvelle-vide': () => { store.players = []; store.current = null; store.setupDraft = null; return '#/nouvelle'; },
   'historique-vide': () => { store.games = []; return '#/historique'; },
@@ -443,6 +463,8 @@ export function sommaire() {
       ${L('v78-honneur', '★ Tableau d\'honneur', 'badges et records, lot 9')}
       ${L('v78-honneur-badges', '★ Tableau d\'honneur : badges seuls')}
       ${L('v78-stats-vitrine', '★ Stats : records et badges', 'vitrine, lot 9')}
+      ${L('v78-badge-rangs', '★ Fenêtre d\'un badge à rangs', 'lot 7.8')}
+      ${L('v78-badge-180', '★ Fenêtre d\'un badge', 'lot 7.8 : partie et volée')}
       ${L('v78-historique', '★ Historique', 'par soirée, filtres')}
       ${L('v78-historique-filtre', '★ Historique : Mathilde, ce mois-ci')}
       ${L('v78-historique-tout', '★ Historique : soirées dépliées')}
@@ -567,6 +589,15 @@ export function sommaire() {
       ${L('jeu-defi', '3 · Défi tiré au sort', 'carte, lot 9')}
       ${L('jeu-defi-rappel', '3 · Défi : rappel pendant la volée')}
       ${L('jeu-defi-resultat', '3 · Défi raté : gage à noter')}
+      ${L('jeu-defi-reussi', '3 · Défi réussi (avec un 100+)', 'lot 7.8 : VALIDER ferme aussi le bandeau')}
+      ${L('jeu-defi-ecart', '3 · Défi « grand écart »', 'lot 7.8, précision sous le texte')}
+      ${L('jeu-defi-gauche', '3 · Défi « main gauche » à déclarer', 'lot 7.8')}
+      ${L('jeu-defi-tsia', '3 · Défi de Tsia : dégrisement express', 'lot 7.8')}
+      ${L('jeu-defi-paysage', '3 · Défi en paysage', 'lot 7.8')}
+      ${L('jeu-defi-histo', '3 · Défis dans le tableau de la partie', 'lot 7.8 : étoiles')}
+      ${L('jeu-rangs', 'Pastilles de rang', 'lot 7.8, 4 joueurs')}
+      ${L('nul-uns', 'Atila, le roi des uns', 'lot 7.8')}
+      ${L('nul-moto', 'Angelina dans le fossé', 'lot 7.8')}
       ${L('jeu-handicap', '3 · Partie en handicap', 'départ 701 / 301')}
       ${L('verres-soiree', 'Verres de la soirée en jeu', 'panneau')}
       ${L('verres-soiree-jeu', 'Verres de la soirée en jeu', 'Mathilde x3')}

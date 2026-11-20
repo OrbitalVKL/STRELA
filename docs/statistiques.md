@@ -54,3 +54,17 @@ Du point de vue du joueur dont on regarde les stats, contre un adversaire, sur l
 Chaque case du tableau tour par tour donne les fléchettes de la volée, son total (« BUST » pour un bust) et le reste
 après la volée (inchangé sur un bust) ; une finition est marquée « GAGNÉ ». Le résumé d'une partie donne, par joueur :
 manches gagnées, moyenne sur 3 fléchettes, fléchettes lancées, meilleure volée (bust = 0).
+Version 0.11.0 : une volée qui portait un défi le rappelle en bas de sa case (texte court), avec une étoile rouge pleine
+s'il est réussi, grise et vide s'il est raté (« main gauche » non déclaré : raté).
+
+## Le plus de 1 et badges à rangs (version 0.11.0)
+
+- **Le plus de 1** : fléchettes tombées dans le 1 (simple, double ou triple) sur la période ; au classement, le premier
+  est le **roi des uns** (à égalité, celui qui a joué le plus de parties est en tête ; chacun des ex æquo se voit roi
+  dans ses propres stats). Soirée : même compte sur les parties de la soirée (« Le plus de 1 » des faits marquants).
+- **Badges à rangs** (bronze, argent, or), cumulés sur toutes les parties X01 depuis toujours, parties abandonnées
+  comprises (les fléchettes ont été lancées) ; un rang est gagné à la volée qui franchit son seuil :
+  Le Roi des Uns (fléchettes dans le 1) 50 / 150 / 400 · Le Sniper (bulls, 25 ou 50) 25 / 100 / 250 · Le Fermier du 60
+  (triples 20) 50 / 200 / 500 · Le Notaire (parties gagnées sur un double, bull 50 compris : la dernière fléchette de la
+  partie) 10 / 50 / 150 · Le Feu d'Artifice (volées à 180) 1 / 5 / 20 · Décorateur de Murs (fléchettes hors cible :
+  RATÉ ou 0) 20 / 75 / 200 · Monsieur Plus (bust) 25 / 100 / 300.

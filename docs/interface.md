@@ -842,6 +842,54 @@ Demande de Guillaume (12/11) : « une animation de tour par pictogramme d'avatar
   plusieurs instants → captures/picto-…png. Tests : tests/animations.test.js (« lot 7.9 »).
 - À voir avec Guillaume sur le Pixel : la taille, la durée, les bruits ; une saynète à changer se réécrit seule.
 
+## Version 0.11.0 : retours de la soirée du 20/11 (20/11/2026)
+
+Demandes de Guillaume après une soirée (« lot 7.8, retours de soirée du 20/11 »), toutes regroupées dans la 0.11.0.
+Aucune migration : champs facultatifs `defiSet` et `defiDecl` des parties (db.js › withDrinks, gardés à la sauvegarde).
+- **VALIDER + bandeau** (game.js, écouteur `pointerdown` en capture) : un appui sur VALIDER (`.validate.go`) ferme le
+  bandeau ouvert (moquerie, 100+, 140+, 180, place) et laisse l'appui valider la volée ; ailleurs, l'appui ne fait que
+  fermer le bandeau (règle du lot 7.1). Le bandeau dit « VALIDER, OU TOUCHER POUR FERMER » quand une volée attend.
+- **Bandeau du défi** (`defiBand`) : sous le bandeau du joueur, dans `.toparea` (portrait et paysage), du début de la
+  volée (avant la 1re fléchette) jusqu'à VALIDER ; vidéo inverse, « ⚑ DÉFI » + texte en grand (`data-shrink`) +
+  précision (`hint`) ; puis le résultat (étoile rouge pleine : réussi, exception au rouge voulue ; grise vide : raté),
+  le gage à noter (`defi-gage`). La carte plein écran du lot 9 et le rappel dans la bande du tour sont retirés ; le défi
+  est toujours annoncé à voix haute. Écran bas (portrait ≤ 800 px, paysage) : bandeau serré, le reste du joueur
+  rapetisse pendant la volée du défi ; paysage ≤ 380 px : il prend la place de la bande du tour.
+- **Défis** (engine/defis.js) : six de plus — `gauche` (main gauche, déclaré : FAIT / PAS FAIT à la fin de la volée,
+  `defi-decl`, non déclaré = raté ; ANNULER efface la déclaration d'une volée rouverte), `pair`, `voisin` (récompense :
+  les autres boivent), `pasvingt`, `escalier`, `ecart` (haut : 12 5 20 1 18 ; bas : 2 17 3 19 7). **Jeux de défis**
+  (`DEFI_SETS`) : une partie sans `defiSet` tire dans les 8 du lot 9 (ses défis ne changent pas) ; les nouvelles parties
+  ont `defiSet: 2` (14 défis). `defiOf(game, index, rest)` pour tout tirage.
+- **Tableau tour par tour** (table.js, history.js › `defiMap`) : chaque case d'une volée à défi montre l'étoile et le
+  texte court (`.df.ok` / `.ko`) ; le détail de la case donne le texte entier et le résultat.
+- **Pastille de rang** (`placesOf`, `withRank`) : place de `standings` (ranking.js) sur l'avatar du bandeau, de la bande
+  des autres et de la bande du tour ; rien tant que tous sont à égalité ; `data-layer` (superposition voulue).
+- **Tsia** (vowels.js) : voyelles seulement sur l'écran de jeu — `.sheet-bg` (pause, verres, panneau), `.fixer`,
+  `.loupe` et `[data-vkeep]` gardent les leurs ; le calque `#vfall` est vidé en quittant le jeu. DÉGRISEMENT EXPRESS
+  (pictogramme `kombucha`, action `degrise`) dans le bandeau du défi : `data-vkeep` sur le texte du défi pour la volée.
+- **Moqueries** : `uns` (ranking.js › `kingOfOnes` : sous 20, deux 1 simples ou un double / triple 1, passe avant la
+  série) → bandeau « ATILA, LE ROI DES UNS » (couronne qui tombe sur un 1) ; Angelina (pseudo, `isAngelina`), volée
+  sous 20 hors bust → `moto` (game.js › `motoFlop`) : « MOTO DANS LE FOSSÉ », la moto roule puis bascule dans le fossé
+  (`MOTO_SCENE`, CSS `moto-ride`). Sons `uns` et `moto`, phrases `FLOP_LINES.uns` / `.moto`. HPV : 9 répliques
+  (`TIE_LINES`).
+- **Badges** (engine/badges.js) : chaque badge garde `visit` (rang de la volée dans la partie, ou null) ; **badges à
+  rangs** (`tiers`, `tierCounts`, totaux cumulés `h.totals`, rang gagné à la volée qui franchit le seuil, un événement
+  par rang) ; `badgeWhere`, `badgeLabel`. **Fenêtre d'un badge** (honours.js › `badgeSheetHtml`, ajoutée par app.js à
+  l'écran affiché ; `badge-open` / `badge-close`, fermée en changeant d'écran et par le retour d'Android) : signification,
+  rangs, partie (date, départ, joueurs), volée (manche, tour, fléchettes), VOIR LA PARTIE (`badge-game` : détail avec la
+  case ouverte et amenée à l'écran, `selectLogCell(clé, true)`). Ouverte depuis le tableau d'honneur, la vitrine des
+  stats, la fin de partie et le tableau de bord d'une soirée.
+- **Soirée** (soireedash.js) : section « Badges de la soirée » (joueur, badge, ce qu'il a fait) ; fait marquant « Le
+  plus de 1 » (soiree.js › `onesOf`). **Stats** : chiffre `ones` « Le plus de 1 » au classement (en tête : ROI DES UNS)
+  et cases « Fléchettes dans le 1 » / « Roi des uns » dans les stats du joueur (vidéo inverse si c'est lui).
+- **Tirage au sort** (engine/shuffle.js) : Fisher-Yates, hasard du téléphone (`crypto.getRandomValues`), tirage sans
+  biais de modulo ; aucune graine. Vérifié (tests/tirage.test.js : les n! permutations, 1 chance sur n d'être premier,
+  khi-deux). Le code d'avant était déjà juste (biais de l'ordre de 10⁻⁹) : « Guillaume sort souvent premier » tient du
+  hasard, ou d'une partie lancée « Dans cet ordre » (le choix est gardé d'une partie à l'autre).
+- Sommaire : `jeu-defi…`, `jeu-rangs`, `nul-uns`, `nul-moto`, `v78-badge-rangs`, `v78-badge-180` ; joueur d'appoint
+  Angelina (`p12`). Tests : tests/retours-soiree.test.js, tests/tirage.test.js.
+- Pas pour le Cricket : défis, badges, pastilles (le Cricket n'a ni défis ni badges).
+
 ## Pour le lot 4
 
 - Les écrans Historique et Stats lisent `store.games` (parties closes) ; la partie en cours est à part (`store.current`).
