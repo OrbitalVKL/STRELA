@@ -2,6 +2,14 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.11.1', date: '2026-11-20', title: 'Chiffres, défis et badges de la soirée', items: [
+    'Tableau de bord d\'une soirée : sections repliables (touchez un titre pour l\'ouvrir ou le replier), et plus rien qui dépasse de l\'écran : une carte par joueur à la place du grand tableau, les badges en liste, le tableau « au fil des verres » à la largeur de l\'écran.',
+    'Plus de chiffres : totaux de la soirée (fléchettes, 100+, 180, bust, défis réussis, badges), et pour chacun 9 premières, 140+, taux de doubles, plus grosse finition, manche la plus courte, fléchettes dans le 1, bulls, hors cible, défis, badges.',
+    'Nouvelle section « Défis de la soirée » : réussis et ratés de chacun, puis chaque défi avec son étoile et son gage.',
+    'Rapport à imprimer : une 4e feuille « Chiffres, défis et badges » (tous les chiffres de chacun, les défis, les badges gagnés). Le résumé à partager dit aussi les défis réussis et les badges gagnés.',
+    'Faits marquants en plus : le plus de 100+, plus grosse finition, le plus de défis réussis, le plus de bulls, le plus hors cible, meilleur taux de triples.',
+    'Stats de chaque joueur : section « Défis et badges » (défis réussis, taux, gages, badges gagnés, rangs or / argent / bronze, dernier badge), triples 20, bulls et hors cible ; les badges se déplient dans une section repliable. Classement : défis réussis.',
+  ] },
   { v: '0.11.0', date: '2026-11-20', title: 'Retours de la soirée du 20/11', items: [
     'VALIDER : un seul appui valide la volée et ferme la moquerie (ou le bandeau 100+, 140+, 180) ; un appui ailleurs ferme seulement le bandeau.',
     'Défis : un bandeau sous celui du joueur, du début de la volée jusqu\'à VALIDER, avec le défi en grand ; le reste du joueur se voit dès le début. Une fois la volée finie : étoile rouge pleine si le défi est réussi, grise et vide s\'il est raté, et le gage à noter d\'un appui.',

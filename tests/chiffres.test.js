@@ -123,6 +123,10 @@ test('historique et statistiques comparés aux calculs à la main', { skip: !pw 
       // Lot 7.8 : fléchettes dans le 1 (partie 1 : « 1 D10 », partie 3 : « T20 T20 1 ») ; Bravo en a 2 aussi (« T20 1 1 »),
       // Alpha, avec plus de parties, est le roi des uns.
       ones: '2', king: 'Alpha',
+      // 0.11.1 : précision et défis / badges. Triples 20 : 3 + 1 + 3 + 2 ; aucune fléchette à côté sur 18 ; pas de défi ;
+      // badges : première victoire, 140+, 180, finition 100+ (121, partie 3), sans raté, Feu d'Artifice bronze (un 180).
+      t20: '9', bulls: '0', misses: '0 / 18 fl.', defisOk: '—', defisRate: '—', gages: '0', badgesGot: '6 / 23',
+      tiers: '0 · 0 · 1', lastBadge: 'Finition 100+',
     });
     assert.match(await page.innerText('.kpi.king.me'), /ex æquo avec 1\sautre/);
     await page.click('[data-act="v2-fold"][data-arg="worst"]');
@@ -148,6 +152,10 @@ test('historique et statistiques comparés aux calculs à la main', { skip: !pw 
       average: '105,5', first9: '105,5', won: '0 / 2', triple: '50 %', double: '—',
       bestFinish: '—', shortest: '—', bestVisit: '180', worstVisit: '60', ton: '1', ton40: '0', max: '1', busts: '0',
       drinks: '0 en 2 parties', ones: '2', king: 'Bravo', // lot 7.8 : à égalité avec Alpha, roi des uns lui aussi
+      // 0.11.1 : triples 20 : 2 + 1 + 3 ; un 0 sur 12 fléchettes (le « 20 » de la partie abandonnée n'est pas une volée
+      // close) ; badges : 140+, 180 et Feu d'Artifice bronze, tous à la partie abandonnée.
+      t20: '6', bulls: '0', misses: '1 / 12 fl.', defisOk: '—', defisRate: '—', gages: '0', badgesGot: '3 / 23',
+      tiers: '0 · 0 · 1', lastBadge: 'Premier 140+',
     });
     // Liste des joueurs : moyenne, parties, victoires.
     await page.evaluate(() => { location.hash = '#/joueurs'; });

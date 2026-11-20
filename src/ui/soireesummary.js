@@ -61,7 +61,7 @@ export function summaryTiles(m, record = null) {
   return out;
 }
 
-/** L'affiche (canvas SUM_W × SUM_H). extra = { record } ; mk(w, h) → canvas. */
+/** L'affiche (canvas SUM_W × SUM_H). extra = { record, badges (nombre, 0.11.1) } ; mk(w, h) → canvas. */
 export function drawSoireeSummary(m, who, extra = {}, mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }) {
   const c = mk(SUM_W, SUM_H);
   const x = c.getContext('2d');
@@ -98,7 +98,18 @@ export function drawSoireeSummary(m, who, extra = {}, mk = (w, h) => { const c =
     T(x, p.name.toUpperCase(), X + 48, Y + 59, { px: 13, w: 700, max: tw - 62 });
     T(x, t.value, X + 14, Y + 100, { px: 30, w: 800, max: tw - 28 });
   });
-  T(x, 'STRELA · COMPTEUR DE FLÉCHETTES', LW / 2, LH - 30, { px: 10.5, color: DIM, ls: 2, align: 'center' });
+  // 0.11.1 : défis réussis et badges gagnés pendant la soirée, sous les cases.
+  const t = m.totals || {};
+  const bits = [];
+  if (t.defis) bits.push(`${t.defisOk} / ${t.defis} DÉFIS RÉUSSIS`);
+  if (extra.badges) bits.push(plural(extra.badges, 'BADGE GAGNÉ', 'BADGES GAGNÉS'));
+  if (t.max) bits.push(plural(t.max, 'CENT QUATRE-VINGTS', 'CENT QUATRE-VINGTS'));
+  if (bits.length) {
+    const yb = ty + Math.ceil(tiles.length / 2) * (th + 12) - 2;
+    rect(x, MX, yb, LW - 2 * MX, 30, STEP);
+    T(x, bits.join(' · '), LW / 2, yb + 20, { px: 11.5, w: 700, ls: 1, align: 'center', max: LW - 2 * MX - 20 });
+  }
+  T(x, 'STRELA · COMPTEUR DE FLÉCHETTES', LW / 2, LH - (bits.length ? 16 : 30), { px: 10.5, color: DIM, ls: 2, align: 'center' });
   return c;
 }
 

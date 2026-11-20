@@ -170,6 +170,7 @@ export function mockSeason(players, now = Date.now()) {
           ...((n + j + id.length) % 4 === 0 ? { v: 0.5 } : {}) })); // 0.8.2 : une pinte de temps en temps
       }
       const g = { id: `s${k + 1}g${i + 1}`, startedAt, config, darts, abandoned: stop !== null, soiree };
+      if (k < 2) { g.defis = 'souvent'; g.defiSet = 2; } // 0.11.1 : défis dans les deux dernières soirées
       const b = {}; for (const id of order) if (before[id]) b[id] = before[id];
       if (Object.keys(b).length) g.drinksBefore = b;
       if (Object.keys(drinks).length) g.drinks = drinks;

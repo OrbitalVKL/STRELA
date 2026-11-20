@@ -1,16 +1,20 @@
-// Strela — rapport d'une soirée en 3 feuilles A4 (lot 7.8, version 0.8.0 ; choix de Guillaume le 13/11 : les trois).
+// Strela — rapport d'une soirée en 4 feuilles A4 (lot 7.8, version 0.8.0 ; choix de Guillaume le 13/11 : les trois ;
+// 0.11.1 : feuille D, demande de Guillaume « inclure les badges et les défis aux feuilles de KPI, enrichir les KPI »).
 //   A · PODIUM ET CARTES : podium, une carte par joueur (courbe de ses moyennes, moyenne, meilleure / pire volée, 100+,
 //       verres dessinés, cible colorée là où il a lancé, taux de triples), qui a payé chaque tournée.
 //   B · CHRONOLOGIE : la soirée heure par heure (parties, vainqueur, dernier, verres de chacun à leur heure), moyenne de
 //       chaque partie par joueur, trophées, liste des parties.
 //   C · DUELS ET CIBLES : qui bat qui (parties où la ligne a fini devant la colonne), barres comparées (moyenne, 100+,
 //       triples, bust, verres), une grande cible chiffrée par joueur et ses secteurs fétiches.
+//   D · CHIFFRES, DÉFIS ET BADGES : tous les chiffres de chacun (tableau), les défis de la soirée (réussis / ratés, la
+//       liste avec leur gage) et les badges gagnés ce soir-là (extra.badges, calculés par l'interface).
 // Dessin sur canvas, papier blanc, encre et rouge de la DA (théme clair), couleurs d'avatar pour reconnaître les
 // joueurs. On dessine dans une page logique de 794 × 1123 (A4 à 96 ppp) agrandie à PAGE_W × PAGE_H (150 ppp).
 // Les données viennent de soireeModel() (engine/soiree.js) ; `who(id)` donne { name, color, initials, img }.
 import { PAGE_W, PAGE_H } from './sheet.js';
 import { mix } from './theme.js';
 import { litersText } from '../engine/alcohol.js';
+import { DEFIS } from '../engine/defis.js';
 
 const LW = 794, LH = 1123, MX = 34;
 const K = PAGE_W / LW;
@@ -122,9 +126,17 @@ function header(x, m, page, label) {
   const w = T(x, `x${m.drinks} VERRE${m.drinks > 1 ? 'S' : ''}${m.drinks ? ` · ${litersText(m.liters).toUpperCase()}` : ''}`, R, 77, { px: 11, color: ON_RED, ls: 0.7, align: 'right' });
   glass(x, R - w - 13, 67, 8, ON_RED);
 }
+const PAGES = 4;
 function footer(x, page) {
   T(x, 'Strela · compteur de fléchettes', MX, LH - 16, { px: 8, color: MUT });
-  T(x, `${page} / 3`, LW - MX, LH - 16, { px: 8, color: MUT, align: 'right' });
+  T(x, `${page} / ${PAGES}`, LW - MX, LH - 16, { px: 8, color: MUT, align: 'right' });
+}
+/** Étoile d'un défi : pleine (rouge) si réussi, vide (trait) sinon. */
+function star(x, cx, cy, r, full) {
+  const pts = [];
+  for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? r * 0.45 : r; pts.push([cx + rr * Math.cos(a), cy + rr * Math.sin(a)]); }
+  x.beginPath(); pts.forEach(([X, Y], k) => (k ? x.lineTo(X, Y) : x.moveTo(X, Y))); x.closePath();
+  if (full) { x.fillStyle = RED; x.fill(); } else { x.strokeStyle = MUT; x.lineWidth = 1; x.stroke(); }
 }
 
 // ------------------------------------------------------------------ feuille A : podium et cartes
@@ -458,14 +470,112 @@ function pageC(x, m, who) {
   footer(x, 3);
 }
 
+// ------------------------------------------------------------------ feuille D : chiffres, défis et badges (0.11.1)
+const GAGE = { verre: '+1 verre', pinte: '+1 pinte', autres: 'les autres boivent', tournee: 'sa tournée' };
+function pageD(x, m, who, extra) {
+  header(x, m, 'D', 'CHIFFRES, DÉFIS ET BADGES');
+  const n = m.rows.length, W = LW - 2 * MX, LBL = 150, cw = (W - LBL) / Math.max(1, n);
+  // Tous les chiffres : une ligne par chiffre, une colonne par joueur ; le meilleur de chaque ligne en gras sur gris.
+  h2(x, 'TOUS LES CHIFFRES', MX, 112);
+  m.rows.forEach((r, j) => {
+    const p = who(r.id), X = MX + LBL + j * cw;
+    face(x, p, X + cw / 2 - 9, 122, 18);
+    T(x, p.name.toUpperCase(), X + cw / 2, 152, { px: 8.5, w: 700, align: 'center', max: cw - 4 });
+  });
+  const badgesOf = id => (extra.badges || []).filter(b => b.id === id).length;
+  const rowsDef = [
+    ['PARTIES · VICTOIRES', r => `${r.played} · ${r.won}`, r => r.won, 1],
+    ['MOYENNE', r => dec(r.average), r => r.average, 1], ['9 PREMIÈRES', r => dec(r.first9), r => r.first9, 1],
+    ['MEILLEURE VOLÉE', r => r.best || '—', r => r.best, 1], ['PIRE VOLÉE', r => r.worst ?? '—', r => r.worst, 1],
+    ['VOLÉES 100+', r => r.tons, r => r.tons, 1], ['VOLÉES 140+', r => r.ton40, r => r.ton40, 1], ['180', r => r.max, r => r.max, 1],
+    ['BUST', r => r.busts, r => r.busts, -1], ['TAUX DE TRIPLES', r => pct(r.tripleRate), r => r.tripleRate, 1],
+    ['TAUX DE DOUBLES', r => pct(r.doubleRate), r => r.doubleRate, 1], ['MEILLEURE FINITION', r => r.bestFinish || '—', r => r.bestFinish, 1],
+    ['MANCHE LA + COURTE', r => (r.shortestLeg ? `${r.shortestLeg} fl.` : '—'), r => (r.shortestLeg ? -r.shortestLeg : null), 1],
+    ['FLÉCHETTES', r => r.darts, r => r.darts, 0], ['DANS LE 1', r => r.ones, r => r.ones, 0], ['BULLS', r => r.bulls, r => r.bulls, 1],
+    ['TRIPLES 20', r => r.t20, r => r.t20, 1], ['HORS CIBLE', r => r.misses, r => r.misses, -1],
+    ['DÉFIS RÉUSSIS', r => (r.defisOk + r.defisKo ? `${r.defisOk} / ${r.defisOk + r.defisKo}` : '—'), r => r.defisOk, 1],
+    ['BADGES', r => badgesOf(r.id), r => badgesOf(r.id), 1], ['VERRES', r => `x${r.drinks}`, r => r.drinks, 0],
+  ];
+  const rh = 16.5;
+  let y = 160;
+  rowsDef.forEach(([label, fmt, val, dir], i) => {
+    if (i % 2) rect(x, MX, y, W, rh, F08);
+    T(x, label, MX + 4, y + 11.5, { px: 8.5, color: MUT, ls: 0.6, max: LBL - 8 });
+    const vals = m.rows.map(val).map(v => (v === null || v === undefined ? null : v));
+    const ok = vals.filter(v => v !== null);
+    const best = dir && ok.length > 1 && new Set(ok).size > 1 ? (dir > 0 ? Math.max(...ok) : Math.min(...ok)) : null;
+    m.rows.forEach((r, j) => {
+      const X = MX + LBL + j * cw, top = best !== null && vals[j] === best;
+      if (top) rect(x, X + 1, y + 1, cw - 2, rh - 2, F18);
+      T(x, fmt(r), X + cw / 2, y + 11.5, { px: 9.5, w: top ? 800 : 400, align: 'center', max: cw - 4 });
+    });
+    y += rh;
+  });
+  hline(x, MX, LW - MX, y);
+  T(x, 'Grisé : le meilleur de la ligne (le moins de bust et de fléchettes hors cible).', MX, y + 13, { px: 8, color: MUT });
+  // Défis de la soirée : bilan de chacun, puis la liste en deux colonnes.
+  const defis = m.defiList || [];
+  const dTop = y + 34;
+  h2(x, `DÉFIS DE LA SOIRÉE · ${defis.filter(d => d.ok).length} RÉUSSIS SUR ${defis.length}`, MX, dTop);
+  let dy = dTop + 14;
+  const badges = extra.badges || [];
+  const bTopMin = LH - 40 - Math.min(Math.ceil(badges.length / 2), 8) * 30 - 36;
+  if (!defis.length) { T(x, 'Aucun défi ce soir (option « Défis » au lancement d\'une partie).', MX, dy + 10, { px: 9.5, color: MUT }); dy += 22; }
+  else {
+    const withDefis = m.rows.filter(r => r.defisOk + r.defisKo);
+    const sw = W / Math.max(1, Math.min(4, withDefis.length));
+    withDefis.forEach((r, j) => {
+      const X = MX + (j % 4) * sw, Y = dy + Math.floor(j / 4) * 22, p = who(r.id);
+      face(x, p, X, Y, 16);
+      T(x, p.name.toUpperCase(), X + 22, Y + 12, { px: 9, w: 700, max: sw - 100 });
+      star(x, X + sw - 62, Y + 8, 6, true); T(x, r.defisOk, X + sw - 52, Y + 12, { px: 10, w: 800 });
+      star(x, X + sw - 32, Y + 8, 6, false); T(x, r.defisKo, X + sw - 22, Y + 12, { px: 10, w: 800 });
+    });
+    dy += Math.ceil(withDefis.length / 4) * 22 + 6;
+    const lh = 15, colW = W / 2, room = Math.max(2, Math.floor((bTopMin - dy - 10) / lh)) * 2;
+    const shown = defis.slice(0, defis.length > room ? room - 1 : room);
+    shown.forEach((d, k) => {
+      const col = k < Math.ceil(shown.length / 2) ? 0 : 1, row = col ? k - Math.ceil(shown.length / 2) : k;
+      const X = MX + col * colW, Y = dy + row * lh;
+      star(x, X + 6, Y + 6, 5, d.ok);
+      T(x, `P${d.game}`, X + 16, Y + 10, { px: 8.5, color: MUT });
+      const p = who(d.id);
+      rect(x, X + 38, Y + 2, 9, 9, p.color);
+      T(x, DEFIS[d.key] ? DEFIS[d.key].short : d.key, X + 52, Y + 10, { px: 9, w: 700, max: 96 });
+      T(x, `${p.name}${d.gage ? ` · ${GAGE[d.gage]}` : ''}`, X + 152, Y + 10, { px: 8.5, color: MUT, max: colW - 158 });
+    });
+    if (shown.length < defis.length) T(x, `… et ${defis.length - shown.length} de plus (liste complète dans l'appli).`, MX + colW, dy + Math.ceil(shown.length / 2) * lh + 10, { px: 8.5, color: MUT });
+    dy += Math.ceil(shown.length / 2) * lh + 6;
+  }
+  // Badges de la soirée, en deux colonnes.
+  const bTop = Math.max(dy + 20, Math.min(bTopMin, dy + 20));
+  h2(x, `BADGES DE LA SOIRÉE · ${badges.length}`, MX, bTop);
+  if (!badges.length) T(x, 'Aucun badge gagné ce soir.', MX, bTop + 24, { px: 9.5, color: MUT });
+  else {
+    const colW = W / 2, bh = 30, rows = Math.max(1, Math.floor((LH - 40 - bTop - 14) / bh));
+    const shown = badges.slice(0, badges.length > rows * 2 ? rows * 2 - 1 : rows * 2);
+    const half = Math.ceil(shown.length / 2);
+    shown.forEach((b, k) => {
+      const col = k < half ? 0 : 1, row = col ? k - half : k;
+      const X = MX + col * colW, Y = bTop + 12 + row * bh, p = who(b.id);
+      face(x, p, X, Y + 3, 20);
+      T(x, b.label.toUpperCase(), X + 28, Y + 12, { px: 9.5, w: 800, max: colW - 36 });
+      T(x, `${p.name} · ${b.desc}`, X + 28, Y + 24, { px: 8.5, color: MUT, max: colW - 36 });
+    });
+    if (shown.length < badges.length) T(x, `… et ${badges.length - shown.length} de plus (liste complète dans l'appli).`, MX + colW + 28, bTop + 12 + (shown.length - half) * bh + 14, { px: 8.5, color: MUT });
+  }
+  footer(x, 4);
+}
+
 /**
- * Les 3 feuilles du rapport (canvas PAGE_W × PAGE_H) : [A, B, C].
- * m = soireeModel(…) ; who(id) → { name, initials, color, img?, photo? } ; mk(w, h) → canvas.
+ * Les 4 feuilles du rapport (canvas PAGE_W × PAGE_H) : [A, B, C, D].
+ * m = soireeModel(…) ; who(id) → { name, initials, color, img?, photo? } ; extra = { badges: [{ id, label, desc }] } ;
+ * mk(w, h) → canvas.
  */
-export function drawSoireeReport(m, who, mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }) {
+export function drawSoireeReport(m, who, mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }, extra = {}) {
   const endAt = Math.max(m.end || m.start, ...m.timeline.map(g => g.end));
   const mm = { ...m, endAt, oneDay: endAt - m.start <= 14 * 3600e3 };
-  return [pageA, pageB, pageC].map(fn => { const { c, x } = sheet(mk); fn(x, mm, who); return c; });
+  return [pageA, pageB, pageC, pageD].map(fn => { const { c, x } = sheet(mk); fn(x, mm, who, extra); return c; });
 }
 
 /** Nom du fichier du rapport, sans extension (accepté par l'APK : Bridge.saveFile, strela-soiree-AAAAMMJJ-HHMM). */

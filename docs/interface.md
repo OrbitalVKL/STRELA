@@ -890,6 +890,25 @@ Aucune migration : champs facultatifs `defiSet` et `defiDecl` des parties (db.js
   Angelina (`p12`). Tests : tests/retours-soiree.test.js, tests/tirage.test.js.
 - Pas pour le Cricket : défis, badges, pastilles (le Cricket n'a ni défis ni badges).
 
+## Version 0.11.1 : chiffres, défis et badges de la soirée (20/11/2026)
+
+Demande de Guillaume après la 0.11.0 : badges et défis dans les feuilles de chiffres, chiffres enrichis, affichage des
+badges et du tableau de bord de soirée qui dépassait de l'écran, sections repliables.
+- **Tableau de bord** (soireedash.js) : sections repliables (`fsec`, action `dash-fold`, état pour la session ; ouvertes
+  d'office : faits marquants, joueurs, défis, badges) ; totaux (`.dtot`) ; une carte par joueur (`.pcards`, 18 chiffres
+  sur 3 colonnes) au lieu du tableau large ; « Défis de la soirée » (bilan de chacun + liste, `m.defiList`) ; badges en
+  blocs par joueur (`.bgroup`, `soireeBadges`, `badgeShort`) ; « au fil des verres » en tableau à largeur fixe
+  (`.lvt2`, avatar seul). Plus aucun `.dtable` (défilement de côté) sur cet écran.
+- **Modèle** (engine/soiree.js) : par joueur first9, ton40 (140+, 180 compris), doubleRate, bestFinish, shortestLeg,
+  darts, misses, bulls, triples, t20 ; `defiList` (partie, joueur, défi, résultat, gage) ; `totals` ; faits marquants en
+  plus (tons, bestFinish, defisOk, bulls, misses, tripleRate sur 30 fléchettes au moins).
+- **Rapport** (soireereport.js) : feuille **D** « Chiffres, défis et badges » (tableau de tous les chiffres, meilleur de
+  chaque ligne grisé ; défis : bilan et liste en deux colonnes ; badges : `extra.badges`) ; `drawSoireeReport(m, who, mk,
+  extra)` rend 4 feuilles ; IMAGE empile les 4, PDF 4 pages. **Résumé** : bande « défis réussis · badges · 180 ».
+- **Stats** (stats2.js) : section « Défis et badges » (`defisOf`, rangs or · argent · bronze, dernier badge), triples
+  20, bulls, hors cible ; chiffre `defis` au classement ; vitrine : les badges dans un pli (`fold('badges')`).
+- Maquette : les deux dernières soirées fictives ont des défis ; scène `v78-soiree-dash-tout` (tout déplié).
+
 ## Pour le lot 4
 
 - Les écrans Historique et Stats lisent `store.games` (parties closes) ; la partie en cours est à part (`store.current`).

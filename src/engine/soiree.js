@@ -13,7 +13,9 @@ const avg = v => (v === null || v === undefined ? '—' : (Math.round(v * 10) / 
 
 /**
  * Ce que montre le tableau de bord d'une soirée : games = ses parties ; name(id) → pseudo.
- * { start, end, games, drinks, rows: [{ id, played, won, average, best, worst, tons, max, busts, tripleRate, drinks }],
+ * { start, end, games, drinks, rows: [{ id, played, won, average, best, worst, tons, max, busts, tripleRate, drinks,
+ *   ones, defisOk, defisKo, first9, ton40, doubleRate, bestFinish, shortestLeg, darts, misses, bulls, triples, t20 (0.11.1) }],
+ *   defiList: [{ game, gameId, at, index, id, key, ok, gage }], totals: { darts, max, tons, busts, defisOk, defis } (0.11.1),
  *   highlights: [{ key, label, id, value, detail }], list: [{ id, at, startScore, winner, players, abandoned }],
  *   (lot 7.8, rapport en 3 feuilles) timeline: [{ id, n, at, end, startScore, players, winner, last: [ids], avg: {id},
  *   abandoned }] dans l'ordre du soir ; drinkTimes: {id: [instants]} ; drinkList: {id: [{ t, pint }]} (0.8.2) ; versus: {a: {b: parties où a a fini devant b}} ;
@@ -29,12 +31,24 @@ export function soireeModel(games, name = id => id) {
   const tallyOf = id => drinkTally(...gs.map(g => g.drinks && g.drinks[id]));
   // Lot 9 : défis de soirée réussis / ratés par joueur.
   const defis = Object.fromEntries(ids.map(id => [id, { ok: 0, ko: 0 }]));
-  for (const g of gs) for (const d of gameDefis(g, gameState(g))) { const id = g.config.players[d.player]; if (defis[id]) defis[id][d.ok ? 'ok' : 'ko'] += 1; }
+  // 0.11.1 : la liste des défis de la soirée, dans l'ordre (partie, heure de la partie, joueur, défi, résultat, gage).
+  const defiList = [];
+  gs.forEach((g, k) => {
+    for (const d of gameDefis(g, gameState(g))) {
+      const id = g.config.players[d.player];
+      if (defis[id]) defis[id][d.ok ? 'ok' : 'ko'] += 1;
+      defiList.push({ game: k + 1, gameId: g.id, at: g.startedAt, index: d.index, id, key: d.key, ok: d.ok, gage: d.gage });
+    }
+  });
   const rows = ids.map(id => {
     const s = playerStats(gs, id);
     return { id, name: name(id), played: s.played, won: s.won, average: s.average, best: s.bestVisit, worst: s.worstVisit,
       tons: s.ton + s.ton40 + s.max, max: s.max, busts: s.busts, tripleRate: s.tripleRate, drinks: drinksOf(id), tally: tallyOf(id), defisOk: defis[id].ok, defisKo: defis[id].ko,
-      ones: onesOf(s) }; // lot 7.8 : fléchettes dans le 1
+      ones: onesOf(s), // lot 7.8 : fléchettes dans le 1
+      // 0.11.1 : chiffres en plus (tableau de bord et feuille D du rapport)
+      first9: s.first9, ton40: s.ton40 + s.max, doubleRate: s.doubleRate, bestFinish: s.bestFinish, shortestLeg: s.shortestLeg,
+      darts: s.darts, misses: s.segments.miss, bulls: s.segments[25][0] + s.segments[25][1], triples: s.triples,
+      t20: s.segments[20][2] };
   }).sort((a, b) => b.won - a.won || (b.average ?? -1) - (a.average ?? -1));
   // Volées de la soirée (pour la meilleure et la pire, avec la partie et l'heure).
   const visits = [];
@@ -57,6 +71,14 @@ export function soireeModel(games, name = id => id) {
   most('busts', 'Le plus de bust');
   most('drinks', 'Le plus de verres', n => `x${n}`);
   most('ones', 'Le plus de 1'); // lot 7.8 : le roi des uns de la soirée
+  // 0.11.1 : faits marquants en plus
+  most('tons', 'Le plus de 100+');
+  most('bestFinish', 'Plus grosse finition');
+  most('defisOk', 'Le plus de défis réussis');
+  most('bulls', 'Le plus de bulls');
+  most('misses', 'Le plus hors cible');
+  const t3 = rows.reduce((a, x) => (x.tripleRate !== null && x.darts >= 30 && (!a || x.tripleRate > a.tripleRate) ? x : a), null);
+  if (t3 && t3.tripleRate > 0) hl.push({ key: 'tripleRate', label: 'Meilleur taux de triples', id: t3.id, value: `${Math.round(t3.tripleRate * 100)} %` });
   for (const h of hl) h.name = name(h.id);
   // Rapport en 3 feuilles (lot 7.8) : la soirée dans l'ordre, verres horodatés, duels, secteurs, trophées.
   const timeline = gs.map((g, k) => {
@@ -113,7 +135,10 @@ export function soireeModel(games, name = id => id) {
   if (reg) trophy('regular', 'Le plus régulier', reg, `écart ${avg(spread[reg])} pts`);
   const list = [...gs].reverse().map(g => ({ id: g.id, at: g.startedAt, startScore: g.config.startScore, winner: gameWinner(g), players: g.config.players, abandoned: !!g.abandoned }));
   return { start: gs.length ? gs[0].startedAt : null, end: gs.length ? gs[gs.length - 1].startedAt : null, games: gs.length,
-    drinks: rows.reduce((n, r) => n + r.drinks, 0), rows, highlights: hl, list,
+    drinks: rows.reduce((n, r) => n + r.drinks, 0), rows, highlights: hl, list, defiList,
+    // 0.11.1 : totaux de la soirée
+    totals: { darts: rows.reduce((n, r) => n + r.darts, 0), max: rows.reduce((n, r) => n + r.max, 0), tons: rows.reduce((n, r) => n + r.tons, 0),
+      busts: rows.reduce((n, r) => n + r.busts, 0), defisOk: defiList.filter(d => d.ok).length, defis: defiList.length },
     // Lot 9 : la moyenne de chacun au fil des verres de la soirée.
     levels: Object.fromEntries(ids.map(id => [id, averageByDrinks(gs.map(g => ({ state: gameState(g), game: g })), id)])),
     liters: rows.reduce((n, r) => n + r.tally.liters, 0), timeline, drinkTimes, drinkList, versus, together, sectors, spread, trophies };
