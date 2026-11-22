@@ -2,11 +2,13 @@
 //   #/armurerie          liste (jeux actifs, archivés repliés), NOUVEAU JEU : à partir d'un modèle fourni ou vierge
 //   #/armurerie/<id>     fiche d'un jeu (création : #/armurerie/nouveau, #/armurerie/nouveau/<modèle>)
 // Un jeu utilisé par une séance ne se supprime pas (ses séances le gardent) : il s'archive.
+// 0.13.0 : une couleur par pièce (pointe, fût, tige, empennage), reprise dans le dessin partout où le jeu apparaît.
 import { store, newId, saveDartSet, deleteDartSet, setUses, dartSetById } from '../store.js';
 import { esc, ico, topBar, plural } from '../dom.js';
-import { CHOICES, NUMBERS, MODELS, dartSetSummary, dartSetRecord } from '../../engine/dartsets.js';
+import { CHOICES, NUMBERS, MODELS, PARTS, DART_COLOR_NAMES, dartSetSummary, dartSetRecord } from '../../engine/dartsets.js';
 import { go, refresh, backFrom } from '../nav.js';
 import { dartDiagram } from './advice.js';
+import { infoBtn, infoBox } from '../info.js';
 
 const FIELDS = Object.freeze({
   weight: 'Poids total (g)', barrelWeight: 'Masse du fût (g)', tungsten: 'Tungstène (%)', length: 'Longueur totale (mm, empennage compris)', flightMm: 'Épaisseur de l\'empennage (mm)',
@@ -20,7 +22,7 @@ let delAsk = false;
 
 function row(x) {
   const n = setUses(x.id);
-  return `<li><a class="item dsrow${x.archived ? ' archived' : ''}" href="#/armurerie/${esc(x.id)}"><span class="dsico" aria-hidden="true">${dartDiagram({ shape: x.shape, flight: x.flight, mini: true })}</span>
+  return `<li><a class="item dsrow${x.archived ? ' archived' : ''}" href="#/armurerie/${esc(x.id)}"><span class="dsico" aria-hidden="true">${dartDiagram({ shape: x.shape, flight: x.flight, colors: x.colors, mini: true })}</span>
     <span class="main"><span class="name ell">${esc(x.name)}</span><span class="sub">${esc(dartSetSummary(x)) || 'caractéristiques à compléter'}<br>${n ? plural(n, 'séance', 'séances') : 'jamais utilisé'}</span></span>
     <span class="chev">${ico('chev')}</span></a></li>`;
 }
@@ -56,6 +58,15 @@ function draftFor(id, model) {
 }
 
 const chips = (field, x) => `<div class="chips2">${Object.entries(CHOICES[field]).map(([k, label]) => `<button type="button" class="chip2" data-act="ds-pick" data-arg="${field}|${k}" aria-pressed="${x[field] === k}">${esc(label)}</button>`).join('')}</div>`;
+/** Couleurs d'une pièce : AUCUNE (trait seul) puis les carrés de couleur. */
+const swatches = (part, x) => {
+  const cur = x.colors && x.colors[part];
+  return `<div class="swatches" role="group" aria-label="Couleur : ${esc(PARTS[part].toLowerCase())}">
+    <button type="button" class="chip2 sw0" data-act="ds-color" data-arg="${part}|" aria-pressed="${!cur}">AUCUNE</button>
+    ${Object.entries(DART_COLOR_NAMES).map(([k, name]) => `<button type="button" class="sw" data-act="ds-color" data-arg="${part}|${k}" aria-pressed="${cur === k}" aria-label="${esc(name)}" title="${esc(name)}"><i style="background:var(--dart-${k})"></i></button>`).join('')}
+  </div>`;
+};
+const colorName = (x, part) => (x.colors && x.colors[part] ? DART_COLOR_NAMES[x.colors[part]] : 'aucune');
 const numField = (field, x) => `<label class="field"><span>${esc(FIELDS[field])}</span><input class="input" type="text" inputmode="decimal" data-input="ds-num" data-field="${field}" value="${x[field] ?? ''}" placeholder="${NUMBERS[field][0]} à ${NUMBERS[field][1]}" autocomplete="off"></label>`;
 
 export function arsenalForm(id, model = null) {
@@ -70,7 +81,7 @@ export function arsenalForm(id, model = null) {
       : '<button type="button" class="btn danger" data-act="ds-del">SUPPRIMER CE JEU</button>';
   return `<div class="screen has-dock dsform">${topBar(fresh ? 'Nouveau jeu' : 'Jeu de fléchettes', '#/armurerie')}
     <div class="pad">
-      <div class="dsfig" id="dsfig">${dartDiagram({ shape: x.shape, flight: x.flight })}</div>
+      <div class="dsfig" id="dsfig">${dartDiagram({ shape: x.shape, flight: x.flight, colors: x.colors })}</div>
       <div class="sec">Nom</div>
       <label class="field"><input class="input" id="dsname" data-input="ds-name" value="${esc(x.name)}" maxlength="40" placeholder="NOM DU JEU" autocomplete="off" spellcheck="false" enterkeyhint="done"></label>
       ${d.error ? `<p class="note red">${esc(d.error)}</p>` : ''}
@@ -89,6 +100,9 @@ export function arsenalForm(id, model = null) {
       ${numField('flightMm', x)}
       <div class="sec">Pointe</div>
       ${chips('point', x)}
+      <div class="sec">Couleurs${infoBtn('ds-colors')}</div>
+      ${infoBox('ds-colors', 'Une couleur par pièce, pour reconnaître le jeu d\'un coup d\'œil : elle est reprise dans le dessin de la fléchette (armurerie, choix du jeu avant l\'entraînement, menu pause, séances). AUCUNE : la pièce est dessinée au trait.')}
+      ${Object.keys(PARTS).map(part => `<span class="small dim caps">${esc(PARTS[part])} · <span class="swn">${esc(colorName(x, part))}</span></span>${swatches(part, x)}`).join('')}
       <div class="sec">Ce jeu</div>
       ${del}
     </div>
@@ -108,6 +122,16 @@ export const actions = {
     if (!d) return;
     const [field, val] = String(arg).split('|');
     d.x[field] = d.x[field] === val ? null : val;
+    refresh();
+  },
+  'ds-color'(arg) {
+    const d = store.trDraft;
+    if (!d) return;
+    const [part, val] = String(arg).split('|');
+    if (!Object.hasOwn(PARTS, part)) return;
+    const c = { ...(d.x.colors || {}) };
+    if (val && Object.hasOwn(DART_COLOR_NAMES, val)) c[part] = val; else delete c[part];
+    d.x.colors = c;
     refresh();
   },
   'ds-save'() {

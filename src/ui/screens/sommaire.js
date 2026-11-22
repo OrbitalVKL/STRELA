@@ -28,7 +28,7 @@ import { presetHistory2 } from './v2/history2.js';
 import { presetSettings2 } from './settings.js';
 import { startTraining, freshTrUi } from '../store.js';
 import { trainingState as trainingStateFn } from '../../engine/training.js';
-import { presetTraining } from './training.js';
+import { presetTraining, presetDetail } from './training.js';
 import { presetTrainStats } from './trainstats.js';
 import { presetInfo } from '../info.js';
 import { aimedDart, rng } from '../mock.js';
@@ -165,6 +165,14 @@ function setTr(exercise, n, { blocks = null, ui = {}, darts = null } = {}) {
   return '#/entrainement/jeu';
 }
 const trStateOf = () => trainingStateFn(store.tr, store.tr.darts);
+// 0.13.0 : séances qui font passer p1 au niveau intermédiaire (groupement et score libre à l'objectif, 3 fois chacun).
+function interMock() {
+  const t0 = Date.now() - 40 * 86400e3;
+  const mk = (i, exercise, darts) => ({ id: `ti${i}`, startedAt: t0 + i * 3600e3, endedAt: t0 + i * 3600e3 + 600e3, player: 'p1', setId: 'ds-torpedo-22', mode: 'coach', exercise, darts });
+  const alt = (n, s) => Array.from({ length: n }, (_, j) => ({ segment: s, multiplier: 1, ring: j % 2 ? 'in' : 'out' }));
+  const extra = [0, 1, 2].map(i => mk(i, 'groupement', alt(9, 20))).concat([3, 4, 5].map(i => mk(i, 'scorelibre', alt(30, 20))));
+  store.trainings = [...store.trainings, ...extra].sort((a, b) => b.startedAt - a.startedAt);
+}
 const LIBRE = [{ s: 20, z: 't', n: 9 }];
 
 export const SCENES = {
@@ -174,6 +182,29 @@ export const SCENES = {
   'tr-hub-libre': () => { store.tr = null; store.trSetup = { player: 'p1', setId: 'ds-droit-22', mode: 'libre', free: { s: 19, z: 't', n: 15 } }; presetInfo(); return '#/entrainement'; },
   'tr-hub-vide': () => { store.tr = null; store.trainings = []; store.trSetup = null; presetInfo(); return '#/entrainement'; },
   'tr-hub-reprendre': () => { setTr('groupement', 4); return '#/entrainement'; },
+  // 0.13.0
+  'tr-hub-autres': () => { store.tr = null; store.trSetup = { player: 'p1', setId: 'ds-torpedo-22', mode: 'coach' }; presetTraining({ others: true }); presetInfo(); return '#/entrainement'; },
+  'tr-hub-inter': () => { store.tr = null; interMock(); store.trSetup = { player: 'p1', setId: 'ds-droit-22', mode: 'coach' }; presetInfo(['tr-level']); return '#/entrainement'; },
+  'tr-jeu-pause-jeu': () => setTr('groupement', 4, { ui: { pause: true, confirm: 'set' } }),
+  'tr-jeu-t20': () => { interMock(); return setTr('triple20', 7); },
+  'tr-jeu-tourdoubles': () => { interMock(); return setTr('horlogedoubles', 8); },
+  'tr-fin-t20': () => { interMock(); setTr('triple20', 30); return '#/entrainement/fin'; },
+  'tr-fin-triples': () => { interMock(); setTr('triples', 30); return '#/entrainement/fin'; },
+  'tr-fin-doubles': () => { interMock(); setTr('doubles', 27); return '#/entrainement/fin'; },
+  'tr-fin-tourdoubles': () => { interMock(); setTr('horlogedoubles', 60); return '#/entrainement/fin'; },
+  'tr-fin-bull25': () => { interMock(); setTr('bull25', 15); return '#/entrainement/fin'; },
+  'tr-fin-changement': () => { setTr('groupement', 9); store.tr.setChanges = [{ at: 5, setId: 'ds-droit-22' }]; return '#/entrainement/fin'; },
+  'tr-seance-note': () => { store.tr = null; presetInfo(); presetDetail(); return `#/entrainement/seance/${store.trainings.find(x => x.note && !x.excluded).id}`; },
+  'tr-seance-cote': () => { store.tr = null; presetInfo(['tr-manage']); presetDetail(); return `#/entrainement/seance/${store.trainings.find(x => x.excluded).id}`; },
+  'tr-seance-jeu': () => { store.tr = null; presetInfo(); const r = store.trainings.find(x => x.exercise === 'vingt'); presetDetail({ id: r.id, kind: 'set', run: 1 }); return `#/entrainement/seance/${r.id}`; },
+  'tr-seance-joueur': () => { store.tr = null; presetInfo(); const r = store.trainings[0]; presetDetail({ id: r.id, kind: 'player' }); return `#/entrainement/seance/${r.id}`; },
+  'tr-seance-arretee': () => {
+    store.tr = null; presetInfo(); presetDetail();
+    const g = store.trainings.find(x => x.exercise === 'groupement');
+    const r = { ...g, id: 't-arretee', startedAt: g.startedAt + 3600e3, endedAt: g.startedAt + 3900e3, darts: g.darts.slice(0, 5), stopped: true };
+    store.trainings = [r, ...store.trainings].sort((a, b) => b.startedAt - a.startedAt);
+    return '#/entrainement/seance/t-arretee';
+  },
   'tr-accueil': () => { setTr('groupement', 4); return '#/'; },
   'tr-jeu': () => setTr('groupement', 4),
   'tr-jeu-debut': () => setTr('groupement', 0),
@@ -196,10 +227,10 @@ export const SCENES = {
   'tr-fin-bull': () => { setTr('bull', 9); return '#/entrainement/fin'; },
   'tr-fin-libre': () => { setTr('libre', 9, { blocks: LIBRE }); return '#/entrainement/fin'; },
   'tr-fin-libre-ajout': () => { setTr('libre', 9, { blocks: LIBRE }); presetTraining({ add: { s: 19, z: 'si', n: 12 } }); return '#/entrainement/fin'; },
-  'tr-seance': () => { store.tr = null; presetInfo(); return `#/entrainement/seance/${store.trainings[0].id}`; },
-  'tr-seance-vingt': () => { store.tr = null; presetInfo(); const r = store.trainings.find(x => x.exercise === 'vingt'); return `#/entrainement/seance/${r.id}`; },
-  'tr-seance-horloge': () => { store.tr = null; presetInfo(); const r = store.trainings.find(x => x.exercise === 'horloge'); return `#/entrainement/seance/${r.id}`; },
-  'tr-seance-suppr': () => { store.tr = null; presetInfo(); return `#/entrainement/seance/${store.trainings[1].id}`; },
+  'tr-seance': () => { store.tr = null; presetInfo(); presetDetail(); return `#/entrainement/seance/${store.trainings[0].id}`; },
+  'tr-seance-vingt': () => { store.tr = null; presetInfo(); presetDetail(); const r = store.trainings.find(x => x.exercise === 'vingt'); return `#/entrainement/seance/${r.id}`; },
+  'tr-seance-horloge': () => { store.tr = null; presetInfo(); presetDetail(); const r = store.trainings.find(x => x.exercise === 'horloge'); return `#/entrainement/seance/${r.id}`; },
+  'tr-seance-suppr': () => { store.tr = null; presetInfo(); presetDetail({ id: store.trainings[1].id, kind: 'delete' }); return `#/entrainement/seance/${store.trainings[1].id}`; },
   'tr-stats': () => { presetTrainStats(); presetInfo(); return '#/entrainement/stats'; },
   'tr-stats-info': () => { presetTrainStats(); presetInfo(['ts-filters', 'ts-curve', 'ts-heat', 'ts-sets']); return '#/entrainement/stats'; },
   'tr-stats-groupement': () => { presetTrainStats({ exercise: 'groupement', metric: 'exercise' }); presetInfo(); return '#/entrainement/stats'; },
@@ -574,6 +605,30 @@ export function sommaire() {
       ${L('conseils-posture', '◆ Conseils : posture')}
       ${L('conseils-lancer', '◆ Conseils : lancer')}
       ${L('conseils-types', '◆ Conseils : types de fléchettes')}
+    </nav>
+    <div class="pad"><div class="sec">Version 0.13.0 · entraînement</div></div>
+    <nav class="toc">
+      ${L('tr-hub', '◆ Choix du jeu', 'dessin de chaque jeu, en couleurs')}
+      ${L('tr-hub-autres', '◆ Exercices des autres niveaux', 'dépliés')}
+      ${L('tr-hub-inter', '◆ Niveau intermédiaire', 'critères vers confirmé')}
+      ${L('tr-jeu-pause', '◆ Pause : changer de jeu')}
+      ${L('tr-jeu-pause-jeu', '◆ Pause : choix du nouveau jeu')}
+      ${L('tr-jeu-t20', '◆ Saisie : triple 20', 'T armé d\'office')}
+      ${L('tr-jeu-tourdoubles', '◆ Saisie : tour des doubles')}
+      ${L('tr-fin-t20', '◆ Fin : triple 20', 'objectif du niveau')}
+      ${L('tr-fin-triples', '◆ Fin : triples 20 et 19')}
+      ${L('tr-fin-doubles', '◆ Fin : doubles de finition')}
+      ${L('tr-fin-tourdoubles', '◆ Fin : tour des doubles')}
+      ${L('tr-fin-bull25', '◆ Fin : centre 25 / 50')}
+      ${L('tr-fin-changement', '◆ Fin : jeu changé en cours', 'par jeu de fléchettes')}
+      ${L('tr-seance-vingt', '◆ Séance : deux jeux')}
+      ${L('tr-seance-jeu', '◆ Séance : corriger le jeu noté')}
+      ${L('tr-seance-joueur', '◆ Séance : changer de joueur')}
+      ${L('tr-seance-note', '◆ Séance : avec une note')}
+      ${L('tr-seance-cote', '◆ Séance : mise de côté')}
+      ${L('tr-seance-arretee', '◆ Séance arrêtée : reprendre')}
+      ${L('tr-seance-suppr', '◆ Séance : supprimer')}
+      ${L('armurerie-jeu', '◆ Armurerie : couleurs des pièces')}
     </nav>
     <nav class="toc">
       ${L('v78-accueil', '★ Accueil', 'saison fictive, à parcourir')}

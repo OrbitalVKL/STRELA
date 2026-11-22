@@ -2,8 +2,10 @@
 // JS pur, sans dépendance ni affichage (testé dans node). Comme pour X01, rien n'est stocké d'autre que la séance et
 // ses fléchettes : tout se recalcule (docs/entrainement.md).
 //
-// Séance enregistrée : { id, startedAt, endedAt (null : en cours), player, setId (jeu de fléchettes ou null),
-//   mode ('coach' | 'libre'), exercise (clé d'EXERCISES), blocks? (libre : [{ s, z, n }]), darts[], stopped? }
+// Séance enregistrée : { id, startedAt, endedAt (null : en cours), player, setId (jeu de fléchettes du début, ou null),
+//   mode ('coach' | 'libre'), exercise (clé d'EXERCISES), blocks? (libre : [{ s, z, n }]), darts[], stopped?,
+//   setChanges? ([{ at, setId }] : jeu changé en cours de séance, à partir de la fléchette de rang `at`, 0.13.0),
+//   note? (remarque libre, 0.13.0), excluded? (mise de côté : hors stats et hors niveau, 0.13.0) }
 // Fléchette d'entraînement : { segment, multiplier, ring?, pos? }
 //   ring : 'in' (simple intérieur, entre le 25 et le triple) ou 'out' (simple extérieur, entre le triple et le double),
 //          seulement pour un simple de 1 à 20 ; pos : position touchée sur la cible (repère de board.js) ;
@@ -145,15 +147,16 @@ export function realPoint(d) {
 export const aimPoint = t => (t.s === BULL ? [0, 0] : polar(sectorAngle(t.s), AIM_R[t.z] ?? AIM_R.any));
 
 // ------------------------------------------------------------------ exercices
-/** Niveau débutant (lot 8) ; pas d'exercice sur les doubles seuls pour l'instant. */
-const rep = (list, n) => list.map(s => ({ s, z: 'any', n }));
+/** Niveau débutant (lot 8 : pas de doubles seuls) et intermédiaire (0.13.0 : triples, doubles, centre). `clock` : tour
+ *  de l'horloge, du 1 au 20 dans l'ordre, zone `z`, au plus `max` fléchettes par numéro (null : jusqu'à le toucher). */
+const rep = (list, n, z = 'any') => list.map(s => ({ s, z, n }));
 export const EXERCISES = Object.freeze({
   groupement: { name: 'Groupement', short: '9 fléchettes sur le 20',
     goal: '9 fléchettes sur le 20 : combien tombent dans le secteur, et de quel côté partent les autres.',
     blocks: rep([20], 9), metric: 'rate' },
   horloge: { name: 'Tour de l\'horloge', short: '1 à 20 dans l\'ordre, en simples',
     goal: 'Du 1 au 20 dans l\'ordre ; toute zone du secteur compte. On passe au numéro suivant dès qu\'il est touché : le moins de fléchettes possible.',
-    clock: true, metric: 'darts' },
+    clock: { z: 'any', max: null }, metric: 'darts' },
   hautbas: { name: 'Haut contre bas', short: 'une volée sur le 20, une sur le 3',
     goal: 'Une volée sur le 20 (en haut), une sur le 3 (en bas), trois fois : la précision en haut et en bas, et vers où partent les fléchettes.',
     blocks: rep([20, 3, 20, 3, 20, 3], 3), metric: 'rate', pair: [20, 3] },
@@ -169,12 +172,39 @@ export const EXERCISES = Object.freeze({
   vingt: { name: '20-19-18', short: '20 fléchettes sur chacun',
     goal: '20 fléchettes sur le 20, puis 20 sur le 19, puis 20 sur le 18 : la précision sur chacun et les triples.',
     blocks: rep([20, 19, 18], 20), metric: 'rate' },
+  // Niveau intermédiaire (0.13.0).
+  triple20: { name: 'Triple 20', short: '30 fléchettes sur le T20', level: 'intermediaire',
+    goal: '10 volées sur le triple 20 : combien de triples, combien restent dans le secteur, et la moyenne par volée.',
+    blocks: rep([20], 30, 't'), metric: 'rate' },
+  triples: { name: 'Triples 20 et 19', short: 'une volée sur le T20, une sur le T19', level: 'intermediaire',
+    goal: 'Une volée sur le T20, une sur le T19, cinq fois : changer de cible quand le 20 est bouché, sans perdre la précision.',
+    blocks: rep([20, 19, 20, 19, 20, 19, 20, 19, 20, 19], 3, 't'), metric: 'rate', pair: [20, 19] },
+  doubles: { name: 'Doubles de finition', short: '9 fléchettes sur D20, D16 et D8', level: 'intermediaire',
+    goal: '9 fléchettes sur chacun des doubles de finition les plus joués (D20, D16, D8) : la part de doubles touchés.',
+    blocks: rep([20, 16, 8], 9, 'd'), metric: 'rate' },
+  horlogedoubles: { name: 'Tour des doubles', short: 'D1 à D20, 3 fléchettes par double', level: 'intermediaire',
+    goal: 'Du D1 au D20 dans l\'ordre, 3 fléchettes au plus sur chaque double (on passe au suivant dès qu\'il est touché) : combien de doubles sur 20.',
+    clock: { z: 'd', max: 3 }, metric: 'clockHits' },
+  bull25: { name: 'Centre 25 / 50', short: '15 fléchettes dans le 25 ou le 50', level: 'intermediaire',
+    goal: '15 fléchettes au centre : combien dans le 25 ou le 50 (la finition au bull et la sortie du 25).',
+    blocks: [{ s: BULL, z: 'any', n: 15 }], metric: 'rate' },
   libre: { name: 'Libre', short: 'tes cibles, tes fléchettes',
     goal: 'Tu choisis la cible (secteur et zone) et le nombre de fléchettes ; l\'appli compare la cible visée et les impacts.',
     metric: 'rate' },
 });
 /** Exercices du coach, dans l'ordre proposé au débutant. */
 export const COACH_ORDER = Object.freeze(['groupement', 'horloge', 'hautbas', 'gauchedroite', 'scorelibre', 'bull', 'vingt']);
+/** Exercices de chaque niveau, dans l'ordre proposé (le score libre reste : il compte pour passer au niveau suivant). */
+export const LEVEL_EXERCISES = Object.freeze({
+  debutant: COACH_ORDER,
+  intermediaire: Object.freeze(['triple20', 'doubles', 'triples', 'horlogedoubles', 'bull25', 'scorelibre']),
+  confirme: Object.freeze(['triple20', 'doubles', 'triples', 'horlogedoubles', 'bull25', 'scorelibre']),
+});
+/** Tous les exercices du coach (débutant puis intermédiaire), puis libre. */
+export const ALL_EXERCISES = Object.freeze([...new Set([...COACH_ORDER, ...LEVEL_EXERCISES.intermediaire]), 'libre']);
+/** Niveau d'un exercice (débutant sauf mention). */
+export const exerciseLevel = k => (EXERCISES[k] && EXERCISES[k].level) || 'debutant';
+const clockOf = cfg => (EXERCISES[cfg.exercise] && EXERCISES[cfg.exercise].clock) || null;
 
 /** Séries d'une séance (libre : celles choisies ; sinon celles de l'exercice). */
 export function planOf(cfg) {
@@ -192,23 +222,25 @@ export function planOf(cfg) {
 export function trainingState(cfg, darts) {
   for (const d of darts) if (trainingDartError(d)) throw new Error('fléchette invalide');
   const blocks = [];
-  if (EXERCISES[cfg.exercise] && EXERCISES[cfg.exercise].clock) {
+  const ck = clockOf(cfg);
+  if (ck) {
     let num = 1;
-    let b = { s: 1, z: 'any', n: null, start: 0, darts: [], hits: 0 };
+    let b = { s: 1, z: ck.z, n: ck.max, start: 0, darts: [], hits: 0 };
     blocks.push(b);
     darts.forEach((d, i) => {
       if (num > 20) throw new Error('horloge déjà finie');
       b.darts.push(d);
-      if (isHit(b, d)) {
-        b.hits = 1;
+      const hit = isHit(b, d);
+      if (hit) b.hits = 1;
+      if (hit || (ck.max && b.darts.length >= ck.max)) {
         num++;
-        if (num <= 20) { b = { s: num, z: 'any', n: null, start: i + 1, darts: [], hits: 0 }; blocks.push(b); }
+        if (num <= 20) { b = { s: num, z: ck.z, n: ck.max, start: i + 1, darts: [], hits: 0 }; blocks.push(b); }
       }
     });
     const done = num > 20;
     const last = blocks[blocks.length - 1];
-    const cur = done ? null : { i: blocks.length - 1, s: last.s, z: 'any', n: null, k: last.darts.length };
-    return { blocks, cur, done, thrown: darts.length, visitDarts: darts.length % 3, visitStart: darts.length - (darts.length % 3), clock: true };
+    const cur = done ? null : { i: blocks.length - 1, s: last.s, z: ck.z, n: ck.max, k: last.darts.length };
+    return { blocks, cur, done, thrown: darts.length, visitDarts: darts.length % 3, visitStart: darts.length - (darts.length % 3), clock: true, clockMax: ck.max };
   }
   const plan = planOf(cfg);
   let i = 0;
@@ -228,7 +260,40 @@ export function trainingState(cfg, darts) {
 }
 
 /** Fléchettes prévues (null pour l'horloge). */
-export const plannedDarts = cfg => (EXERCISES[cfg.exercise] && EXERCISES[cfg.exercise].clock ? null : planOf(cfg).reduce((n, b) => n + b.n, 0));
+export const plannedDarts = cfg => { const ck = clockOf(cfg); return ck ? (ck.max ? 20 * ck.max : null) : planOf(cfg).reduce((n, b) => n + b.n, 0); };
+
+// ------------------------------------------------------------------ jeu de fléchettes de chaque fléchette (0.13.0)
+/**
+ * Jeux utilisés pendant une séance, dans l'ordre : [{ setId, from, to }] (fléchettes de rang from à to − 1 ; to =
+ * Infinity pour le dernier). `setId` de la séance = jeu du début ; `setChanges` = jeu changé à partir du rang `at`.
+ */
+export function setRuns(rec) {
+  const runs = [{ setId: rec.setId || null, from: 0 }];
+  const ch = (Array.isArray(rec.setChanges) ? rec.setChanges : []).filter(c => c && Number.isInteger(c.at) && c.at >= 0).sort((a, b) => a.at - b.at);
+  for (const c of ch) {
+    const last = runs[runs.length - 1];
+    if (c.at <= last.from) last.setId = c.setId || null;
+    else runs.push({ setId: c.setId || null, from: c.at });
+  }
+  const out = [];
+  for (const r of runs) { if (out.length && out[out.length - 1].setId === r.setId) continue; out.push({ ...r }); }
+  out.forEach((r, i) => { r.to = i + 1 < out.length ? out[i + 1].from : Infinity; });
+  return out;
+}
+/** Jeu de la fléchette de rang i (ou de la prochaine fléchette, i = nombre de fléchettes lancées). */
+export const setAt = (rec, i) => { const runs = setRuns(rec); return (runs.find(r => i >= r.from && i < r.to) || runs[runs.length - 1]).setId; };
+/** Jeux avec lesquels au moins une fléchette a été lancée (le jeu du début si aucune), sans doublon. */
+export function setsUsed(rec) {
+  const n = Array.isArray(rec.darts) ? rec.darts.length : 0;
+  const runs = setRuns(rec);
+  const used = runs.filter(r => r.from < n);
+  return [...new Set((used.length ? used : [runs[0]]).map(r => r.setId))];
+}
+/** Changements de jeu ramenés à l'essentiel (rangs croissants, sans changement inutile ni rang sans fléchette). */
+export function cleanSetChanges(rec, upTo = Infinity) {
+  const runs = setRuns(rec);
+  return { setId: runs[0].setId, setChanges: runs.slice(1).filter(r => r.from < upTo).map(r => ({ at: r.from, setId: r.setId })) };
+}
 
 // ------------------------------------------------------------------ analyse
 const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
@@ -300,7 +365,7 @@ const visitsOf = darts => { const out = []; for (let i = 0; i < darts.length; i 
 export function analyze(rec) {
   const st = trainingState(rec, rec.darts);
   const pairs = [];
-  for (const b of st.blocks) for (const d of b.darts) pairs.push({ t: b, d });
+  for (const b of st.blocks) b.darts.forEach((d, j) => pairs.push({ t: b, d, i: b.start + j }));
   const n = pairs.length;
   const hits = pairs.filter(p => isHit(p.t, p.d)).length;
   const off = pairs.filter(p => p.d.segment === MISS).length;
@@ -324,8 +389,10 @@ export function analyze(rec) {
   let value = n ? hits / n : null;
   if (ex.clock) {
     extra.reached = st.done ? 20 : st.cur.s - 1;
-    extra.perNumber = st.blocks.map(b => ({ s: b.s, darts: b.darts.length, hit: !!b.hits }));
-    value = st.done ? n : null;
+    extra.perNumber = st.blocks.map(b => ({ s: b.s, darts: b.darts.length, hit: !!b.hits, open: !st.done && b === st.blocks[st.blocks.length - 1] }));
+    extra.hitCount = st.blocks.filter(b => b.hits).length;
+    extra.max = ex.clock.max;
+    value = ex.clock.max ? (st.done ? extra.hitCount : null) : st.done ? n : null;
     extra.hardest = st.blocks.filter(b => b.hits).sort((a, b) => b.darts.length - a.darts.length).slice(0, 3).filter(b => b.darts.length > 1).map(b => ({ s: b.s, darts: b.darts.length }));
   } else if (ex.metric === 'average') {
     const v = visitsOf(pairs.map(p => p.d));
@@ -341,7 +408,19 @@ export function analyze(rec) {
     extra.bulls = pairs.filter(p => p.d.segment === BULL).length;
     value = n ? extra.near / n : null;
   }
-  if (rec.exercise === 'vingt' || rec.exercise === 'scorelibre' || rec.exercise === 'groupement') extra.triples = pairs.filter(p => p.d.multiplier === 3).length;
+  if (['vingt', 'scorelibre', 'groupement'].includes(rec.exercise)) extra.triples = pairs.filter(p => p.d.multiplier === 3).length;
+  // Triples, doubles visés : aussi la part restée dans le bon secteur (et la moyenne par volée pour le triple 20).
+  if (!ex.clock && pairs.length && pairs.every(p => p.t.s !== BULL && (p.t.z === 't' || p.t.z === 'd'))) {
+    extra.sector = pairs.filter(p => p.d.segment === p.t.s).length / n;
+    if (rec.exercise === 'triple20') { const v = visitsOf(pairs.map(p => p.d)).filter((_, i) => n >= (i + 1) * 3); extra.average = v.length ? mean(v) : null; }
+  }
+  // Par jeu de fléchettes, quand le jeu a changé pendant la séance.
+  const runs = setRuns(rec);
+  if (runs.length > 1) {
+    const by = new Map();
+    for (const p of pairs) { const k = setAt(rec, p.i) || ''; if (!by.has(k)) by.set(k, []); by.get(k).push(p); }
+    extra.bySet = [...by.entries()].map(([k, ps]) => { const dv = deviation(ps, single ? axesOf(single) : null); const h = ps.filter(p => isHit(p.t, p.d)).length; return { setId: k || null, darts: ps.length, hits: h, rate: h / ps.length, spread: dv.spread, points: dv.n }; });
+  }
   const out = { darts: n, hits, rate: n ? hits / n : null, off, perTarget, bias: all.bias, spread: all.spread, axes: all.axes, points: all.n, value, extra, done: st.done, exercise: rec.exercise };
   out.messages = coachMessages(out, rec);
   out.next = nextFor(out, rec);
@@ -371,6 +450,7 @@ export const TIPS = Object.freeze({
   bas: { text: 'Tu lâches un peu tard, ou tu freines le geste : accompagne la main vers la cible jusqu\'au bout, bras tendu.', sheet: 'lancer' },
   spread: { text: 'Même prise, même place des pieds et tête immobile à chaque fléchette : la précision vient de la régularité, pas de la force.', sheet: 'prise' },
   clock: { text: 'Pour les numéros des côtés et du bas, ne bouge que le bras : les pieds et les épaules restent en place.', sheet: 'posture' },
+  doubles: { text: 'Sur un double, vise le milieu de la bande : une fléchette trop haute sort de la cible, une trop basse fait le simple et laisse une finition.', sheet: 'lancer' },
 });
 
 /** Écarts qui comptent le long des axes : [{ word ('à gauche', 'en haut'…), mm, vertical }]. */
@@ -390,7 +470,11 @@ export function coachMessages(a, rec) {
   if (!a.darts) return msgs;
   const ex = EXERCISES[rec.exercise] || EXERCISES.libre;
   // Résultat de l'exercice.
-  if (ex.clock) {
+  if (ex.clock && ex.clock.max) {
+    const missed = a.extra.perNumber.filter(x => !x.hit && !x.open).map(x => `D${x.s}`);
+    msgs.push({ kind: 'result', text: a.done ? `${a.extra.hitCount} double${a.extra.hitCount > 1 ? 's' : ''} sur 20, en ${a.darts} fléchettes.` : `Arrêté au D${a.extra.reached + 1} : ${a.extra.hitCount} double${a.extra.hitCount > 1 ? 's' : ''} touché${a.extra.hitCount > 1 ? 's' : ''}.` });
+    if (missed.length && missed.length <= 10) msgs.push({ kind: 'clock', text: `Manqués : ${missed.join(', ')}.`, tip: TIPS.doubles.text, sheet: TIPS.doubles.sheet });
+  } else if (ex.clock) {
     msgs.push({ kind: 'result', text: a.done ? `Tour bouclé en ${a.darts} fléchettes.` : `Arrêté au ${a.extra.reached + 1}, après ${a.darts} fléchettes.` });
     if (a.extra.hardest.length) msgs.push({ kind: 'clock', text: `Le plus dur : ${a.extra.hardest.map(h => `le ${h.s} (${h.darts} fl.)`).join(', ')}.`, tip: TIPS.clock.text, sheet: TIPS.clock.sheet });
   } else if (ex.metric === 'average' && a.extra.average !== null) {
@@ -405,6 +489,8 @@ export function coachMessages(a, rec) {
       ? a.perTarget.map(t => `${nameOf(t)} : ${t.hits}/${t.darts}`).join(' · ') + '.'
       : `${a.hits} fléchette${a.hits > 1 ? 's' : ''} sur ${a.darts} dans ${a.perTarget[0] && a.perTarget[0].z !== 'any' ? 'la cible' : 'le secteur'} (${pctTxt(a.rate)}).` });
   }
+  if (a.extra.sector !== undefined) msgs.push({ kind: 'result', text: `${pctTxt(a.extra.sector)} dans le bon secteur${a.extra.average !== undefined && a.extra.average !== null ? `, moyenne ${avgTxt(a.extra.average)} par volée` : ''}.` });
+  if (a.extra.bySet) msgs.push({ kind: 'sets', text: `Jeu changé pendant la séance : ${a.extra.bySet.map(x => `${pctTxt(x.rate)} sur ${x.darts} fl.`).join(' puis ')} (détail plus bas).` });
   // Écarts : par cible quand il y en a plusieurs (haut / bas, gauche / droite, 20-19-18), sinon sur l'ensemble ; chaque
   // axe à part (sur le côté, en hauteur), chacun avec son conseil (une fois).
   const shown = new Set();
@@ -428,53 +514,112 @@ export function coachMessages(a, rec) {
 }
 const avgTxt = v => (Math.round(v * 10) / 10).toFixed(1).replace('.', ',');
 
-/** Exercice suivant proposé d'après la séance (null : l'ordre du coach décide, voir suggestNext). */
-function nextFor(a, rec) {
+/** Exercice suivant proposé d'après la séance, au niveau du joueur (null : l'ordre du coach décide, voir suggestNext). */
+export function nextFor(a, rec, level = 'debutant') {
   const bias = a.messages.find(m => m.kind === 'bias');
   if (bias && !bias.vertical && rec.exercise !== 'gauchedroite') return { key: 'gauchedroite', why: 'tes fléchettes partent sur le côté' };
   if (bias && bias.vertical && rec.exercise !== 'hautbas') return { key: 'hautbas', why: 'tes fléchettes partent en hauteur' };
   if (a.messages.some(m => m.kind === 'spread') && rec.exercise !== 'groupement') return { key: 'groupement', why: 'tes fléchettes sont dispersées' };
-  if (rec.exercise === 'groupement' && a.rate !== null && a.rate >= LEVEL.rate) return { key: 'vingt', why: 'ton groupement tient : on l\'essaie sur trois secteurs' };
+  const ok = goalMet(rec, a, level);
+  if (rec.exercise === 'groupement' && ok) return level === 'debutant' ? { key: 'vingt', why: 'ton groupement tient : on l\'essaie sur trois secteurs' } : { key: 'triple20', why: 'ton groupement tient : on resserre sur le triple' };
+  if (rec.exercise === 'triple20' && ok) return { key: 'triples', why: 'le T20 tient : on alterne avec le T19' };
+  if (rec.exercise === 'doubles' && ok === false) return { key: 'horlogedoubles', why: 'les doubles sont à travailler' };
   return null;
 }
 
-// ------------------------------------------------------------------ coach : exercice proposé, niveau
-/** Passage au niveau suivant (seuil simple, à affiner : docs/entrainement.md) : groupement ≥ 50 % sur 3 séances de suite. */
-export const LEVEL = Object.freeze({ exercise: 'groupement', rate: 0.5, sessions: 3 });
-export const LEVELS = Object.freeze({ debutant: 'DÉBUTANT', intermediaire: 'INTERMÉDIAIRE' });
+// ------------------------------------------------------------------ coach : objectifs, niveau, exercice proposé
+export const LEVEL_ORDER = Object.freeze(['debutant', 'intermediaire', 'confirme']);
+export const LEVELS = Object.freeze({ debutant: 'DÉBUTANT', intermediaire: 'INTERMÉDIAIRE', confirme: 'CONFIRMÉ' });
+/**
+ * Objectif de chaque exercice à chaque niveau (0.13.0), sur le chiffre principal de l'exercice (sessionValue) : part
+ * dans la cible (0 à 1), fléchettes (horloge : au plus), moyenne par volée, doubles touchés sur 20. Ordres de grandeur
+ * d'un joueur amateur (docs/entrainement.md) : un débutant met une fléchette sur deux dans le secteur visé et fait
+ * 30 par volée ; un intermédiaire fait 45 de moyenne, un triple 20 sur huit, un double sur cinq.
+ */
+export const GOALS = Object.freeze({
+  groupement: { debutant: 0.5, intermediaire: 0.65, confirme: 0.8 },
+  horloge: { debutant: 60, intermediaire: 40, confirme: 30 },
+  hautbas: { debutant: 0.45, intermediaire: 0.6, confirme: 0.75 },
+  gauchedroite: { debutant: 0.45, intermediaire: 0.6, confirme: 0.75 },
+  scorelibre: { debutant: 30, intermediaire: 45, confirme: 60 },
+  bull: { debutant: 0.5, intermediaire: 0.7, confirme: 0.85 },
+  vingt: { debutant: 0.45, intermediaire: 0.6, confirme: 0.75 },
+  triple20: { debutant: 0.05, intermediaire: 0.12, confirme: 0.2 },
+  triples: { debutant: 0.05, intermediaire: 0.12, confirme: 0.2 },
+  doubles: { debutant: 0.1, intermediaire: 0.2, confirme: 0.3 },
+  horlogedoubles: { debutant: 5, intermediaire: 9, confirme: 13 },
+  bull25: { debutant: 0.1, intermediaire: 0.2, confirme: 0.3 },
+});
+/** Passage au niveau suivant : l'objectif du niveau actuel tenu sur LEVEL_SESSIONS séances complètes de suite, pour
+ *  chacun de ces exercices (une séance sous l'objectif remet son compte à zéro ; un critère tenu une fois reste tenu). */
+export const LEVEL_UP = Object.freeze({
+  intermediaire: Object.freeze({ from: 'debutant', exercises: Object.freeze(['groupement', 'scorelibre']) }),
+  confirme: Object.freeze({ from: 'intermediaire', exercises: Object.freeze(['triple20', 'doubles', 'scorelibre']) }),
+});
+export const LEVEL_SESSIONS = 3;
 
-/** Séances closes et complètes d'un joueur, de la plus ancienne à la plus récente. */
-export const completeSessions = (list, player) => list.filter(r => r.player === player && r.endedAt !== null && r.endedAt !== undefined && !r.stopped)
+/** Objectif d'un exercice à un niveau : { v, dir } (dir −1 : au plus), ou null. */
+export function goalOf(key, level) {
+  const g = GOALS[key];
+  if (!g || g[level] === undefined) return null;
+  return { v: g[level], dir: key === 'horloge' ? -1 : 1 };
+}
+/** La séance tient-elle l'objectif du niveau ? true / false, ou null (pas d'objectif, séance incomplète, pas de résultat). */
+export function goalMet(rec, a, level) {
+  const g = goalOf(rec.exercise, level);
+  if (!g || !a.done) return null;
+  const sv = sessionValue(rec, a);
+  if (!sv) return null;
+  return g.dir < 0 ? sv.v <= g.v : sv.v >= g.v - 1e-9;
+}
+
+/** Séances closes, complètes et comptées (pas mises de côté) d'un joueur, de la plus ancienne à la plus récente. */
+export const completeSessions = (list, player) => list.filter(r => r.player === player && r.endedAt !== null && r.endedAt !== undefined && !r.stopped && !r.excluded)
   .sort((a, b) => a.startedAt - b.startedAt);
 
-/** Niveau du joueur : { level, streak (séances de suite au-dessus du seuil), need } ; intermédiaire, une fois atteint, reste. */
-export function levelOf(list, player) {
-  const g = completeSessions(list, player).filter(r => r.exercise === LEVEL.exercise);
-  let streak = 0, reached = false;
-  for (const r of g) {
-    const a = analyze(r);
-    streak = a.rate !== null && a.rate >= LEVEL.rate ? streak + 1 : 0;
-    if (streak >= LEVEL.sessions) reached = true;
+/**
+ * Niveau du joueur : { level, next (niveau visé, ou null au dernier), criteria: [{ exercise, goal, streak, need, met }] }
+ * pour passer au niveau `next`. Un niveau atteint reste (les critères tenus une fois restent tenus).
+ */
+export function levelOf(list, player, analyzeFn = analyze) {
+  const done = completeSessions(list, player);
+  const cache = new Map();
+  const an = r => { if (!cache.has(r.id)) cache.set(r.id, analyzeFn(r)); return cache.get(r.id); };
+  const check = (ex, from) => {
+    let streak = 0, met = false;
+    for (const r of done.filter(x => x.exercise === ex)) {
+      streak = goalMet(r, an(r), from) ? streak + 1 : 0;
+      if (streak >= LEVEL_SESSIONS) met = true;
+    }
+    return { exercise: ex, goal: goalOf(ex, from), streak: Math.min(streak, LEVEL_SESSIONS), need: LEVEL_SESSIONS, met };
+  };
+  let level = 'debutant';
+  for (const [to, rule] of Object.entries(LEVEL_UP)) {
+    if (rule.from !== level) break;
+    const criteria = rule.exercises.map(ex => check(ex, rule.from));
+    if (!criteria.every(c => c.met)) return { level, next: to, criteria };
+    level = to;
   }
-  return { level: reached ? 'intermediaire' : 'debutant', streak: Math.min(streak, LEVEL.sessions), need: LEVEL.sessions };
+  return { level, next: null, criteria: [] };
 }
 
 /**
  * Exercice proposé par le coach : celui que la dernière séance suggère (s'il n'a pas été fait depuis), sinon un
- * exercice jamais fait (dans l'ordre du coach), sinon celui fait le moins récemment. { key, why }.
+ * exercice du niveau jamais fait (dans l'ordre du coach), sinon celui du niveau fait le moins récemment. { key, why }.
  */
-export function suggestNext(list, player) {
+export function suggestNext(list, player, level = levelOf(list, player).level) {
   const done = completeSessions(list, player).filter(r => r.mode === 'coach');
   const last = done[done.length - 1];
   if (last) {
-    const n = analyze(last).next;
+    const n = nextFor(analyze(last), last, level);
     if (n) return n;
   }
+  const order = LEVEL_EXERCISES[level] || COACH_ORDER;
   const lastAt = new Map();
   for (const r of done) lastAt.set(r.exercise, r.startedAt);
-  const never = COACH_ORDER.find(k => !lastAt.has(k));
-  if (never) return { key: never, why: done.length ? 'pas encore fait' : 'pour commencer' };
-  const oldest = [...COACH_ORDER].sort((a, b) => lastAt.get(a) - lastAt.get(b))[0];
+  const never = order.find(k => !lastAt.has(k));
+  if (never) return { key: never, why: done.length ? (level === 'debutant' ? 'pas encore fait' : `pas encore fait (niveau ${LEVELS[level].toLowerCase()})`) : 'pour commencer' };
+  const oldest = [...order].sort((a, b) => lastAt.get(a) - lastAt.get(b))[0];
   return { key: oldest, why: 'le moins récent' };
 }
 
@@ -482,6 +627,7 @@ export function suggestNext(list, player) {
 /** Chiffre principal d'une séance pour sa courbe : { v, fmt: 'pct' | 'int' | 'avg', dir } ou null. */
 export function sessionValue(rec, a = analyze(rec)) {
   const ex = EXERCISES[rec.exercise] || EXERCISES.libre;
+  if (ex.clock && ex.clock.max) return a.done ? { v: a.extra.hitCount, fmt: 'int', dir: 1, label: 'Doubles touchés' } : null;
   if (ex.clock) return a.done ? { v: a.darts, fmt: 'int', dir: -1, label: 'Fléchettes' } : null;
   if (ex.metric === 'average') return a.extra.average === null ? null : { v: a.extra.average, fmt: 'avg', dir: 1, label: 'Moyenne / volée' };
   if (ex.metric === 'near') return a.value === null ? null : { v: a.value, fmt: 'pct', dir: 1, label: 'Près du centre' };

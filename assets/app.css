@@ -1771,10 +1771,53 @@ button.hrow { width: 100%; border: 0; border-bottom: var(--rule); background: va
 .trhub .resume { margin-top: 14px; flex-direction: column; gap: 4px; }
 .trhub .resume small { font-size: 11px; letter-spacing: 0.04em; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .btn.small-btn { min-height: 44px; font-size: 12px; margin-top: 2px; }
-.chips2.sets { flex-wrap: wrap; overflow: visible; }
-.chip2.setc { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; min-height: 48px; max-width: 100%; padding: 4px 12px; text-transform: none; }
-.chip2.setc b { font-size: 12.5px; font-weight: 800; max-width: 100%; }
-.chip2.setc small { font-size: 10px; letter-spacing: 0.02em; max-width: 100%; }
+/* 0.13.0 : choix du jeu avec le dessin de la fléchette (entraînement, menu pause, détail d'une séance) */
+.setcards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-bottom: 6px; }
+.setc { display: flex; flex-direction: column; align-items: stretch; gap: 2px; min-width: 0; min-height: 96px; padding: 8px 10px; border: var(--rule); background: var(--bg); color: var(--fg); text-align: left; }
+.setc[aria-pressed="true"] { background: var(--inv-bg); color: var(--inv-fg); border-color: var(--inv-bg); }
+.setc .setd { display: block; height: 30px; margin-bottom: 4px; }
+.setc .setd .dartd { height: 30px; width: auto; max-width: 100%; }
+.setc b { font-size: 12.5px; font-weight: 800; min-width: 0; }
+.setc small { font-size: 10px; letter-spacing: 0.02em; line-height: 1.35; opacity: 0.78; overflow-wrap: anywhere; }
+.setc:active { background: var(--fg); color: var(--bg); }
+.dartd .col, .ill .col { stroke: currentColor; }
+.btn.trsetbtn { justify-content: flex-start; gap: 12px; text-align: left; }
+.btn.trsetbtn .setd { flex: 0 0 72px; width: 72px; }
+.btn.trsetbtn .ell { display: grid; gap: 2px; min-width: 0; }
+.btn.trsetbtn small { text-transform: none; letter-spacing: 0.02em; overflow: hidden; text-overflow: ellipsis; }
+/* Couleurs des pièces (armurerie) */
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.swatches .sw0 { min-height: 40px; }
+.sw { width: 40px; height: 40px; padding: 4px; border: var(--rule); background: var(--bg); }
+.sw i { display: block; width: 100%; height: 100%; border: 1px solid var(--faint); }
+.sw[aria-pressed="true"] { border: 2px solid var(--fg); padding: 3px; }
+.swn { color: var(--fg); text-transform: none; }
+/* Niveau : critères de passage, objectif d'une séance */
+.lvc { list-style: none; margin: 0 0 4px; padding: 0; border: var(--rule); border-top: 0; }
+.lvc li { display: flex; align-items: center; gap: 10px; min-height: 38px; padding: 4px 12px; font-size: 11.5px; }
+.lvc li + li { border-top: var(--rule); }
+.lvc li > span:first-child { flex: 1; min-width: 0; }
+.lvc li.met > span:first-child { color: var(--dim); }
+.lvc li.lvh { min-height: 30px; font-size: 10.5px; color: var(--dim); font-weight: 700; letter-spacing: 0.08em; }
+.goalline { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin: 10px 0 0; padding: 10px 12px; border: var(--rule); }
+.goalline small { flex: 1 1 100%; font-size: 10.5px; color: var(--dim); font-weight: 700; letter-spacing: 0.08em; }
+.goalline b { font-size: 17px; font-weight: 800; }
+.goalline span { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; color: var(--dim); }
+.goalline.ok { border-color: var(--fg); }
+.goalline.ok span { color: var(--fg); }
+/* Gestion d'une séance */
+.trnote { min-height: 76px; resize: vertical; font-size: 13px; line-height: 1.45; text-transform: none; }
+.detsets { list-style: none; margin: 0 0 10px; padding: 0; border-top: var(--rule); }
+.detsets li { display: flex; align-items: center; gap: 10px; min-height: 58px; padding: 6px 0; border-bottom: var(--rule); }
+.detsets .setd { flex: 0 0 64px; width: 64px; }
+.detsets .t { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.detsets .t b { font-size: 13px; font-weight: 800; }
+.detsets .t small { font-size: 11px; color: var(--dim); }
+.detsets .btn.small-btn { flex: 0 0 auto; width: auto; margin: 0; padding: 0 12px; }
+.trow.excl b, .trow.excl .l2 > span { color: var(--dim); }
+.btn.stack { flex-direction: column; gap: 3px; }
+.btn.stack small { text-transform: none; letter-spacing: 0.02em; }
+.trhead .excl-tag { justify-self: start; margin-top: 4px; padding: 3px 8px; border: 1px solid var(--fg); color: var(--fg); font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; }
 .trmode { margin-bottom: 14px; }
 .lvl { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 0 0 12px; border: var(--rule); }
 .lvl small { font-size: 10.5px; color: var(--dim); font-weight: 700; letter-spacing: 0.08em; }

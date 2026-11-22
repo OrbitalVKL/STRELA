@@ -3,7 +3,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { trainingState, analyze, isHit, zoneOf, realPoint, appPoint, aimPoint, suggestNext, levelOf, heatCounts, sessionValue,
-  trainingDartError, trainingDartLabel, targetLabel, EXERCISES, COACH_ORDER, LEVEL, direction } from '../src/engine/training.js';
+  trainingDartError, trainingDartLabel, targetLabel, EXERCISES, COACH_ORDER, LEVEL_SESSIONS, direction } from '../src/engine/training.js';
 import { dartSetRecord, SEED_SETS, MODELS, dartSetSummary } from '../src/engine/dartsets.js';
 import { MIGRATIONS, runMigrations, trainingRecord, DB_VERSION } from '../src/data/db.js';
 import { makeBackup, parseBackup, importPlan, BackupError } from '../src/data/backup.js';
@@ -91,7 +91,7 @@ describe('entraînement : déroulé des exercices', () => {
     assert.equal(st.done, true);
     const a = analyze(rec('horloge', darts));
     assert.equal(a.value, 21);
-    assert.deepEqual(a.extra.perNumber[0], { s: 1, darts: 2, hit: true });
+    assert.deepEqual(a.extra.perNumber[0], { s: 1, darts: 2, hit: true, open: false });
     assert.match(a.messages[0].text, /Tour bouclé en 21 fléchettes/);
     assert.throws(() => trainingState({ exercise: 'horloge' }, [...darts, si(1)]), 'rien après le 20');
   });
@@ -167,15 +167,19 @@ describe('entraînement : analyse et coach', () => {
     assert.equal(suggestNext([...all, left], 'autre').why, 'pour commencer', 'par joueur');
   });
 
-  test('niveau : groupement au-dessus du seuil sur 3 séances de suite ; une séance arrêtée ne compte pas', () => {
+  test('niveau : groupement et score libre à l’objectif du débutant sur 3 séances de suite ; une séance arrêtée ne compte pas', () => {
     const good = at => ({ ...rec('groupement', Array.from({ length: 9 }, (_, i) => (i < 6 ? si(20) : si(1)))), startedAt: at });
     const bad = at => ({ ...rec('groupement', Array.from({ length: 9 }, () => si(1))), startedAt: at });
-    assert.equal(LEVEL.sessions, 3);
-    assert.deepEqual(levelOf([good(1), good(2)], 'p'), { level: 'debutant', streak: 2, need: 3 });
-    assert.equal(levelOf([good(1), bad(2), good(3), good(4)], 'p').streak, 2);
-    assert.equal(levelOf([good(1), good(2), { ...good(3), stopped: true }], 'p').streak, 2);
-    assert.equal(levelOf([good(1), good(2), good(3)], 'p').level, 'intermediaire');
-    assert.equal(levelOf([good(1), good(2), good(3), bad(4)], 'p').level, 'intermediaire', 'un niveau atteint reste');
+    const score = at => ({ ...rec('scorelibre', Array.from({ length: 30 }, () => si(20))), startedAt: at }); // 60 par volée
+    const crit = (list, ex) => levelOf(list, 'p').criteria.find(c => c.exercise === ex);
+    assert.equal(LEVEL_SESSIONS, 3);
+    assert.equal(crit([good(1), good(2)], 'groupement').streak, 2);
+    assert.equal(crit([good(1), bad(2), good(3), good(4)], 'groupement').streak, 2);
+    assert.equal(crit([good(1), good(2), { ...good(3), stopped: true }], 'groupement').streak, 2);
+    assert.equal(levelOf([good(1), good(2), good(3)], 'p').level, 'debutant', 'le score libre manque');
+    const up = [good(1), good(2), good(3), score(4), score(5), score(6)];
+    assert.equal(levelOf(up, 'p').level, 'intermediaire');
+    assert.equal(levelOf([...up, bad(7)], 'p').level, 'intermediaire', 'un niveau atteint reste');
   });
 
   test('carte de chaleur : simple intérieur et extérieur à part, simple de partie partagé', () => {

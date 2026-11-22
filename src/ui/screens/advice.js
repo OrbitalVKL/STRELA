@@ -22,16 +22,22 @@ const FLIGHTS = Object.freeze({
   petit: 'M176 30L194 16H228V44H194Z',
 });
 
-/** Fléchette vue de côté : fût `shape`, empennage `flight` ; `parts` : décomposée (pièces écartées et nommées). */
-export function dartDiagram({ shape = 'droit', flight = 'standard', mini = false, parts = false } = {}) {
+/** Remplissage d'une pièce : couleur choisie dans l'armurerie (jeton --dart-<clé>), sinon trait seul. */
+const fillOf = (colors, part) => (colors && colors[part] && /^[a-z]+$/.test(colors[part]) ? ` class="col" style="fill:var(--dart-${colors[part]})"` : '');
+
+/**
+ * Fléchette vue de côté : fût `shape`, empennage `flight`, couleurs des pièces `colors` ({ point, barrel, shaft, flight }) ;
+ * `parts` : décomposée (pièces écartées et nommées).
+ */
+export function dartDiagram({ shape = 'droit', flight = 'standard', mini = false, parts = false, colors = null } = {}) {
   const b = BARRELS[shape] || BARRELS.droit, fl = FLIGHTS[flight] || FLIGHTS.standard;
   const grip = shape === 'droit' || !shape ? '<path class="thin" d="M70 24V36M78 24V36M86 24V36M94 24V36"/>' : '';
-  if (!parts) {
-    return `<svg class="dartd${mini ? ' mini' : ''}" viewBox="0 0 240 60" aria-hidden="true"><path d="M8 30L40 28V32Z"/><path d="${b}"/>${grip}<path d="M120 28H168V32H120Z"/><path d="${fl}"/><path class="thin" d="M168 30H232"/></svg>`;
-  }
+  const P = `<path${fillOf(colors, 'point')} d="M8 30L40 28V32Z"/>`, B = `<path${fillOf(colors, 'barrel')} d="${b}"/>${grip}`;
+  const S = `<path${fillOf(colors, 'shaft')} d="M120 28H168V32H120Z"/>`, F = `<path${fillOf(colors, 'flight')} d="${fl}"/><path class="thin" d="M168 30H232"/>`;
+  if (!parts) return `<svg class="dartd${mini ? ' mini' : ''}" viewBox="0 0 240 60" aria-hidden="true">${P}${B}${S}${F}</svg>`;
   // Décomposée : pointe, fût, tige, empennage écartés, nom sous chaque pièce.
-  return svg('0 0 300 96', `<g transform="translate(0 6)"><path d="M6 30L34 28V32Z"/><g transform="translate(6 0)">
-      <path d="${b}"/>${grip}</g><g transform="translate(22 0)"><path d="M120 28H168V32H120Z"/></g><g transform="translate(40 0)"><path d="${fl}"/><path class="thin" d="M168 30H232"/></g></g>
+  return svg('0 0 300 96', `<g transform="translate(0 6)"><g transform="translate(-2 0)">${P}</g><g transform="translate(6 0)">
+      ${B}</g><g transform="translate(22 0)">${S}</g><g transform="translate(40 0)">${F}</g></g>
     <g class="lbl" text-anchor="middle"><text x="24" y="86">POINTE</text><text x="86" y="86">FÛT</text><text x="168" y="86">TIGE</text><text x="250" y="86">EMPENNAGE</text></g>
     <path class="thin" d="M18 44V72M86 48V72M168 42V72M242 66V72"/>`, 'Fléchette décomposée : pointe, fût, tige, empennage');
 }

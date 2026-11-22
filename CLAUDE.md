@@ -1,6 +1,6 @@
 # Strela — règles du projet
 
-Appli Android de fléchettes (X01, Cricket depuis la 0.10.0, entraînement solo depuis la 0.12.0) pour Guillaume. Dépôt `OrbitalVKL/STRELA` (public, branche `main`).
+Appli Android de fléchettes (X01, Cricket depuis la 0.10.0, entraînement solo depuis la 0.12.0, niveau intermédiaire depuis la 0.13.0) pour Guillaume. Dépôt `OrbitalVKL/STRELA` (public, branche `main`).
 Cahier des charges : [docs/cahier-des-charges.md](docs/cahier-des-charges.md).
 
 ## Méthode de travail
@@ -188,7 +188,21 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 0.11.1 | Tableau de bord de soirée repliable et sans débordement, chiffres enrichis, défis et badges (feuille D du rapport, stats du joueur) (v0.11.1) — **fait, en attente de validation sur le Pixel** |
 | 0.11 | Retours de la soirée du 20/11 : VALIDER en un appui, bandeau du défi, pastilles de rang, Tsia (menus, dégrisement), HPV, Atila et la moto d'Angelina, badges (fenêtre, rangs, soirée, roi des uns), 6 défis et étoiles, tirage vérifié (v0.11.0) — **fait, en attente de validation sur le Pixel** |
 | 8 | Entraînement solo : coaché (7 exercices débutant, analyse, conseils, niveau) et libre, saisie S INT. / S EXT., armurerie, stats entraînement / parties / les deux, conseils illustrés, base v3 (v0.12.0) — **fait, en attente de validation sur le Pixel** |
+| 8.1 | Entraînement : couleurs des pièces, dessin au choix du jeu, changer de jeu en pleine séance, niveau intermédiaire (5 exercices) et objectifs par niveau, gestion des séances (note, jeu, joueur, mise de côté, reprise) (v0.13.0) — **fait, en attente de validation sur le Pixel** |
 | 11 | Recette |
+
+## État (version 0.13.0 : entraînement, suite)
+
+- **0.13.0** (22/11) : demandes de Guillaume après la 0.12.0, détail dans docs/entrainement.md (sections marquées
+  0.13.0). **Aucune migration** (base toujours v3) : champs facultatifs `setChanges`, `note`, `excluded` des séances,
+  `colors` des jeux ; testés (tests/entrainement-0-13*.test.js), sauvegarde comprise.
+- Choix faits sans Guillaume (à lui dire) : objectifs et seuils d'après des ordres de grandeur d'amateur (tableau de
+  docs/entrainement.md) ; passage débutant → intermédiaire = groupement 50 % **et** score libre 30 de moyenne, 3
+  séances de suite chacun (la 0.12 ne demandait que le groupement) ; intermédiaire → confirmé = triple 20 12 %,
+  doubles 20 %, score libre 45 ; le pavé arme d'office la zone visée (T, D, EXT.) ; mettre de côté plutôt qu'archiver ;
+  13 couleurs de pièces (dont bleu : couleur d'objet, pas de lien).
+- Pour la suite : ajouter un exercice = `EXERCISES` (+ `level`), `LEVEL_EXERCISES`, `GOALS` ; une couleur =
+  `DART_COLOR_NAMES` + `DART_COLORS` + jeton `--dart-<clé>` (test de concordance).
 
 ## État (version 0.12.0 : entraînement solo, lot 8)
 

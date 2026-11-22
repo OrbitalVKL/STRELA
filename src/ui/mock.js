@@ -273,6 +273,10 @@ export function mockTrainings(now = Date.now()) {
     } else for (const b of blocksOf[ex]) for (let j = 0; j < b.n; j++) darts.push(aimedDart(r, b, opt));
     const rec = { id: `t${i + 1}`, startedAt, endedAt: startedAt + 900e3, player: 'p1', setId: i % 3 === 2 ? 'ds-droit-22' : 'ds-torpedo-22', mode: ex === 'libre' ? 'libre' : 'coach', exercise: ex, darts };
     if (ex === 'libre') rec.blocks = blocksOf.libre;
+    // 0.13.0 : jeu changé en pleine séance (20-19-18 : l'autre jeu à partir de la 31e fléchette), une note, une séance mise de côté.
+    if (ex === 'vingt') rec.setChanges = [{ at: 30, setId: rec.setId === 'ds-droit-22' ? 'ds-torpedo-22' : 'ds-droit-22' }];
+    if (i === 6) rec.note = 'Nouvelle prise : trois doigts, plus près de la pointe.';
+    if (i === 4) { rec.excluded = true; rec.note = 'Lancé par un ami, pour essayer.'; }
     return rec;
   }).reverse();
 }

@@ -2,6 +2,15 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.13.0', date: '2026-11-22', title: 'Entraînement : niveau intermédiaire, couleurs, gestion des séances', items: [
+    'Armurerie : une couleur pour chaque pièce de la fléchette (pointe, fût, tige, empennage), reprise dans son dessin partout où le jeu apparaît.',
+    'Avant l\'entraînement, chaque jeu de fléchettes se choisit sur son dessin, en couleurs.',
+    'En pleine séance, menu pause → CHANGER DE JEU : les fléchettes suivantes sont notées avec le nouveau jeu ; l\'analyse et les stats séparent les fléchettes de chaque jeu.',
+    'Niveau intermédiaire : cinq exercices de plus (triple 20, triples 20 et 19, doubles de finition D20 / D16 / D8, tour des doubles, centre 25 / 50), et un niveau confirmé au-dessus.',
+    'Chaque exercice a un objectif selon ton niveau (par exemple groupement : 50 % débutant, 65 % intermédiaire, 80 % confirmé), affiché dans la liste et à la fin de la séance. Pour passer au niveau suivant : tenir ces objectifs 3 séances de suite sur les exercices clés (débutant → intermédiaire : groupement et score libre à 30 de moyenne).',
+    'Au pavé, la zone visée est armée d\'office : T pour un triple, D pour un double, EXT. pour le simple extérieur.',
+    'Gérer une séance sans la supprimer : une note, le jeu de fléchettes corrigé, un autre joueur, METTRE DE CÔTÉ (elle reste dans la liste mais sort des stats et du niveau), REPRENDRE une séance arrêtée avant la fin.',
+  ] },
   { v: '0.12.0', date: '2026-11-22', title: 'Entraînement solo', items: [
     'Nouveau mode ENTRAÎNEMENT SOLO à l\'accueil, à côté de la partie et de la soirée : tes séances sont notées à ton nom, avec le jeu de fléchettes utilisé.',
     'Coaché : l\'appli propose un exercice (groupement, tour de l\'horloge, haut contre bas, gauche contre droite, score libre, bull, 20-19-18), analyse tes fléchettes et propose une correction, un conseil et l\'exercice suivant. Niveau débutant ; le passage au niveau suivant est suivi (groupement à 50 % sur 3 séances de suite).',

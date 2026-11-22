@@ -12,7 +12,7 @@ import { DEFI_SET } from '../engine/defis.js';
 import { computeState, STATUS, EVENTS } from '../engine/x01.js';
 import { deletePlayer as removePlayer, deletionImpact, isDeletedId } from '../engine/players.js';
 import { openDb, currentRecord, closedRecord, playerRecord, deletionOps, gameDeletionOps, soireeRecord, trainingRecord, DB_VERSION } from '../data/db.js';
-import { trainingState, cleanTrainingDart, cleanTarget } from '../engine/training.js';
+import { trainingState, cleanTrainingDart, cleanTarget, setRuns, setAt, setsUsed, cleanSetChanges } from '../engine/training.js';
 import { dartSetRecord } from '../engine/dartsets.js';
 import { makeBackup, importPlan } from '../data/backup.js';
 import { bac, drinkTimes, drinkTime, drinkAt, isPint, unitsOf, drinkTally, PINT_L } from '../engine/alcohol.js';
@@ -820,8 +820,8 @@ export function deleteCk() {
 // ------------------------------------------------------------------ entraînement solo (lot 8)
 // Séances dans le magasin « trainings » (v3), jeux de fléchettes dans « dartsets » ; derniers choix dans le réglage
 // « training ». La séance en cours est écrite à chaque fléchette et à chaque ANNULER, comme une partie.
-/** État d'affichage d'une séance (non enregistré) : zone armée ('in' | 'out' | 'd' | 't'), menu, loupe figée. */
-export const freshTrUi = () => ({ zone: 'in', pause: false, confirm: false, loupe: null, add: null, cele: null });
+/** État d'affichage d'une séance (non enregistré) : zone armée ('in' | 'out' | 'd' | 't' ; null : celle de la cible visée), menu, loupe figée. */
+export const freshTrUi = () => ({ zone: null, pause: false, confirm: false, loupe: null, add: null, cele: null });
 
 export const trState = () => (store.tr ? trainingState(store.tr, store.tr.darts) : null);
 
@@ -886,7 +886,7 @@ export function closeTraining({ stopped = false } = {}, now = Date.now()) {
   store.tr = null;
   if (!r.darts.length) { write([{ store: 'trainings', del: r.id }]); return null; }
   const done = trainingState(r, r.darts).done;
-  const rec = trainingRecord({ ...r, endedAt: now, stopped: stopped || !done });
+  const rec = trainingRecord({ ...r, ...cleanSetChanges(r, r.darts.length), endedAt: now, stopped: stopped || !done });
   store.trainings.unshift(rec);
   write([{ store: 'trainings', put: rec }]);
   return rec;
@@ -902,10 +902,73 @@ export function deleteTrainings(ids) {
   return before - store.trainings.length - (store.tr ? 1 : 0);
 }
 
+/**
+ * Change de jeu de fléchettes pendant la séance en cours (0.13.0) : les fléchettes suivantes sont notées avec `setId`
+ * (null : sans jeu). Avant la première fléchette, c'est le jeu de la séance qui change. Le jeu choisi devient aussi celui
+ * proposé à la prochaine séance. false si rien ne change.
+ */
+export function trChangeSet(setId) {
+  const r = store.tr;
+  if (!r) return false;
+  const id = setId || null;
+  const at = r.darts.length;
+  if (setAt(r, at) === id) return false;
+  const ch = (r.setChanges || []).filter(c => c.at < at);
+  const next = at === 0 ? { ...r, setId: id, setChanges: [] } : { ...r, setChanges: [...ch, { at, setId: id }] };
+  const clean = cleanSetChanges(next);
+  r.setId = clean.setId;
+  if (clean.setChanges.length) r.setChanges = clean.setChanges; else delete r.setChanges;
+  saveTr();
+  saveTrSetup({ setId: id });
+  return true;
+}
+
+/**
+ * Gestion d'une séance close (0.13.0) : note, mise de côté (hors stats et niveau), joueur, jeu d'une partie de la séance
+ * (`run` : rang dans setRuns, `setId`). Renvoie la séance modifiée, ou null.
+ */
+export function updateTraining(id, patch) {
+  const i = store.trainings.findIndex(r => r.id === id);
+  if (i < 0) return null;
+  let r = { ...store.trainings[i] };
+  if ('note' in patch) r.note = String(patch.note || '');
+  if ('excluded' in patch) { if (patch.excluded) r.excluded = true; else delete r.excluded; }
+  if ('player' in patch && store.players.some(p => p.id === patch.player)) r.player = patch.player;
+  if ('run' in patch) {
+    const runs = setRuns(r);
+    const k = Number(patch.run);
+    if (runs[k]) {
+      runs[k].setId = patch.setId || null;
+      r = { ...r, setId: runs[0].setId, setChanges: runs.slice(1).map(x => ({ at: x.from, setId: x.setId })) };
+      const clean = cleanSetChanges(r, r.darts.length);
+      r.setId = clean.setId;
+      r.setChanges = clean.setChanges;
+    }
+  }
+  const rec = trainingRecord(r);
+  if (!rec) return null;
+  store.trainings[i] = rec;
+  write([{ store: 'trainings', put: rec }]);
+  return rec;
+}
+
+/** Reprend une séance arrêtée avant la fin (0.13.0) : elle redevient la séance en cours (une autre en cours est d'abord rangée). */
+export function resumeTraining(id) {
+  const r = store.trainings.find(x => x.id === id);
+  if (!r || !r.stopped) return null;
+  try { if (trainingState(r, r.darts).done) return null; } catch (e) { return null; }
+  if (store.tr) closeTraining({ stopped: true });
+  store.trainings = store.trainings.filter(x => x.id !== id);
+  const { stopped, ...rest } = r;
+  store.tr = { ...trainingRecord({ ...rest, endedAt: null }), ui: freshTrUi() };
+  saveTr();
+  return store.tr;
+}
+
 export const trainingById = id => (store.tr && store.tr.id === id ? store.tr : store.trainings.find(r => r.id === id) || null);
 export const dartSetById = id => store.dartSets.find(x => x.id === id) || null;
 /** Séances (closes et en cours) qui utilisent un jeu. */
-export const setUses = id => store.trainings.filter(r => r.setId === id).length + (store.tr && store.tr.setId === id ? 1 : 0);
+export const setUses = id => store.trainings.filter(r => setsUsed(r).includes(id) || r.setId === id).length + (store.tr && (setsUsed(store.tr).includes(id) || setAt(store.tr, store.tr.darts.length) === id) ? 1 : 0);
 
 export function saveDartSet(x) {
   const rec = dartSetRecord(x);

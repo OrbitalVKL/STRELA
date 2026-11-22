@@ -63,6 +63,14 @@ export const BOARD_COLORS = Object.freeze({
   'mark-ink': '#0E1012',
 });
 
+// Fléchettes (armurerie, 0.13.0) : couleurs des pièces d'un jeu (pointe, fût, tige, empennage). Objets physiques :
+// mêmes couleurs dans les deux thèmes (jetons --dart-* de theme.css) ; le dessin garde son trait (couleur du texte),
+// lisible sur le fond quelle que soit la couleur de la pièce.
+export const DART_COLORS = Object.freeze({
+  noir: '#1B1D1F', argent: '#B9BEC3', acier: '#6E7378', or: '#C9A23F', cuivre: '#B06A3B', blanc: '#EEEDE8',
+  rouge: '#B23A33', orange: '#D0702A', jaune: '#D9B92E', vert: '#2F7D50', bleu: '#2F5A9E', violet: '#6A4C93', rose: '#C8618E',
+});
+
 // Mode nuit (option du thème sombre, comme Grafit) : calque « multiply » de cette couleur sur tout l'écran.
 export const NIGHT_FILTER = '#B21400';
 

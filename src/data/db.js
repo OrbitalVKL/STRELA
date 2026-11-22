@@ -287,6 +287,15 @@ export function trainingRecord(r) {
   };
   if (Array.isArray(r.blocks)) rec.blocks = r.blocks.map(b => { const t = cleanTarget(b); return t && { ...t, n: Math.max(1, Math.min(99, Math.round(Number(b.n)) || 9)) }; }).filter(Boolean);
   if (r.stopped === true) rec.stopped = true;
+  // 0.13.0 (champs facultatifs, aucune migration) : jeu changé en cours de séance, note, séance mise de côté.
+  if (Array.isArray(r.setChanges)) {
+    const by = new Map();
+    for (const c of r.setChanges) if (c && Number.isInteger(c.at) && c.at >= 1 && c.at <= 10000 && (c.setId === null || (typeof c.setId === 'string' && c.setId))) by.set(c.at, c.setId);
+    const ch = [...by.entries()].sort((a, b) => a[0] - b[0]).map(([at, setId]) => ({ at, setId }));
+    if (ch.length) rec.setChanges = ch;
+  }
+  if (typeof r.note === 'string' && r.note.trim()) rec.note = r.note.slice(0, 300);
+  if (r.excluded === true) rec.excluded = true;
   return rec;
 }
 

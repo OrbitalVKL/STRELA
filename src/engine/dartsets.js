@@ -3,7 +3,8 @@
 //
 // Un jeu = { id, name, weight (g), barrelWeight? (g), shape, material, tungsten? (%), grip, length? (mm, empennage
 // compris), shaft, shaftMat, flight, flightMm? (épaisseur, mm), point, archived, createdAt, model? (clé du modèle de
-// départ) }. Tout est facultatif sauf id, name et createdAt : un champ inconnu ou hors liste est retiré (null).
+// départ), colors? ({ point?, barrel?, shaft?, flight? } : clé de DART_COLOR_NAMES, 0.13.0) }. Tout est facultatif sauf
+// id, name et createdAt : un champ inconnu ou hors liste est retiré (null).
 
 /** Listes de choix (clé enregistrée → libellé affiché). L'ordre est celui de l'écran. */
 export const CHOICES = Object.freeze({
@@ -14,6 +15,14 @@ export const CHOICES = Object.freeze({
   shaftMat: Object.freeze({ nylon: 'Nylon', alu: 'Aluminium', carbone: 'Carbone', rotative: 'Rotative' }),
   flight: Object.freeze({ standard: 'Standard', slim: 'Slim', kite: 'Kite', pear: 'Pear', petit: 'Petit standard' }),
   point: Object.freeze({ acier: 'Acier', souple: 'Souple' }),
+});
+
+/** Pièces d'une fléchette qui prennent une couleur (ordre de l'écran : de la pointe à l'empennage). */
+export const PARTS = Object.freeze({ point: 'Pointe', barrel: 'Fût', shaft: 'Tige', flight: 'Empennage' });
+/** Couleurs proposées (clé → nom). Les teintes sont dans ui/theme.js › DART_COLORS (jetons --dart-<clé>). */
+export const DART_COLOR_NAMES = Object.freeze({
+  noir: 'Noir', argent: 'Argent', acier: 'Acier', or: 'Doré', cuivre: 'Cuivre', blanc: 'Blanc', rouge: 'Rouge',
+  orange: 'Orange', jaune: 'Jaune', vert: 'Vert', bleu: 'Bleu', violet: 'Violet', rose: 'Rose',
 });
 
 /** Champs numériques : bornes acceptées (au-delà : retiré). */
@@ -37,6 +46,11 @@ export function dartSetRecord(x) {
   for (const [k, list] of Object.entries(CHOICES)) { const v = pick(x[k], list); if (v) rec[k] = v; }
   if (rec.material !== 'tungstene') delete rec.tungsten;
   if (typeof x.model === 'string' && Object.hasOwn(MODELS, x.model)) rec.model = x.model;
+  if (x.colors && typeof x.colors === 'object') {
+    const c = {};
+    for (const k of Object.keys(PARTS)) { const v = pick(x.colors[k], DART_COLOR_NAMES); if (v) c[k] = v; }
+    if (Object.keys(c).length) rec.colors = c;
+  }
   return rec;
 }
 
