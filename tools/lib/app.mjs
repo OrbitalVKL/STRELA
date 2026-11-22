@@ -29,10 +29,13 @@ export const readDb = page => page.evaluate(() => new Promise((resolve, reject) 
   r.onerror = () => reject(r.error);
   r.onsuccess = () => {
     const db = r.result;
-    const tx = db.transaction(['players', 'games', 'settings'], 'readonly');
+    // Lot 8 : séances d'entraînement et jeux de fléchettes, quand la base les a (version 3).
+    const extra = ['trainings', 'dartsets'].filter(n => db.objectStoreNames.contains(n));
+    const tx = db.transaction(['players', 'games', 'settings', ...extra], 'readonly');
     const out = {};
     const get = (name, key) => { const q = tx.objectStore(name)[key](); q.onsuccess = () => { out[`${name}.${key}`] = q.result; }; };
     get('players', 'getAll'); get('games', 'getAll'); get('settings', 'getAll'); get('settings', 'getAllKeys');
+    for (const n of extra) get(n, 'getAll');
     tx.oncomplete = () => {
       db.close();
       const settings = {};
@@ -41,6 +44,7 @@ export const readDb = page => page.evaluate(() => new Promise((resolve, reject) 
       resolve({
         version: db.version, players: out['players.getAll'], settings,
         games: games.filter(g => g.endedAt !== null), current: games.find(g => g.endedAt === null) || null,
+        ...(extra.length ? { trainings: out['trainings.getAll'] || [], dartSets: out['dartsets.getAll'] || [] } : {}),
       });
     };
   };

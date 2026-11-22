@@ -263,4 +263,5 @@ depuis l'appli. La version web reste sur GitHub Pages (aperçu, tests). Détail 
 | 5 | APK Android (coquille, passerelle native : vibreur, voix, fichiers, photo ; mise à jour depuis l'appli) | |
 | 6 | Icône « Soyouz », 16 fonds et 40 pictogrammes d'avatar, recherche de mise à jour automatique, variantes github / play, Android 16, À propos et confidentialité, fiche Play prête (v0.6.0) | |
 | 7 | Soirée : voyelles qui tombent (Tsia), ordre tiré au sort, joueur en tête, célébrations des nuls, jouer jusqu'au bout, classement, tournée du dernier, verres et alcoolémie estimée (v0.7.0) | |
-| 8 | Recette | |
+| 8 | Entraînement solo (docs/entrainement.md) | v0.12.0 |
+| 11 | Recette | |

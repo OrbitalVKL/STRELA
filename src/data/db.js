@@ -17,6 +17,11 @@
 //   games, lot 7.6 : shuffled?, soiree?, drinksBefore? facultatifs (withDrinks) : aucune migration
 //   games, lot 7.8 : defiSet?, defiDecl? facultatifs (withDrinks) : aucune migration
 //   games, 0.11.2 : drinksTournee? facultatif (tournées notées retirées, withDrinks) : aucune migration
+//   trainings (v3, lot 8) { id, startedAt, endedAt, player, setId, mode, exercise, blocks?, darts[], stopped? }
+//             séances d'entraînement solo (engine/training.js) ; la séance en cours a endedAt null
+//   dartsets  (v3, lot 8) jeux de fléchettes (engine/dartsets.js › dartSetRecord) ; la migration y crée les deux jeux
+//             de Guillaume (SEED_SETS)
+//   settings, lot 8 : « training » (derniers choix de l'écran Entraînement : joueur, jeu, mode, exercice, cible libre)
 //
 // Toutes les écritures passent par write(ops) : une seule transaction pour la liste d'opérations, durabilité
 // « strict » (écrite sur le disque avant d'être annoncée faite). Les transactions sont exécutées dans l'ordre où
@@ -24,9 +29,11 @@
 
 import { checkoutPrefs } from '../engine/checkout.js';
 import { cleanDrinks } from '../engine/alcohol.js';
+import { SEED_SETS, dartSetRecord } from '../engine/dartsets.js';
+import { cleanTrainingDart, cleanTarget } from '../engine/training.js';
 
 export const DB_NAME = 'strela';
-export const STORES = Object.freeze(['players', 'games', 'settings']);
+export const STORES = Object.freeze(['players', 'games', 'settings', 'trainings', 'dartsets']);
 
 export const MIGRATIONS = Object.freeze([
   // version 1 (lot 2) : joueurs, parties (en cours et terminées), réglages
@@ -44,6 +51,13 @@ export const MIGRATIONS = Object.freeze([
       c.update(playerRecord(c.value));
       c.continue();
     };
+  },
+  // version 3 (lot 8) : séances d'entraînement et jeux de fléchettes (deux magasins nouveaux, rien d'autre ne change) ;
+  // les deux jeux de Guillaume sont créés une fois ici (s'il les supprime, ils ne reviennent pas).
+  db => {
+    db.createObjectStore('trainings', { keyPath: 'id' });
+    const sets = db.createObjectStore('dartsets', { keyPath: 'id' });
+    for (const ds of SEED_SETS) sets.put(dartSetRecord(ds));
   },
 ]);
 
@@ -111,18 +125,30 @@ export class Database {
 
   close() { this.db.close(); }
 
-  /** Tout relire : { players, games (terminées ou abandonnées), current (partie en cours ou null), settings }. */
+  /**
+   * Tout relire : { players, games (terminées ou abandonnées), current (partie en cours ou null), settings,
+   * trainings (closes), training (séance en cours ou null), trainingStale, dartSets } — les magasins du lot 8 ne sont lus
+   * que s'ils existent (base d'une version plus ancienne ouverte par les tests).
+   */
   async loadAll() {
-    const tx = this.db.transaction(STORES, 'readonly');
-    const [players, records, keys, values] = await Promise.all([
+    const has = n => this.db.objectStoreNames.contains(n);
+    const names = STORES.filter(has);
+    const tx = this.db.transaction(names, 'readonly');
+    const all = n => (has(n) ? request(tx.objectStore(n).getAll()) : Promise.resolve([]));
+    const [players, records, keys, values, trs, sets] = await Promise.all([
       request(tx.objectStore('players').getAll()),
       request(tx.objectStore('games').getAll()),
       request(tx.objectStore('settings').getAllKeys()),
       request(tx.objectStore('settings').getAll()),
+      all('trainings'),
+      all('dartsets'),
     ]);
     const settings = {};
     keys.forEach((k, i) => { settings[k] = values[i]; });
-    return { players, ...splitGames(records), settings };
+    // Plusieurs séances ouvertes (ne doit pas arriver) : les plus anciennes sont closes, « arrêtées ».
+    const t = splitGames(trs);
+    const stop = r => { const { abandoned, ...rest } = r; return abandoned ? { ...rest, stopped: true } : rest; };
+    return { players, ...splitGames(records), settings, trainings: t.games.map(stop), training: t.current, trainingStale: t.stale.map(stop), dartSets: sets };
   }
 
   /**
@@ -245,6 +271,23 @@ export function deletionOps(playerId, result, lastSetup) {
   for (const g of result.games) if (kept.has(g.id)) ops.push({ store: 'games', put: g });
   if (lastSetup) ops.push({ store: 'settings', key: 'lastSetup', put: lastSetup });
   return ops;
+}
+
+/**
+ * Séance d'entraînement telle qu'enregistrée (lot 8), ou null si elle est illisible. Les champs inconnus sont retirés ;
+ * `endedAt` null = séance en cours ; `stopped` : arrêtée avant la fin (les chiffres restent, le niveau ne la compte pas).
+ */
+export function trainingRecord(r) {
+  if (!r || typeof r !== 'object' || typeof r.id !== 'string' || !r.id || !Number.isFinite(r.startedAt) || !Array.isArray(r.darts)) return null;
+  if (typeof r.player !== 'string' || !r.player || typeof r.exercise !== 'string') return null;
+  const rec = {
+    id: r.id, startedAt: r.startedAt, endedAt: Number.isFinite(r.endedAt) ? r.endedAt : null, player: r.player,
+    setId: typeof r.setId === 'string' && r.setId ? r.setId : null, mode: r.mode === 'libre' ? 'libre' : 'coach', exercise: r.exercise,
+    darts: r.darts.map(cleanTrainingDart),
+  };
+  if (Array.isArray(r.blocks)) rec.blocks = r.blocks.map(b => { const t = cleanTarget(b); return t && { ...t, n: Math.max(1, Math.min(99, Math.round(Number(b.n)) || 9)) }; }).filter(Boolean);
+  if (r.stopped === true) rec.stopped = true;
+  return rec;
 }
 
 /** Opérations de la suppression de parties (lot 3) : une seule transaction ; joueurs (et leurs photos) jamais touchés. */

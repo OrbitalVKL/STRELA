@@ -303,6 +303,13 @@ function cricketBlock(pid) {
       <div class="kpi" data-k="ckbest"><small>Meilleure volée</small><b>${c.best}<small> marques</small></b></div><div class="kpi" data-k="ckdarts"><small>Fléchettes</small><b>${c.darts}</b></div></div>`;
 }
 
+/** Lot 8 : lien vers les stats d'entraînement du joueur, s'il a des séances. */
+function trainingLink(pid) {
+  const n = store.trainings.filter(r => r.player === pid).length;
+  if (!n) return '';
+  return `${sec('Entraînement', null)}<button type="button" class="btn" data-act="ts-open" data-arg="${esc(pid)}">${ico('stats')} STATS D'ENTRAÎNEMENT <small>${plural(n, 'séance', 'séances')}</small></button>`;
+}
+
 export function stats2Screen(id) {
   const players = store.players.filter(p => !p.archived || store.games.some(g => g.config.players.includes(p.id)));
   if (!players.length) return `<div class="screen">${topBar('Stats', '#/')}<div class="empty"><div class="big">AUCUN JOUEUR</div></div></div>`;
@@ -351,6 +358,7 @@ export function stats2Screen(id) {
       <div class="kpis"><div class="kpi wide tons"><div data-k="ton"><small>100+</small><b>${st.ton}</b></div><div data-k="ton40"><small>140+</small><b>${st.ton40}</b></div><div data-k="max"><small>180</small><b>${st.max}</b></div><div data-k="busts"><small>Bust</small><b>${st.busts}</b></div></div>
         ${k('drinks', `Verres en ${plural(st.played, 'partie', 'parties')}`, `${drinkT.glasses}${drinkT.pints ? `<small> · ${plural(drinkT.pints, 'pinte', 'pintes')}</small>` : ''}`, 'wide')}</div>
       ${cricketBlock(pid)}
+      ${trainingLink(pid)}
       ${vitrineHtml(pid, sec, infoBox, fold)}
       ${chartBlock(games, pid)}
       ${drinksBlock(games, pid)}

@@ -61,6 +61,10 @@ export function home2() {
   const soiree = store.soiree
     ? `<a class="btn soiree-btn on" href="#/soiree"><span class="t">${ico('glass')} SOIRÉE EN COURS</span><small>${plural(store.soiree.players.length, 'JOUEUR', 'JOUEURS')} · ${drinksText(soireeTotal()).toUpperCase()}</small><span class="go">${ico('chev')}</span></a>`
     : welcome.first ? '' : `<a class="btn ghost soiree-btn" href="#/soiree"><span class="t">${ico('glass')} DÉBUTER UNE SOIRÉE</span></a>`;
+  // Lot 8 : entraînement solo, à côté de la partie et de la soirée.
+  const train = store.tr
+    ? `<a class="btn tr-btn on" href="#/entrainement"><span class="t">${ico('sniper')} ENTRAÎNEMENT EN COURS</span><small>${plural(store.tr.darts.length, 'FLÉCHETTE', 'FLÉCHETTES')}</small><span class="go">${ico('chev')}</span></a>`
+    : welcome.first ? '' : `<a class="btn ghost tr-btn" href="#/entrainement"><span class="t">${ico('sniper')} ENTRAÎNEMENT SOLO</span></a>`;
   const items = [
     ['#/joueurs', 'players', 'Joueurs', n ? plural(n, 'joueur', 'joueurs') : 'aucun'],
     ['#/historique', 'history', 'Historique', g ? plural(g, 'partie', 'parties') : 'aucune partie'],
@@ -77,7 +81,7 @@ export function home2() {
   return `<div class="screen home2 v-tableau">
     <header class="t-head"><h1 class="home-title" data-shrink>STRELA</h1><p>Compteur de fléchettes · X01 · Cricket</p></header>
     <main class="t-main">${storageBanner()}${updateBadge()}
-      ${welcome.html}${resume}${newGame}${soiree}
+      ${welcome.html}${resume}${newGame}${soiree}${train}
       <div class="hcards">${lastGameCard()}${leaderCard()}</div>
       <nav class="tiles2" aria-label="Menu">${tiles}</nav>
     </main>${foot}</div>`;

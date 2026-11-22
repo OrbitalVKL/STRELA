@@ -2,6 +2,17 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.12.0', date: '2026-11-22', title: 'Entraînement solo', items: [
+    'Nouveau mode ENTRAÎNEMENT SOLO à l\'accueil, à côté de la partie et de la soirée : tes séances sont notées à ton nom, avec le jeu de fléchettes utilisé.',
+    'Coaché : l\'appli propose un exercice (groupement, tour de l\'horloge, haut contre bas, gauche contre droite, score libre, bull, 20-19-18), analyse tes fléchettes et propose une correction, un conseil et l\'exercice suivant. Niveau débutant ; le passage au niveau suivant est suivi (groupement à 50 % sur 3 séances de suite).',
+    'Libre : tu choisis la cible (secteur, zone : tout le secteur, simple, simple intérieur, simple extérieur, triple, double ; ou le centre) et le nombre de fléchettes ; ENCORE UNE SÉRIE ajoute une autre cible à la séance.',
+    'Saisie comme en partie : le pavé en portrait, avec SIMPLE INTÉRIEUR et SIMPLE EXTÉRIEUR ; la cible au doigt en paysage (la position est gardée). Une fléchette hors cible se saisit (touche 0, ou sur la couronne des numéros).',
+    'Analyse sur les cotes d\'une vraie cible : précision, groupement en centimètres, écart moyen dessiné (point visé → centre des impacts), messages du type « tes fléchettes partent à gauche du 20 ».',
+    'Stats d\'entraînement : entraînements seuls, parties seules ou les deux ; par jeu de fléchettes, par exercice, par période ; carte de chaleur (simple intérieur et extérieur à part), courbes de progression avec la valeur sur chaque point.',
+    'Armurerie : tes jeux de fléchettes (poids, fût, matière, grip, longueur, tige, empennage, pointe), six modèles fournis, et tes deux jeux déjà créés (22 g torpedo 161 mm, 22 g fût droit 135 mm, empennages 0,1 mm).',
+    'Conseils : fiches illustrées (prise en main, posture, lancer, types de fléchettes) ; l\'analyse du coach renvoie à la bonne fiche.',
+    'Tes données sont gardées : la base gagne deux rangements (séances et jeux), rien d\'autre ne change ; la sauvegarde exporte et importe aussi l\'entraînement.',
+  ] },
   { v: '0.11.2', date: '2026-11-20', title: 'Verres et pintes, sans tournées', items: [
     'Plus de tournées : « le dernier paie sa tournée » et TOURNÉE SERVIE disparaissent de la fin de partie, de la fiche de score, du rapport et du résumé de soirée. Le rapport montre à la place qui a gagné chaque partie.',
     'Défis : plus aucun verre n\'est noté par un gage (l\'étoile réussi / raté reste). Le défi « moins de 20 : ta tournée » devient « moins de 20, sinon un verre ».',

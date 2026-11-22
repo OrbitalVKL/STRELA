@@ -24,6 +24,11 @@ export const CLOSERS = [
   'backup-no',        // confirmation d'import
   'backup-cancel',    // aperçu d'import
   'crop-cancel',      // recadrage de la photo
+  'tr-confirm-no',    // lot 8 : supprimer la séance (menu pause de l'entraînement)
+  'tr-resume',        // lot 8 : menu pause de l'entraînement
+  'tr-add-cancel',    // lot 8 : série suivante (libre)
+  'tr-del-no',        // lot 8 : supprimer une séance (détail)
+  'ds-del-no',        // lot 8 : supprimer un jeu de fléchettes
 ];
 
 /**
@@ -38,6 +43,7 @@ export function handleBack(actions, go, root = document.getElementById('app')) {
   }
   if (path === '/jeu') { if (actions.pause) actions.pause(); return true; }
   if (path === '/cricket') { if (actions['ck-pause']) actions['ck-pause'](); return true; }
+  if (path === '/entrainement/jeu') { if (actions['tr-pause']) actions['tr-pause'](); return true; }
   const up = root.querySelector('header.top a.back');
   if (up) { go(up.getAttribute('href')); return true; }
   if (path === '/' || path === '') return false;

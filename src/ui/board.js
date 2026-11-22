@@ -9,6 +9,8 @@ import { SECTORS, RINGS, polar, impactPoint, zoneTone } from '../engine/board.js
 // Le dessin est à l'échelle K (rayon du double = 100) : évite les polices de moins de 1 px dans le SVG.
 const K = 100;
 const f = n => (n * K).toFixed(2).replace(/\.?0+$/, '');
+/** Coordonnée du repère (rayon 1 = bord du double) dans l'échelle du dessin (lot 8 : tracés ajoutés par-dessus). */
+export const svgN = f;
 const pt = (a, r) => polar(a, r).map(f).join(' ');
 
 /** Chemin d'un secteur d'anneau entre les rayons r0 et r1, les angles a0 et a1 (degrés, 0 = haut, sens horaire). */
@@ -21,13 +23,14 @@ function zones() {
   const out = [];
   SECTORS.forEach((s, i) => {
     const a0 = i * 18 - 9, a1 = i * 18 + 9;
-    out.push({ key: `${s}`, tone: zoneTone(s, 1), d: sector(RINGS.outerBull, RINGS.tripleIn, a0, a1) });
-    out.push({ key: `T${s}`, tone: zoneTone(s, 3), d: sector(RINGS.tripleIn, RINGS.tripleOut, a0, a1) });
-    out.push({ key: `${s}`, tone: zoneTone(s, 1), d: sector(RINGS.tripleOut, RINGS.doubleIn, a0, a1) });
-    out.push({ key: `D${s}`, tone: zoneTone(s, 2), d: sector(RINGS.doubleIn, RINGS.doubleOut, a0, a1) });
+    // ring (lot 8) : 'i' simple intérieur, 'o' simple extérieur (même clé de zone, la carte de l'entraînement les sépare)
+    out.push({ key: `${s}`, ring: 'i', s, z: 'si', tone: zoneTone(s, 1), d: sector(RINGS.outerBull, RINGS.tripleIn, a0, a1) });
+    out.push({ key: `T${s}`, ring: '', s, z: 't', tone: zoneTone(s, 3), d: sector(RINGS.tripleIn, RINGS.tripleOut, a0, a1) });
+    out.push({ key: `${s}`, ring: 'o', s, z: 'se', tone: zoneTone(s, 1), d: sector(RINGS.tripleOut, RINGS.doubleIn, a0, a1) });
+    out.push({ key: `D${s}`, ring: '', s, z: 'd', tone: zoneTone(s, 2), d: sector(RINGS.doubleIn, RINGS.doubleOut, a0, a1) });
   });
-  out.push({ key: '25', tone: zoneTone(25, 1), r: RINGS.outerBull });
-  out.push({ key: '50', tone: zoneTone(25, 2), r: RINGS.bull });
+  out.push({ key: '25', ring: '', s: 25, z: 's', tone: zoneTone(25, 1), r: RINGS.outerBull });
+  out.push({ key: '50', ring: '', s: 25, z: 'd', tone: zoneTone(25, 2), r: RINGS.bull });
   return out;
 }
 const ZONES = zones();
@@ -79,8 +82,10 @@ function spread(marks, R) {
  *   heat     : (key) → 0..1 (carte des segments : plus une zone est claire, plus elle a été touchée) ; act : data-act
  *   cls, id, label (texte pour les lecteurs d'écran), selected : clé de zone entourée
  *   counts   : lot 7.8 — (secteur 1…20 | 25) → nombre d'impacts, écrit sur chaque secteur (simple extérieur) et au centre
+ *   aim      : lot 8 — cible visée { s, z } (engine/training.js), entourée ; extra : SVG ajouté par-dessus (échelle K)
+ *   heat     : reçoit aussi l'anneau ('i' / 'o' pour les simples) en second argument (lot 8)
  */
-export function boardSvg({ size = 300, labels = size >= 150, impacts = [], heat = null, act = null, cls = '', id = '', label = 'Cible', selected = null, counts = null } = {}) {
+export function boardSvg({ size = 300, labels = size >= 150, impacts = [], heat = null, act = null, cls = '', id = '', label = 'Cible', selected = null, counts = null, aim = null, extra = '' } = {}) {
   const edge = labels ? RINGS.edge : RINGS.doubleOut + 0.04;
   const vb = `${f(-edge)} ${f(-edge)} ${f(2 * edge)} ${f(2 * edge)}`;
   const unit = (2 * edge) / size; // unités du repère par px affiché
@@ -91,9 +96,15 @@ export function boardSvg({ size = 300, labels = size >= 150, impacts = [], heat 
     parts.push(`<circle class="veil" r="${f(RINGS.doubleOut)}"/>`);
     for (const z of ZONES) {
       const arg = act ? ` data-act="${act}" data-arg="${z.key}"` : '';
-      parts.push(shape(z, `class="heat" style="fill-opacity:${(0.92 * heat(z.key)).toFixed(3)}"${arg}`));
+      parts.push(shape(z, `class="heat" style="fill-opacity:${(0.92 * heat(z.key, z.ring)).toFixed(3)}"${arg}`));
     }
     for (const z of ZONES) if (z.key === selected) parts.push(shape(z, 'class="sel"'));
+  }
+  if (aim) {
+    // Cible visée : chaque zone qui compte, entourée d'un trait clair doublé de sombre (lisible sur les 4 couleurs).
+    const inAim = z => z.s === aim.s && (aim.z === 'any' || aim.z === z.z || (aim.z === 's' && (z.z === 'si' || z.z === 'se')));
+    const sel = ZONES.filter(inAim);
+    parts.push(`<g class="aim">${sel.map(z => shape(z, 'class="aim-o"')).join('')}${sel.map(z => shape(z, 'class="aim-i"')).join('')}</g>`);
   }
   if (labels) parts.push(`<g class="num" style="font-size:${f(0.115)}px">${numbers(RINGS.labels)}</g>`);
   if (counts) {
@@ -115,6 +126,7 @@ export function boardSvg({ size = 300, labels = size >= 150, impacts = [], heat 
   }
   const R = (size < 150 ? MARK.small : MARK.big) * unit;
   for (const m of spread(cur.map(i => ({ p: impactPoint(i.dart), n: i.n })).filter(m => m.p), R)) parts.push(mark(m.p[0], m.p[1], R, m.n));
+  if (extra) parts.push(extra);
   return `<svg class="tgt${size < 150 ? ' sm' : ''} ${cls}"${id ? ` id="${id}"` : ''} viewBox="${vb}" role="img" aria-label="${label}">${parts.join('')}</svg>`;
 }
 

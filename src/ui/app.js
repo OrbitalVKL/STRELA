@@ -32,6 +32,10 @@ import { actions as drinkActions } from './drinks.js';
 import { weeklyAutoBackup } from './autobackup.js';
 import { honourScreen, badgeSheetHtml, closeBadgeSheet, actions as honourActions } from './honours.js';
 import { cricketScreen, cricketEnd, cricketDetail, cricketTurnFx, actions as cricketActions } from './screens/cricket.js';
+import { trainingHub, trainingScreen, trainingEnd, trainingDetail, mountTraining, actions as trainingActions } from './screens/training.js';
+import { trainStatsScreen, actions as trainStatsActions } from './screens/trainstats.js';
+import { arsenalList, arsenalForm, inputs as arsenalInputs, actions as arsenalActions } from './screens/arsenal.js';
+import { adviceList, adviceSheet } from './screens/advice.js';
 
 // Version 0.8.0 : la refonte (lot 7.8, écrans de screens/v2/) remplace l'accueil, l'historique, les stats et les
 // réglages ; accueil A « tableau de bord » (choix de Guillaume, 13/11/2026).
@@ -60,14 +64,26 @@ const ROUTES = [
   [/^\/apropos$/, aboutScreen],
   [/^\/soiree$/, soireeScreen],
   [/^\/soiree\/(.+)$/, soireeDashScreen],
+  // Lot 8 : entraînement solo, armurerie, conseils
+  [/^\/entrainement$/, trainingHub],
+  [/^\/entrainement\/jeu$/, trainingScreen],
+  [/^\/entrainement\/fin$/, trainingEnd],
+  [/^\/entrainement\/stats$/, trainStatsScreen],
+  [/^\/entrainement\/seance\/(.+)$/, trainingDetail],
+  [/^\/armurerie$/, arsenalList],
+  [/^\/armurerie\/nouveau\/(.+)$/, model => arsenalForm('nouveau', model)],
+  [/^\/armurerie\/(.+)$/, arsenalForm],
+  [/^\/conseils$/, adviceList],
+  [/^\/conseils\/(.+)$/, adviceSheet],
 ];
 
 const ACTIONS = {
   ...playerActions, ...newGameActions, ...gameActions, ...resultActions,
   ...statsActions, ...settingsActions, ...historyActions, ...photoActions, ...aboutActions, ...sheetActions, ...soireeActions,
   ...stats2Actions, ...history2Actions, ...dashActions, ...infoActions, ...drinkActions, ...honourActions, ...cricketActions,
+  ...trainingActions, ...trainStatsActions, ...arsenalActions,
 };
-const INPUTS = { ...playerInputs };
+const INPUTS = { ...playerInputs, ...arsenalInputs };
 
 const app = document.getElementById('app');
 let lastPath = null;
@@ -165,9 +181,10 @@ function draw() {
   else leaveGameFx();
   if (path !== '/jeu') clearVowelFall(); // lot 7.8 : les voyelles de Tsia restent sur l'écran de jeu
   if (path === '/recadrage') mountCrop();
+  if (path === '/entrainement/jeu') mountTraining(); // lot 8 : saisie au doigt sur la cible (paysage)
   app.querySelector('[data-reveal]')?.scrollIntoView({ block: 'center' });
-  keepAwake(path === '/jeu' || path === '/manche' || path === '/cricket'); // écran allumé pendant la partie, relâché en la quittant
-  document.title = path === '/jeu' ? 'STRELA · partie' : 'STRELA';
+  keepAwake(path === '/jeu' || path === '/manche' || path === '/cricket' || path === '/entrainement/jeu'); // écran allumé pendant la partie (et l'entraînement), relâché en la quittant
+  document.title = path === '/jeu' ? 'STRELA · partie' : path === '/entrainement/jeu' ? 'STRELA · entraînement' : 'STRELA';
   nativeBackHandled(backHandled(app)); // APK : retour prédictif (lot 6)
   autoUpdateCheck(path);
 }
@@ -175,7 +192,7 @@ function draw() {
 // Recherche automatique de mise à jour (lot 6, APK « github ») : une fois par lancement, au premier écran hors partie,
 // si le réglage le permet ; la coquille n'interroge GitHub qu'une fois par 24 h au plus (sinon, état gardé).
 let autoChecked = false;
-const IN_GAME = new Set(['/jeu', '/manche', '/fin', '/recadrage', '/cricket', '/cricket/fin']);
+const IN_GAME = new Set(['/jeu', '/manche', '/fin', '/recadrage', '/cricket', '/cricket/fin', '/entrainement/jeu', '/entrainement/fin']);
 function autoUpdateCheck(path) {
   if (!weeklyChecked && !store.maquette && !IN_GAME.has(path)) { weeklyChecked = true; weeklyAutoBackup(); } // lot 9
   if (autoChecked || store.maquette || !hasUpdater() || IN_GAME.has(path)) return;
@@ -287,12 +304,12 @@ window.addEventListener('hashchange', render);
 // Bouton retour d'Android (lot 5, APK) : la coquille appelle strelaBack() ; false = à l'accueil, l'appli peut sortir.
 window.strelaBack = () => handleBack(ACTIONS, go);
 // Rotation : l'écran de jeu change de mise en page (pavé en portrait, cible en paysage), l'état reste.
-try { matchMedia('(orientation: landscape)').addEventListener('change', () => { if (location.hash === '#/jeu') render(); }); } catch (e) { /* vieux navigateur */ }
+try { matchMedia('(orientation: landscape)').addEventListener('change', () => { if (location.hash === '#/jeu' || location.hash === '#/entrainement/jeu') render(); }); } catch (e) { /* vieux navigateur */ }
 // Taille de la fenêtre (barres de Chrome, clavier, police) : l'écran de jeu se redessine, les autres se réajustent.
 let resizeFrame = 0;
 window.addEventListener('resize', () => {
   cancelAnimationFrame(resizeFrame);
-  resizeFrame = requestAnimationFrame(() => { if (location.hash === '#/jeu') render(); else fitAll(app); });
+  resizeFrame = requestAnimationFrame(() => { if (location.hash === '#/jeu' || location.hash === '#/entrainement/jeu') render(); else fitAll(app); });
 });
 try { document.fonts.ready.then(() => fitAll(app)); } catch (e) { /* vieux navigateur */ }
 try { matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { applyTheme(); render(); }); } catch (e) { /* vieux navigateur */ }

@@ -11,7 +11,9 @@ import { shuffled } from '../engine/shuffle.js';
 import { DEFI_SET } from '../engine/defis.js';
 import { computeState, STATUS, EVENTS } from '../engine/x01.js';
 import { deletePlayer as removePlayer, deletionImpact, isDeletedId } from '../engine/players.js';
-import { openDb, currentRecord, closedRecord, playerRecord, deletionOps, gameDeletionOps, soireeRecord, DB_VERSION } from '../data/db.js';
+import { openDb, currentRecord, closedRecord, playerRecord, deletionOps, gameDeletionOps, soireeRecord, trainingRecord, DB_VERSION } from '../data/db.js';
+import { trainingState, cleanTrainingDart, cleanTarget } from '../engine/training.js';
+import { dartSetRecord } from '../engine/dartsets.js';
 import { makeBackup, importPlan } from '../data/backup.js';
 import { bac, drinkTimes, drinkTime, drinkAt, isPint, unitsOf, drinkTally, PINT_L } from '../engine/alcohol.js';
 import { computeCricket, isCricket } from '../engine/cricket.js';
@@ -25,6 +27,12 @@ export const store = {
   ckGames: [],       // parties de Cricket closes
   ck: null,          // partie de Cricket en cours { id, config, darts, startedAt, validated, ui }
   lastSetup: null,   // derniers réglages de « Nouvelle partie »
+  // Lot 8 : entraînement solo (à part des parties : rien du code X01 ni du Cricket ne le voit).
+  trainings: [],     // séances closes, la plus récente d'abord
+  tr: null,          // séance en cours { …enregistrement, ui } (une à la fois, indépendante de la partie en cours)
+  dartSets: [],      // jeux de fléchettes (armurerie)
+  trSetup: null,     // derniers choix de l'écran Entraînement (réglage « training »)
+  trDraft: null,     // jeu de fléchettes en cours de modification
   soiree: null,      // soirée en cours (lot 7.6) : { id, startedAt, players, drinks } (db.js › soireeRecord)
   soireeDraft: null, // écran « Soirée » avant de la débuter : { players }
   draft: null,       // fiche joueur en cours de modification
@@ -85,6 +93,10 @@ export function resaveAll() {
     { store: 'settings', key: 'display', put: { ...store.settings } },
     ...(store.lastSetup ? [{ store: 'settings', key: 'lastSetup', put: store.lastSetup }] : []),
     ...(store.soiree ? [{ store: 'settings', key: 'soiree', put: store.soiree }] : []),
+    ...store.trainings.map(r => ({ store: 'trainings', put: trainingRecord(r) })),
+    ...(store.tr ? [{ store: 'trainings', put: trainingRecord(store.tr) }] : []),
+    ...store.dartSets.map(x => ({ store: 'dartsets', put: dartSetRecord(x) })),
+    ...(store.trSetup ? [{ store: 'settings', key: 'training', put: store.trSetup }] : []),
   ];
   return write(ops);
 }
@@ -111,6 +123,14 @@ export async function openStorage({ onVersionChange } = {}) {
   store.ck = cur && isCricket(cur) ? { ...cur, ui: freshCkUi() } : null;
   store.lastSetup = data.settings.lastSetup || null;
   store.soiree = soireeRecord(data.settings.soiree);
+  // Lot 8 : entraînement (une séance illisible est gardée dans la base, pas affichée).
+  const trOk = r => { const x = trainingRecord(r); if (!x) return null; try { trainingState(x, x.darts); return x; } catch (e) { return null; } };
+  store.trainings = (data.trainings || []).map(trOk).filter(Boolean).sort((a, b) => b.startedAt - a.startedAt);
+  if (data.trainingStale && data.trainingStale.length) write(data.trainingStale.map(r => ({ store: 'trainings', put: r })));
+  const tr = data.training && trOk(data.training);
+  store.tr = tr ? { ...tr, ui: freshTrUi() } : null;
+  store.dartSets = (data.dartSets || []).map(dartSetRecord).filter(Boolean).sort((a, b) => a.createdAt - b.createdAt);
+  store.trSetup = data.settings.training && typeof data.settings.training === 'object' ? data.settings.training : null;
   if (data.settings.display) {
     Object.assign(store.settings, data.settings.display);
     mirrorSettings();
@@ -652,15 +672,17 @@ export function deleteCurrent() {
 /** Sauvegarde complète de ce qui est sur le téléphone (src/data/backup.js). */
 export function exportBackup(app) {
   const display = { ...store.settings };
-  return makeBackup({ players: store.players, games: [...store.games, ...store.ckGames], current: store.current || store.ck, display, lastSetup: store.lastSetup },
-    { app, dbVersion: store.db.version });
+  return makeBackup({ players: store.players, games: [...store.games, ...store.ckGames], current: store.current || store.ck, display, lastSetup: store.lastSetup,
+    trainings: store.trainings, training: store.tr, dartSets: store.dartSets },
+  { app, dbVersion: store.db.version });
 }
 
 /**
  * Importe une sauvegarde vérifiée (parseBackup) : 'replace' (tout remplacer) ou 'merge' (ajouter ce qui manque).
  * Une seule transaction ; l'état en mémoire suit. Renvoie les chiffres de l'import.
  */
-const localData = () => ({ players: store.players, games: [...store.games, ...store.ckGames], current: store.current || store.ck, display: { ...store.settings }, lastSetup: store.lastSetup });
+const localData = () => ({ players: store.players, games: [...store.games, ...store.ckGames], current: store.current || store.ck, display: { ...store.settings }, lastSetup: store.lastSetup,
+  trainings: store.trainings, training: store.tr, dartSets: store.dartSets });
 
 /** Chiffres d'un import avant de le faire (texte des confirmations). */
 export const importCounts = (backup, mode) => importPlan(localData(), backup, mode).counts;
@@ -679,6 +701,11 @@ export function applyImport(backup, mode) {
   store.lastSetup = plan.state.lastSetup || null;
   store.setupDraft = null;
   store.draft = null;
+  // Lot 8 : entraînement
+  store.trainings = [...plan.state.trainings].sort((a, b) => b.startedAt - a.startedAt);
+  store.tr = plan.state.training ? (plan.state.training === local.training ? local.training : { ...plan.state.training, ui: freshTrUi() }) : null;
+  store.dartSets = [...plan.state.dartSets];
+  store.trDraft = null;
   Object.assign(store.settings, plan.state.display);
   if (!store.maquette) mirrorSettings();
   write(plan.ops);
@@ -788,4 +815,112 @@ export function deleteCk() {
   if (!g) return;
   store.ck = null;
   write(gameDeletionOps([g.id]));
+}
+
+// ------------------------------------------------------------------ entraînement solo (lot 8)
+// Séances dans le magasin « trainings » (v3), jeux de fléchettes dans « dartsets » ; derniers choix dans le réglage
+// « training ». La séance en cours est écrite à chaque fléchette et à chaque ANNULER, comme une partie.
+/** État d'affichage d'une séance (non enregistré) : zone armée ('in' | 'out' | 'd' | 't'), menu, loupe figée. */
+export const freshTrUi = () => ({ zone: 'in', pause: false, confirm: false, loupe: null, add: null, cele: null });
+
+export const trState = () => (store.tr ? trainingState(store.tr, store.tr.darts) : null);
+
+export function saveTr() {
+  if (store.tr) write([{ store: 'trainings', put: trainingRecord(store.tr) }]);
+}
+
+/** Derniers choix de l'écran Entraînement (joueur, jeu, mode, exercice, cible libre). */
+export function saveTrSetup(patch) {
+  store.trSetup = { ...(store.trSetup || {}), ...patch };
+  if (!store.maquette) write([{ store: 'settings', key: 'training', put: store.trSetup }]);
+}
+
+/** Démarre une séance ({ player, setId, mode, exercise, blocks? }) ; une séance en cours est d'abord rangée (arrêtée). */
+export function startTraining(setup, now = Date.now()) {
+  if (store.tr) closeTraining({ stopped: true });
+  const rec = trainingRecord({ id: newId('t'), startedAt: now, endedAt: null, darts: [], ...setup });
+  store.tr = { ...rec, ui: freshTrUi() };
+  write([{ store: 'trainings', put: trainingRecord(store.tr) }]);
+  return store.tr;
+}
+
+/** Ajoute une fléchette à la séance en cours ; false si la séance n'en attend plus. */
+export function trThrow(dart) {
+  const r = store.tr;
+  if (!r) return false;
+  const darts = [...r.darts, cleanTrainingDart(dart)];
+  try { if (trainingState(r, r.darts).done) return false; trainingState(r, darts); } catch (e) { return false; }
+  r.darts = darts;
+  saveTr();
+  return true;
+}
+
+export function trUndo() {
+  const r = store.tr;
+  if (!r) return false;
+  // Libre : une série ajoutée et pas encore commencée est d'abord retirée (ANNULER défait le dernier geste).
+  if (r.exercise === 'libre' && r.blocks && r.blocks.length > 1) {
+    const st = trainingState(r, r.darts);
+    if (!st.blocks[st.blocks.length - 1].darts.length) { r.blocks = r.blocks.slice(0, -1); saveTr(); return true; }
+  }
+  if (!r.darts.length) return false;
+  r.darts = r.darts.slice(0, -1);
+  saveTr();
+  return true;
+}
+
+/** Libre : une série de plus dans la séance en cours (même écran). */
+export function trAddBlock(target, n) {
+  const r = store.tr;
+  const t = cleanTarget(target);
+  if (!r || r.exercise !== 'libre' || !t) return false;
+  r.blocks = [...(r.blocks || []), { ...t, n: Math.max(1, Math.min(99, Math.round(n) || 9)) }];
+  saveTr();
+  return true;
+}
+
+/** Range la séance en cours ; sans fléchette, elle est oubliée. `stopped` : arrêtée avant la fin. Renvoie la séance rangée. */
+export function closeTraining({ stopped = false } = {}, now = Date.now()) {
+  const r = store.tr;
+  if (!r) return null;
+  store.tr = null;
+  if (!r.darts.length) { write([{ store: 'trainings', del: r.id }]); return null; }
+  const done = trainingState(r, r.darts).done;
+  const rec = trainingRecord({ ...r, endedAt: now, stopped: stopped || !done });
+  store.trainings.unshift(rec);
+  write([{ store: 'trainings', put: rec }]);
+  return rec;
+}
+
+/** Supprime des séances (closes ou en cours). */
+export function deleteTrainings(ids) {
+  const gone = new Set(ids);
+  const before = store.trainings.length + (store.tr ? 1 : 0);
+  store.trainings = store.trainings.filter(r => !gone.has(r.id));
+  if (store.tr && gone.has(store.tr.id)) store.tr = null;
+  write([...gone].map(id => ({ store: 'trainings', del: id })));
+  return before - store.trainings.length - (store.tr ? 1 : 0);
+}
+
+export const trainingById = id => (store.tr && store.tr.id === id ? store.tr : store.trainings.find(r => r.id === id) || null);
+export const dartSetById = id => store.dartSets.find(x => x.id === id) || null;
+/** Séances (closes et en cours) qui utilisent un jeu. */
+export const setUses = id => store.trainings.filter(r => r.setId === id).length + (store.tr && store.tr.setId === id ? 1 : 0);
+
+export function saveDartSet(x) {
+  const rec = dartSetRecord(x);
+  if (!rec) return null;
+  const i = store.dartSets.findIndex(y => y.id === rec.id);
+  if (i < 0) store.dartSets.push(rec); else store.dartSets[i] = rec;
+  write([{ store: 'dartsets', put: rec }]);
+  return rec;
+}
+
+/** Supprime un jeu jamais utilisé (sinon : l'archiver, ses séances le gardent). */
+export function deleteDartSet(id) {
+  if (setUses(id)) return false;
+  store.dartSets = store.dartSets.filter(x => x.id !== id);
+  if (store.trSetup && store.trSetup.setId === id) saveTrSetup({ setId: null });
+  write([{ store: 'dartsets', del: id }]);
+  return true;
 }

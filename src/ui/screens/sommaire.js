@@ -26,6 +26,12 @@ import { presetHonour, presetBadgeSheet } from '../honours.js';
 import { presetDashFolds, presetDashTourAsk } from './v2/soireedash.js';
 import { presetHistory2 } from './v2/history2.js';
 import { presetSettings2 } from './settings.js';
+import { startTraining, freshTrUi } from '../store.js';
+import { trainingState as trainingStateFn } from '../../engine/training.js';
+import { presetTraining } from './training.js';
+import { presetTrainStats } from './trainstats.js';
+import { presetInfo } from '../info.js';
+import { aimedDart, rng } from '../mock.js';
 
 // Lot 7 : jouer jusqu'au bout à 4 (301, sortie simple) ; après PO1, Guillaume, Mathilde et Karim sont à 80, Sacha à 301.
 const PLAYON = () => ({ ...cfg(['p1', 'p2', 'p3', 'p4'], 301, 'single'), playOn: true });
@@ -135,7 +141,82 @@ function mockTournee(sid) {
 }
 const v78 = (route, prep = () => {}) => () => { seasonMock(); presetStats2(); presetHistory2(); presetSettings2(); prep(); return route; };
 
+// Lot 8 : séance d'entraînement fabriquée (remplace celle en cours) ; `n` fléchettes tirées autour des cibles, ou la notation.
+function setTr(exercise, n, { blocks = null, ui = {}, darts = null } = {}) {
+  store.tr = null;
+  store.trSetup = { player: 'p1', setId: 'ds-torpedo-22', mode: exercise === 'libre' ? 'libre' : 'coach' };
+  startTraining({ player: 'p1', setId: 'ds-torpedo-22', mode: exercise === 'libre' ? 'libre' : 'coach', exercise, ...(blocks ? { blocks } : {}) }, Date.now() - 600e3);
+  const r = rng(42);
+  if (darts) store.tr.darts = darts;
+  else {
+    let num = 1;
+    for (let i = 0; i < n; i++) {
+      const st = trStateOf();
+      if (!st.cur) break;
+      const t = st.blocks[st.cur.i];
+      const d = aimedDart(r, t, { pos: i % 2 === 0 });
+      store.tr.darts.push(d);
+      if (exercise === 'horloge' && d.segment === num) num++;
+    }
+  }
+  store.tr.ui = { ...freshTrUi(), ...ui };
+  presetTraining();
+  presetInfo();
+  return '#/entrainement/jeu';
+}
+const trStateOf = () => trainingStateFn(store.tr, store.tr.darts);
+const LIBRE = [{ s: 20, z: 't', n: 9 }];
+
 export const SCENES = {
+  // Lot 8 : entraînement solo
+  'tr-hub': () => { store.tr = null; store.trSetup = { player: 'p1', setId: 'ds-torpedo-22', mode: 'coach' }; presetInfo(); return '#/entrainement'; },
+  'tr-hub-info': () => { store.tr = null; store.trSetup = { player: 'p1', setId: 'ds-torpedo-22', mode: 'coach' }; presetInfo(['tr-level', 'tr-exs', 'tr-ex-groupement', 'tr-set', 'tr-mode']); return '#/entrainement'; },
+  'tr-hub-libre': () => { store.tr = null; store.trSetup = { player: 'p1', setId: 'ds-droit-22', mode: 'libre', free: { s: 19, z: 't', n: 15 } }; presetInfo(); return '#/entrainement'; },
+  'tr-hub-vide': () => { store.tr = null; store.trainings = []; store.trSetup = null; presetInfo(); return '#/entrainement'; },
+  'tr-hub-reprendre': () => { setTr('groupement', 4); return '#/entrainement'; },
+  'tr-accueil': () => { setTr('groupement', 4); return '#/'; },
+  'tr-jeu': () => setTr('groupement', 4),
+  'tr-jeu-debut': () => setTr('groupement', 0),
+  'tr-jeu-ext': () => setTr('groupement', 2, { ui: { zone: 'out' } }),
+  'tr-jeu-triple': () => setTr('groupement', 3, { ui: { zone: 't' } }),
+  'tr-jeu-double': () => setTr('libre', 1, { blocks: [{ s: 16, z: 'd', n: 9 }], ui: { zone: 'd' } }),
+  'tr-jeu-horloge': () => setTr('horloge', 23),
+  'tr-jeu-hautbas': () => setTr('hautbas', 4),
+  'tr-jeu-bull': () => setTr('bull', 5),
+  'tr-jeu-score': () => setTr('scorelibre', 13),
+  'tr-jeu-pause': () => setTr('groupement', 4, { ui: { pause: true } }),
+  'tr-jeu-pause-suppr': () => setTr('groupement', 4, { ui: { pause: true, confirm: 'delete' } }),
+  'tr-jeu-loupe': () => setTr('groupement', 2, { ui: { loupe: { x: 0.05, y: -0.6 } } }),
+  'tr-fin': () => { setTr('groupement', 9); return '#/entrainement/fin'; },
+  'tr-fin-info': () => { setTr('groupement', 9); presetInfo(['tr-an-fin']); return '#/entrainement/fin'; },
+  'tr-fin-horloge': () => { setTr('horloge', 200); return '#/entrainement/fin'; },
+  'tr-fin-hautbas': () => { setTr('hautbas', 18); return '#/entrainement/fin'; },
+  'tr-fin-score': () => { setTr('scorelibre', 30); return '#/entrainement/fin'; },
+  'tr-fin-vingt': () => { setTr('vingt', 60); return '#/entrainement/fin'; },
+  'tr-fin-bull': () => { setTr('bull', 9); return '#/entrainement/fin'; },
+  'tr-fin-libre': () => { setTr('libre', 9, { blocks: LIBRE }); return '#/entrainement/fin'; },
+  'tr-fin-libre-ajout': () => { setTr('libre', 9, { blocks: LIBRE }); presetTraining({ add: { s: 19, z: 'si', n: 12 } }); return '#/entrainement/fin'; },
+  'tr-seance': () => { store.tr = null; presetInfo(); return `#/entrainement/seance/${store.trainings[0].id}`; },
+  'tr-seance-vingt': () => { store.tr = null; presetInfo(); const r = store.trainings.find(x => x.exercise === 'vingt'); return `#/entrainement/seance/${r.id}`; },
+  'tr-seance-horloge': () => { store.tr = null; presetInfo(); const r = store.trainings.find(x => x.exercise === 'horloge'); return `#/entrainement/seance/${r.id}`; },
+  'tr-seance-suppr': () => { store.tr = null; presetInfo(); return `#/entrainement/seance/${store.trainings[1].id}`; },
+  'tr-stats': () => { presetTrainStats(); presetInfo(); return '#/entrainement/stats'; },
+  'tr-stats-info': () => { presetTrainStats(); presetInfo(['ts-filters', 'ts-curve', 'ts-heat', 'ts-sets']); return '#/entrainement/stats'; },
+  'tr-stats-groupement': () => { presetTrainStats({ exercise: 'groupement', metric: 'exercise' }); presetInfo(); return '#/entrainement/stats'; },
+  'tr-stats-jeu': () => { presetTrainStats({ set: 'ds-droit-22' }); presetInfo(); return '#/entrainement/stats'; },
+  'tr-stats-parties': () => { presetTrainStats({ source: 'parties' }); presetInfo(); return '#/entrainement/stats'; },
+  'tr-stats-deux': () => { presetTrainStats({ source: 'deux' }); presetInfo(); return '#/entrainement/stats'; },
+  'tr-stats-vide': () => { presetTrainStats({ period: '7j', exercise: 'bull' }); store.trainings = store.trainings.filter(r => r.exercise !== 'bull'); presetInfo(); return '#/entrainement/stats'; },
+  armurerie: () => { store.trDraft = null; return '#/armurerie'; },
+  'armurerie-jeu': () => { store.trDraft = null; return '#/armurerie/ds-torpedo-22'; },
+  'armurerie-modele': () => { store.trDraft = null; return '#/armurerie/nouveau/fusele-20'; },
+  'armurerie-vierge': () => { store.trDraft = null; return '#/armurerie/nouveau'; },
+  conseils: () => '#/conseils',
+  'conseils-prise': () => '#/conseils/prise',
+  'conseils-posture': () => '#/conseils/posture',
+  'conseils-lancer': () => '#/conseils/lancer',
+  'conseils-types': () => '#/conseils/types',
+
   'v78-accueil': v78('#/'),
   'v78-accueil-soiree': v78('#/', () => { store.soiree = { id: 's1', startedAt: Date.now() - 2 * 3600e3, players: ['p1', 'p2', 'p3'], drinks: {} }; }),
   'v78-stats': v78('#/stats/p1'),
@@ -445,6 +526,55 @@ export function sommaire() {
     <div class="pad"><div class="sec">Version 0.8.0 · refonte</div>
       <p class="note" style="margin-top:0">La refonte est dans l'appli depuis la 0.8.0 (accueil A). Ici, sur une saison fictive de 14 soirées : ouvrez l'accueil puis naviguez normalement (Stats, Classement, Historique, Réglages, Nouveautés).</p>
       <button type="button" class="btn primary" data-act="scene" data-arg="v78-accueil" style="margin-bottom:12px">ACCUEIL, SAISON FICTIVE</button></div>
+    <div class="pad"><div class="sec">Lot 8 · entraînement solo</div></div>
+    <nav class="toc">
+      ${L('tr-hub', '◆ Entraînement : coaché', 'exercice proposé, niveau')}
+      ${L('tr-hub-info', '◆ Entraînement : explications (i)')}
+      ${L('tr-hub-libre', '◆ Entraînement : libre', 'T19 · 15 fléchettes')}
+      ${L('tr-hub-vide', '◆ Entraînement : première fois')}
+      ${L('tr-hub-reprendre', '◆ Entraînement : séance en cours')}
+      ${L('tr-accueil', '◆ Accueil : entraînement en cours')}
+      ${L('tr-jeu-debut', '◆ Saisie : début', 'groupement')}
+      ${L('tr-jeu', '◆ Saisie : en cours', 'pavé en portrait, cible en paysage')}
+      ${L('tr-jeu-ext', '◆ Saisie : simple extérieur armé')}
+      ${L('tr-jeu-triple', '◆ Saisie : triple armé')}
+      ${L('tr-jeu-double', '◆ Saisie : libre, D16')}
+      ${L('tr-jeu-horloge', '◆ Saisie : tour de l\'horloge')}
+      ${L('tr-jeu-hautbas', '◆ Saisie : haut contre bas')}
+      ${L('tr-jeu-bull', '◆ Saisie : bull')}
+      ${L('tr-jeu-score', '◆ Saisie : score libre')}
+      ${L('tr-jeu-pause', '◆ Saisie : pause')}
+      ${L('tr-jeu-pause-suppr', '◆ Saisie : supprimer la séance')}
+      ${L('tr-jeu-loupe', '◆ Saisie : loupe', 'paysage')}
+      ${L('tr-fin', '◆ Fin : groupement', 'analyse du coach')}
+      ${L('tr-fin-info', '◆ Fin : explication (i)')}
+      ${L('tr-fin-horloge', '◆ Fin : horloge')}
+      ${L('tr-fin-hautbas', '◆ Fin : haut contre bas', 'deux cibles')}
+      ${L('tr-fin-score', '◆ Fin : score libre')}
+      ${L('tr-fin-vingt', '◆ Fin : 20-19-18', 'trois cibles')}
+      ${L('tr-fin-bull', '◆ Fin : bull')}
+      ${L('tr-fin-libre', '◆ Fin : libre')}
+      ${L('tr-fin-libre-ajout', '◆ Fin : libre, série suivante')}
+      ${L('tr-seance', '◆ Détail d\'une séance')}
+      ${L('tr-seance-vingt', '◆ Détail : 20-19-18')}
+      ${L('tr-seance-horloge', '◆ Détail : horloge')}
+      ${L('tr-stats', '◆ Stats d\'entraînement')}
+      ${L('tr-stats-info', '◆ Stats : explications (i)')}
+      ${L('tr-stats-groupement', '◆ Stats : exercice groupement')}
+      ${L('tr-stats-jeu', '◆ Stats : un jeu de fléchettes')}
+      ${L('tr-stats-parties', '◆ Stats : parties seules')}
+      ${L('tr-stats-deux', '◆ Stats : les deux')}
+      ${L('tr-stats-vide', '◆ Stats : rien avec ces filtres')}
+      ${L('armurerie', '◆ Armurerie')}
+      ${L('armurerie-jeu', '◆ Armurerie : un jeu')}
+      ${L('armurerie-modele', '◆ Armurerie : nouveau jeu d\'après un modèle')}
+      ${L('armurerie-vierge', '◆ Armurerie : nouveau jeu vierge')}
+      ${L('conseils', '◆ Conseils')}
+      ${L('conseils-prise', '◆ Conseils : prise en main')}
+      ${L('conseils-posture', '◆ Conseils : posture')}
+      ${L('conseils-lancer', '◆ Conseils : lancer')}
+      ${L('conseils-types', '◆ Conseils : types de fléchettes')}
+    </nav>
     <nav class="toc">
       ${L('v78-accueil', '★ Accueil', 'saison fictive, à parcourir')}
       ${L('v78-accueil-soiree', '★ Accueil, soirée en cours')}

@@ -1,6 +1,6 @@
 # Strela — règles du projet
 
-Appli Android de fléchettes (X01, et Cricket depuis la 0.10.0) pour Guillaume. Dépôt `OrbitalVKL/STRELA` (public, branche `main`).
+Appli Android de fléchettes (X01, Cricket depuis la 0.10.0, entraînement solo depuis la 0.12.0) pour Guillaume. Dépôt `OrbitalVKL/STRELA` (public, branche `main`).
 Cahier des charges : [docs/cahier-des-charges.md](docs/cahier-des-charges.md).
 
 ## Méthode de travail
@@ -93,6 +93,11 @@ src/ui/screens/cricket.js écrans du Cricket (lot 10) : jeu (face à face / gril
 src/ui/honours.js         vitrine (Stats), tableau d'honneur #/honneur, badges de fin de partie ; src/ui/soireesummary.js :
                           résumé de soirée à partager (image 1080 × 1920)
 src/engine/ranking.js     classement, joueur en tête, derniers (tournée), célébrations des nuls (lot 7), roi des uns (0.11)
+src/engine/training.js    entraînement solo (lot 8, docs/entrainement.md) : exercices, analyse, coach, niveau ;
+                          engine/dartsets.js : jeux de fléchettes (modèles, jeux de Guillaume)
+src/ui/screens/training.js entraînement : choix, saisie (pavé S INT./S EXT., cible au doigt), fin, détail ;
+                          trainstats.js (stats), arsenal.js (armurerie), advice.js (conseils illustrés) ;
+                          src/ui/boardinput.js : saisie au doigt sur la cible (loupe), commune au jeu et à l'entraînement
 src/engine/shuffle.js     tirage au sort de l'ordre (Fisher-Yates sans biais, 0.11.0 ; tests/tirage.test.js)
 src/engine/alcohol.js     verres : comptes (verre 25 cl, pinte 50 cl = 2 verres, 0.8.2), place dans la partie, alcoolémie estimée (lot 7) ;
                           src/ui/drinks.js : choix verre / pinte et affichage du compte (0.8.2)
@@ -182,7 +187,21 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 0.11.2 | Plus de tournées ni de gages notés, verres de 25 cl et pintes à part, retrait des tournées notées (v0.11.2) — **fait, en attente de validation sur le Pixel** |
 | 0.11.1 | Tableau de bord de soirée repliable et sans débordement, chiffres enrichis, défis et badges (feuille D du rapport, stats du joueur) (v0.11.1) — **fait, en attente de validation sur le Pixel** |
 | 0.11 | Retours de la soirée du 20/11 : VALIDER en un appui, bandeau du défi, pastilles de rang, Tsia (menus, dégrisement), HPV, Atila et la moto d'Angelina, badges (fenêtre, rangs, soirée, roi des uns), 6 défis et étoiles, tirage vérifié (v0.11.0) — **fait, en attente de validation sur le Pixel** |
-| 8 | Recette |
+| 8 | Entraînement solo : coaché (7 exercices débutant, analyse, conseils, niveau) et libre, saisie S INT. / S EXT., armurerie, stats entraînement / parties / les deux, conseils illustrés, base v3 (v0.12.0) — **fait, en attente de validation sur le Pixel** |
+| 11 | Recette |
+
+## État (version 0.12.0 : entraînement solo, lot 8)
+
+- **0.12.0** (22/11) : lot 8 en entier (docs/entrainement.md). Base en **version 3** : magasins `trainings` et
+  `dartsets` (migration douce, testée en vrai v2 → v3) ; sauvegarde : champs facultatifs `trainings`, `dartSets`
+  (une sauvegarde plus ancienne garde l'entraînement du téléphone). Réglage `training` (derniers choix).
+- Choix faits sans Guillaume (à lui dire) : simple intérieur par défaut au pavé ; pas de VALIDER à l'entraînement ;
+  haut/bas et gauche/droite en 3 alternances ; Bull « à moins de deux secteurs » = 25, 50 ou simple intérieur ; passage
+  de niveau = groupement ≥ 50 % sur 3 séances de suite ; la séance en cours est indépendante de la partie en cours.
+- À vérifier sur le Pixel : saisie S INT. / S EXT. au pavé, cible au doigt en paysage, analyse et messages du coach,
+  stats (filtres, carte, courbes), armurerie (compléter ses deux jeux), fiches conseils.
+- Pour la suite : un nouvel écran va dans `SCENES` (sommaire, section « Lot 8 ») ; ajouter un exercice = une entrée
+  d'`EXERCISES` (+ `COACH_ORDER`) ; une fiche = `SHEETS` + `ILL` (advice.js).
 
 ## État (version 0.11.2 : verres et pintes, sans tournées)
 
