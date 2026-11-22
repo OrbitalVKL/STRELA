@@ -32,7 +32,8 @@ export function resetMock() {
   // Lot 8 : entraînement (séances de Guillaume, ses deux jeux de fléchettes)
   store.trainings = mockTrainings();
   store.tr = null;
-  store.dartSets = SEED_SETS.map(clone);
+  // Couleurs (0.13.0) : la torpedo en noir et or, la fût droit en acier et rouge ; un troisième jeu archivé.
+  store.dartSets = SEED_SETS.map(clone).map(x => ({ ...x, colors: x.id === 'ds-torpedo-22' ? { point: 'argent', barrel: 'noir', shaft: 'or', flight: 'noir' } : { point: 'argent', barrel: 'acier', shaft: 'noir', flight: 'rouge' } }));
   store.trSetup = null;
   store.trDraft = null;
   // Lot 4 : problème d'enregistrement simulé remis à zéro

@@ -71,6 +71,20 @@
   --board-wire: #A2A7AC;
   --board-mark: #FAF8F2;
   --board-mark-ink: #0E1012;
+  /* Fléchettes (armurerie, 0.13.0) : mêmes couleurs dans les deux thèmes ; voir DART_COLORS de theme.js */
+  --dart-noir: #1B1D1F;
+  --dart-argent: #B9BEC3;
+  --dart-acier: #6E7378;
+  --dart-or: #C9A23F;
+  --dart-cuivre: #B06A3B;
+  --dart-blanc: #EEEDE8;
+  --dart-rouge: #B23A33;
+  --dart-orange: #D0702A;
+  --dart-jaune: #D9B92E;
+  --dart-vert: #2F7D50;
+  --dart-bleu: #2F5A9E;
+  --dart-violet: #6A4C93;
+  --dart-rose: #C8618E;
   --font: 'Martian Mono', ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
   --rule: 1px solid var(--faint);
   color-scheme: dark;

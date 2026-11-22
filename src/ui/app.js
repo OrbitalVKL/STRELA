@@ -32,7 +32,7 @@ import { actions as drinkActions } from './drinks.js';
 import { weeklyAutoBackup } from './autobackup.js';
 import { honourScreen, badgeSheetHtml, closeBadgeSheet, actions as honourActions } from './honours.js';
 import { cricketScreen, cricketEnd, cricketDetail, cricketTurnFx, actions as cricketActions } from './screens/cricket.js';
-import { trainingHub, trainingScreen, trainingEnd, trainingDetail, mountTraining, actions as trainingActions } from './screens/training.js';
+import { trainingHub, trainingScreen, trainingEnd, trainingDetail, mountTraining, actions as trainingActions, inputs as trainingInputs } from './screens/training.js';
 import { trainStatsScreen, actions as trainStatsActions } from './screens/trainstats.js';
 import { arsenalList, arsenalForm, inputs as arsenalInputs, actions as arsenalActions } from './screens/arsenal.js';
 import { adviceList, adviceSheet } from './screens/advice.js';
@@ -83,7 +83,7 @@ const ACTIONS = {
   ...stats2Actions, ...history2Actions, ...dashActions, ...infoActions, ...drinkActions, ...honourActions, ...cricketActions,
   ...trainingActions, ...trainStatsActions, ...arsenalActions,
 };
-const INPUTS = { ...playerInputs, ...arsenalInputs };
+const INPUTS = { ...playerInputs, ...arsenalInputs, ...trainingInputs };
 
 const app = document.getElementById('app');
 let lastPath = null;
