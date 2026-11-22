@@ -943,3 +943,11 @@ soirées passées : bouton à confirmer.
   page web, importer dans l'appli Android.
 - Tout nouvel écran ou état : l'ajouter au sommaire (`SCENES`) pour le test de chevauchement ; tout état de jeu : aussi à
   `SCENES` de `tests/couleurs.test.js` ; un texte qui peut s'allonger prend `.ell`, `data-shrink` ou un palier `data-fit`.
+
+## Lot 8 : entraînement solo (version 0.12.0)
+
+Tout est dans [entrainement.md](entrainement.md) : écrans `#/entrainement…`, `#/armurerie…`, `#/conseils…`, saisie
+(pavé avec S INT. / S EXT., cible au doigt en paysage), analyse, coach, stats, armurerie, conseils, base v3. Accueil :
+bouton ENTRAÎNEMENT SOLO sous la soirée (ENTRAÎNEMENT EN COURS en vidéo inverse quand une séance est ouverte). Stats d'un
+joueur : bouton STATS D'ENTRAÎNEMENT s'il a des séances. La saisie au doigt sur la cible est passée dans
+`src/ui/boardinput.js` (même comportement en partie).

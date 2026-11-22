@@ -64,7 +64,7 @@ test('base : écriture et relecture, partie en cours après rechargement', { ski
     db.close();
     return { ...all, version: db.version };
   }, DB);
-  assert.equal(back.version, 2);
+  assert.equal(back.version, 3); // lot 8 : version 3 (entraînement)
   assert.deepEqual(back.players.sort((x, y) => x.id.localeCompare(y.id)), written.players);
   assert.deepEqual(back.games, [written.done]);
   assert.deepEqual(back.current, written.current, 'partie en cours relue à l’identique (pos, validated)');
@@ -113,7 +113,7 @@ test('base : migrations jouées dans l’ordre, données gardées, base plus ré
   assert.deepEqual(r.idx, ['startedAt']);
   assert.equal(r.newer, 'NEWER');
   assert.equal(r.still.games.length, 1);
-  assert.deepEqual(r.stores.sort(), ['games', 'players', 'settings']);
+  assert.deepEqual(r.stores.sort(), ['dartsets', 'games', 'players', 'settings', 'trainings']);
 }));
 
 test('base : migration réelle v1 → v2 (lot 4), préférences de finition ajoutées aux joueurs, rien d’autre ne change', { skip, timeout: 60e3 }, () => withPages(async open => {
@@ -131,7 +131,7 @@ test('base : migration réelle v1 → v2 (lot 4), préférences de finition ajou
     ]);
     const before = await v1.loadAll();
     v1.close();
-    const v2 = await m.openDb({ name: 't-v2' });
+    const v2 = await m.openDb({ name: 't-v2', migrations: m.MIGRATIONS.slice(0, 2) });
     const after = await v2.loadAll();
     v2.close();
     return { version: v2.version, before, after };
@@ -198,6 +198,6 @@ test('base : une nouvelle version ouverte ailleurs ferme la connexion de l’anc
     db.close();
     return { version: db.version, players: all.players.length };
   }, DB);
-  assert.deepEqual(v, { version: 3, players: 1 });
+  assert.deepEqual(v, { version: 4, players: 1 });
   assert.equal(await oldPage.evaluate(() => window.__vc), 1, 'l’ancienne page a été prévenue (elle se recharge)');
 }));

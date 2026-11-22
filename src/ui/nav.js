@@ -28,7 +28,15 @@ export function noteRoute(hash) { if (hash !== cur) { prev = cur; cur = hash; } 
 // l'accueil. Jamais vers le jeu (on n'y revient que par REPRENDRE).
 const FAMILY_ALIAS = { classement: 'stats', honneur: 'stats' }; // onglets Joueur / Classement des Stats
 const NO_RETURN = new Set(['jeu', 'manche', 'fin', 'nouvelle', 'recadrage']);
-const family = h => { const f = String(h).replace(/^#\/?/, '').split(/[/?]/)[0]; return FAMILY_ALIAS[f] || f; };
+// Lot 8 : les écrans de l'entraînement, des conseils et de l'armurerie forment chacun leur famille (stats, séance, une
+// fiche, un jeu), pour revenir à celui d'où l'on vient (une fiche ouverte depuis l'analyse d'une séance y revient).
+// L'entraînement en cours n'est pas un écran de partie : on peut y revenir (pause → conseils → retour).
+const SUB_FAMILY = new Set(['entrainement', 'conseils', 'armurerie']);
+const family = h => {
+  const parts = String(h).replace(/^#\/?/, '').split(/[/?]/);
+  const f = SUB_FAMILY.has(parts[0]) && parts[1] ? `${parts[0]}/${parts[1]}` : parts[0];
+  return FAMILY_ALIAS[f] || f;
+};
 const stack = [];
 function trackFamily(hash) {
   const f = family(hash);

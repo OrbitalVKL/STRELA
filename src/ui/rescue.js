@@ -67,13 +67,16 @@
       r.onsuccess = function () {
         var db = r.result;
         try {
-          var tx = db.transaction(['players', 'games', 'settings'], 'readonly');
+          // Lot 8 : séances d'entraînement et jeux de fléchettes, si la base les a (version 3).
+          var extra = ['trainings', 'dartsets'].filter(function (n) { return db.objectStoreNames.contains(n); });
+          var tx = db.transaction(['players', 'games', 'settings'].concat(extra), 'readonly');
           var out = { dbVersion: db.version };
           var get = function (store, key) {
             var q = tx.objectStore(store)[key]();
             q.onsuccess = function () { out[store + '.' + key] = q.result; };
           };
           get('players', 'getAll'); get('games', 'getAll'); get('settings', 'getAllKeys'); get('settings', 'getAll');
+          extra.forEach(function (n) { get(n, 'getAll'); });
           tx.oncomplete = function () { db.close(); resolve(out); };
           tx.onerror = function () { db.close(); reject(tx.error); };
         } catch (e) { db.close(); reject(e); }
@@ -89,11 +92,14 @@
       if (o.endedAt === undefined) o.endedAt = null;
       return o;
     });
-    return {
+    var out = {
       format: 'strela-sauvegarde', version: 1, app: version(), exportedAt: new Date().toISOString(), dbVersion: raw.dbVersion,
       players: raw['players.getAll'] || [], games: games,
       settings: { display: settings.display || null, lastSetup: settings.lastSetup || null },
     };
+    if (raw['trainings.getAll']) out.trainings = raw['trainings.getAll'];
+    if (raw['dartsets.getAll']) out.dartSets = raw['dartsets.getAll'];
+    return out;
   }
 
   function deliver(name, text) {

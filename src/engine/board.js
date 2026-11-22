@@ -72,9 +72,10 @@ export function dartPoint(dart) {
   if (dart.segment === BULL) return dart.multiplier === DOUBLE ? [0, 0] : polar(0, (RINGS.bull + RINGS.outerBull) / 2);
   const a = sectorAngle(dart.segment);
   if (a < 0) return null;
+  // Lot 8 : un simple saisi « extérieur » à l'entraînement (ring 'out') va dans le simple extérieur.
   const r = dart.multiplier === TRIPLE ? (RINGS.tripleIn + RINGS.tripleOut) / 2
     : dart.multiplier === DOUBLE ? (RINGS.doubleIn + RINGS.doubleOut) / 2
-      : (RINGS.outerBull + RINGS.tripleIn) / 2;
+      : dart.ring === 'out' ? (RINGS.tripleOut + RINGS.doubleIn) / 2 : (RINGS.outerBull + RINGS.tripleIn) / 2;
   return polar(a, r);
 }
 
@@ -86,6 +87,8 @@ export function impactPoint(dart) {
   if (dart && Array.isArray(dart.pos) && dart.pos.length === 2) {
     const hit = segmentAt(dart.pos[0], dart.pos[1]);
     if (hit && hit.segment === dart.segment && hit.multiplier === dart.multiplier) return [dart.pos[0], dart.pos[1]];
+    // Lot 8 : fléchette hors cible posée sur la couronne des numéros (entraînement).
+    if (!hit && dart.segment === MISS && Math.hypot(dart.pos[0], dart.pos[1]) <= RINGS.edge) return [dart.pos[0], dart.pos[1]];
   }
   return dartPoint(dart);
 }

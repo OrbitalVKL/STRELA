@@ -21,7 +21,7 @@ test('nom du fichier : strela-AAAAMMJJ-HHMM.json', () => {
 test('aller-retour : export, base vide, REMPLACER TOUT → données identiques (photo, position, partie en cours, réglages)', () => {
   const file = JSON.stringify(makeBackup(LOCAL, { app: '0.3.0', dbVersion: 1, now: new Date(Date.UTC(2026, 9, 30)) }));
   const b = parseBackup(file);
-  assert.deepEqual(b.summary, { players: 2, games: 1, current: true, exportedAt: '2026-10-30T00:00:00.000Z', app: '0.3.0' });
+  assert.deepEqual(b.summary, { players: 2, games: 1, current: true, exportedAt: '2026-10-30T00:00:00.000Z', app: '0.3.0', trainings: 0 });
   const plan = importPlan(EMPTY, b, 'replace');
   assert.deepEqual(plan.state.players, P);
   assert.deepEqual(plan.state.games, G);
@@ -38,12 +38,12 @@ test('FUSIONNER : ajoute ce qui manque, sans doublon ; garde ce qui existe ici',
   const local = { ...EMPTY, players: [{ ...P[0], name: 'Alpha (ici)' }], games: [] };
   const plan = importPlan(local, b, 'merge');
   assert.deepEqual(plan.state.players.map(p => p.name), ['Alpha (ici)', 'Bravo']);
-  assert.deepEqual(plan.counts, { playersAdded: 1, gamesAdded: 2, currentSkipped: false });
+  assert.deepEqual(plan.counts, { playersAdded: 1, gamesAdded: 2, currentSkipped: false, trainingsAdded: 0, dartSetsAdded: 0 });
   assert.equal(plan.state.current.id, 'g2', 'pas de partie en cours ici : celle de la sauvegarde est reprise');
   assert.deepEqual(plan.state.display, EMPTY.display, 'réglages d’ici gardés');
   // Deuxième fusion du même fichier : rien de plus.
   const again = importPlan(plan.state, b, 'merge');
-  assert.deepEqual(again.counts, { playersAdded: 0, gamesAdded: 0, currentSkipped: false });
+  assert.deepEqual(again.counts, { playersAdded: 0, gamesAdded: 0, currentSkipped: false, trainingsAdded: 0, dartSetsAdded: 0 });
   assert.deepEqual(again.ops, []);
   // Une partie déjà en cours ici : celle de la sauvegarde va dans l'historique, abandonnée.
   const busy = importPlan({ ...EMPTY, current: { ...CUR, id: 'gx' } }, b, 'merge');

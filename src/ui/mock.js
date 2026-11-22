@@ -7,7 +7,7 @@ import { computeState } from '../engine/x01.js';
 import { suggestCheckout } from '../engine/checkout.js';
 import { makeDart } from '../engine/darts.js';
 import { computeCricket } from '../engine/cricket.js';
-import { SECTORS } from '../engine/board.js';
+import { SECTORS, segmentAt } from '../engine/board.js';
 
 // Ordre des secteurs sur la cible (voisins pour les fléchettes ratées).
 export const BOARD = SECTORS;
@@ -230,4 +230,49 @@ export function mockCricket(players, now = Date.now()) {
     const darts = simulateCricket(config, ids.map(id => skill[id]), 500 + i * 53);
     return { id: `c${i + 1}`, startedAt: d.getTime(), endedAt: d.getTime() + 20 * 60e3, config, darts, validated: darts.length, abandoned: false };
   });
+}
+
+// ------------------------------------------------------------------ lot 8 : entraînement fictif
+/**
+ * Une fléchette d'entraînement tirée autour de la cible visée `t` (repère de board.js) : un lancer de débutant qui part
+ * un peu à gauche et un peu bas (`bias`), dispersé de `spread`. Position gardée une fois sur deux (saisie sur la cible).
+ */
+export function aimedDart(r, t, { bias = [-0.05, 0.04], spread = 0.2, pos = true } = {}) {
+  const a = t.s === 25 ? 0 : SECTORS.indexOf(t.s) * 18;
+  const rad = t.s === 25 ? 0 : t.z === 't' ? 0.575 : t.z === 'd' ? 0.925 : t.z === 'si' ? 0.33 : t.z === 'se' ? 0.75 : 0.56;
+  const ax = rad * Math.sin((a * Math.PI) / 180), ay = -rad * Math.cos((a * Math.PI) / 180);
+  const g = () => (r() + r() + r() - 1.5) * spread * 1.4;
+  const x = ax + bias[0] + g(), y = ay + bias[1] + g();
+  const hit = segmentAt(x, y);
+  const p = [Math.round(x * 1000) / 1000, Math.round(y * 1000) / 1000];
+  if (!hit) return pos && Math.hypot(x, y) <= 1.18 ? { segment: 0, multiplier: 1, pos: p } : { segment: 0, multiplier: 1 };
+  const ring = hit.multiplier === 1 && hit.segment !== 25 ? (Math.hypot(x, y) < 0.5 ? 'in' : 'out') : undefined;
+  const d = { segment: hit.segment, multiplier: hit.multiplier };
+  if (ring) d.ring = ring;
+  if (pos) d.pos = p;
+  return d;
+}
+
+/** Séances fictives de Guillaume (p1) sur trois semaines : tous les exercices, deux jeux de fléchettes, un peu de progrès. */
+export function mockTrainings(now = Date.now()) {
+  const r = rng(808);
+  const day = 86400e3;
+  const plan = ['groupement', 'horloge', 'hautbas', 'groupement', 'gauchedroite', 'scorelibre', 'groupement', 'bull', 'vingt', 'libre', 'groupement', 'hautbas'];
+  const blocksOf = {
+    groupement: [{ s: 20, z: 'any', n: 9 }], hautbas: [20, 3, 20, 3, 20, 3].map(s => ({ s, z: 'any', n: 3 })), gauchedroite: [11, 6, 11, 6, 11, 6].map(s => ({ s, z: 'any', n: 3 })),
+    scorelibre: [{ s: 20, z: 'any', n: 30 }], bull: [{ s: 25, z: 'any', n: 9 }], vingt: [20, 19, 18].map(s => ({ s, z: 'any', n: 20 })), libre: [{ s: 20, z: 't', n: 9 }, { s: 19, z: 't', n: 9 }],
+  };
+  return plan.map((ex, i) => {
+    const startedAt = now - (plan.length - i) * 1.7 * day - 20 * 3600e3 + i * 600e3;
+    const k = i / plan.length; // progrès : moins dispersé, moins à gauche
+    const opt = { bias: [-0.07 * (1 - k), 0.05 * (1 - k)], spread: 0.24 - 0.1 * k, pos: i % 2 === 0 };
+    const darts = [];
+    if (ex === 'horloge') {
+      let num = 1;
+      while (num <= 20 && darts.length < 90) { const d = aimedDart(r, { s: num, z: 'any' }, opt); darts.push(d); if (d.segment === num) num++; }
+    } else for (const b of blocksOf[ex]) for (let j = 0; j < b.n; j++) darts.push(aimedDart(r, b, opt));
+    const rec = { id: `t${i + 1}`, startedAt, endedAt: startedAt + 900e3, player: 'p1', setId: i % 3 === 2 ? 'ds-droit-22' : 'ds-torpedo-22', mode: ex === 'libre' ? 'libre' : 'coach', exercise: ex, darts };
+    if (ex === 'libre') rec.blocks = blocksOf.libre;
+    return rec;
+  }).reverse();
 }

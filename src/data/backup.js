@@ -3,7 +3,8 @@
 // Fichier « strela-AAAAMMJJ-HHMM.json » :
 //   { format: 'strela-sauvegarde', version: 1, app (version de l'appli), exportedAt (ISO), dbVersion,
 //     players: [joueur (photo comprise, data: URL)], games: [partie (la partie en cours a endedAt null)],
-//     settings: { display, lastSetup } }
+//     settings: { display, lastSetup },
+//     trainings?: [séance d'entraînement (la séance en cours a endedAt null)], dartSets?: [jeu de fléchettes] (lot 8) }
 // Les enregistrements ont exactement la forme de la base (src/data/db.js) : ce format sert aussi au passage de la
 // page web à l'APK (lot 5). `storage` (réponse du navigateur au stockage persistant) est propre à l'appareil : il
 // n'est pas exporté.
@@ -14,10 +15,14 @@
 //   FUSIONNER      : on ajoute les joueurs et les parties absents (par identifiant, sans doublon) ; ce qui existe
 //                    déjà sur le téléphone est gardé tel quel, réglages compris.
 // Les écritures d'un import tiennent dans une seule transaction (tout ou rien).
+// Lot 8 : séances d'entraînement et jeux de fléchettes, champs facultatifs (le format reste en version 1) ; une sauvegarde
+// d'avant le lot 8 n'en a pas : REMPLACER TOUT garde alors ceux du téléphone (rien n'est perdu), FUSIONNER n'ajoute rien.
 
 import { computeState } from '../engine/x01.js';
 import { computeCricket } from '../engine/cricket.js';
-import { playerRecord, withDrinks } from './db.js';
+import { playerRecord, withDrinks, trainingRecord } from './db.js';
+import { trainingState } from '../engine/training.js';
+import { dartSetRecord } from '../engine/dartsets.js';
 
 export const BACKUP_FORMAT = 'strela-sauvegarde';
 export const BACKUP_VERSION = 1;
@@ -36,7 +41,9 @@ const gameOut = g => withDrinks(g, {
 });
 
 /** Sauvegarde complète : { players, games (closes), current (ou null), settings: { display, lastSetup } }. */
-export function makeBackup({ players, games, current, display, lastSetup }, { app = 'dev', dbVersion = null, now = new Date() } = {}) {
+export function makeBackup({ players, games, current, display, lastSetup, trainings = null, training = null, dartSets = null }, { app = 'dev', dbVersion = null, now = new Date() } = {}) {
+  const tr = trainings || training ? { trainings: [...(trainings || []).map(r => trainingRecord({ ...r, endedAt: r.endedAt ?? r.startedAt })), ...(training ? [trainingRecord({ ...training, endedAt: null })] : [])].filter(Boolean) } : {};
+  const sets = dartSets ? { dartSets: dartSets.map(dartSetRecord).filter(Boolean) } : {};
   return {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
@@ -46,6 +53,8 @@ export function makeBackup({ players, games, current, display, lastSetup }, { ap
     players: players.map(playerRecord),
     games: [...games.map(g => gameOut({ ...g, endedAt: g.endedAt ?? g.startedAt })), ...(current ? [gameOut({ ...current, endedAt: null })] : [])],
     settings: { display: display ? { ...display } : null, lastSetup: lastSetup ? { ...lastSetup } : null },
+    ...tr,
+    ...sets,
   };
 }
 
@@ -99,7 +108,38 @@ export function parseBackup(text) {
     current: open[0] || null,
     settings: { display: isObj(settings.display) ? settings.display : null, lastSetup: isObj(settings.lastSetup) ? settings.lastSetup : null },
   };
-  out.summary = { players: players.length, games: out.games.length, current: !!out.current, exportedAt: data.exportedAt || null, app: data.app || null };
+  // Lot 8 : séances d'entraînement et jeux de fléchettes (absents d'une sauvegarde plus ancienne : null).
+  out.trainings = null;
+  out.training = null;
+  out.dartSets = null;
+  if (data.trainings !== undefined) {
+    if (!Array.isArray(data.trainings)) throw new BackupError('Sauvegarde abîmée : séances d\'entraînement illisibles.');
+    const seen = new Set();
+    const list = data.trainings.map((r, i) => {
+      const bad = () => new BackupError(`Sauvegarde abîmée : séance d'entraînement n° ${i + 1} illisible.`);
+      const rec = trainingRecord(r);
+      if (!rec || seen.has(rec.id)) throw bad();
+      try { trainingState(rec, rec.darts); } catch (e) { throw bad(); }
+      seen.add(rec.id);
+      return rec;
+    });
+    const openTr = list.filter(r => r.endedAt === null);
+    if (openTr.length > 1) throw new BackupError('Sauvegarde abîmée : plusieurs séances d\'entraînement en cours.');
+    out.trainings = list.filter(r => r.endedAt !== null);
+    out.training = openTr[0] || null;
+  }
+  if (data.dartSets !== undefined) {
+    if (!Array.isArray(data.dartSets)) throw new BackupError('Sauvegarde abîmée : jeux de fléchettes illisibles.');
+    const seen = new Set();
+    out.dartSets = data.dartSets.map((x, i) => {
+      const rec = dartSetRecord(x);
+      if (!rec || seen.has(rec.id)) throw new BackupError(`Sauvegarde abîmée : jeu de fléchettes n° ${i + 1} illisible.`);
+      seen.add(rec.id);
+      return rec;
+    });
+  }
+  out.summary = { players: players.length, games: out.games.length, current: !!out.current, exportedAt: data.exportedAt || null, app: data.app || null,
+    trainings: out.trainings ? out.trainings.length + (out.training ? 1 : 0) : 0 };
   return out;
 }
 
@@ -112,6 +152,57 @@ export function parseBackup(text) {
  * sinon elle est rangée dans l'historique, abandonnée (comme deux parties ouvertes au démarrage, db.js).
  */
 export function importPlan(local, backup, mode) {
+  const plan = gamesPlan(local, backup, mode);
+  const tr = trainingPlan(local, backup, mode);
+  plan.ops.push(...tr.ops);
+  Object.assign(plan.state, tr.state);
+  Object.assign(plan.counts, tr.counts);
+  return plan;
+}
+
+/**
+ * Lot 8 : séances d'entraînement et jeux de fléchettes. REMPLACER TOUT : ceux de la sauvegarde remplacent ceux du
+ * téléphone, si la sauvegarde en a (sinon on garde ceux d'ici). FUSIONNER : ceux qui manquent sont ajoutés ; une séance
+ * en cours de la sauvegarde est reprise seulement si aucune n'est en cours ici (sinon elle est rangée, arrêtée).
+ */
+function trainingPlan(local, backup, mode) {
+  const lt = local.trainings || [], lc = local.training || null, ls = local.dartSets || [];
+  const ops = [];
+  let trainings = lt, training = lc, dartSets = ls, added = 0, setsAdded = 0;
+  if (mode === 'replace') {
+    if (backup.trainings) {
+      ops.push({ store: 'trainings', clear: true });
+      trainings = backup.trainings; training = backup.training;
+      for (const r of trainings) ops.push({ store: 'trainings', put: r });
+      if (training) ops.push({ store: 'trainings', put: training });
+      added = trainings.length + (training ? 1 : 0);
+    }
+    if (backup.dartSets) {
+      ops.push({ store: 'dartsets', clear: true });
+      dartSets = backup.dartSets;
+      for (const x of dartSets) ops.push({ store: 'dartsets', put: x });
+      setsAdded = dartSets.length;
+    }
+  } else {
+    const have = new Set([...lt.map(r => r.id), ...(lc ? [lc.id] : [])]);
+    const fresh = (backup.trainings || []).filter(r => !have.has(r.id));
+    if (backup.training && !have.has(backup.training.id)) {
+      if (lc) fresh.push({ ...backup.training, endedAt: backup.training.startedAt, stopped: true });
+      else { training = backup.training; ops.push({ store: 'trainings', put: training }); added++; }
+    }
+    for (const r of fresh) ops.push({ store: 'trainings', put: r });
+    trainings = [...lt, ...fresh];
+    added += fresh.length;
+    const haveSets = new Set(ls.map(x => x.id));
+    const newSets = (backup.dartSets || []).filter(x => !haveSets.has(x.id));
+    for (const x of newSets) ops.push({ store: 'dartsets', put: x });
+    dartSets = [...ls, ...newSets];
+    setsAdded = newSets.length;
+  }
+  return { ops, state: { trainings, training, dartSets }, counts: { trainingsAdded: added, dartSetsAdded: setsAdded } };
+}
+
+function gamesPlan(local, backup, mode) {
   if (mode === 'replace') {
     const ops = [{ store: 'players', clear: true }, { store: 'games', clear: true }];
     for (const p of backup.players) ops.push({ store: 'players', put: p });

@@ -17,7 +17,7 @@ import { throwDart, undoDart, computeState } from '../../engine/x01.js';
 import { makeDart, formatDart } from '../../engine/darts.js';
 import { suggestCheckout } from '../../engine/checkout.js';
 import { playerSummary } from '../../engine/stats.js';
-import { segmentAt, zoneLabel, RINGS } from '../../engine/board.js';
+import { segmentAt, RINGS } from '../../engine/board.js';
 import { boardSvg, plainBoard, impactsFor, markIcon } from '../board.js';
 import { rollHtml } from '../roll.js';
 import { pendingVisit, validatedAfterUndo } from '../turn.js';
@@ -31,10 +31,9 @@ import { leader, flop, visitStanding, standings } from '../../engine/ranking.js'
 import { playerRecords, isVisitRecord } from '../../engine/records.js';
 import { defiOf, defiResult, DEFIS } from '../../engine/defis.js';
 import { gameBadgesSay } from '../honours.js';
+import { bindBoardInput, boardHint, frozenLoupe } from '../boardinput.js';
 
 export const ANNOUNCE_MS = 800;
-const LENS = { size: 150, zoom: 2.5, gap: 26 };
-const K = 100; // échelle du dessin de la cible (board.js)
 
 let announceTimer = null;
 
@@ -653,11 +652,7 @@ export function mountGame() {
   if (!wrap) return;
   bindBoard(wrap);
   if (ui.loupe) {
-    // Loupe figée (sommaire de maquette) : comme si le doigt était posé en (x, y).
-    const svg = wrap.querySelector('svg');
-    const r = svg.getBoundingClientRect();
-    const scale = r.width / 2 / RINGS.edge;
-    showLoupe(ui.loupe.x, ui.loupe.y, r.left + r.width / 2 + ui.loupe.x * scale, r.top + r.height / 2 + ui.loupe.y * scale, scale);
+    frozenLoupe(wrap, ui.loupe); // loupe figée (sommaire de maquette) : comme si le doigt était posé en (x, y)
   }
 }
 
@@ -684,82 +679,17 @@ function stopAnnounce(dom = false) {
 }
 
 function bindBoard(wrap) {
-  const svg = wrap.querySelector('svg');
-  let active = null;
-  let geo = null;
-  const toBoard = ev => {
-    const x = (ev.clientX - geo.cx) / geo.scale, y = (ev.clientY - geo.cy) / geo.scale;
-    return { x, y };
-  };
-  wrap.addEventListener('pointerdown', ev => {
-    const g = store.current;
-    if (!g || g.ui.pause || g.ui.panel || g.ui.drinks || pendingVisit(currentState(), g.validated)) return;
-    if (ev.pointerType === 'mouse' && ev.button !== 0) return;
-    ev.preventDefault();
-    stopAnnounce(true);
-    g.ui.loupe = null;
-    const r = svg.getBoundingClientRect();
-    geo = { cx: r.left + r.width / 2, cy: r.top + r.height / 2, scale: r.width / 2 / RINGS.edge };
-    active = ev.pointerId;
-    try { wrap.setPointerCapture(ev.pointerId); } catch (e) { /* rien */ }
-    const p = toBoard(ev);
-    showLoupe(p.x, p.y, ev.clientX, ev.clientY, geo.scale);
+  bindBoardInput(wrap, {
+    canStart: () => { const g = store.current; return !!g && !g.ui.pause && !g.ui.panel && !g.ui.drinks && !pendingVisit(currentState(), g.validated); },
+    onStart: () => { stopAnnounce(true); store.current.ui.loupe = null; },
+    onRelease: (x, y) => {
+      const dart = segmentAt(x, y);
+      if (dart) play(dart, null, [x, y]);
+      else { buzz(BUZZ.undo); hint('HORS CIBLE · RIEN N\'EST COMPTÉ'); }
+    },
   });
-  wrap.addEventListener('pointermove', ev => {
-    if (ev.pointerId !== active) return;
-    const p = toBoard(ev);
-    showLoupe(p.x, p.y, ev.clientX, ev.clientY, geo.scale);
-  });
-  wrap.addEventListener('pointerup', ev => {
-    if (ev.pointerId !== active) return;
-    active = null;
-    const p = toBoard(ev);
-    hideLoupe();
-    const dart = segmentAt(p.x, p.y);
-    if (dart) play(dart, null, [p.x, p.y]);
-    else { buzz(BUZZ.undo); hint('HORS CIBLE · RIEN N\'EST COMPTÉ'); }
-  });
-  const cancel = ev => { if (ev.pointerId === active) { active = null; hideLoupe(); } };
-  wrap.addEventListener('pointercancel', cancel);
-  wrap.addEventListener('lostpointercapture', cancel);
 }
-
-let hintTimer = null;
-function hint(text) {
-  const el = document.getElementById('bhint');
-  if (!el) return;
-  el.textContent = text;
-  el.hidden = false;
-  clearTimeout(hintTimer);
-  hintTimer = setTimeout(() => { el.hidden = true; }, 1500);
-}
-
-/** Loupe : zone sous le doigt agrandie ×2,5, en haut à gauche du doigt (la main vient d'en bas). */
-function showLoupe(x, y, clientX, clientY, scale) {
-  const el = document.getElementById('loupe');
-  const box = el && el.parentElement.getBoundingClientRect();
-  if (!el) return;
-  const w = LENS.size / (scale * LENS.zoom);
-  el.querySelector('svg').setAttribute('viewBox', `${((x - w / 2) * K).toFixed(1)} ${((y - w / 2) * K).toFixed(1)} ${(w * K).toFixed(1)} ${(w * K).toFixed(1)}`);
-  const dart = segmentAt(x, y);
-  const lz = el.querySelector('.lz');
-  lz.textContent = dart ? zoneLabel(dart) : 'HORS CIBLE';
-  el.classList.toggle('out', !dart);
-  el.hidden = false;
-  const fx = clientX - box.left, fy = clientY - box.top;
-  const h = el.offsetHeight || LENS.size + 52;
-  const wd = el.offsetWidth || LENS.size;
-  let left = fx - wd - LENS.gap;
-  let top = fy - h - LENS.gap;
-  if (top < 6) { top = 6; left = fx - wd - LENS.gap * 2.2; } // pas la place au-dessus : franchement à gauche
-  left = Math.max(6, left);
-  el.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
-}
-
-function hideLoupe() {
-  const el = document.getElementById('loupe');
-  if (el) el.hidden = true;
-}
+const hint = boardHint;
 
 // ------------------------------------------------------------------ saisie
 function play(dart, key, pos = null) {

@@ -217,17 +217,17 @@ function backupBlock() {
     box = `<div class="vibe bad" role="alert"><b>FICHIER REFUSÉ</b><span>${esc(bk.error)}</span><span>Rien n'a été modifié.</span></div>`;
   } else if (bk.preview) {
     const sm = bk.preview.summary;
-    const what = `${plural(sm.players, 'joueur', 'joueurs')} · ${plural(sm.games, 'partie', 'parties')}${sm.current ? ' · une partie en cours' : ''}`;
+    const what = `${plural(sm.players, 'joueur', 'joueurs')} · ${plural(sm.games, 'partie', 'parties')}${sm.current ? ' · une partie en cours' : ''}${sm.trainings ? ` · ${plural(sm.trainings, 'séance', 'séances')} d'entraînement` : ''}`;
     const head = `<div class="bk-prev"><b>SAUVEGARDE DU ${esc(fmtDate(sm.exportedAt))}</b><span>${what}${sm.app ? ` · Strela v${esc(sm.app)}` : ''}</span><span class="small dim ell">${esc(bk.file)}</span></div>`;
     if (bk.ask === 'replace') {
       const nP = store.players.length, nG = store.games.length + store.ckGames.length + (store.current || store.ck ? 1 : 0);
       box = `${head}<div class="confirm" role="alertdialog" aria-label="Tout remplacer ?"><p class="alert-h">REMPLACER TOUTES LES DONNÉES ?</p>
-        <p class="small">Les ${plural(nP, 'joueur', 'joueurs')} et ${plural(nG, 'partie', 'parties')} de ce téléphone seront effacés et remplacés par ceux de la sauvegarde (réglages compris).</p>
+        <p class="small">Les ${plural(nP, 'joueur', 'joueurs')} et ${plural(nG, 'partie', 'parties')} de ce téléphone seront effacés et remplacés par ceux de la sauvegarde (réglages compris).${bk.preview.trainings ? ' Les séances d\'entraînement et les jeux de fléchettes aussi.' : ' Les séances d\'entraînement de ce téléphone sont gardées (la sauvegarde n\'en a pas).'}</p>
         <div class="btns two"><button type="button" class="btn" data-act="backup-no">NON</button><button type="button" class="btn alert" data-act="backup-yes">REMPLACER</button></div></div>`;
     } else if (bk.ask === 'merge') {
       const c = importCounts(bk.preview, 'merge');
       box = `${head}<div class="confirm warn" role="alertdialog" aria-label="Fusionner ?"><p><b>FUSIONNER ?</b></p>
-        <p class="small">Ajoute ${plural(c.playersAdded, 'joueur', 'joueurs')} et ${plural(c.gamesAdded, 'partie', 'parties')} absents de ce téléphone. Rien n'est effacé ; ce qui existe déjà ici est gardé tel quel.${c.currentSkipped ? ' Une partie est déjà en cours ici : celle de la sauvegarde ira dans l\'historique, abandonnée.' : ''}</p>
+        <p class="small">Ajoute ${plural(c.playersAdded, 'joueur', 'joueurs')} et ${plural(c.gamesAdded, 'partie', 'parties')}${c.trainingsAdded ? `, ${plural(c.trainingsAdded, 'séance', 'séances')} d'entraînement` : ''} absents de ce téléphone. Rien n'est effacé ; ce qui existe déjà ici est gardé tel quel.${c.currentSkipped ? ' Une partie est déjà en cours ici : celle de la sauvegarde ira dans l\'historique, abandonnée.' : ''}</p>
         <div class="btns two"><button type="button" class="btn" data-act="backup-no">NON</button><button type="button" class="btn primary" data-act="backup-yes">FUSIONNER</button></div></div>`;
     } else {
       box = `${head}<div class="btns two"><button type="button" class="btn danger" data-act="backup-mode" data-arg="replace">REMPLACER TOUT</button><button type="button" class="btn" data-act="backup-mode" data-arg="merge">FUSIONNER</button></div>
@@ -237,7 +237,7 @@ function backupBlock() {
     box = `<div class="vibe" role="status"><b>FAIT</b><span>${esc(bk.done)}</span></div>`;
   }
   return `<div class="btns two">${exp}${imp}</div>${box ? `<div class="bk" data-reveal>${box}</div>` : ''}
-    <p class="note">EXPORTER : un fichier avec les joueurs (photos comprises), les parties et les réglages, à garder sur Drive ou ailleurs. IMPORTER : REMPLACER TOUT ou FUSIONNER (sans doublon), après un aperçu.</p>`;
+    <p class="note">EXPORTER : un fichier avec les joueurs (photos comprises), les parties, l'entraînement et les réglages, à garder sur Drive ou ailleurs. IMPORTER : REMPLACER TOUT ou FUSIONNER (sans doublon), après un aperçu.</p>`;
 }
 
 /** Fichier de sauvegarde choisi (IMPORTER) : lu et vérifié en entier avant tout choix ; rien n'est encore écrit. */

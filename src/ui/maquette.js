@@ -1,7 +1,8 @@
 // Strela — données fictives du sommaire de maquette (?maquette) et des tests : chargé seulement dans ce cas
 // (import dynamique dans app.js). Tout reste en mémoire : la vraie base du téléphone n'est jamais ouverte.
 import { store } from './store.js';
-import { MOCK_PLAYERS, EXTRA_PLAYERS, mockGames, mockSeason, mockCricket } from './mock.js';
+import { MOCK_PLAYERS, EXTRA_PLAYERS, mockGames, mockSeason, mockCricket, mockTrainings } from './mock.js';
+import { SEED_SETS } from '../engine/dartsets.js';
 
 const clone = o => JSON.parse(JSON.stringify(o));
 
@@ -28,6 +29,12 @@ export function resetMock() {
   store.soiree = null; // lot 7.6
   store.soireeDraft = null;
   store.crop = null;
+  // Lot 8 : entraînement (séances de Guillaume, ses deux jeux de fléchettes)
+  store.trainings = mockTrainings();
+  store.tr = null;
+  store.dartSets = SEED_SETS.map(clone);
+  store.trSetup = null;
+  store.trDraft = null;
   // Lot 4 : problème d'enregistrement simulé remis à zéro
   store.mockIssue = false;
   store.mockApk = false; // true : APK « github » simulé ; 'play' : variante Google Play (lot 6)
