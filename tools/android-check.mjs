@@ -345,11 +345,14 @@ async function importStep() {
   }
   // Le sélecteur se ferme de lui-même une fois le fichier choisi ; la page a pu être rechargée entre-temps.
   for (let i = 0; i < 20 && !(await topActivity()).includes(PKG); i++) await sleep(500);
-  try { await page.evaluate(() => 1); } catch (e) { await ready(); }
+  // Le sélecteur encore ouvert devant Strela, la page en arrière-plan peut ne plus répondre (vu sur Android 16, lot 8 :
+  // l'étape restait bloquée jusqu'à son plafond de 6 min) : chaque lecture de la page est bornée, et une page muette
+  // est un sélecteur non piloté jusqu'au bout, pas un défaut de l'appli.
+  try { await within(20e3, 'page muette après le sélecteur', page.evaluate(() => 1)); } catch (e) { if (/muette/.test(e.message)) throw e; await ready(); }
   const preview = await page.waitForSelector('[data-act="backup-mode"][data-arg="merge"]', { timeout: 15e3 }).then(() => true, () => false);
   if (!preview) {
-    await shot('6-apres-selecteur');
-    const where = await page.evaluate(() => `${location.hash} · ${document.querySelector('.bk')?.textContent.replace(/\s+/g, ' ').trim() || 'aucun encadré de sauvegarde'}`).catch(e => e.message);
+    await within(20e3, 'capture', shot('6-apres-selecteur')).catch(() => {});
+    const where = await within(20e3, 'page muette', page.evaluate(() => `${location.hash} · ${document.querySelector('.bk')?.textContent.replace(/\s+/g, ' ').trim() || 'aucun encadré de sauvegarde'}`)).catch(e => e.message);
     throw new Error(`pas d'aperçu après le choix du fichier (${where} ; ${await topActivity()})`);
   }
   await shot('6-apercu-import');
