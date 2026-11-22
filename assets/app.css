@@ -1822,6 +1822,8 @@ button.hrow { width: 100%; border: 0; border-bottom: var(--rule); background: va
 .lvl { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 0 0 12px; border: var(--rule); }
 .lvl small { font-size: 10.5px; color: var(--dim); font-weight: 700; letter-spacing: 0.08em; }
 .lvl b { flex: 1; min-width: 0; font-size: 16px; font-weight: 800; letter-spacing: 0.08em; }
+.lvl .lvt { flex: 1; min-width: 0; display: grid; gap: 1px; padding: 6px 0; }
+.lvl .lvt b { overflow-wrap: anywhere; line-height: 1.2; }
 .lvs { display: flex; gap: 4px; }
 .lvs i { width: 14px; height: 14px; border: 1.5px solid var(--fg); }
 .lvs i.on { background: var(--fg); }

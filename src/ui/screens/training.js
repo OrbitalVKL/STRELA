@@ -107,7 +107,7 @@ function levelCard(pid) {
   const info = lv.next
     ? `Pour passer au niveau ${esc(LEVELS[lv.next].toLowerCase())} : tenir l'objectif de ton niveau sur ${lv.criteria[0].need} séances complètes de suite, pour chacun de ces exercices (une séance sous l'objectif remet son compte à zéro ; un exercice tenu une fois reste tenu). Les objectifs sont ceux d'un joueur amateur de ce niveau ; chaque exercice affiche le sien.`
     : 'Dernier niveau atteint : les objectifs affichés sont ceux d\'un joueur confirmé. Continue les exercices pour les tenir sur la durée.';
-  return `<div class="lvl"><small>NIVEAU</small><b>${LEVELS[lv.level]}</b>${infoBtn('tr-level')}</div>
+  return `<div class="lvl"><span class="lvt"><small>NIVEAU</small><b>${LEVELS[lv.level]}</b></span>${infoBtn('tr-level')}</div>
     ${infoBox('tr-level', info)}
     ${crit ? `<ul class="lvc"><li class="lvh">POUR PASSER ${LEVELS[lv.next]}</li>${crit}</ul>` : ''}`;
 }
