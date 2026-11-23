@@ -487,6 +487,13 @@ label.btn { cursor: pointer; }
 .armed .krow.nums .key::after, .armed.m2 .key.bull:not(:disabled)::after { content: ''; position: absolute; left: 50%; bottom: 8px; width: 18px; height: 2px; margin-left: -9px; background: currentColor; }
 .armed.m2 .krow.nums .key::after, .armed.m2 .key.bull::after { box-shadow: 0 -4px 0 currentColor; }
 .armed.m3 .krow.nums .key::after { box-shadow: 0 -4px 0 currentColor, 0 -8px 0 currentColor; }
+/* Correction du 23/11 : barre S / D / T (partie, Cricket, entraînement) — 1, 2 ou 3 traits sous la lettre, même dessin
+   que les traits des nombres armés ci-dessus (lot 7.6) ; un trait aussi pour le simple (demande de Guillaume). */
+.tb1, .tb2, .tb3 { position: relative; }
+.tb1::after, .tb2::after, .tb3::after { content: ''; position: absolute; left: 50%; bottom: 8px; width: 18px; height: 2px; margin-left: -9px; background: currentColor; pointer-events: none; }
+.tb2::after { box-shadow: 0 -4px 0 currentColor; }
+.tb3::after { box-shadow: 0 -4px 0 currentColor, 0 -8px 0 currentColor; }
+.ckk.tb1::after, .ckk.tb2::after, .ckk.tb3::after { bottom: 5px; }
 .armed.m2 .krow.nums .key.hit, .armed.m2 .krow.nums .key:active { background: var(--fg); color: var(--bg); }
 .armed.m3 .krow.nums .key.hit, .armed.m3 .krow.nums .key:active { background: var(--bg); color: var(--fg); }
 /* Volée en attente : touches éteintes et hachurées, grand VALIDER sur le haut du pavé, ANNULER reste actif */
@@ -2001,8 +2008,16 @@ button.hrow { width: 100%; border: 0; border-bottom: var(--rule); background: va
 
 /* Lot 8 du 23/11 : saisie de l'entraînement en deux temps (nombre, puis zone), règle du moment, cible de chaque case */
 .pad-k.two-step { grid-template-rows: auto repeat(5, minmax(0, 1fr)); }
-.trpad .pstep { margin: 0; padding: 4px 10px; background: var(--bg); font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trpad .pstep { margin: 0; padding: 0 0 0 10px; min-height: 30px; display: flex; align-items: center; gap: 8px; background: var(--bg); font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; color: var(--dim); white-space: nowrap; overflow: hidden; }
+.trpad .pstep .pst { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .trpad .pstep b { color: var(--fg); font-size: 13px; }
+/* Correction du 23/11 : mode de saisie changé sur le pavé même (SECTEUR ENTIER / TOUCHÉ), à droite de l'étape. */
+.trpad .pmode { flex: 0 0 auto; align-self: stretch; display: flex; align-items: stretch; }
+.trpad .pmode .pml { align-self: center; margin-right: 8px; font-size: 9px; letter-spacing: 0.1em; color: var(--dim); }
+.trpad .pmode button { border: 0; border-left: var(--rule); background: var(--bg); color: var(--dim); font: inherit; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; padding: 0 10px; min-height: 30px; }
+.trpad .pmode button[aria-pressed="true"] { background: var(--inv-bg); color: var(--inv-fg); }
+/* Secteur entier (saisie rapide) : ligne du mode, barre S / D / T, 4 rangées de nombres, dernière rangée. */
+.pad-k.trpad.fast { grid-template-rows: auto minmax(0, 1fr) repeat(4, minmax(0, 1fr)) minmax(0, 1.12fr); }
 .trpad .pickp { grid-row: span 4; display: grid; gap: 1px; min-height: 0; --zs: var(--board-black); --zm: var(--board-red); }
 .trpad .pickp.zcream { --zs: var(--board-cream); --zm: var(--board-green); }
 /* Choix de la zone B « rangées » (23/11) : une rangée par zone, du bord vers le bull ; tranche du secteur à gauche */

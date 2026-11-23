@@ -50,10 +50,11 @@ une séance autrement qu'en la supprimant).
 
 Reprise de la partie (choix de Guillaume) : **portrait** = pavé, **paysage** = cible au doigt avec la loupe.
 
-- Pavé : rangée `S INT. · S EXT. · D · T`. Par défaut, la zone de la cible visée (0.13.0) : T pour un triple, D pour un
-  double, EXT. pour le simple extérieur, sinon simple intérieur ; une autre zone touchée vaut pour une fléchette, puis on
-  revient au défaut (toucher le T ou le D par défaut arme le simple intérieur). Le 25 reste saisissable quand le T est
-  armé d'office. Quand EXT. est armé, chaque nombre porte « EXT » et un trait en bas.
+- Pavé (état depuis la 0.19.1, détail : docs/interface.md « Version 0.19.1 ») : deux modes, réglage `padRing`.
+  **Secteur entier** (défaut) : rangée `S · D · T` (1, 2, 3 traits) puis le nombre, d'un appui ; zone visée armée
+  d'office (T, D, sinon S), une autre zone vaut pour une fléchette ; simple sans couronne. **Secteur touché** : le nombre,
+  puis sa zone (simple intérieur / extérieur, double, triple). Historique : 0.12–0.14 rangée `S INT. · S EXT. · D · T`
+  puis le nombre ; 0.15–0.19.0 toujours le nombre puis sa zone (le réglage ne changeait que les choix proposés).
 - `25`, `50`, `0 HORS CIBLE`, `ANNULER` (ANNULER défait aussi une série ajoutée et pas encore commencée).
 - Cible : le simple pris sur la cible porte son anneau ; lâcher sur la couronne des numéros = hors cible (position
   gardée, pour l'écart) ; au-delà du dessin : rien.

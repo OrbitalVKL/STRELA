@@ -107,7 +107,7 @@ function pad(v) {
   const dis = wait ? 'disabled' : '';
   const pre = m === 3 ? 'T' : m === 2 ? 'D' : '';
   const key = t => `<button type="button" class="ckk" data-act="ck-hit" data-arg="${t}" ${dis || (t === 25 && m === 3 ? 'disabled' : '')}><span data-shrink>${t === 25 ? (m === 2 ? '50' : 'BULL') : `${pre}${t}`}</span></button>`;
-  const mk = (val, label) => `<button type="button" class="ckk m" data-act="ck-mult" data-arg="${val}" aria-pressed="${!wait && m === val}" ${dis}>${label}</button>`;
+  const mk = (val, label) => `<button type="button" class="ckk m tb${val}" data-act="ck-mult" data-arg="${val}" aria-pressed="${!wait && m === val}" ${dis}>${label}</button>`;
   const over = v.pend === 'visit_end'
     ? `<button type="button" class="validate go over" data-act="ck-validate" data-layer style="--pc:${colorOf(v.players[v.shown])}"><span class="vl" data-shrink>VALIDER</span></button>`
     : v.pend === 'leg_won'

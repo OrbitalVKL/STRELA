@@ -952,6 +952,35 @@ bouton ENTRAÎNEMENT SOLO sous la soirée (ENTRAÎNEMENT EN COURS en vidéo inve
 joueur : bouton STATS D'ENTRAÎNEMENT s'il a des séances. La saisie au doigt sur la cible est passée dans
 `src/ui/boardinput.js` (même comportement en partie).
 
+## Version 0.19.1 (23/11 : saisie verticale, secteur entier / secteur touché)
+
+Demande de Guillaume : le réglage de la saisie au pavé « ne change rien », retrouver la saisie ultra rapide d'avant.
+
+- **Cause** : depuis la 0.15.0, le pavé de l'entraînement passait **toujours** par deux étapes (le nombre, puis sa zone) ;
+  le réglage `padRing` (« Simple intérieur / extérieur ») ne changeait que les choix de la seconde étape. En
+  présentation « Secteur » (0.17.1), le simple restait même dessiné en deux bandes (intérieure, extérieure) réglage
+  éteint : rien ne changeait à l'écran. La valeur était bien lue et enregistrée ; c'est la saisie qui ne la suivait pas.
+- **Moteur** : src/engine/padinput.js (pur, tests/saisie-pave.test.js) — `padModeOf(settings)` ('entier' sauf
+  `padRing === true`), `padPress(mode, touche, { zone })`, `zonePress(n, zone)`, `fastDefault`, `fastToggle`. La valeur
+  reste dans `padRing` (aucune migration ; une installation qui l'avait activé garde la saisie précise).
+- **Secteur entier** (défaut) : barre `S · D · T` puis 4 rangées de nombres, comme le pavé de la 0.14.0 et des parties ;
+  zone armée d'office = celle de la cible visée (D, T ; sinon S), D ou T touché de nouveau → S, retour au défaut après
+  chaque fléchette ou ANNULER ; nombres préfixés D / T et traits quand D ou T est armé ; 25 barré avec T, 50 avec D.
+  Le simple est enregistré `{ segment, multiplier: 1 }` sans `ring` : point au milieu de sa case (même rayon que les
+  simples sans couronne d'avant, training.js › `ZONE_R.s`), `approxPoint` vrai, mention ≈ dans les stats ; carte de
+  chaleur : moitié dans chaque couronne. Libre visant « 20 INT. / EXT. » : un simple sans couronne n'y compte pas.
+- **Secteur touché** : inchangé, mais la couronne est toujours demandée (zonePick sans variante « SIMPLE » seul) ;
+  Rangées / Secteur (`zonePad`) ne concerne que ce mode.
+- **Sur le pavé même** : ligne du haut, l'étape (SAISIE RAPIDE ; NOMBRE, PUIS ZONE ; 20 · SA ZONE) et `SECTEUR
+  [ENTIER | TOUCHÉ]` (`tr-padmode`, enregistré comme dans les réglages). Réglages › Saisie : choix « Secteur entier /
+  Secteur touché » (commande `pad-ring` 0 / 1, comme avant), explication derrière (i).
+- **Traits de la barre** (`.tb1`–`.tb3`, app.css) : 1, 2, 3 traits sous S, D, T, même dessin que les traits des nombres
+  armés (lot 7.6, 18 × 2 px, écart 4 px) ; le simple n'en avait pas jusqu'ici (demande de Guillaume). En partie X01, au
+  Cricket et à l'entraînement.
+- **Partie** : le pavé reste S / D / T puis le nombre (la couronne ne sert à aucun chiffre des parties).
+- Sommaire : `tr-jeu` (rapide), `tr-jeu-triple`, `tr-jeu-double` (D / T armés), `tr-jeu-ext`, `tr-jeu-couronne`,
+  `tr-jeu-secteur`, `tr-jeu-secteur-triple` (précis).
+
 ## Version 0.19.0 (lot 9.2 : partie en ligne)
 
 Détail technique : docs/enligne.md ; cahier : docs/lot-9.md (9.2). **Aucune migration**.
@@ -1045,7 +1074,7 @@ d'affichage nouveaux (`modes`, `setup`, `profile`, `updSnooze`, `heatScale`), ch
   Réglages › Profil. Une installation d'avant (joueurs, parties ou séances) est considérée comme mise en place.
 - **Saisie au pavé** (demande de Guillaume du 23/11, après le cahier) : réglage `padRing` (Réglages › Saisie, désactivé par
   défaut). Désactivé : après le nombre, SIMPLE (sans anneau : point au milieu du secteur pour les distances), DOUBLE,
-  TRIPLE ; activé : SIMPLE INT., SIMPLE EXT., DOUBLE, TRIPLE (comme la 0.15.0).
+  TRIPLE ; activé : SIMPLE INT., SIMPLE EXT., DOUBLE, TRIPLE (comme la 0.15.0). Remplacé en 0.19.1 (secteur entier / touché).
 - **Tutoriel** (6.3) : `#/tutoriel`, six pages à faire défiler (scroll-snap) ; Réglages › À propos, accueil entraînement.
 - **Réglages** (7.1) : Mises à jour (en tête), Profil, Modes de l'application, Matériel, Affichage (thème, mode nuit,
   cartes de chaleur), Son et animations, Données et sauvegarde, À propos (nouveautés, tutoriel, installer, à propos),

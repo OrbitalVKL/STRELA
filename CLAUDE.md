@@ -111,6 +111,7 @@ src/engine/online.js      partie en ligne (lot 9.2, docs/enligne.md) : salon, au
                           tests/enligne.test.js) ; src/net/ : signal.js (signalisation PeerJS), link.js (WebRTC) ;
                           src/ui/online.js (contrôleur), screens/online.js (#/enligne), qr.js (QR code) ; rejoindre.html
                           (page du QR code) ; tools/lib/signal-server.mjs (serveur local des tests)
+src/engine/padinput.js    saisie au pavé debout (0.19.1) : secteur entier / secteur touché (pur, tests/saisie-pave.test.js)
 src/engine/shuffle.js     tirage au sort de l'ordre (Fisher-Yates sans biais, 0.11.0 ; tests/tirage.test.js)
 src/engine/alcohol.js     verres : comptes (verre 25 cl, pinte 50 cl = 2 verres, 0.8.2), place dans la partie, alcoolémie estimée (lot 7) ;
                           src/ui/drinks.js : choix verre / pinte et affichage du compte (0.8.2)
@@ -205,7 +206,19 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 8.2 | Entraînement : mode JEUX, X01 et Cricket en solo aux vraies règles ; triples, doubles et carte de chaleur des stats réservés aux jeux et parties (v0.14.0) — **fait, en attente de validation sur le Pixel** |
 | 8 (23/11) | Entraînement, stats et distribution (docs/lot-8-avancement.md) : 0.15.0 = saisie précise, règles, stats, listes en cartes — **fait** ; 0.16.0 = jeux de cible, défis en X01 solo, badges d'entraînement — **fait** ; 0.17.0 = modes, accueil, réglages, exports, installation — **fait** ; 0.17.1 = choix de la zone (rangées ou secteur) — **fait** |
 | 9 (23/11) | Lot 9 (docs/lot-9-avancement.md) : 0.18.0 = 9.3 saisie à la voix — **fait** ; 0.19.0 = 9.2 partie en ligne — **fait** ; 9.1 (iPhone) et 9.4 (audio en ligne) reportés |
+| 0.19.1 | Saisie verticale : secteur entier (rapide, d'un appui) / secteur touché (précis), réglage sur le pavé, traits S / D / T — **fait** |
 | 11 | Recette |
+
+## État (version 0.19.1 : saisie verticale)
+
+- **0.19.1** (23/11) : le pavé de l'entraînement suit enfin le réglage (docs/interface.md « Version 0.19.1 »). Cause : depuis
+  la 0.15.0 la saisie passait toujours par « nombre puis zone », le réglage ne changeait que les choix proposés.
+  Moteur pur src/engine/padinput.js (tests/saisie-pave.test.js). Aucune migration (valeur toujours dans `padRing`).
+- Choix faits sans Guillaume (à lui dire) : secteur entier par défaut ; zone visée armée d'office (comme en 0.13) ;
+  bascule ENTIER / TOUCHÉ en haut du pavé ; un trait sous S ajouté (n'existait pas : seuls D et T en avaient) et traits
+  aussi en partie et au Cricket ; la partie reste en saisie rapide (couronne inutile pour ses chiffres) ; simple sans
+  couronne placé au même point qu'avant (pas de changement des stats enregistrées).
+- À vérifier sur le Pixel : vitesse de saisie, bascule lisible en haut du pavé, traits sur écran bas.
 
 ## État (version 0.19.0 : lot 9.2, partie en ligne)
 

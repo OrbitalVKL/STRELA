@@ -40,25 +40,38 @@ test('première ouverture : bienvenue, modes, mise en place, accueil selon les m
     await page.click('a[data-act="setup-done"][href="#/entrainement"]');
     await page.waitForSelector('.trhub');
     assert.equal(await page.locator('.trhub [data-act="tr-player"]').count(), 0, 'pas de choix de joueur sans le mode soirée');
-    // Pavé, réglage « Simple intérieur / extérieur » désactivé (défaut) : SIMPLE, DOUBLE, TRIPLE.
+    // Pavé, secteur entier (défaut, correction du 23/11) : barre S / D / T (1, 2, 3 traits), un appui par fléchette.
     await page.click('[data-act="tr-start"][data-arg="groupement"]');
     await page.waitForSelector('.game.train');
+    assert.equal(await page.getAttribute('[data-act="tr-padmode"][data-arg="entier"]', 'aria-pressed'), 'true');
+    assert.deepEqual(await page.$$eval('.trpad.fast .krow.mult .key.m', els => els.map(e => [e.dataset.arg, e.className.match(/tb(\d)/)[1]])), [['s', '1'], ['d', '2'], ['t', '3']]);
     await page.click('[data-act="tr-key"][data-arg="20"]');
-    assert.equal(await page.locator('[data-act="tr-zonepick"][data-arg="in"]').count(), 0);
-    await page.click('[data-act="tr-zonepick"][data-arg="s"]');
+    assert.equal(await page.locator('[data-act="tr-zonepick"]').count(), 0, 'pas de choix de zone');
+    await page.click('[data-act="tr-zone"][data-arg="t"]');
+    assert.equal(await page.locator('.trpad.fast.armed.m3').count(), 1);
+    await page.click('[data-act="tr-key"][data-arg="20"]');
+    assert.equal(await page.locator('.trpad.fast.armed').count(), 0, 'retour au simple après la fléchette');
     await settle(page);
     let db;
     const cur = (await readDb(page)).trainings.find(r => r.endedAt === null);
-    assert.deepEqual(cur.darts, [{ segment: 20, multiplier: 1 }]);
-    // Activé : la couronne du simple se choisit.
-    await page.evaluate(() => { location.hash = '#/reglages'; });
-    await page.click('[data-act="pad-ring"][data-arg="1"]');
-    await page.evaluate(() => { location.hash = '#/entrainement/jeu'; });
-    await page.waitForSelector('.game.train');
+    assert.deepEqual(cur.darts, [{ segment: 20, multiplier: 1 }, { segment: 20, multiplier: 3 }]);
+    // Secteur touché, choisi sur le pavé même : mémorisé, la couronne du simple se choisit.
+    await page.click('[data-act="tr-padmode"][data-arg="touche"]');
+    await settle(page);
+    assert.equal((await readDb(page)).settings.display.padRing, true, 'réglage enregistré depuis le pavé');
     await page.click('[data-act="tr-key"][data-arg="20"]');
     await page.click('[data-act="tr-zonepick"][data-arg="out"]');
     await settle(page);
-    assert.deepEqual((await readDb(page)).trainings.find(r => r.endedAt === null).darts[1], { segment: 20, multiplier: 1, ring: 'out' });
+    assert.deepEqual((await readDb(page)).trainings.find(r => r.endedAt === null).darts[2], { segment: 20, multiplier: 1, ring: 'out' });
+    await reload(page);
+    await page.waitForSelector('.trpad.two-step');
+    assert.equal(await page.getAttribute('[data-act="tr-padmode"][data-arg="touche"]', 'aria-pressed'), 'true', 'gardé au rechargement');
+    // Réglages › Saisie montre le même choix.
+    await page.evaluate(() => { location.hash = '#/reglages'; });
+    await page.waitForSelector('.settings2');
+    assert.equal(await page.getAttribute('[data-act="pad-ring"][data-arg="1"]', 'aria-pressed'), 'true');
+    await page.evaluate(() => { location.hash = '#/entrainement/jeu'; });
+    await page.waitForSelector('.game.train');
     // Rangées (par défaut) : du bord vers le bull, double à 2 barres, triple à 3 barres.
     await page.click('[data-act="tr-key"][data-arg="19"]');
     assert.deepEqual(await page.$$eval('.zrows [data-act="tr-zonepick"]', els => els.map(e => e.dataset.arg)), ['d', 'out', 't', 'in']);
@@ -82,7 +95,7 @@ test('première ouverture : bienvenue, modes, mise en place, accueil selon les m
     await band(19, 'SIMPLE EXT.');
     db = await readDb(page);
     assert.equal(db.settings.display.zonePad, 'secteur', 'réglage enregistré');
-    assert.deepEqual(db.trainings.find(r => r.endedAt === null).darts.slice(2), [{ segment: 20, multiplier: 3 }, { segment: 19, multiplier: 1, ring: 'out' }]);
+    assert.deepEqual(db.trainings.find(r => r.endedAt === null).darts.slice(3), [{ segment: 20, multiplier: 3 }, { segment: 19, multiplier: 1, ring: 'out' }]);
     await page.evaluate(() => { location.hash = '#/entrainement'; });
     await page.waitForSelector('.trhub');
     await settle(page);

@@ -434,7 +434,7 @@ export function game() {
       return `<button type="button" class="key" data-key="${k}" ${dis}><span class="kl" data-shrink>${wait ? '' : pre}${k}</span></button>`;
     }).join('')}</div>`);
   }
-  const mk = (k, label, word) => `<button type="button" class="key m" data-key="${k}" aria-pressed="${!wait && m === { S: 1, D: 2, T: 3 }[k]}" ${dis}><span class="kl" data-shrink>${label}<small>${word}</small></span></button>`;
+  const mk = (k, label, word) => `<button type="button" class="key m tb${{ S: 1, D: 2, T: 3 }[k]}" data-key="${k}" aria-pressed="${!wait && m === { S: 1, D: 2, T: 3 }[k]}" ${dis}><span class="kl" data-shrink>${label}<small>${word}</small></span></button>`;
   const mic = micKey(); // lot 9.3 : saisie à la voix
   const pad = `<section class="pad-k${m > 1 && !wait ? ` armed m${m}` : ''}${wait ? ' wait' : ''}" aria-label="Saisie">
       <div class="krow mult${mic ? ' with-mic' : ''}">${mk('S', 'S', 'SIMPLE')}${mk('D', 'D', 'DOUBLE')}${mk('T', 'T', 'TRIPLE')}${mic}</div>

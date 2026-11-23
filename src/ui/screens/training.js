@@ -1,8 +1,9 @@
 // Strela — entraînement solo (lot 8, docs/entrainement.md). Écrans :
 //   #/entrainement            choix : joueur, jeu de fléchettes, COACHÉ (exercice proposé, niveau) ou LIBRE (cible et
 //                             nombre de fléchettes), dernières séances, raccourcis (stats, conseils, armurerie)
-//   #/entrainement/jeu        saisie : comme en partie — pavé en portrait (avec SIMPLE INTÉRIEUR / EXTÉRIEUR), cible
-//                             au doigt en paysage (loupe) ; HORS CIBLE saisissable ; ANNULER
+//   #/entrainement/jeu        saisie : pavé en portrait — secteur entier (S / D / T puis le nombre, d'un appui) ou
+//                             secteur touché (le nombre, puis sa zone, simple intérieur / extérieur), réglage `padRing`
+//                             changé sur le pavé même ; cible au doigt en paysage (loupe) ; HORS CIBLE saisissable ; ANNULER
 //   #/entrainement/fin        séance finie (pas encore enregistrée) : analyse, TERMINER, ENCORE UNE SÉRIE (libre)
 //   #/entrainement/seance/<id> détail d'une séance close : analyse, et sa gestion (0.13.0) : note, refaire, reprendre
 //                             (arrêtée), joueur, jeu de fléchettes de chaque partie de la séance, mettre de côté, supprimer
@@ -10,7 +11,7 @@
 // proposée, ou les cibles du Cricket ; analyse du jeu et carte de chaleur à la fin).
 // Moteur : engine/training.js (exercices, analyse, coach) ; données : store.js (section « entraînement solo »).
 import { store, activePlayers, playerById, trState, startTraining, trThrow, trUndo, trAddBlock, closeTraining, deleteTrainings, trainingById, dartSetById, saveTrSetup,
-  trChangeSet, updateTraining, resumeTraining, saveTr, appModes, profilePlayer } from '../store.js';
+  trChangeSet, updateTraining, resumeTraining, saveTr, appModes, profilePlayer, saveSetting } from '../store.js';
 import { esc, ico, topBar, plural, when } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
 import { EXERCISES, analyze, suggestNext, nextFor, levelOf, LEVELS, LEVEL_EXERCISES, ALL_EXERCISES, exerciseLevel, goalOf, goalMet, setRuns, setAt, setsUsed, trainingDartLabel, targetLabel, zoneLabelOf, ZONES_FOR, ZONE_LABEL, BULL_ZONE_LABEL,
@@ -26,6 +27,7 @@ import { markSvg } from './cricket.js';
 import { dartSetSummary } from '../../engine/dartsets.js';
 import { dartDiagram } from './advice.js';
 import { makeDart } from '../../engine/darts.js';
+import { padModeOf, padRingFor, PAD_MODES, fastDefault, fastToggle, padPress, zonePress, preciseAim } from '../../engine/padinput.js';
 import { segmentAt, RINGS, zoneTone } from '../../engine/board.js';
 import { boardSvg, plainBoard, svgN } from '../board.js';
 import { go, refresh, buzz, BUZZ, backFrom } from '../nav.js';
@@ -288,10 +290,17 @@ function startFrom(key, game = null) {
 
 // ------------------------------------------------------------------ saisie
 const tr = () => store.tr;
-/** Zone de la cible visée, à souligner dans le choix de la zone (pavé, 23/11) : 'in', 'out', 'd', 't', ou null. */
-const aimedZone = st => (st && st.cur && st.cur.s !== 25 ? (padRing() ? ({ si: 'in', se: 'out', d: 'd', t: 't' }[st.cur.z] || null) : ({ s: 's', si: 's', se: 's', d: 'd', t: 't' }[st.cur.z] || null)) : null);
-/** Le pavé demande-t-il simple intérieur ou extérieur ? (réglage `padRing`, désactivé par défaut) */
-export const padRing = () => store.settings.padRing === true;
+/** Zone de la cible visée (null : jeux, centre visé). */
+const targetZone = st => (st && st.cur && st.cur.s !== 25 ? st.cur.z : null);
+/** Zone de la cible visée, à souligner dans le choix de la zone (saisie précise) : 'in', 'out', 'd', 't', ou null. */
+const aimedZone = st => preciseAim(targetZone(st));
+/**
+ * Mode du pavé (correction du 23/11, engine/padinput.js) : 'entier' (saisie rapide, défaut) ou 'touche' (saisie
+ * précise, simple intérieur / extérieur). Réglage `padRing` (true = secteur touché), lu ici à chaque rendu.
+ */
+export const padMode = () => padModeOf(store.settings);
+/** Zone armée en saisie rapide : choisie dans la barre, sinon celle de la cible visée (double, triple) ou le simple. */
+const fastZone = (r, st) => r.ui.zone || fastDefault(targetZone(st));
 
 /** Fléchettes de la volée affichée : celle en cours, ou la précédente (estompée) tant que la suivante n'a pas commencé. */
 function shownVisit(r, st) {
@@ -441,7 +450,7 @@ export const ZONE_PADS = ['rangees', 'secteur'];
 export const zonePad = () => (store.settings.zonePad === 'secteur' ? 'secteur' : 'rangees');
 
 /**
- * Choix de la zone du nombre `n` (pavé, après le nombre ; demande de Guillaume du 23/11, versions B et C retenues).
+ * Choix de la zone du nombre `n` (secteur touché, après le nombre ; demande de Guillaume du 23/11, versions B et C).
  * Toujours des commandes tr-zonepick ('in', 'out' ou 's', 'd', 't'), dans l'ordre de la cible, du bord vers le bull.
  * - B « rangées » : une rangée par zone, la tranche du secteur à gauche aux couleurs de la cible ; double gris à
  *   2 barres, triple noir à 3 barres, barres rouges ou vertes comme les doubles et triples du secteur.
@@ -449,11 +458,9 @@ export const zonePad = () => (store.settings.zonePad === 'secteur' ? 'secteur' :
  * `az` : zone visée (soulignée en tirets), ou null.
  */
 function zonePick(n, az) {
-  const ring = padRing();
+  // Secteur touché seulement (la saisie rapide n'a pas de choix de zone) : le simple se précise toujours.
   const cream = zoneTone(n, 1) === 'cream';
-  const zones = ring
-    ? [['d', `D${n}`, 'DOUBLE', 2, ''], ['out', String(n), 'SIMPLE EXT.', 0, 'CÔTÉ DOUBLE'], ['t', `T${n}`, 'TRIPLE', 3, ''], ['in', String(n), 'SIMPLE INT.', 0, 'CÔTÉ BULL']]
-    : [['d', `D${n}`, 'DOUBLE', 2, ''], ['s', String(n), 'SIMPLE', 0, ''], ['t', `T${n}`, 'TRIPLE', 3, '']];
+  const zones = [['d', `D${n}`, 'DOUBLE', 2, ''], ['out', String(n), 'SIMPLE EXT.', 0, 'CÔTÉ DOUBLE'], ['t', `T${n}`, 'TRIPLE', 3, ''], ['in', String(n), 'SIMPLE INT.', 0, 'CÔTÉ BULL']];
   const back = `<button type="button" class="key pback" data-act="tr-pick-cancel" data-press>${ico('undo')}<span class="kl" data-shrink>AUTRE NOMBRE</span></button>`;
   const cls = `pickp${cream ? ' zcream' : ''}`;
   const isMult = z => z === 'd' || z === 't';
@@ -464,7 +471,7 @@ function zonePick(n, az) {
       const w0 = 40 - i * (24 / N), w1 = 40 - (i + 1) * (24 / N);
       return `<span class="zsl" aria-hidden="true"><svg viewBox="0 0 46 100" preserveAspectRatio="none"><path class="${isMult(z) ? 'zm' : 'zs'}" d="M${23 - w0 / 2} 0L${23 + w0 / 2} 0L${23 + w1 / 2} 100L${23 - w1 / 2} 100Z"/></svg></span>`;
     };
-    return `<div class="${cls} zrows" style="--zn:${N}" role="group" aria-label="Zone du ${n}">${zones.map(([z, big, word, bars, dir], i) => `<button type="button" class="key zr z-${z}${az === z || (az === 's' && z === 's') ? ' aimz' : ''}" data-act="tr-zonepick" data-arg="${z}" data-press aria-label="${word} ${n}">${slice(i, z)}<span class="zlab"><b>${big}</b><span class="zw"><small>${word}</small>${dir ? `<small class="zdir">${dir}</small>` : ''}</span></span><span class="zbars">${'<i></i>'.repeat(bars)}</span></button>`).join('')}${back}</div>`;
+    return `<div class="${cls} zrows" style="--zn:${N}" role="group" aria-label="Zone du ${n}">${zones.map(([z, big, word, bars, dir], i) => `<button type="button" class="key zr z-${z}${az === z ? ' aimz' : ''}" data-act="tr-zonepick" data-arg="${z}" data-press aria-label="${word} ${n}">${slice(i, z)}<span class="zlab"><b>${big}</b><span class="zw"><small>${word}</small>${dir ? `<small class="zdir">${dir}</small>` : ''}</span></span><span class="zbars">${'<i></i>'.repeat(bars)}</span></button>`).join('')}${back}</div>`;
   }
   // C : bandes d'une part de cible (pointe vers le bull, sous l'écran), de l'intérieur vers le bord.
   const W = 480, H = 236, RS = 511, cx = 240, cy = 486, A = 0.5;
@@ -474,7 +481,7 @@ function zonePick(n, az) {
   };
   const sTone = cream ? 'cream' : 'black', mTone = cream ? 'green' : 'red';
   const byZ = Object.fromEntries(zones.map(z => [z[0], z]));
-  const order = ring ? ['in', 't', 'out', 'd'] : ['s', 't', 's', 'd'];
+  const order = ['in', 't', 'out', 'd'];
   const R = [[0.5, 0.61], [0.61, 0.72], [0.72, 0.83], [0.83, 0.94]];
   const body = order.map((z, i) => {
     const [, big, word, bars] = byZ[z];
@@ -492,34 +499,63 @@ function zonePick(n, az) {
 }
 
 /**
- * Pavé (portrait). Lot 8 du 23/11 (1.3) : saisie en deux temps, précise à la case — le nombre, puis sa zone (zonePick :
- * rangées ou secteur) : simple (intérieur ou extérieur si réglé), double, triple. 25, 50 et HORS CIBLE
- * en un appui ; un hors cible au pavé n'a pas de position (compté, sans distance). ANNULER pendant le choix de la zone
- * revient au choix du nombre.
+ * Ligne du haut du pavé : l'étape en cours et le mode de saisie, changeable ici même (correction du 23/11 : le réglage
+ * se voit et se change sur l'écran de saisie ; mémorisé comme dans Réglages › Saisie).
+ */
+function padHead(mode, pick) {
+  const step = mode === 'entier' ? 'SAISIE RAPIDE' : pick ? `<b>${pick}</b> · SA ZONE` : 'NOMBRE, PUIS ZONE';
+  return `<div class="pstep"><span class="pst ell">${step}</span><span class="pmode" role="group" aria-label="Saisie au pavé : secteur entier ou secteur touché"><span class="pml" aria-hidden="true">SECTEUR</span>${PAD_MODES.map(k => `<button type="button" data-act="tr-padmode" data-arg="${k}" aria-pressed="${mode === k}" aria-label="Secteur ${k === 'entier' ? 'entier' : 'touché'}">${k === 'entier' ? 'ENTIER' : 'TOUCHÉ'}</button>`).join('')}</span></div>`;
+}
+
+/**
+ * Pavé (portrait), deux modes (engine/padinput.js, réglage `padRing`) :
+ * - secteur entier (saisie rapide, défaut) : barre S / D / T en haut (1, 2, 3 traits), armée d'office sur la zone
+ *   visée (double, triple), puis le nombre enregistre la fléchette d'un appui (simple sans couronne) ; comme le pavé de
+ *   la 0.14.0 et des parties.
+ * - secteur touché (saisie précise) : le nombre, puis sa zone (zonePick : rangées ou secteur) — simple intérieur ou
+ *   extérieur, double, triple ; ANNULER pendant le choix de la zone revient au choix du nombre.
+ * 25, 50 et HORS CIBLE en un appui ; un hors cible au pavé n'a pas de position (compté, sans distance).
  */
 function keyPad(r, st) {
-  const pick = r.ui.pick;
-  let grid;
-  if (pick) grid = zonePick(pick, aimedZone(st));
-  else {
+  const mode = padMode();
+  const pick = mode === 'touche' ? r.ui.pick : null;
+  const nums = pre => {
     const rows = [];
     for (let row = 0; row < 4; row++) {
       rows.push(`<div class="krow nums">${[1, 2, 3, 4, 5].map(c => {
         const k = row * 5 + c;
-        return `<button type="button" class="key" data-act="tr-key" data-arg="${k}" data-press><span class="kl" data-shrink>${k}</span></button>`;
+        return `<button type="button" class="key" data-act="tr-key" data-arg="${k}" data-press><span class="kl" data-shrink>${pre}${k}</span></button>`;
       }).join('')}</div>`);
     }
-    grid = rows.join('');
-  }
+    return rows.join('');
+  };
   const canUndo = pick || r.darts.length || (r.blocks && r.blocks.length > 1);
+  const undo = `<button type="button" class="key undo" data-act="tr-undo" data-press ${canUndo ? '' : 'disabled'}>${ico('undo')}<span class="kl" data-shrink>ANNULER</span></button>`;
+  const rest = `<button type="button" class="key" data-act="tr-key" data-arg="50" data-press><span class="kl" data-shrink>50</span></button>
+        <button type="button" class="key zero" data-act="tr-key" data-arg="0" data-press>0<small>HORS CIBLE</small></button>`;
+  if (mode === 'entier') {
+    const z = fastZone(r, st);
+    const m = { s: 1, d: 2, t: 3 }[z];
+    const pre = z === 'd' ? '<sup>D</sup>' : z === 't' ? '<sup>T</sup>' : '';
+    const mk = (k, label, word, bars) => `<button type="button" class="key m tb${bars}" data-act="tr-zone" data-arg="${k}" data-press aria-pressed="${z === k}" aria-label="${word}"><span class="kl" data-shrink>${label}<small>${word}</small></span></button>`;
+    return `<section class="pad-k trpad fast${m > 1 ? ` armed m${m}` : ''}" aria-label="Saisie">
+      ${padHead(mode, null)}
+      <div class="krow mult">${mk('s', 'S', 'SIMPLE', 1)}${mk('d', 'D', 'DOUBLE', 2)}${mk('t', 'T', 'TRIPLE', 3)}</div>
+      ${nums(pre)}
+      <div class="krow last">
+        <button type="button" class="key bull" data-act="tr-key" data-arg="25" data-press ${z === 't' ? 'disabled' : ''}><span class="kl" data-shrink>${z === 'd' ? '<sup>D</sup>' : ''}25</span></button>
+        ${rest}
+        ${undo}
+      </div>
+    </section>`;
+  }
   return `<section class="pad-k trpad two-step${pick ? ' picking' : ''}" aria-label="Saisie">
-      <p class="pstep">${pick ? `<b>${pick}</b> · CHOISIS LA ZONE` : 'NOMBRE, PUIS SA ZONE'}</p>
-      ${grid}
+      ${padHead(mode, pick)}
+      ${pick ? zonePick(pick, aimedZone(st)) : nums('')}
       <div class="krow last">
         <button type="button" class="key bull" data-act="tr-key" data-arg="25" data-press><span class="kl" data-shrink>25</span></button>
-        <button type="button" class="key" data-act="tr-key" data-arg="50" data-press><span class="kl" data-shrink>50</span></button>
-        <button type="button" class="key zero" data-act="tr-key" data-arg="0" data-press>0<small>HORS CIBLE</small></button>
-        <button type="button" class="key undo" data-act="tr-undo" data-press ${canUndo ? '' : 'disabled'}>${ico('undo')}<span class="kl" data-shrink>ANNULER</span></button>
+        ${rest}
+        ${undo}
       </div>
     </section>`;
 }
@@ -679,6 +715,7 @@ function play(dart) {
   if (!r || r.ui.pause) return false;
   if (!trThrow(dart)) { buzz(BUZZ.undo); return false; }
   r.ui.pick = null;
+  r.ui.zone = null; // saisie rapide : retour à la zone par défaut après chaque fléchette
   r.ui.loupe = null;
   const st = trState();
   buzz(BUZZ.dart);
@@ -1012,12 +1049,27 @@ export const actions = {
   'tr-key'(k) {
     const r = tr();
     if (!r || r.ui.pause) return;
-    const n = Number(k);
-    if (k === '0') return play(makeDart(0, 1));
-    if (k === '50') return play(makeDart(25, 2));
-    if (k === '25') return play(makeDart(25, 1));
-    // Lot 8 du 23/11 (1.3) : un nombre de 1 à 20, puis sa zone (tr-zonepick).
-    if (n >= 1 && n <= 20) { r.ui.pick = n; buzz(BUZZ.dart); refresh(); }
+    // Correction du 23/11 (engine/padinput.js) : secteur entier → la fléchette d'un appui, avec la zone armée ;
+    // secteur touché → un nombre de 1 à 20, puis sa zone (tr-zonepick).
+    const mode = padMode();
+    const res = padPress(mode, k, { zone: mode === 'entier' ? fastZone(r, trState()) : 's' });
+    if (!res) return;
+    if (res.dart) return play(makeDart(res.dart.segment, res.dart.multiplier));
+    r.ui.pick = res.pick; buzz(BUZZ.dart); refresh();
+  },
+  'tr-zone'(z) {
+    const r = tr();
+    if (!r || r.ui.pause) return;
+    r.ui.zone = fastToggle(r.ui.zone, z, fastDefault(targetZone(trState())));
+    refresh();
+  },
+  'tr-padmode'(m) {
+    const r = tr();
+    if (!PAD_MODES.includes(m)) return;
+    saveSetting('padRing', padRingFor(m));
+    if (r) { r.ui.pick = null; r.ui.zone = null; }
+    buzz(BUZZ.dart);
+    refresh();
   },
   'tr-defi-decl'(arg) {
     const r = tr();
@@ -1030,10 +1082,8 @@ export const actions = {
   'tr-zonepick'(z) {
     const r = tr();
     if (!r || r.ui.pause || !r.ui.pick) return;
-    const n = r.ui.pick;
-    if (z === 'd' || z === 't') return play(makeDart(n, z === 'd' ? 2 : 3));
-    if (z === 'in' || z === 'out') return play({ segment: n, multiplier: 1, ring: z });
-    if (z === 's') return play({ segment: n, multiplier: 1 });
+    const d = zonePress(r.ui.pick, z);
+    if (d) return play(d);
   },
   'tr-pick-cancel'() { const r = tr(); if (r) { r.ui.pick = null; refresh(); } },
   'tr-rules'() { const r = tr(); if (r) { r.ui.rules = !r.ui.rules; r.ui.pause = false; refresh(); } },
@@ -1041,6 +1091,7 @@ export const actions = {
   'tr-undo'() {
     const r = tr();
     if (r && r.ui.pick) { r.ui.pick = null; buzz(BUZZ.undo); refresh(); return; }
+    if (r) r.ui.zone = null;
     if (trUndo()) { buzz(BUZZ.undo); sound('undo'); }
     refresh();
   },

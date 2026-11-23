@@ -272,12 +272,12 @@ export const SCENES = {
   'tr-accueil': () => { setTr('groupement', 4); return '#/'; },
   'tr-jeu': () => setTr('groupement', 4),
   'tr-jeu-debut': () => setTr('groupement', 0),
-  'tr-jeu-ext': () => setTr('groupement', 2, { ui: { pick: 20 } }),
+  'tr-jeu-ext': () => { store.settings.padRing = true; return setTr('groupement', 2); },
   'tr-jeu-couronne': () => { store.settings.padRing = true; return setTr('groupement', 2, { ui: { pick: 20 } }); },
   'tr-jeu-secteur': () => { store.settings.padRing = true; store.settings.zonePad = 'secteur'; return setTr('groupement', 2, { ui: { pick: 19 } }); },
-  'tr-jeu-secteur-simple': () => { store.settings.zonePad = 'secteur'; return setTr('triple20', 3, { ui: { pick: 20 } }); },
-  'tr-jeu-triple': () => setTr('triple20', 3, { ui: { pick: 20 } }),
-  'tr-jeu-double': () => setTr('libre', 1, { blocks: [{ s: 16, z: 'd', n: 9 }], ui: { pick: 16 } }),
+  'tr-jeu-secteur-triple': () => { store.settings.padRing = true; store.settings.zonePad = 'secteur'; return setTr('triple20', 3, { ui: { pick: 20 } }); },
+  'tr-jeu-triple': () => setTr('triple20', 3),
+  'tr-jeu-double': () => setTr('libre', 1, { blocks: [{ s: 16, z: 'd', n: 9 }] }),
   'tr-jeu-regles': () => setTr('horloge', 5, { ui: { rules: true } }),
   'tr-jeu-horshors': () => setTr('groupement', 2, { darts: [{ segment: 0, multiplier: 1, pos: [0.2, -1.27] }, { segment: 20, multiplier: 1, ring: 'out', pos: [0.02, -0.75] }] }),
   'tr-jeu-horloge': () => setTr('horloge', 23),
@@ -683,13 +683,13 @@ export function sommaire() {
       ${L('tr-hub-reprendre', '◆ Entraînement : séance en cours')}
       ${L('tr-accueil', '◆ Accueil : entraînement en cours')}
       ${L('tr-jeu-debut', '◆ Saisie : début', 'groupement')}
-      ${L('tr-jeu', '◆ Saisie : en cours', 'pavé en portrait, cible en paysage')}
-      ${L('tr-jeu-ext', '◆ Saisie : zone du 20 à choisir', 'nombre puis zone (23/11)')}
-      ${L('tr-jeu-couronne', '◆ Saisie : simple intérieur / extérieur', 'réglage activé')}
-      ${L('tr-jeu-secteur', '◆ Saisie : zone en secteur (19)', 'réglage « secteur », intérieur / extérieur')}
-      ${L('tr-jeu-secteur-simple', '◆ Saisie : zone en secteur (20)', 'triple visé, sans intérieur / extérieur')}
-      ${L('tr-jeu-triple', '◆ Saisie : triple 20, zone du 20')}
-      ${L('tr-jeu-double', '◆ Saisie : libre, D16, zone du 16')}
+      ${L('tr-jeu', '◆ Saisie : en cours', 'secteur entier (rapide) en portrait, cible en paysage')}
+      ${L('tr-jeu-triple', '◆ Saisie rapide : triple 20', 'T armé d\'office')}
+      ${L('tr-jeu-double', '◆ Saisie rapide : libre, D16', 'D armé d\'office')}
+      ${L('tr-jeu-ext', '◆ Saisie précise : début', 'secteur touché, le nombre puis sa zone')}
+      ${L('tr-jeu-couronne', '◆ Saisie précise : zone du 20', 'simple intérieur / extérieur')}
+      ${L('tr-jeu-secteur', '◆ Saisie précise : zone en secteur (19)', 'réglage « secteur »')}
+      ${L('tr-jeu-secteur-triple', '◆ Saisie précise : zone en secteur (20)', 'triple visé')}
       ${L('tr-jeu-regles', '◆ Saisie : règles de l\'exercice', 'horloge')}
       ${L('tr-jeu-horshors', '◆ Saisie : hors cible posé', 'à côté de la cible, en paysage')}
       ${L('tr-jeu-horloge', '◆ Saisie : tour de l\'horloge')}
