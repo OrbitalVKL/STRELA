@@ -32,6 +32,7 @@ import { playerRecords, isVisitRecord } from '../../engine/records.js';
 import { defiOf, defiResult, DEFIS } from '../../engine/defis.js';
 import { gameBadgesSay } from '../honours.js';
 import { bindBoardInput, boardHint, frozenLoupe } from '../boardinput.js';
+import { micKey, registerVoice } from '../voiceinput.js';
 
 export const ANNOUNCE_MS = 800;
 
@@ -433,8 +434,9 @@ export function game() {
     }).join('')}</div>`);
   }
   const mk = (k, label, word) => `<button type="button" class="key m" data-key="${k}" aria-pressed="${!wait && m === { S: 1, D: 2, T: 3 }[k]}" ${dis}><span class="kl" data-shrink>${label}<small>${word}</small></span></button>`;
+  const mic = micKey(); // lot 9.3 : saisie à la voix
   const pad = `<section class="pad-k${m > 1 && !wait ? ` armed m${m}` : ''}${wait ? ' wait' : ''}" aria-label="Saisie">
-      <div class="krow mult">${mk('S', 'S', 'SIMPLE')}${mk('D', 'D', 'DOUBLE')}${mk('T', 'T', 'TRIPLE')}</div>
+      <div class="krow mult${mic ? ' with-mic' : ''}">${mk('S', 'S', 'SIMPLE')}${mk('D', 'D', 'DOUBLE')}${mk('T', 'T', 'TRIPLE')}${mic}</div>
       ${nums.join('')}
       <div class="krow last">
         <button type="button" class="key bull" data-key="25" ${m === 3 || wait ? 'disabled' : ''}><span class="kl" data-shrink>${m === 2 && !wait ? '<sup>D</sup>' : ''}25</span></button>
@@ -457,16 +459,17 @@ function landscape(v, slide, overlays) {
   const g = v.g;
   const wait = !!v.pend;
   const impacts = impactsFor(g, v.s, v.visitIdx, { previous: false }); // comme la petite cible : la volée seule
+  const mic = micKey(); // lot 9.3
   return `<div class="game land">
     <div class="lcol">
       <div class="toparea">${band(v, slide)}${defiBand(v)}
         <div class="mid">${rest(v)}<div class="side">${visitBoxes(v)}${checkoutLine(v)}</div></div>
         ${announce(v)}</div>
       ${roundStrip(v)}${others(v)}
-      <div class="lbtns">
+      <div class="lbtns${mic ? ' with-mic' : ''}">
         <button type="button" class="key zero" data-key="0" ${wait ? 'disabled' : ''}>0<small>RATÉ</small></button>
         <button type="button" class="key undo" data-key="undo" ${g.darts.length ? '' : 'disabled'}>${ico('undo')}<span class="kl" data-shrink>ANNULER</span></button>
-        ${validateButton(v)}
+        ${mic}${validateButton(v)}
       </div>
     </div>
     <div class="rcol">
@@ -694,10 +697,10 @@ const hint = boardHint;
 // ------------------------------------------------------------------ saisie
 function play(dart, key, pos = null) {
   const g = store.current;
-  if (!g) return;
+  if (!g) return false;
   stopAnnounce();
   const r = throwDart(g.config, g.darts, dart);
-  if (!r.ok) { buzz(BUZZ.undo); return; }
+  if (!r.ok) { buzz(BUZZ.undo); return false; }
   g.darts = r.darts;
   // Position réelle du doigt (paysage), gardée avec la fléchette pour marquer l'impact.
   if (pos) g.darts[g.darts.length - 1] = { segment: dart.segment, multiplier: dart.multiplier, pos: pos.map(c => Math.round(c * 1000) / 1000) };
@@ -753,12 +756,25 @@ function play(dart, key, pos = null) {
         if (badges) setTimeout(() => say(badges), payers.length ? 5200 : 2600);
       }
       go(st.lastEvent === 'leg_won' ? '#/manche' : '#/fin');
-      return;
+      return true;
     default: buzz(BUZZ.dart); sound(dartSound(dart));
   }
   refresh();
   flash(key);
+  return true;
 }
+
+// Lot 9.3 : saisie à la voix (voiceinput.js) — comme le pavé : rien pendant une volée en attente de VALIDER.
+registerVoice('#/jeu', {
+  ready: () => { const g = store.current; return !!g && !g.ui.pause && !g.ui.panel && !g.ui.drinks; },
+  play: d => {
+    const g = store.current;
+    if (!g || pendingVisit(currentState(), g.validated)) return false;
+    return play(makeDart(d.segment, d.multiplier), null);
+  },
+  undo: () => { const g = store.current; if (!g || !g.darts.length) return false; undo(); refresh(); return true; },
+  validate: () => { const g = store.current; if (!g || !pendingVisit(currentState(), g.validated)) return false; validate(); return true; },
+});
 
 /** Après le rendu : l'annonce vocale ne passe jamais avant l'écran. */
 const later = fn => setTimeout(fn, 0);

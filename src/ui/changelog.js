@@ -2,6 +2,13 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.18.0', date: '2026-11-23', title: 'Saisie à la voix', items: [
+    'Un micro sur l\'écran de saisie : en partie X01, une touche VOIX à côté de S, D, T (couché : à côté de VALIDER) ; au Cricket et à l\'entraînement, en haut à côté de la pause. Un appui, puis on annonce ses fléchettes : « triple vingt, double seize, vingt-cinq ». Strela n\'écoute que le temps d\'une phrase, jamais en continu.',
+    'Mots compris : simple, double, triple et le nombre (en lettres ou en chiffres) ; « vingt intérieur » ou « extérieur » pour la couronne du simple ; bull, centre ou cinquante (50) ; vingt-cinq ou demi-bull (25) ; dehors, raté, zéro, à côté (hors cible) ; « annuler » (la dernière fléchette) et « valider » (la volée). Une phrase porte 1 à 3 fléchettes ; ce qui est douteux est refusé plutôt que deviné.',
+    'Les fléchettes reconnues s\'affichent comme au pavé, avec la phrase entendue en petit en haut de l\'écran ; elles se corrigent au doigt (ANNULER, correction) et rien n\'est validé sans « valider » ou un appui sur VALIDER. Avec les annonces vocales, Strela répète ce qu\'elle a compris.',
+    'La première fois, Strela explique à quoi sert le micro avant qu\'Android demande l\'autorisation. La reconnaissance est faite par le service vocal du téléphone, hors ligne quand le français y est installé ; Strela n\'enregistre rien.',
+    'Réglages › Saisie › Saisie à la voix : OUI par défaut, NON retire le micro.',
+  ] },
   { v: '0.17.1', date: '2026-11-23', title: 'Saisie : la zone plus lisible', items: [
     'Au pavé, après le nombre, le choix de la zone est dessiné aux couleurs de la cible (noir et rouge, ou crème et vert selon le secteur) : double à 2 barres, triple à 3 barres.',
     'Deux présentations au choix, Réglages › Saisie › Choix de la zone. RANGÉES (par défaut) : une touche par zone, du bord vers le centre (double, simple extérieur, triple, simple intérieur), avec la tranche du secteur à gauche ; le triple est noir. SECTEUR : la part de cible dessinée en grand, on touche directement la bande.',

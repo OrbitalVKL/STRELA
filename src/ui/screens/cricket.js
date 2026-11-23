@@ -12,6 +12,7 @@ import { validatedAfterUndo } from '../turn.js';
 import { go, refresh, buzz, BUZZ, backFrom } from '../nav.js';
 import { sound, dartSound, say } from '../feedback.js';
 import { turnFxKind } from '../turnfx.js';
+import { micButton, registerVoice } from '../voiceinput.js';
 
 export const CK_MODE_LABEL = Object.freeze({ points: 'AVEC POINTS', sans: 'SANS POINTS', cutthroat: 'CUT-THROAT' });
 const colorOf = p => `var(--av-${colorIndex(p.avatar?.color)})`;
@@ -65,7 +66,7 @@ function head(v) {
     <span class="t">CRICKET${legs} · TOUR ${v.turn}</span>
     <span class="who" style="--pc:${colorOf(p)}">${v.n > 1 ? `À <b class="nm">${esc(p.name)}</b>` : CK_MODE_LABEL[v.mode]}</span>
     ${store.soiree ? `<a class="act" href="#/soiree" aria-label="Verres de la soirée">${ico('glass')}</a>` : ''}
-    <button type="button" class="act" data-act="ck-pause" aria-label="Pause">${ico('pause')}</button>
+    ${micButton('act')}<button type="button" class="act" data-act="ck-pause" aria-label="Pause">${ico('pause')}</button>
   </header>`;
 }
 
@@ -257,14 +258,14 @@ export function cricketDetail(id) {
 const detailUi = { del: null };
 
 // ------------------------------------------------------------------ actions
-function hit(seg) {
+function hit(seg, forced = null) {
   const g = store.ck;
-  if (!g || g.ui.pause) return;
+  if (!g || g.ui.pause) return false;
   const s = ckState();
-  if (pending(s, g) || s.status !== 'playing') return;
+  if (pending(s, g) || s.status !== 'playing') return false;
   const m = g.ui.mult;
-  const dart = seg === 0 ? makeDart(0, 1) : seg === 25 ? (m === 3 ? null : makeDart(25, m === 2 ? 2 : 1)) : makeDart(seg, m);
-  if (!dart) return;
+  const dart = forced || (seg === 0 ? makeDart(0, 1) : seg === 25 ? (m === 3 ? null : makeDart(25, m === 2 ? 2 : 1)) : makeDart(seg, m));
+  if (!dart) return false;
   g.darts = [...g.darts, dart];
   g.ui.mult = 1;
   saveCk();
@@ -275,11 +276,25 @@ function hit(seg) {
     sound('finish');
     say(`Partie, ${playerById(g.config.players[after.winner]).name} !`);
     go('#/cricket/fin');
-    return;
+    return true;
   }
   if (after.lastEvent === 'leg_won') { sound('finish'); say(`Manche, ${playerById(g.config.players[after.legs[after.legs.length - 2].winner]).name} !`); }
   refresh();
+  return true;
 }
+
+// Lot 9.3 : saisie à la voix. Une fléchette hors des cibles du Cricket (« triple cinq ») compte comme au pavé : rien.
+registerVoice('#/cricket', {
+  ready: () => !!store.ck && !store.ck.ui.pause,
+  play: d => hit(d.segment, makeDart(d.segment, d.multiplier)),
+  undo: () => { if (!store.ck || !store.ck.darts.length) return false; undoCk(); refresh(); return true; },
+  validate: () => {
+    const g = store.ck;
+    if (!g || pending(ckState(), g) !== 'visit_end') return false;
+    actions['ck-validate']();
+    return true;
+  },
+});
 
 function undoCk() {
   const g = store.ck;

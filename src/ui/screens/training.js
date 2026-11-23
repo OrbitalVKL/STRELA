@@ -17,6 +17,7 @@ import { EXERCISES, analyze, suggestNext, nextFor, levelOf, LEVELS, LEVEL_EXERCI
   isHit, sessionValue, cleanTarget, aimPoint, appPoint, pointsOf, trainingState, GAME_EXERCISES, GAME_LEGS, isGameSession, cleanGame, gameLabel, heatCounts,
   rulesOf, volleyInfo, OFF_R, FUN_KEYS, isFunSession, soloDefiNow } from '../../engine/training.js';
 import { DEFIS } from '../../engine/defis.js';
+import { micButton, registerVoice } from '../voiceinput.js';
 import { FUN } from '../../engine/fun.js';
 import { START_SCORES } from '../../engine/x01.js';
 import { CRICKET_TARGETS } from '../../engine/cricket.js';
@@ -527,7 +528,7 @@ function band(r) {
   const g = cleanGame(r.exercise, r.game);
   const what = r.exercise === 'libre' ? 'LIBRE' : r.exercise === 'x01' ? `${g.startScore} · ${g.outMode === 'double' ? 'DOUBLE' : 'SIMPLE'}` : r.exercise === 'cricket' ? 'CRICKET' : EXERCISES[r.exercise].name.toUpperCase();
   return `<header class="tband" data-layer><span class="t ell">ENTRAÎNEMENT · ${esc(what)}</span>
-    <button type="button" class="pause" data-act="tr-pause" data-press aria-label="Pause">${ico('pause')}</button></header>`;
+    ${micButton('pause')}<button type="button" class="pause" data-act="tr-pause" data-press aria-label="Pause">${ico('pause')}</button></header>`;
 }
 
 export function trainingScreen() {
@@ -675,18 +676,28 @@ export function heatBoard(darts, size = 380) {
 /** Fléchette saisie (pavé ou cible). */
 function play(dart) {
   const r = tr();
-  if (!r || r.ui.pause) return;
-  if (!trThrow(dart)) { buzz(BUZZ.undo); return; }
+  if (!r || r.ui.pause) return false;
+  if (!trThrow(dart)) { buzz(BUZZ.undo); return false; }
   r.ui.pick = null;
   r.ui.loupe = null;
   const st = trState();
   buzz(BUZZ.dart);
-  if (st.done) { sound('finish'); go('#/entrainement/fin'); return; }
+  if (st.done) { sound('finish'); go('#/entrainement/fin'); return true; }
   if (st.game && st.gs.lastEvent === 'bust') sound('bust');
   else if (st.game && st.gs.lastEvent === 'leg_won') sound('finish');
   else sound(dartSound(dart));
   refresh();
+  return true;
 }
+
+// Lot 9.3 : saisie à la voix. Pas de VALIDER à l'entraînement : « valider » n'y fait rien. Le simple intérieur /
+// extérieur annoncé est gardé, comme au pavé avec le réglage ; sans couronne, la fléchette est au centre de sa case.
+registerVoice('#/entrainement/jeu', {
+  ready: () => !!tr() && !tr().ui.pause && !tr().ui.rules,
+  play: d => play(d.ring ? { segment: d.segment, multiplier: 1, ring: d.ring } : makeDart(d.segment, d.multiplier)),
+  undo: () => { const r = tr(); if (!r) return false; r.ui.pick = null; const ok = trUndo(); if (ok) { buzz(BUZZ.undo); sound('undo'); } refresh(); return !!ok; },
+  validate: () => false,
+});
 
 /** Appelé par app.js après le rendu de l'écran de saisie : cible au doigt (paysage). */
 export function mountTraining() {

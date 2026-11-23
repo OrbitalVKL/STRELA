@@ -29,6 +29,9 @@ test('manifestes : réseau et installation de paquets dans la variante github se
   const main = perms(read(`${APP}/src/main/AndroidManifest.xml`));
   for (const p of NET) assert.ok(!main.includes(p), `${p} hors du manifeste commun`);
   assert.ok(main.includes('android.permission.VIBRATE'));
+  // Lot 9.3 : saisie à la voix (micro demandé au premier appui) ; le service de reconnaissance doit être visible.
+  assert.ok(main.includes('android.permission.RECORD_AUDIO'));
+  assert.match(read(`${APP}/src/main/AndroidManifest.xml`), /android\.speech\.RecognitionService/);
   const github = perms(read(`${APP}/src/github/AndroidManifest.xml`));
   for (const p of NET) assert.ok(github.includes(p), `${p} dans la variante github`);
   assert.ok(!existsSync(join(ROOT, `${APP}/src/play/AndroidManifest.xml`)) || NET.every(p => !perms(read(`${APP}/src/play/AndroidManifest.xml`)).includes(p)));
@@ -39,7 +42,7 @@ test('manifestes : réseau et installation de paquets dans la variante github se
 
 test('mise à jour intégrée : code dans la variante github seulement', () => {
   const others = [...javaIn(`${APP}/src/main/java`), ...javaIn(`${APP}/src/play/java`)];
-  assert.ok(others.length >= 4, 'MainActivity, Bridge, Speech, Flavor (play)');
+  assert.ok(others.length >= 5, 'MainActivity, Bridge, Speech, Listen, Flavor (play)');
   for (const f of others) {
     const src = read(f);
     assert.doesNotMatch(src, /api\.github\.com|PackageInstaller|new Updater|checkUpdate|HttpURLConnection/, `${f} sans mise à jour`);

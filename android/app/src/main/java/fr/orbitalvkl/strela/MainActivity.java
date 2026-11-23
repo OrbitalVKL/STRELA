@@ -50,6 +50,7 @@ public class MainActivity extends Activity {
     FrameLayout root;
     Bridge bridge;
     Speech speech;
+    Listen listen;                          // lot 9.3 : saisie à la voix (SpeechRecognizer)
     Flavor flavor;                          // ce qui est propre à la variante (github : mise à jour ; play : rien)
     boolean pageReady = false;
     boolean immersive = false;
@@ -65,6 +66,7 @@ public class MainActivity extends Activity {
         super.onCreate(state);
         Log.i("Strela", "onCreate" + (state != null ? " (activité recréée)" : ""));
         speech = new Speech(this);
+        listen = new Listen(this);
         flavor = new Flavor(this);
         bridge = flavor.bridge();
 
@@ -392,8 +394,16 @@ public class MainActivity extends Activity {
         if (immersive) immersiveMode(true);
     }
 
+    /** Lot 9.3 : réponse d'Android à la demande du micro (saisie à la voix). */
+    @Override
+    public void onRequestPermissionsResult(int req, String[] perms, int[] res) {
+        super.onRequestPermissionsResult(req, perms, res);
+        if (req == Listen.REQ_MIC) listen.onPermission(res.length > 0 && res[0] == android.content.pm.PackageManager.PERMISSION_GRANTED);
+    }
+
     @Override
     protected void onPause() {
+        listen.cancel();
         speech.stop();
         web.onPause();
         super.onPause();
@@ -402,6 +412,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         flavor.stop();
+        listen.destroy();
         speech.shutdown();
         web.destroy();
         super.onDestroy();

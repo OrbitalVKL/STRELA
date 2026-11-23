@@ -4,16 +4,20 @@
      (src/github/AndroidManifest.xml) : la variante play n'a aucun accès réseau. VIBRATE : vibreur natif. Pas de
      permission caméra : la prise de vue passe par l'appareil photo d'Android (ACTION_IMAGE_CAPTURE), qui a la sienne.
      Pas de permission de stockage : l'export va dans Téléchargements/Strela par MediaStore, l'import passe par le
-     sélecteur de fichiers d'Android. -->
+     sélecteur de fichiers d'Android. RECORD_AUDIO (lot 9.3) : saisie à la voix, demandée au premier appui sur le
+     micro (jamais au lancement) ; la reconnaissance est faite par le service vocal du téléphone, rien n'est enregistré. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
 
     <queries>
         <intent><action android:name="android.media.action.IMAGE_CAPTURE" /></intent>
         <intent><action android:name="android.intent.action.TTS_SERVICE" /></intent>
+        <intent><action android:name="android.speech.RecognitionService" /></intent>
     </queries>
 
     <application

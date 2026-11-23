@@ -38,6 +38,7 @@ const I = {
   back: '<path d="M15 4L7 12L15 20"/>',
   chev: '<path d="M9 4L17 12L9 20"/>',
   pause: '<path d="M8 4V20M16 4V20" stroke-width="3"/>',
+  mic: '<path d="M9 2H15V14H9Z"/><path d="M5 10V14L8 17H16L19 14V10M12 17V22M8 22H16"/>', // lot 9.3 : saisie à la voix
   undo: '<path d="M9 5L4 10L9 15"/><path d="M4 10H15C18 10 20 12.5 20 15.5S18 21 15 21H11"/>',
   players: '<path d="M3 21V17L7 14H11L15 17V21"/><path d="M6 6H12V12H6Z"/><path d="M15 7H19V11H15ZM17 14L21 16.5V21H18"/>',
   history: '<path d="M4 4H20V20H4Z"/><path d="M8 9H16M8 13H16M8 17H12"/>',

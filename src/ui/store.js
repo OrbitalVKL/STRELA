@@ -39,7 +39,7 @@ export const store = {
   setupDraft: null,  // écran « Nouvelle partie » en cours
   crop: null,        // photo en cours de recadrage (screens/photo.js)
   // autoUpdate (lot 6) : recherche automatique de mise à jour (APK « github » seulement), OUI par défaut
-  settings: { theme: 'auto', night: false, vibrate: true, anim: true, sound: true, voice: true, autoUpdate: true, autoBackup: true, heatScale: 'clair', padRing: false, zonePad: 'rangees' }, // autoBackup : lot 9 ; heatScale, padRing, zonePad : lot 8 du 23/11
+  settings: { theme: 'auto', night: false, vibrate: true, anim: true, sound: true, voice: true, autoUpdate: true, autoBackup: true, heatScale: 'clair', padRing: false, zonePad: 'rangees', voiceInput: true, voiceAsked: false }, // autoBackup : lot 9 ; heatScale, padRing, zonePad : lot 8 du 23/11 ; voiceInput, voiceAsked : lot 9.3 (saisie à la voix)
   maquette: false,
   // Base du téléphone : version, erreur éventuelle, stockage persistant (affichés dans le diagnostic des Réglages)
   db: { version: null, error: null, persisted: null, unreadable: 0, openCode: null, writeFail: null },
