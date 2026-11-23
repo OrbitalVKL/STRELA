@@ -457,7 +457,7 @@ function gameVisit(r, st, a) {
   }).join('');
   const v = x.v || { total: 0, marks: 0 };
   const total = ck ? (v.marks || 0) : v.bust ? 'BUST' : (v.total || 0);
-  return `<div class="visit${x.prev ? ' prev' : ''}">${boxes}<div class="total ${x.darts.length ? 'inv' : 'zero'}"><small>${ck ? 'MARQUES' : 'VOLÉE'}</small><span class="tv" data-shrink>${total}</span></div></div>`;
+  return `<div class="visit${x.prev ? ' prev' : ''}">${boxes}<div class="total ${x.darts.length ? 'inv' : 'zero'}"><small>${ck ? 'MARQ.' : 'VOLÉE'}</small><span class="tv" data-shrink>${total}</span></div></div>`;
 }
 
 function gameLive(r, st, a) {
