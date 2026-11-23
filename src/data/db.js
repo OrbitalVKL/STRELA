@@ -299,6 +299,9 @@ export function trainingRecord(r) {
   // 0.14.0 (champ facultatif) : réglages d'un jeu en solo (X01, Cricket).
   const g = cleanGame(r.exercise, r.game);
   if (g) rec.game = g;
+  // Lot 8 du 23/11 (champ facultatif) : version des règles des exercices (2 : la cible change à la fin d'une volée ;
+  // une séance d'avant, sans ce champ, garde ses règles, par exemple 20 fléchettes par numéro au 20-19-18).
+  if (Number.isInteger(r.rules) && r.rules >= 2 && r.rules <= 99) rec.rules = r.rules;
   return rec;
 }
 

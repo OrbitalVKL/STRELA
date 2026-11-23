@@ -13,7 +13,8 @@ const K = 100; // échelle du dessin de la cible (board.js)
  *   onRelease(x, y)     : point du repère de la cible au lâcher (rayon 1 = bord du double)
  *   label(x, y)         : nom affiché dans la loupe (par défaut : la zone, ou HORS CIBLE)
  */
-export function bindBoardInput(wrap, { canStart = () => true, onStart = () => {}, onRelease, label = null }) {
+export function bindBoardInput(wrap, { canStart = () => true, onStart = () => {}, onRelease, label = null, edge = RINGS.edge }) {
+  // edge : rayon du repère au bord du dessin (OFF_R quand la cible montre la zone autour, lot 8 du 23/11).
   const svg = wrap.querySelector('svg');
   let active = null;
   let geo = null;
@@ -24,7 +25,7 @@ export function bindBoardInput(wrap, { canStart = () => true, onStart = () => {}
     ev.preventDefault();
     onStart();
     const r = svg.getBoundingClientRect();
-    geo = { cx: r.left + r.width / 2, cy: r.top + r.height / 2, scale: r.width / 2 / RINGS.edge };
+    geo = { cx: r.left + r.width / 2, cy: r.top + r.height / 2, scale: r.width / 2 / edge };
     active = ev.pointerId;
     try { wrap.setPointerCapture(ev.pointerId); } catch (e) { /* rien */ }
     const p = toBoard(ev);
@@ -86,9 +87,9 @@ export function hideLoupe() {
 }
 
 /** Loupe figée (sommaire de maquette) : comme si le doigt était posé en (x, y) sur la cible de `wrap`. */
-export function frozenLoupe(wrap, at, label = null) {
+export function frozenLoupe(wrap, at, label = null, edge = RINGS.edge) {
   const svg = wrap.querySelector('svg');
   const r = svg.getBoundingClientRect();
-  const scale = r.width / 2 / RINGS.edge;
+  const scale = r.width / 2 / edge;
   showLoupe(at.x, at.y, r.left + r.width / 2 + at.x * scale, r.top + r.height / 2 + at.y * scale, scale, label);
 }

@@ -66,7 +66,8 @@ describe('entraînement : déroulé des exercices', () => {
     assert.equal(n('groupement'), 9);
     assert.equal(n('scorelibre'), 30);
     assert.equal(n('bull'), 9);
-    assert.equal(n('vingt'), 60);
+    assert.equal(n('vingt'), 63, 'lot 8 du 23/11 : 21 par numéro (7 volées)');
+    assert.equal(EXERCISES.vingt.blocksV1.reduce((a, b) => a + b.n, 0), 60, 'séances d\'avant : 20 par numéro');
     assert.deepEqual(EXERCISES.hautbas.blocks.slice(0, 2).map(b => [b.s, b.n]), [[20, 3], [3, 3]]);
     assert.deepEqual(EXERCISES.gauchedroite.blocks.slice(0, 2).map(b => [b.s, b.n]), [[11, 3], [6, 3]]);
   });

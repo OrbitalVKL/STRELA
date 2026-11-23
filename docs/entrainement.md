@@ -221,3 +221,45 @@ d'empennage). Ajouter une fiche = une entrée de `SHEETS` et un dessin dans `ILL
 - « À moins de deux secteurs » (exercice Bull) : interprétation à confirmer.
 - Jeux en solo : pas de Cricket « avec points » (sans adversaire, rien ne rapporte) ; seuils de MPR à ajuster.
 - Nombre d'alternances de haut contre bas et gauche contre droite (3 aujourd'hui).
+
+## Lot 8 du 23/11 : saisie, règles et stats (0.15.0)
+
+Cahier des charges « Strela — Lot 8 : entraînement, stats et distribution » (23/11/2026) ; avancement :
+docs/lot-8-avancement.md. **Aucune migration** : champ facultatif `rules` des séances (2 pour les séances nouvelles),
+réglage d'affichage `heatScale`.
+
+### Saisie
+- **Pavé (portrait)** : le nombre, puis sa zone dans un même choix (SIMPLE INT., SIMPLE EXT., DOUBLE, TRIPLE ; la zone de
+  la cible visée est soulignée) ; AUTRE NOMBRE ou ANNULER revient au choix du nombre (`ui.pick`). 25, 50, 0 en un appui.
+  Plus de zone « armée » (actions `tr-key` puis `tr-zonepick`).
+- **Cible (paysage)** : zone de saisie jusqu'à `OFF_R` = 1,33 du repère (270 mm réels, 10 cm au-delà du double),
+  dessinée en pointillés (`boardSvg({ margin: true })`). Un hors cible y garde sa position et sa distance ; au-delà : rien.
+- **Marques** : disque `--red` semi-transparent, fin contour clair ; volée en cours 0,88, précédentes 0,5 ; numéros
+  des secteurs dessinés après les marques.
+- **Règle du moment** sous le titre (`RULES[k].now`) et (i) → panneau des règles complètes (`tr-rules`, fermé par
+  `tr-rules-close`, dans les fermetures du retour d'Android). Compteur « VOLÉE n / total » (`volleyInfo`).
+
+### Règles écrites (`RULES` de engine/training.js)
+Chaque exercice : `flow` (déroulé), `success` (ce qui compte), `entry` (moment de la saisie), `now` (rappel court),
+`advance` : `volley` (la cible change à la fin de la volée complète, saisie après les 3 fléchettes — toutes les séries
+sont des multiples de 3), `hit` (tour de l'horloge, tour des doubles : la cible avance dès qu'elle est touchée, chaque case
+de la volée porte sa cible), `game` (X01, Cricket). 20-19-18 passe à 21 fléchettes par numéro (`blocks` ; les séances
+sans `rules` gardent `blocksV1`, 20). Libre : de 3 en 3.
+
+### Précision et stats
+- **Précision = distance moyenne au point visé** (mm sur une vraie cible, affichée en cm ; `aimDistance`,
+  `precisionOf` → `dist`, `distN`, `approx` (points au centre de leur case, saisie au pavé), `offNoPos` (hors cible au
+  pavé : comptés, sans distance)). « Dans la cible » (%) reste le résultat des exercices.
+- Séances sans fléchette ignorées par les stats.
+- Période : `7j`, `30j`, `tout`, `plage` (deux dates) — `engine/trends.js › periodBounds` ; `trainStatsFilter()` la
+  donne aux exports.
+- Courbes : `timeAxis` (abscisses selon les dates, 36 px au moins entre deux points), `labelIndexes` (une date tous les
+  66 px au plus).
+- Tendances : `trend(values, dir)` sur les 10 dernières séances (4 au moins), pente des moindres carrés ramenée à la
+  moyenne, flèche au-delà de 5 % ; précision et groupement, toutes séances et par exercice.
+- Carte de chaleur : `heatScale` (`clair` par défaut = comme avant, `fonce`, `couleur`), jetons `--heat-*`, zone jamais
+  touchée tramée, chiffres à l'encre lisible (`inkOn`). src/ui/heat.js.
+- Bandeau de mode (src/ui/modeband.js) : `train` (cible) et `soiree` (pinte), sous la barre du haut, jetons
+  `--mode-train` / `--mode-soiree`.
+- Listes : séances en cartes (`sessionCard`, détail volée par volée au toucher, `tr-card`) ; historique : une carte par
+  soirée ou par jour, repliée, gagnant dans l'en-tête, AFFICHER LES RÉSULTATS en pied.

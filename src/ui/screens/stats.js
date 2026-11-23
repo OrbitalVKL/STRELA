@@ -1,5 +1,7 @@
 // Stats : période (7 j / 30 j / tout), carte des segments touchés (sur une cible), face-à-face (#/face/…). L'écran
 // des stats d'un joueur est celui de la version 0.8.0 (screens/v2/stats2.js), qui reprend ces morceaux.
+import { modeBand } from '../modeband.js';
+import { heatScale } from '../heat.js';
 import { store, playerById } from '../store.js';
 import { esc, topBar, avg, when, OUT_SHORT } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
@@ -23,8 +25,8 @@ export function board(seg, { counts = false } = {}) {
   let max = 1;
   for (let s = 1; s <= 20; s++) max = Math.max(max, ...seg[s]);
   max = Math.max(max, seg[25][0], seg[25][1]);
-  const op = c => Math.pow(c / max, 0.6); // 0 : zone jamais touchée, 1 : la plus touchée
-  return boardSvg({ size: 380, heat: key => op(countOf(seg, key)), act: 'board', selected: picked.board, cls: 'board', label: 'Carte des segments touchés',
+  const op = c => (c > 0 ? Math.pow(c / max, 0.6) : 0); // 0 : zone jamais touchée (tramée), 1 : la plus touchée
+  return boardSvg({ size: 380, heat: key => op(countOf(seg, key)), heatScale: heatScale(), act: 'board', selected: picked.board, cls: 'board', label: 'Carte des segments touchés',
     counts: counts ? sct => seg[sct].reduce((a, b) => a + b, 0) : null });
 }
 
@@ -77,7 +79,7 @@ export function faceScreen(pid, oid) {
     ? `<div class="sec">Abandonnées <span class="n">${f.abandoned.length}</span></div><p class="note" style="margin:0 0 10px">Elles ne comptent pas dans le bilan.</p>
        <ul class="flist">${f.abandoned.map(r => faceRow(r, me, op)).join('')}</ul>`
     : '';
-  return `<div class="screen">${topBar('Face-à-face', backFrom(`#/stats/${esc(pid)}`))}
+  return `<div class="screen">${topBar('Face-à-face', backFrom(`#/stats/${esc(pid)}`))}${modeBand('soiree')}
     <div class="pad" style="padding-top:14px">
       <div class="faces">${side(me, 'fme')}<span class="vs">CONTRE</span>${side(op, 'fop')}</div>
       <div class="seg" style="margin-top:14px">${seg('7j', '7 jours')}${seg('30j', '30 jours')}${seg('tout', 'Tout')}</div>

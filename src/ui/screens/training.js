@@ -14,7 +14,8 @@ import { store, activePlayers, playerById, trState, startTraining, trThrow, trUn
 import { esc, ico, topBar, plural, when } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
 import { EXERCISES, analyze, suggestNext, nextFor, levelOf, LEVELS, LEVEL_EXERCISES, ALL_EXERCISES, exerciseLevel, goalOf, goalMet, setRuns, setAt, setsUsed, trainingDartLabel, targetLabel, zoneLabelOf, ZONES_FOR, ZONE_LABEL, BULL_ZONE_LABEL,
-  isHit, sessionValue, cleanTarget, aimPoint, appPoint, pointsOf, trainingState, GAME_EXERCISES, GAME_LEGS, isGameSession, cleanGame, gameLabel, heatCounts } from '../../engine/training.js';
+  isHit, sessionValue, cleanTarget, aimPoint, appPoint, pointsOf, trainingState, GAME_EXERCISES, GAME_LEGS, isGameSession, cleanGame, gameLabel, heatCounts,
+  rulesOf, volleyInfo, OFF_R } from '../../engine/training.js';
 import { START_SCORES } from '../../engine/x01.js';
 import { CRICKET_TARGETS } from '../../engine/cricket.js';
 import { suggestCheckout, checkoutPrefs } from '../../engine/checkout.js';
@@ -29,6 +30,7 @@ import { sound, dartSound } from '../feedback.js';
 import { bindBoardInput, boardHint, frozenLoupe } from '../boardinput.js';
 import { isLandscape } from './game.js';
 import { infoBtn, infoBox } from '../info.js';
+import { heatScale } from '../heat.js';
 
 const dec1 = v => (v === null || v === undefined ? '—' : (Math.round(v * 10) / 10).toFixed(1).replace('.', ','));
 const pctOf = v => (v === null || v === undefined ? '—' : `${Math.round(v * 100)} %`);
@@ -48,8 +50,10 @@ export function trSetup() {
   // Jeux en solo (0.14.0) : jeu choisi et ses réglages (départ et sortie du X01 ; manches, communes aux deux).
   const kind = s.game && s.game.kind === 'cricket' ? 'cricket' : 'x01';
   const game = { kind, ...cleanGame('x01', s.game) };
-  return { player, setId: set ? set.id : null, mode: ['libre', 'jeu'].includes(s.mode) ? s.mode : 'coach', free: { ...free, n: Math.max(1, Math.min(99, Number(s.free && s.free.n) || 9)) }, game };
+  return { player, setId: set ? set.id : null, mode: ['libre', 'jeu'].includes(s.mode) ? s.mode : 'coach', free: { ...free, n: volleyCount(s.free && s.free.n) }, game };
 }
+/** Nombre de fléchettes d'une série libre : un multiple de 3 (lot 8 du 23/11, 1.6 : la cible change à la fin d'une volée), de 3 à 99. */
+export const volleyCount = v => Math.max(3, Math.min(99, Math.round((Number(v) || 9) / 3) * 3));
 
 // Sommaire et tests : choix préparés sans base.
 let addDraft = null; // libre : série ajoutée en fin de séance { s, z, n }
@@ -94,7 +98,7 @@ export function targetPicker(t, who) {
       <span class="small dim caps">Secteur</span><div class="tpk-grid">${nums.map(cell).join('')}</div>
       <span class="small dim caps">Zone</span><div class="chips2">${zones}</div>
       <span class="small dim caps">Fléchettes</span>
-      <div class="tpk-n"><button type="button" class="btn" data-act="tr-pick" data-arg="${who}|n|${Math.max(1, t.n - 1)}" aria-label="Une de moins" ${t.n <= 1 ? 'disabled' : ''}>${ico('minus')}</button><b>${t.n}</b><button type="button" class="btn" data-act="tr-pick" data-arg="${who}|n|${Math.min(99, t.n + 1)}" aria-label="Une de plus" ${t.n >= 99 ? 'disabled' : ''}>${ico('plus')}</button></div>
+      <div class="tpk-n"><button type="button" class="btn" data-act="tr-pick" data-arg="${who}|n|${Math.max(3, t.n - 3)}" aria-label="Une volée de moins" ${t.n <= 3 ? 'disabled' : ''}>${ico('minus')}</button><b>${t.n}</b><button type="button" class="btn" data-act="tr-pick" data-arg="${who}|n|${Math.min(99, t.n + 3)}" aria-label="Une volée de plus" ${t.n >= 99 ? 'disabled' : ''}>${ico('plus')}</button></div>
       <div class="chips2">${preset}</div>
     </div>`;
 }
@@ -134,7 +138,8 @@ function exerciseRows(pid, proposed, keys, level) {
     const sv = last ? sessionValue(last) : null;
     const ok = last ? goalMet(last, analyze(last), level) : null;
     const goal = goalText(k, level);
-    const info = infoBox(`tr-ex-${k}`, esc(ex.goal) + (goal ? ` <b>Objectif</b> (niveau ${esc(LEVELS[level].toLowerCase())}) : ${esc(goal)}.` : ''));
+    // Lot 8 du 23/11 (2.1) : l'encart « Règles » : objectif, déroulé, réussi, moment de la saisie, et l'objectif chiffré.
+    const info = infoBox(`tr-ex-${k}`, `<b>Règles</b>${rulesHtml(k)}${goal ? `<b>Objectif chiffré</b> (niveau ${esc(LEVELS[level].toLowerCase())}) : ${esc(goal)}.` : ''}`);
     return `<li class="${k === proposed ? 'on' : ''}"><button type="button" class="exr" data-act="tr-start" data-arg="${k}">
       <span class="t"><b>${esc(ex.name)}</b><small>${esc(ex.short)}${goal ? ` · obj. ${esc(goal)}` : ''}</small></span>
       <span class="v">${sv ? `<small>DERNIÈRE</small><b>${fmtValue(sv)}${ok ? ' ✓' : ''}</b>` : '<small>JAMAIS</small>'}</span>${ico('play')}</button>
@@ -144,13 +149,34 @@ function exerciseRows(pid, proposed, keys, level) {
 
 let othersOpen = false; // exercices des autres niveaux, repliés
 
-function sessionRow(r) {
+// Lot 8 du 23/11 (4.3) : chaque séance est une carte — en-tête : date, exercice, jeu de fléchettes, résultat clé ; le
+// détail fléchette par fléchette (volée par volée, avec la cible visée) se déplie au toucher ; VOIR LA SÉANCE ouvre
+// l'analyse. Cartes dépliées : gardées le temps de la session.
+const openCards = new Set();
+export function presetCards(ids = []) { openCards.clear(); for (const id of ids) openCards.add(id); }
+/** Volées d'une séance pour le détail d'une carte : [{ n, darts: [{ label, hit, target }] }]. */
+function volleysOf(r) {
+  const st = trainingState(r, r.darts);
+  const out = [];
+  r.darts.forEach((d, i) => {
+    const t = st.game ? null : targetAt(st, i);
+    if (i % 3 === 0) out.push({ n: out.length + 1, darts: [] });
+    out[out.length - 1].darts.push({ label: trainingDartLabel(d), hit: t ? isHit(t, d) : null, target: t ? targetLabel(t) : '' });
+  });
+  return out;
+}
+export function sessionCard(r) {
   const ex = EXERCISES[r.exercise] || EXERCISES.libre;
   const sv = sessionValue(r);
   const what = r.exercise === 'libre' ? libreLabel(r) : isGameSession(r) ? sessionTitle(r) : ex.name;
-  return `<li><a class="trow${r.excluded ? ' excl' : ''}" href="#/entrainement/seance/${esc(r.id)}"><span class="l1"><b class="ell">${esc(what)}</b><span>${when(r.startedAt)}</span></span>
-    <span class="l2"><span class="ell">${esc(sessionFlags(r))}</span><b>${fmtValue(sv)}</b></span></a></li>`;
+  const open = openCards.has(r.id);
+  const body = open ? `<ol class="tvol">${volleysOf(r).map(v => `<li><small>V${v.n}</small>${v.darts.map(d => `<span class="${d.hit === null ? '' : d.hit ? 'hit' : 'miss'}"${d.target ? ` title="cible ${esc(d.target)}"` : ''}>${d.target && d.hit !== null ? `<i>${esc(d.target)}</i>` : ''}${esc(d.label)}</span>`).join('')}</li>`).join('')}</ol>
+    <a class="btn ghost tcfoot" href="#/entrainement/seance/${esc(r.id)}">${ico('stats')} VOIR LA SÉANCE</a>` : '';
+  return `<li class="tcard${open ? ' open' : ''}${r.excluded ? ' excl' : ''}"><button type="button" class="trow" data-act="tr-card" data-arg="${esc(r.id)}" aria-expanded="${open}">
+    <span class="l1"><b class="ell">${esc(what)}</b><span>${when(r.startedAt)}</span></span>
+    <span class="l2"><span class="ell">${esc(sessionFlags(r))}</span><b>${sv ? `<small>${esc(sv.label)}</small> ` : ''}${fmtValue(sv)}</b>${ico(open ? 'up' : 'down')}</span></button>${body}</li>`;
 }
+const sessionRow = sessionCard;
 /** Deuxième ligne d'une séance dans une liste : jeux, arrêtée, mise de côté, note. */
 export const sessionFlags = r => [setsText(r), r.stopped ? 'arrêtée' : '', r.excluded ? 'mise de côté' : '', r.note ? '✎ note' : ''].filter(Boolean).join(' · ');
 /** Libre : « T20 ×9 · 19 ×9 ». */
@@ -188,7 +214,7 @@ export function trainingHub() {
   } else {
     const t = su.free;
     body = `<div class="sec">Cible${infoBtn('tr-free')}</div>
-      ${infoBox('tr-free', 'Choisis le secteur, la zone et le nombre de fléchettes. Pendant la séance, l\'appli compare la cible visée et les impacts : précision, et vers où partent les fléchettes. À la fin, ENCORE UNE SÉRIE ajoute une autre cible à la même séance.')}
+      ${infoBox('tr-free', `Choisis le secteur, la zone et le nombre de fléchettes (par volées de 3). Pendant la séance, l'appli compare la cible visée et les impacts : précision, et vers où partent les fléchettes. À la fin, ENCORE UNE SÉRIE ajoute une autre cible à la même séance. <b>Règles</b>${rulesHtml('libre')}`)}
       ${targetPicker(t, 'setup')}
       <button type="button" class="btn ${resume ? 'accent-line' : 'accent'} big" data-act="tr-start" data-arg="libre">${ico('target')} VISER ${esc(targetLabel(t))} · ${t.n} FL.</button>`;
   }
@@ -224,7 +250,7 @@ function gamePicker(su, resume) {
   const goal = goalText(g.kind, level);
   const rec = { exercise: g.kind, game: g };
   return `<div class="sec">Jeu${infoBtn('tr-game')}</div>
-    ${infoBox('tr-game', '<b>X01</b> : 301, 501 ou 701 à ramener à zéro, en sortie simple ou double (la finition proposée suit ta fiche joueur). <b>Cricket</b> : fermer le 20, le 19, le 18, le 17, le 16, le 15 et le bull, 3 marques chacun, en le moins de volées possible. Seul, on vise comme en partie : c\'est là que comptent, dans les stats, la part de triples et de doubles et la carte de chaleur (sur un exercice, la cible est imposée).')}
+    ${infoBox('tr-game', `Seul, on vise comme en partie : c'est là que comptent, dans les stats, la part de triples et de doubles et la carte de chaleur (sur un exercice, la cible est imposée). La finition proposée en X01 suit ta fiche joueur. <b>Règles · ${g.kind === 'x01' ? 'X01' : 'Cricket'}</b>${rulesHtml(g.kind)}`)}
     <div class="seg trgame">${[['x01', 'X01'], ['cricket', 'Cricket']].map(([k, l]) => `<button type="button" data-act="tr-game" data-arg="kind|${k}" aria-pressed="${g.kind === k}">${l}</button>`).join('')}</div>
     <div class="tpick">
       ${g.kind === 'x01' ? `<span class="small dim caps">Départ</span><div class="chips2">${START_SCORES.map(v => chip('start', v, v, g.startScore)).join('')}</div>
@@ -250,8 +276,8 @@ function startFrom(key, game = null) {
 
 // ------------------------------------------------------------------ saisie
 const tr = () => store.tr;
-/** Zone armée par défaut : celle de la cible visée (simple extérieur, double, triple), sinon simple intérieur. */
-const defaultZone = st => (st && st.cur && st.cur.s !== 25 ? ({ se: 'out', d: 'd', t: 't' }[st.cur.z] || 'in') : 'in');
+/** Zone de la cible visée, à souligner dans le choix de la zone (pavé, 23/11) : 'in', 'out', 'd', 't', ou null. */
+const aimedZone = st => (st && st.cur && st.cur.s !== 25 ? ({ si: 'in', se: 'out', d: 'd', t: 't' }[st.cur.z] || null) : null);
 
 /** Fléchettes de la volée affichée : celle en cours, ou la précédente (estompée) tant que la suivante n'a pas commencé. */
 function shownVisit(r, st) {
@@ -275,11 +301,35 @@ function aimHead(r, st) {
   const t = cur ? st.blocks[cur.i] : st.blocks[st.blocks.length - 1];
   const nb = st.blocks.length;
   let prog;
-  if (st.clock && st.clockMax) prog = `<b>${cur ? cur.k + 1 : st.clockMax}<small>/${st.clockMax}</small></b><span>DOUBLE ${cur ? cur.s : 20}/20<br>${st.blocks.filter(b => b.hits).length} TOUCHÉ${st.blocks.filter(b => b.hits).length > 1 ? 'S' : ''}</span>`;
-  else if (st.clock) prog = `<b>${st.blocks.filter(b => b.hits).length}<small>/20</small></b><span>FAITS · ${r.darts.length} FL.${cur && cur.k ? `<br>${cur.k} SUR LE ${cur.s}` : ''}</span>`;
-  else prog = `<b>${cur ? cur.k + 1 : t.n}<small>/${t.n}</small></b><span>${nb > 1 ? `SÉRIE ${cur ? cur.i + 1 : nb}/${nb}` : 'FLÉCHETTE'}</span>`;
+  if (st.clock && st.clockMax) prog = `<b>${cur ? cur.k + 1 : st.clockMax}<small>/${st.clockMax}</small></b><span>DOUBLE ${cur ? cur.s : 20}/20<br>VOLÉE ${volleyInfo(st).n}</span>`;
+  else if (st.clock) prog = `<b>${st.blocks.filter(b => b.hits).length}<small>/20</small></b><span>FAITS · ${r.darts.length} FL.<br>VOLÉE ${volleyInfo(st).n}</span>`;
+  else {
+    // Lot 8 du 23/11 (2.2) : où l'on en est, en volées (« volée 2 sur 5 ») ; la série quand il y en a plusieurs.
+    const v = volleyInfo(st);
+    prog = `<b>${v.n}<small>/${v.total}</small></b><span>VOLÉE${nb > 1 ? `<br>SÉRIE ${cur ? cur.i + 1 : nb}/${nb}` : ''}</span>`;
+  }
   return `<section class="taim" aria-label="Cible visée"><div class="tl"><small>VISE</small><b class="tg" data-shrink>${esc(targetLabel(t))}</b><span class="zl ell">${esc(zoneLabelOf(t))}</span></div>
     <div class="tp">${prog}</div></section>`;
+}
+
+/**
+ * Rappel de la règle du moment sous le titre (lot 8 du 23/11, 2.2), avec son (i) : les règles complètes de l'exercice
+ * (2.1), dans un panneau par-dessus la saisie.
+ */
+function ruleLine(r) {
+  return `<p class="trule"><span class="ell">${esc(rulesOf(r.exercise).now)}</span><button type="button" class="ibtn" data-act="tr-rules" aria-pressed="${!!r.ui.rules}" aria-label="Règles de l'exercice">${ico('info')}</button></p>`;
+}
+/** Les règles d'un exercice (encart (i) du choix, panneau de la saisie) : objectif, déroulé, réussi, saisie. */
+export function rulesHtml(key) {
+  const ex = EXERCISES[key] || EXERCISES.libre;
+  const ru = rulesOf(key);
+  return `<dl class="rules"><dt>Objectif</dt><dd>${esc(ex.goal)}</dd><dt>Déroulé</dt><dd>${esc(ru.flow)}</dd><dt>Réussi</dt><dd>${esc(ru.success)}</dd><dt>Saisie</dt><dd>${esc(ru.entry)}</dd></dl>`;
+}
+function rulesSheet(r) {
+  const ex = EXERCISES[r.exercise] || EXERCISES.libre;
+  return `<div class="sheet-bg" role="dialog" aria-label="Règles" data-layer><div class="sheet">
+    <header class="top" data-layer><h1><span>Règles · ${esc(ex.name)}</span></h1><button type="button" class="act" data-act="tr-rules-close" aria-label="Fermer">${ico('close')}</button></header>
+    <div class="body" style="padding-top:12px">${rulesHtml(r.exercise)}<button type="button" class="btn primary" data-act="tr-rules-close">${ico('play')} REPRENDRE</button></div></div></div>`;
 }
 
 function liveLine(r, st) {
@@ -301,12 +351,17 @@ function liveLine(r, st) {
 function visitBoxes(r, st) {
   const v = shownVisit(r, st);
   const ex = EXERCISES[r.exercise] || EXERCISES.libre;
+  // Lot 8 du 23/11 (2.2) : quand la cible avance dès qu'elle est touchée (horloge), chaque case porte sa cible ; la case
+  // à saisir montre le nombre choisi au pavé en attendant sa zone.
+  const perDart = rulesOf(r.exercise).advance === 'hit';
+  const tag = t => (perDart && t ? `<small class="dt">${esc(targetLabel(t))}</small>` : '');
   const boxes = [0, 1, 2].map(i => {
     const d = v.darts[i];
-    if (!d) return `<div class="dart left${!v.prev && i === v.darts.length ? ' todo' : ''}"></div>`;
+    const todo = !v.prev && i === v.darts.length;
+    if (!d) return `<div class="dart left${todo ? ' todo' : ''}">${todo ? tag(st.cur && st.blocks[st.cur.i]) : ''}${todo && r.ui.pick ? `<span class="sv pk" data-shrink>${r.ui.pick}…</span>` : ''}</div>`;
     const t = targetAt(st, v.start + i);
     const hit = t && isHit(t, d);
-    return `<div class="dart done${hit ? ' hit' : ' miss'}"><span class="sv" data-shrink>${esc(trainingDartLabel(d))}</span></div>`;
+    return `<div class="dart done${hit ? ' hit' : ' miss'}">${tag(t)}<span class="sv" data-shrink>${esc(trainingDartLabel(d))}</span></div>`;
   }).join('');
   const total = ex.metric === 'average' ? v.darts.reduce((n, d) => n + pointsOf(d), 0)
     : `${v.darts.filter((d, i) => { const t = targetAt(st, v.start + i); return t && isHit(t, d); }).length}<small>/${v.darts.length || 0}</small>`;
@@ -353,28 +408,41 @@ function pauseSheet(r) {
     </div></div></div>`;
 }
 
+/**
+ * Pavé (portrait). Lot 8 du 23/11 (1.3) : saisie en deux temps, précise à la case — le nombre, puis sa zone : simple
+ * intérieur ou extérieur, double, triple (multiplicateur et couronne du simple dans le même choix). 25, 50 et HORS CIBLE
+ * en un appui ; un hors cible au pavé n'a pas de position (compté, sans distance). ANNULER pendant le choix de la zone
+ * revient au choix du nombre.
+ */
 function keyPad(r, st) {
-  const z = r.ui.zone || defaultZone(st);
-  const mult = z === 'd' ? 2 : z === 't' ? 3 : 1;
-  const pre = z === 'd' ? '<sup>D</sup>' : z === 't' ? '<sup>T</sup>' : '';
-  // Simple intérieur (par défaut) : touches nues ; extérieur armé : « EXT » sous chaque nombre et un trait en bas.
-  const suf = z === 'out' ? '<sub>EXT</sub>' : '';
-  const nums = [];
-  for (let row = 0; row < 4; row++) {
-    nums.push(`<div class="krow nums">${[1, 2, 3, 4, 5].map(c => {
-      const k = row * 5 + c;
-      return `<button type="button" class="key" data-act="tr-key" data-arg="${k}" data-press><span class="kl" data-shrink>${pre}${k}${suf}</span></button>`;
-    }).join('')}</div>`);
+  const pick = r.ui.pick;
+  let grid;
+  if (pick) {
+    const az = aimedZone(st);
+    const b = (z, big, word) => `<button type="button" class="key zk${az === z ? ' aimz' : ''}" data-act="tr-zonepick" data-arg="${z}" data-press><span class="kl" data-shrink>${big}<small>${word}</small></span></button>`;
+    grid = `<div class="pickp" role="group" aria-label="Zone du ${pick}">
+      <div class="krow two">${b('in', String(pick), 'SIMPLE INT.')}${b('out', String(pick), 'SIMPLE EXT.')}</div>
+      <div class="krow two">${b('d', `D${pick}`, 'DOUBLE')}${b('t', `T${pick}`, 'TRIPLE')}</div>
+      <button type="button" class="key pback" data-act="tr-pick-cancel" data-press>${ico('undo')}<span class="kl" data-shrink>AUTRE NOMBRE</span></button></div>`;
+  } else {
+    const rows = [];
+    for (let row = 0; row < 4; row++) {
+      rows.push(`<div class="krow nums">${[1, 2, 3, 4, 5].map(c => {
+        const k = row * 5 + c;
+        return `<button type="button" class="key" data-act="tr-key" data-arg="${k}" data-press><span class="kl" data-shrink>${k}</span></button>`;
+      }).join('')}</div>`);
+    }
+    grid = rows.join('');
   }
-  const mk = (k, label, word) => `<button type="button" class="key m" data-act="tr-zone" data-arg="${k}" data-press aria-pressed="${z === k}"><span class="kl" data-shrink>${label}<small>${word}</small></span></button>`;
-  return `<section class="pad-k trpad${mult > 1 ? ` armed m${mult}` : ` ring-${z}`}" aria-label="Saisie">
-      <div class="krow mult four">${mk('in', 'S', 'INT.')}${mk('out', 'S', 'EXT.')}${mk('d', 'D', 'DOUBLE')}${mk('t', 'T', 'TRIPLE')}</div>
-      ${nums.join('')}
+  const canUndo = pick || r.darts.length || (r.blocks && r.blocks.length > 1);
+  return `<section class="pad-k trpad two-step${pick ? ' picking' : ''}" aria-label="Saisie">
+      <p class="pstep">${pick ? `<b>${pick}</b> · CHOISIS LA ZONE` : 'NOMBRE, PUIS SA ZONE'}</p>
+      ${grid}
       <div class="krow last">
-        <button type="button" class="key bull" data-act="tr-key" data-arg="25" data-press ${mult === 3 && r.ui.zone === 't' ? 'disabled' : ''}><span class="kl" data-shrink>${r.ui.zone === 'd' ? '<sup>D</sup>' : ''}25</span></button>
+        <button type="button" class="key bull" data-act="tr-key" data-arg="25" data-press><span class="kl" data-shrink>25</span></button>
         <button type="button" class="key" data-act="tr-key" data-arg="50" data-press><span class="kl" data-shrink>50</span></button>
         <button type="button" class="key zero" data-act="tr-key" data-arg="0" data-press>0<small>HORS CIBLE</small></button>
-        <button type="button" class="key undo" data-act="tr-undo" data-press ${r.darts.length || (r.blocks && r.blocks.length > 1) ? '' : 'disabled'}>${ico('undo')}<span class="kl" data-shrink>ANNULER</span></button>
+        <button type="button" class="key undo" data-act="tr-undo" data-press ${canUndo ? '' : 'disabled'}>${ico('undo')}<span class="kl" data-shrink>ANNULER</span></button>
       </div>
     </section>`;
 }
@@ -393,24 +461,24 @@ export function trainingScreen() {
   if (st.done) { go('#/entrainement/fin', { replace: true }); return ''; }
   if (st.game) return gameScreen(r, st);
   const t = st.blocks[st.cur.i];
-  const overlays = r.ui.pause ? pauseSheet(r) : '';
+  const overlays = r.ui.pause ? pauseSheet(r) : r.ui.rules ? rulesSheet(r) : '';
   if (isLandscape()) {
     return `<div class="game land train">
-      <div class="lcol">${band(r)}${aimHead(r, st)}${visitBoxes(r, st)}${liveLine(r, st)}
+      <div class="lcol">${band(r)}${ruleLine(r)}${aimHead(r, st)}${visitBoxes(r, st)}${liveLine(r, st)}
         <div class="lbtns two">
           <button type="button" class="key zero" data-act="tr-key" data-arg="0" data-press>0<small>HORS CIBLE</small></button>
           <button type="button" class="key undo" data-act="tr-undo" data-press ${r.darts.length || (r.blocks && r.blocks.length > 1) ? '' : 'disabled'}>${ico('undo')}<span class="kl" data-shrink>ANNULER</span></button>
         </div>
       </div>
       <div class="rcol">
-        <div class="bwrap" id="tboard">${boardSvg({ size: 400, impacts: blockImpacts(r, st), aim: t, label: 'Cible : touchez pour saisir' })}</div>
+        <div class="bwrap" id="tboard">${boardSvg({ size: 400, impacts: blockImpacts(r, st), aim: t, margin: true, label: 'Cible : touchez pour saisir' })}</div>
         <p class="bhint alert" id="bhint" role="status" data-layer hidden></p>
       </div>
-      <div class="loupe" id="loupe" data-layer hidden><b class="lz"></b><div class="lens">${plainBoard()}<i class="cross"></i></div></div>
+      <div class="loupe" id="loupe" data-layer hidden><b class="lz"></b><div class="lens">${plainBoard(true)}<i class="cross"></i></div></div>
       ${overlays}</div>`;
   }
   return `<div class="game port train">
-    <div class="toparea">${band(r)}${aimHead(r, st)}</div>
+    <div class="toparea">${band(r)}${ruleLine(r)}${aimHead(r, st)}</div>
     <div class="vblock"><div class="vcol">${visitBoxes(r, st)}${liveLine(r, st)}</div>
       <div class="mini-board" aria-hidden="true">${boardSvg({ size: 104, impacts: blockImpacts(r, st), aim: t, label: 'Impacts de la série' })}</div></div>
     ${keyPad(r, st)}${overlays}</div>`;
@@ -476,24 +544,24 @@ function gameScreen(r, st) {
   const a = analyze(r);
   const x = gameShown(r, st);
   const impacts = x.darts.map((d, i) => (x.prev ? { dart: d, old: true } : { dart: d, n: i + 1 }));
-  const overlays = r.ui.pause ? pauseSheet(r) : '';
+  const overlays = r.ui.pause ? pauseSheet(r) : r.ui.rules ? rulesSheet(r) : '';
   if (isLandscape()) {
     return `<div class="game land train trgame">
-      <div class="lcol">${band(r)}${gameHead(r, st)}${gameVisit(r, st, a)}${gameLive(r, st, a)}
+      <div class="lcol">${band(r)}${ruleLine(r)}${gameHead(r, st)}${gameVisit(r, st, a)}${gameLive(r, st, a)}
         <div class="lbtns two">
           <button type="button" class="key zero" data-act="tr-key" data-arg="0" data-press>0<small>HORS CIBLE</small></button>
           <button type="button" class="key undo" data-act="tr-undo" data-press ${r.darts.length ? '' : 'disabled'}>${ico('undo')}<span class="kl" data-shrink>ANNULER</span></button>
         </div>
       </div>
       <div class="rcol">
-        <div class="bwrap" id="tboard">${boardSvg({ size: 400, impacts, label: 'Cible : touchez pour saisir' })}</div>
+        <div class="bwrap" id="tboard">${boardSvg({ size: 400, impacts, margin: true, label: 'Cible : touchez pour saisir' })}</div>
         <p class="bhint alert" id="bhint" role="status" data-layer hidden></p>
       </div>
-      <div class="loupe" id="loupe" data-layer hidden><b class="lz"></b><div class="lens">${plainBoard()}<i class="cross"></i></div></div>
+      <div class="loupe" id="loupe" data-layer hidden><b class="lz"></b><div class="lens">${plainBoard(true)}<i class="cross"></i></div></div>
       ${overlays}</div>`;
   }
   return `<div class="game port train trgame">
-    <div class="toparea">${band(r)}${gameHead(r, st)}</div>
+    <div class="toparea">${band(r)}${ruleLine(r)}${gameHead(r, st)}</div>
     <div class="vblock"><div class="vcol">${gameVisit(r, st, a)}${gameLive(r, st, a)}</div>
       <div class="mini-board" aria-hidden="true">${boardSvg({ size: 104, impacts, label: 'Impacts de la volée' })}</div></div>
     ${keyPad(r, st)}${overlays}</div>`;
@@ -508,7 +576,7 @@ export function heatBoard(darts, size = 380) {
   keys.push(['25', ''], ['50', '']);
   for (const [k, r] of keys) max = Math.max(max, h.get(k, r));
   const op = c => (max ? Math.pow(c / max, 0.6) : 0);
-  return { svg: boardSvg({ size, heat: (k, r) => op(h.get(k, r)), cls: 'board', label: 'Carte de chaleur des impacts' }), off: h.off, total: h.total };
+  return { svg: boardSvg({ size, heat: (k, r) => op(h.get(k, r)), heatScale: heatScale(), cls: 'board', label: 'Carte de chaleur des impacts' }), off: h.off, total: h.total };
 }
 
 /** Fléchette saisie (pavé ou cible). */
@@ -516,7 +584,7 @@ function play(dart) {
   const r = tr();
   if (!r || r.ui.pause) return;
   if (!trThrow(dart)) { buzz(BUZZ.undo); return; }
-  r.ui.zone = null;
+  r.ui.pick = null;
   r.ui.loupe = null;
   const st = trState();
   buzz(BUZZ.dart);
@@ -532,20 +600,21 @@ export function mountTraining() {
   const r = tr();
   const wrap = document.getElementById('tboard');
   if (!r || !wrap) return;
-  const label = (x, y) => { const d = segmentAt(x, y); return d ? trainingDartLabel(withRing(d, [x, y])) : Math.hypot(x, y) <= RINGS.edge ? 'HORS CIBLE' : 'RIEN'; };
+  const label = (x, y) => { const d = segmentAt(x, y); return d ? trainingDartLabel(withRing(d, [x, y])) : Math.hypot(x, y) <= OFF_R ? 'HORS CIBLE' : 'RIEN'; };
   bindBoardInput(wrap, {
-    canStart: () => !!tr() && !tr().ui.pause,
+    edge: OFF_R,
+    canStart: () => !!tr() && !tr().ui.pause && !tr().ui.rules,
     onStart: () => { tr().ui.loupe = null; },
     label,
     onRelease: (x, y) => {
       const d = segmentAt(x, y);
       const pos = [x, y].map(c => Math.round(c * 1000) / 1000);
       if (d) play({ ...withRing(d, pos), pos });
-      else if (Math.hypot(x, y) <= RINGS.edge) play({ segment: 0, multiplier: 1, pos });
+      else if (Math.hypot(x, y) <= OFF_R) play({ segment: 0, multiplier: 1, pos });
       else { buzz(BUZZ.undo); boardHint('EN DEHORS DU DESSIN · RIEN N\'EST COMPTÉ'); }
     },
   });
-  if (r.ui.loupe) frozenLoupe(wrap, r.ui.loupe, label);
+  if (r.ui.loupe) frozenLoupe(wrap, r.ui.loupe, label, OFF_R);
 }
 /** Un simple pris sur la cible porte son anneau (intérieur / extérieur). */
 const withRing = (d, [x, y]) => (d.multiplier === 1 && d.segment >= 1 && d.segment <= 20
@@ -784,6 +853,7 @@ export const inputs = {
 // ------------------------------------------------------------------ actions
 export const actions = {
   'tr-player'(id) { saveTrSetup({ player: id }); refresh(); },
+  'tr-card'(id) { if (openCards.has(id)) openCards.delete(id); else openCards.add(id); refresh(); },
   'tr-set'(id) { saveTrSetup({ setId: id || null }); refresh(); },
   'tr-fold'() { othersOpen = !othersOpen; refresh(); },
   'tr-change-set'() { const r = tr(); if (r) { r.ui.confirm = 'set'; refresh(); } },
@@ -805,7 +875,7 @@ export const actions = {
     if (!t) return;
     if (field === 's') { t.s = Number(val); if (!ZONES_FOR(t.s).includes(t.z)) t.z = 'any'; }
     else if (field === 'z') t.z = val;
-    else if (field === 'n') t.n = Math.max(1, Math.min(99, Number(val) || 9));
+    else if (field === 'n') t.n = volleyCount(val);
     if (who === 'setup') saveTrSetup({ free: t });
     refresh();
   },
@@ -813,27 +883,29 @@ export const actions = {
   'tr-key'(k) {
     const r = tr();
     if (!r || r.ui.pause) return;
-    const st = trState();
-    const z = r.ui.zone || defaultZone(st);
     const n = Number(k);
     if (k === '0') return play(makeDart(0, 1));
     if (k === '50') return play(makeDart(25, 2));
-    if (k === '25') { if (r.ui.zone === 't') return; return play(makeDart(25, r.ui.zone === 'd' ? 2 : 1)); }
-    if (n >= 1 && n <= 20) {
-      if (z === 'd' || z === 't') return play(makeDart(n, z === 'd' ? 2 : 3));
-      return play({ segment: n, multiplier: 1, ring: z });
-    }
+    if (k === '25') return play(makeDart(25, 1));
+    // Lot 8 du 23/11 (1.3) : un nombre de 1 à 20, puis sa zone (tr-zonepick).
+    if (n >= 1 && n <= 20) { r.ui.pick = n; buzz(BUZZ.dart); refresh(); }
   },
-  'tr-zone'(z) {
+  'tr-zonepick'(z) {
     const r = tr();
-    if (!r) return;
-    const cur = r.ui.zone || defaultZone(trState());
-    // D ou T touché deux fois : retour au simple par défaut ; INT. / EXT. : on choisit l'anneau.
-    // Si D ou T est déjà la zone par défaut (cible visée), le toucher de nouveau arme le simple intérieur.
-    r.ui.zone = (z === 'd' || z === 't') && cur === z ? (defaultZone(trState()) === z ? 'in' : null) : z;
+    if (!r || r.ui.pause || !r.ui.pick) return;
+    const n = r.ui.pick;
+    if (z === 'd' || z === 't') return play(makeDart(n, z === 'd' ? 2 : 3));
+    if (z === 'in' || z === 'out') return play({ segment: n, multiplier: 1, ring: z });
+  },
+  'tr-pick-cancel'() { const r = tr(); if (r) { r.ui.pick = null; refresh(); } },
+  'tr-rules'() { const r = tr(); if (r) { r.ui.rules = !r.ui.rules; r.ui.pause = false; refresh(); } },
+  'tr-rules-close'() { const r = tr(); if (r) { r.ui.rules = false; refresh(); } },
+  'tr-undo'() {
+    const r = tr();
+    if (r && r.ui.pick) { r.ui.pick = null; buzz(BUZZ.undo); refresh(); return; }
+    if (trUndo()) { buzz(BUZZ.undo); sound('undo'); }
     refresh();
   },
-  'tr-undo'() { if (trUndo()) { buzz(BUZZ.undo); sound('undo'); if (tr()) tr().ui.zone = null; } refresh(); },
   'tr-undo-end'() { trUndo(); buzz(BUZZ.undo); sound('undo'); addDraft = null; go('#/entrainement/jeu'); },
   'tr-pause'() { const r = tr(); if (r) { r.ui.pause = true; r.ui.confirm = false; refresh(); } },
   'tr-resume'() { const r = tr(); if (r) { r.ui.pause = false; r.ui.confirm = false; refresh(); } },
@@ -844,7 +916,7 @@ export const actions = {
   'tr-finish'() { closeTraining(); addDraft = null; sound('validate'); go('#/entrainement'); },
   'tr-finish-next'(key) { closeTraining(); addDraft = null; startFrom(key); },
   'tr-finish-again'() { const r = tr(); if (!r || !isGameSession(r)) return; closeTraining(); startFrom(r.exercise, r.game); },
-  'tr-add'() { const st = trState(); const last = st.blocks[st.blocks.length - 1]; addDraft = { s: last.s, z: last.z, n: last.n }; refresh(); },
+  'tr-add'() { const st = trState(); const last = st.blocks[st.blocks.length - 1]; addDraft = { s: last.s, z: last.z, n: volleyCount(last.n) }; refresh(); },
   'tr-add-cancel'() { addDraft = null; refresh(); },
   'tr-add-go'() { if (addDraft && trAddBlock(addDraft, addDraft.n)) { addDraft = null; go('#/entrainement/jeu'); } },
   'tr-again'(id) {

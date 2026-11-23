@@ -4,7 +4,10 @@
 // Géométrie et couleur de chaque zone : src/engine/board.js (rayon 1 = bord du double, anneaux élargis).
 // Sert partout : petite cible du jeu (portrait), cible agrandie, saisie en paysage (et sa loupe), historique,
 // fins de manche, carte des segments des stats (mode « chaleur »).
-import { SECTORS, RINGS, polar, impactPoint, zoneTone } from '../engine/board.js';
+import { SECTORS, RINGS, OFF_R, polar, impactPoint, zoneTone } from '../engine/board.js';
+import { HEAT_SCALES, heatShare, heatColor, inkOn } from './theme.js';
+
+let hatchSeq = 0;
 
 // Le dessin est à l'échelle K (rayon du double = 100) : évite les polices de moins de 1 px dans le SVG.
 const K = 100;
@@ -45,13 +48,16 @@ function numbers(r) {
 }
 
 /** Rayons des marques d'impact, en px affichés : volée en cours (pleine, numérotée) et volées précédentes. */
-export const MARK = Object.freeze({ small: 8, big: 11, old: 4.5 });
+export const MARK = Object.freeze({ small: 7, big: 9.5, old: 4.5 });
 
-/** Marque d'impact (centre x, y dans le repère ; r en unités) : disque clair cerclé de sombre, numéro sombre. */
+/**
+ * Marque d'impact (centre x, y dans le repère ; r en unités). Lot 8 du 23/11 (1.5) : petit disque rouge Strela (--red)
+ * semi-transparent, fin contour clair, numéro clair ; les numéros des secteurs sont dessinés par-dessus (jamais masqués).
+ */
 function mark(x, y, r, n) {
-  const ring = Math.max(r * 0.16, 0.006);
+  const ring = Math.max(r * 0.12, 0.005);
   return `<g class="imp"><circle class="imp-o" cx="${f(x)}" cy="${f(y)}" r="${f(r)}"/><circle class="imp-i" cx="${f(x)}" cy="${f(y)}" r="${f(r - ring)}"/>`
-    + (n ? `<text x="${f(x)}" y="${f(y)}" dy="0.36em" text-anchor="middle" style="font-size:${f(r * 1.3)}px">${n}</text>` : '') + '</g>';
+    + (n ? `<text x="${f(x)}" y="${f(y)}" dy="0.36em" text-anchor="middle" style="font-size:${f(r * 1.2)}px">${n}</text>` : '') + '</g>';
 }
 
 /**
@@ -85,18 +91,26 @@ function spread(marks, R) {
  *   aim      : lot 8 — cible visée { s, z } (engine/training.js), entourée ; extra : SVG ajouté par-dessus (échelle K)
  *   heat     : reçoit aussi l'anneau ('i' / 'o' pour les simples) en second argument (lot 8)
  */
-export function boardSvg({ size = 300, labels = size >= 150, impacts = [], heat = null, act = null, cls = '', id = '', label = 'Cible', selected = null, counts = null, aim = null, extra = '' } = {}) {
-  const edge = labels ? RINGS.edge : RINGS.doubleOut + 0.04;
+export function boardSvg({ size = 300, labels = size >= 150, impacts = [], heat = null, heatScale = 'clair', act = null, cls = '', id = '', label = 'Cible', selected = null, counts = null, aim = null, extra = '', margin = null } = {}) {
+  // Lot 8 du 23/11 (1.2) : `margin` (saisie au doigt de l'entraînement) montre la zone autour de la cible où l'on pose un
+  // hors cible (jusqu'à OFF_R) ; d'office quand un impact est posé au-delà du dessin.
+  const wide = margin ?? (labels && impacts.some(i => { const p = impactPoint(i.dart); return p && Math.hypot(p[0], p[1]) > RINGS.edge; }));
+  const edge = wide ? OFF_R : labels ? RINGS.edge : RINGS.doubleOut + 0.04;
   const vb = `${f(-edge)} ${f(-edge)} ${f(2 * edge)} ${f(2 * edge)}`;
   const unit = (2 * edge) / size; // unités du repère par px affiché
-  const parts = [`<circle class="ring" r="${f(edge)}"/>`];
+  const parts = wide ? [`<circle class="offz" r="${f(OFF_R)}"/>`, `<circle class="ring" r="${f(RINGS.edge)}"/>`] : [`<circle class="ring" r="${f(edge)}"/>`];
   for (const z of ZONES) parts.push(shape(z, `class="z z-${z.tone}"`));
+  const scale = HEAT_SCALES.includes(heatScale) ? heatScale : 'clair';
   if (heat) {
-    // Carte des segments : la cible est assombrie, chaque zone s'éclaire d'autant plus qu'elle a été touchée.
-    parts.push(`<circle class="veil" r="${f(RINGS.doubleOut)}"/>`);
+    // Carte des segments (lot 8 du 23/11, 3.5) : chaque zone prend la couleur de l'échelle choisie selon le nombre
+    // d'impacts (heat : 0 à 1) ; une zone jamais touchée garde un fond neutre tramé, distinct de toute l'échelle.
+    const hid = `hatch${++hatchSeq}`;
+    parts.push(`<defs><pattern id="${hid}" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect class="hn-bg" width="7" height="7"/><path class="hn-ln" d="M0 0V7"/></pattern></defs>`);
     for (const z of ZONES) {
       const arg = act ? ` data-act="${act}" data-arg="${z.key}"` : '';
-      parts.push(shape(z, `class="heat" style="fill-opacity:${(0.92 * heat(z.key, z.ring)).toFixed(3)}"${arg}`));
+      const v = heat(z.key, z.ring);
+      const fill = v > 0 ? `color-mix(in srgb, var(--heat-${scale}-hi) ${(heatShare(v) * 100).toFixed(1)}%, var(--heat-${scale}-lo))` : `url(#${hid})`;
+      parts.push(shape(z, `class="heat${v > 0 ? '' : ' none'}" style="fill:${fill}"${arg}`));
     }
     for (const z of ZONES) if (z.key === selected) parts.push(shape(z, 'class="sel"'));
   }
@@ -106,17 +120,19 @@ export function boardSvg({ size = 300, labels = size >= 150, impacts = [], heat 
     const sel = ZONES.filter(inAim);
     parts.push(`<g class="aim">${sel.map(z => shape(z, 'class="aim-o"')).join('')}${sel.map(z => shape(z, 'class="aim-i"')).join('')}</g>`);
   }
-  if (labels) parts.push(`<g class="num" style="font-size:${f(0.115)}px">${numbers(RINGS.labels)}</g>`);
   if (counts) {
     // Nombre d'impacts de chaque secteur sur une plaquette sombre, au milieu du simple extérieur ; bull au centre.
     const r = (RINGS.tripleOut + RINGS.doubleIn) / 2;
-    const plate = (x, y, n) => {
+    // Sur une carte de chaleur (lot 8 du 23/11, 3.5), le chiffre s'écrit à même la zone, dans l'encre qui se lit sur sa
+    // couleur ; sinon sur une plaquette sombre.
+    const plate = (x, y, n, key, ring) => {
+      if (heat) return `<text class="bare ${inkOn(heatColor(scale, heat(key, ring))) === '#0E1012' ? 'cd' : 'cl'}" x="${f(x)}" y="${f(y)}" dy="0.36em" text-anchor="middle">${n}</text>`;
       const w = 0.05 + 0.047 * String(n).length;
       return `<rect x="${f(x - w / 2)}" y="${f(y - 0.055)}" width="${f(w)}" height="${f(0.11)}"/><text x="${f(x)}" y="${f(y)}" dy="0.36em" text-anchor="middle">${n}</text>`;
     };
-    const cells = SECTORS.map((sct, i) => { const n = counts(sct); if (!n) return ''; const [x, y] = polar(i * 18, r); return plate(x, y, n); });
+    const cells = SECTORS.map((sct, i) => { const n = counts(sct); if (!n) return ''; const [x, y] = polar(i * 18, r); return plate(x, y, n, `${sct}`, 'o'); });
     const nb = counts(25);
-    parts.push(`<g class="cnt" style="font-size:${f(0.082)}px" aria-hidden="true">${cells.join('')}${nb ? plate(0, 0, nb) : ''}</g>`);
+    parts.push(`<g class="cnt" style="font-size:${f(0.082)}px" aria-hidden="true">${cells.join('')}${nb ? plate(0, 0, nb, '25', '') : ''}</g>`);
   }
   // Impacts : d'abord les anciens (discrets), puis la volée en cours, numérotée.
   const old = impacts.filter(i => i.old), cur = impacts.filter(i => !i.old);
@@ -126,12 +142,14 @@ export function boardSvg({ size = 300, labels = size >= 150, impacts = [], heat 
   }
   const R = (size < 150 ? MARK.small : MARK.big) * unit;
   for (const m of spread(cur.map(i => ({ p: impactPoint(i.dart), n: i.n })).filter(m => m.p), R)) parts.push(mark(m.p[0], m.p[1], R, m.n));
+  // Numéros des secteurs au premier plan (lot 8 du 23/11, 1.5) : une marque posée sur la couronne ne les cache plus.
+  if (labels) parts.push(`<g class="num" style="font-size:${f(0.115)}px">${numbers(RINGS.labels)}</g>`);
   if (extra) parts.push(extra);
   return `<svg class="tgt${size < 150 ? ' sm' : ''} ${cls}"${id ? ` id="${id}"` : ''} viewBox="${vb}" role="img" aria-label="${label}">${parts.join('')}</svg>`;
 }
 
-/** Cible nue (sans impacts), pour la loupe de saisie. */
-export const plainBoard = () => boardSvg({ size: 400, labels: true, label: 'Loupe' });
+/** Cible nue (sans impacts), pour la loupe de saisie ; `margin` : avec la zone autour (hors cible posé, entraînement). */
+export const plainBoard = (margin = false) => boardSvg({ size: 400, labels: true, label: 'Loupe', margin });
 
 /** Légende des marques (pastilles SVG) : `full` = volée en cours, sinon volées précédentes. */
 export function markIcon(full = true) {

@@ -4,6 +4,7 @@
 // Lot 7.8 (retours du 20/11) : un appui sur un badge (tableau d'honneur, vitrine, fin de partie, soirée) ouvre sa
 // fenêtre : ce qu'il veut dire, la partie et la volée où il a été gagné (VOIR LA PARTIE ouvre le détail sur cette
 // volée) ; badges à rangs (bronze, argent, or) ; badges gagnés pendant une soirée (tableau de bord).
+import { modeBand } from './modeband.js';
 import { store, playerById } from './store.js';
 import { esc, ico, topBar, plural, shortDate, when, OUT_SHORT } from './dom.js';
 import { avatarHtml } from './avatars.js';
@@ -92,7 +93,7 @@ export function honourScreen() {
   const known = id => store.players.some(p => p.id === id);
   const events = h.events.filter(e => known(e.id) && (ui.kind === 'tout' || e.kind === ui.kind));
   const b = (v, l) => `<button type="button" data-act="honour-kind" data-arg="${v}" aria-pressed="${ui.kind === v}">${l}</button>`;
-  const head = `${topBar('Tableau d\'honneur', backFrom('#/'))}<div class="pad tabs2"><div class="seg">
+  const head = `${topBar('Tableau d\'honneur', backFrom('#/'))}${modeBand('soiree')}<div class="pad tabs2"><div class="seg">
     <a href="#/stats" role="button" aria-pressed="false">Joueur</a>
     <a href="#/classement" role="button" aria-pressed="false">Classement</a>
     <a href="#/honneur" role="button" aria-pressed="true">Honneur</a></div></div>

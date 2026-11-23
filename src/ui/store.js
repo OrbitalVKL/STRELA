@@ -12,7 +12,7 @@ import { DEFI_SET } from '../engine/defis.js';
 import { computeState, STATUS, EVENTS } from '../engine/x01.js';
 import { deletePlayer as removePlayer, deletionImpact, isDeletedId } from '../engine/players.js';
 import { openDb, currentRecord, closedRecord, playerRecord, deletionOps, gameDeletionOps, soireeRecord, trainingRecord, DB_VERSION } from '../data/db.js';
-import { trainingState, cleanTrainingDart, cleanTarget, setRuns, setAt, setsUsed, cleanSetChanges } from '../engine/training.js';
+import { trainingState, cleanTrainingDart, cleanTarget, setRuns, setAt, setsUsed, cleanSetChanges, RULES_VERSION } from '../engine/training.js';
 import { dartSetRecord } from '../engine/dartsets.js';
 import { makeBackup, importPlan } from '../data/backup.js';
 import { bac, drinkTimes, drinkTime, drinkAt, isPint, unitsOf, drinkTally, PINT_L } from '../engine/alcohol.js';
@@ -39,7 +39,7 @@ export const store = {
   setupDraft: null,  // écran « Nouvelle partie » en cours
   crop: null,        // photo en cours de recadrage (screens/photo.js)
   // autoUpdate (lot 6) : recherche automatique de mise à jour (APK « github » seulement), OUI par défaut
-  settings: { theme: 'auto', night: false, vibrate: true, anim: true, sound: true, voice: true, autoUpdate: true, autoBackup: true }, // autoBackup : lot 9
+  settings: { theme: 'auto', night: false, vibrate: true, anim: true, sound: true, voice: true, autoUpdate: true, autoBackup: true, heatScale: 'clair' }, // autoBackup : lot 9 ; heatScale : lot 8 du 23/11
   maquette: false,
   // Base du téléphone : version, erreur éventuelle, stockage persistant (affichés dans le diagnostic des Réglages)
   db: { version: null, error: null, persisted: null, unreadable: 0, openCode: null, writeFail: null },
@@ -820,8 +820,8 @@ export function deleteCk() {
 // ------------------------------------------------------------------ entraînement solo (lot 8)
 // Séances dans le magasin « trainings » (v3), jeux de fléchettes dans « dartsets » ; derniers choix dans le réglage
 // « training ». La séance en cours est écrite à chaque fléchette et à chaque ANNULER, comme une partie.
-/** État d'affichage d'une séance (non enregistré) : zone armée ('in' | 'out' | 'd' | 't' ; null : celle de la cible visée), menu, loupe figée. */
-export const freshTrUi = () => ({ zone: null, pause: false, confirm: false, loupe: null, add: null, cele: null });
+/** État d'affichage d'une séance (non enregistré) : nombre choisi au pavé en attente de sa zone (23/11), règles ouvertes, menu, loupe figée. */
+export const freshTrUi = () => ({ pick: null, rules: false, pause: false, confirm: false, loupe: null, add: null, cele: null });
 
 export const trState = () => (store.tr ? trainingState(store.tr, store.tr.darts) : null);
 
@@ -838,7 +838,7 @@ export function saveTrSetup(patch) {
 /** Démarre une séance ({ player, setId, mode, exercise, blocks? }) ; une séance en cours est d'abord rangée (arrêtée). */
 export function startTraining(setup, now = Date.now()) {
   if (store.tr) closeTraining({ stopped: true });
-  const rec = trainingRecord({ id: newId('t'), startedAt: now, endedAt: null, darts: [], ...setup });
+  const rec = trainingRecord({ id: newId('t'), startedAt: now, endedAt: null, darts: [], rules: RULES_VERSION, ...setup });
   store.tr = { ...rec, ui: freshTrUi() };
   write([{ store: 'trainings', put: trainingRecord(store.tr) }]);
   return store.tr;

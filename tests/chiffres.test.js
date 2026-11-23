@@ -93,6 +93,7 @@ test('historique et statistiques comparés aux calculs à la main', { skip: !pw 
 
     // Historique : liste et détail de la partie 1, case par case.
     await page.evaluate(() => { location.hash = '#/historique'; });
+    await page.click('[data-act="h2-all"][data-arg="1"]'); // lot 8 du 23/11 : parties repliées par défaut
     await page.waitForSelector('.hrow');
     const rows = await page.$$eval('.hrow', as => as.map(a => a.innerText.replace(/\s+/g, ' ')));
     assert.equal(rows.length, 3);

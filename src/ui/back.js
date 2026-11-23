@@ -24,6 +24,8 @@ export const CLOSERS = [
   'backup-no',        // confirmation d'import
   'backup-cancel',    // aperçu d'import
   'crop-cancel',      // recadrage de la photo
+  'tr-rules-close',   // lot 8 du 23/11 : règles de l'exercice, par-dessus la saisie
+  'tr-pick-cancel',   // lot 8 du 23/11 : zone du nombre choisi au pavé (retour au choix du nombre)
   'tr-confirm-no',    // lot 8 : supprimer la séance (menu pause de l'entraînement)
   'tr-resume',        // lot 8 : menu pause de l'entraînement
   'tr-add-cancel',    // lot 8 : série suivante (libre)

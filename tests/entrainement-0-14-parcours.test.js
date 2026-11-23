@@ -10,8 +10,15 @@ import { openApp, reload, readDb, settle, createPlayer } from '../tools/lib/app.
 const pw = await loadPlaywright();
 const skip = !pw && 'Playwright absent';
 
-const key = (page, k) => page.click(`[data-act="tr-key"][data-arg="${k}"]`);
-const zone = (page, z) => page.click(`[data-act="tr-zone"][data-arg="${z}"]`);
+// Lot 8 du 23/11 : au pavé, le nombre puis sa zone (simple intérieur si rien n'est demandé avant, comme `zone`).
+let armed = null;
+const zone = async (page, z) => { armed = z; };
+async function key(page, k) {
+  await page.click(`[data-act="tr-key"][data-arg="${k}"]`);
+  const n = Number(k);
+  if (n >= 1 && n <= 20) await page.click(`[data-act="tr-zonepick"][data-arg="${armed || 'in'}"]`);
+  armed = null;
+}
 const t20 = async page => { await zone(page, 't'); await key(page, '20'); };
 
 test('jeux en solo : X01 et Cricket, stats réservées aux jeux', { skip, timeout: 150e3 }, async () => {

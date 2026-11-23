@@ -11,8 +11,15 @@ import { openApp, reload, readDb, settle, createPlayer } from '../tools/lib/app.
 const pw = await loadPlaywright();
 const skip = !pw && 'Playwright absent';
 
-const key = (page, k) => page.click(`[data-act="tr-key"][data-arg="${k}"]`);
-const zone = (page, z) => page.click(`[data-act="tr-zone"][data-arg="${z}"]`);
+// Lot 8 du 23/11 : au pavé, le nombre puis sa zone (simple intérieur si rien n'est demandé avant, comme `zone`).
+let armed = null;
+const zone = async (page, z) => { armed = z; };
+async function key(page, k) {
+  await page.click(`[data-act="tr-key"][data-arg="${k}"]`);
+  const n = Number(k);
+  if (n >= 1 && n <= 20) await page.click(`[data-act="tr-zonepick"][data-arg="${armed || 'in'}"]`);
+  armed = null;
+}
 const current = async page => (await readDb(page)).trainings.find(r => r.endedAt === null) || null;
 
 test('base : migration réelle v2 → v3 (lot 8), rien ne change, entraînement et jeux de Guillaume ajoutés', { skip, timeout: 60e3 }, async () => {
@@ -97,7 +104,7 @@ test('séance coachée au pavé : intérieur / extérieur, hors cible, ANNULER, 
     await page.click('a.tr-btn');
     await page.click('a.tr-resume');
     await page.waitForSelector('.game.train');
-    assert.match(await page.innerText('.taim .tp'), /5/);
+    assert.match(await page.innerText('.taim .tp'), /2\/3\s+VOLÉE/, 'volée 2 sur 3 (lot 8 du 23/11)');
     for (const k of ['5', '5', '1', '20']) await key(page, k);
     await zone(page, 'out'); await key(page, '5');
     await page.waitForSelector('.trend');
@@ -129,7 +136,7 @@ test('séance coachée au pavé : intérieur / extérieur, hors cible, ANNULER, 
   }
 });
 
-test('séance libre à la cible (paysage) : position gardée, anneau déduit, hors cible sur la couronne ; armurerie', { skip, timeout: 120e3 }, async () => {
+test('séance libre à la cible (paysage) : position gardée, anneau déduit, hors cible posé à côté de la cible ; armurerie', { skip, timeout: 120e3 }, async () => {
   const srv = await serve();
   const browser = await pw.chromium.launch();
   try {
@@ -155,28 +162,29 @@ test('séance libre à la cible (paysage) : position gardée, anneau déduit, ho
     await page.click(`[data-act="tr-set"][data-arg="${set.id}"]`);
     await page.click('[data-act="tr-mode"][data-arg="libre"]');
     await page.click('[data-act="tr-pick"][data-arg="setup|z|t"]');
-    await page.click('[data-act="tr-pick"][data-arg="setup|n|3"]');
+    await page.click('.chips2 [data-act="tr-pick"][data-arg="setup|n|3"]');
     await page.click('[data-act="tr-start"][data-arg="libre"]');
     await page.waitForSelector('.game.land.train #tboard svg');
     const box = await page.locator('#tboard svg').boundingBox();
-    const at = async (x, y) => { // repère de la cible (rayon 1 = bord du double, 1,18 = bord du dessin)
-      const s = box.width / 2 / 1.18;
+    const at = async (x, y) => { // repère de la cible (rayon 1 = bord du double ; 1,33 = bord de la zone autour, 23/11)
+      const s = box.width / 2 / 1.33;
       await page.mouse.click(box.x + box.width / 2 + x * s, box.y + box.height / 2 + y * s);
     };
     await at(0, -0.575);  // T20
     await at(0.02, -0.75); // 20 extérieur
-    await at(0.25, -1.08); // couronne des numéros : hors cible
+    await at(0.3, -1.25); // à côté de la cible, au-delà des numéros (zone autour, lot 8 du 23/11) : hors cible posé
     await page.waitForSelector('.trend');
     await settle(page);
     const t = (await readDb(page)).trainings.find(r => r.endedAt === null);
     assert.deepEqual(t.darts.map(d => [d.segment, d.multiplier, d.ring ?? null, Array.isArray(d.pos)]), [[20, 3, null, true], [20, 1, 'out', true], [0, 1, null, true]]);
+    assert.ok(Math.hypot(...t.darts[2].pos) > 1.18, 'position gardée au-delà du dessin');
     assert.deepEqual(t.blocks, [{ s: 20, z: 't', n: 3 }]);
     assert.equal(t.setId, set.id);
     // ENCORE UNE SÉRIE : le 19 en simple intérieur, 2 fléchettes ; ANNULER retire d'abord la série vide.
     await page.click('[data-act="tr-add"]');
     await page.click('[data-act="tr-pick"][data-arg="add|s|19"]');
     await page.click('[data-act="tr-pick"][data-arg="add|z|si"]');
-    await page.click('[data-act="tr-pick"][data-arg="add|n|3"]');
+    await page.click('.chips2 [data-act="tr-pick"][data-arg="add|n|3"]');
     await page.click('[data-act="tr-add-go"]');
     await page.waitForSelector('.game.train');
     assert.match(await page.innerText('.taim .tg'), /19 INT\./);
