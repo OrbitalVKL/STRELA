@@ -11,6 +11,7 @@ import { analyze, EXERCISES, trainingDartLabel } from '../engine/training.js';
 import { tierHtml } from './honours.js';
 
 let win = null; // { kind: 'badge' | 'feat', key, pid?, sessionId?, volley?, start?, path }
+const shortDay = ms => { const d = new Date(ms); return `${d.getDate()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getFullYear()).slice(2)}`; };
 const here = () => decodeURIComponent(location.hash.replace(/^#/, '')) || '/';
 /** En changeant d'écran, la fenêtre se ferme (app.js). */
 export function closeTrainSheet(path) { if (win && win.path !== undefined && win.path !== path) win = null; }
@@ -54,7 +55,7 @@ export function trainSheetHtml() {
     head = `<div class="bhero ${b.tier ? 'on' : 'off'}">${ico(def.icon)}<b>${esc(def.name)}</b>${tierHtml(b.tier)}</div>`;
     body = `<p class="bmean">${esc(def.text)}</p>
       <div class="sec">Rangs<span class="n">${esc(badgeValueText(win.key, b.value))}</span></div>
-      <ul class="btiers">${[1, 2, 3].map(k => { const g = b.got.find(x => x.tier === k); return `<li class="${g ? 'on' : ''}">${tierHtml(k)}<span class="th">${esc(tierText(win.key, k))}</span><small>${g ? esc(when(g.at)) : ''}</small>
+      <ul class="btiers">${[1, 2, 3].map(k => { const g = b.got.find(x => x.tier === k); return `<li class="${g ? 'on' : ''}">${tierHtml(k)}<span class="th">${esc(tierText(win.key, k))}</span><small>${g ? esc(shortDay(g.at)) : ''}</small>
         ${g && trainingById(g.sessionId) ? `<button type="button" class="tsee" data-act="tb-session" data-arg="${esc(g.sessionId)}" aria-label="Voir la séance du rang ${TIER_NAMES[k]}">${ico('chev')}</button>` : ''}</li>`; }).join('')}</ul>
       <p class="note">Seuils volontairement hauts ; calculés sur toutes les séances (une séance mise de côté ne compte pas).</p>`;
   } else {
