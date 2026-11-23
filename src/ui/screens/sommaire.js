@@ -31,7 +31,7 @@ import { trainingState as trainingStateFn } from '../../engine/training.js';
 import { presetTraining, presetDetail } from './training.js';
 import { presetTrainStats } from './trainstats.js';
 import { presetInfo } from '../info.js';
-import { aimedDart, rng } from '../mock.js';
+import { aimedDart, rng, simulateSoloX01, simulateSoloCricket } from '../mock.js';
 
 // Lot 7 : jouer jusqu'au bout à 4 (301, sortie simple) ; après PO1, Guillaume, Mathilde et Karim sont à 80, Sacha à 301.
 const PLAYON = () => ({ ...cfg(['p1', 'p2', 'p3', 'p4'], 301, 'single'), playOn: true });
@@ -174,8 +174,48 @@ function interMock() {
   store.trainings = [...store.trainings, ...extra].sort((a, b) => b.startedAt - a.startedAt);
 }
 const LIBRE = [{ s: 20, z: 't', n: 9 }];
+// 0.14.0 : jeu en solo fabriqué (X01 ou Cricket) ; `n` fléchettes de la partie simulée, ou jusqu'à `until` (état) vrai.
+function setSolo(exercise, game, { n = null, cut = 0, until = null, ui = {}, seed = 7 } = {}) {
+  store.tr = null;
+  store.trSetup = { player: 'p1', setId: 'ds-torpedo-22', mode: 'jeu', game: { kind: exercise, ...game } };
+  startTraining({ player: 'p1', setId: 'ds-torpedo-22', mode: 'jeu', exercise, game }, Date.now() - 900e3);
+  const opt = { bias: [-0.03, 0.03], spread: 0.45, pos: true };
+  const all = exercise === 'x01' ? simulateSoloX01(store.tr.game, rng(seed), opt) : simulateSoloCricket(store.tr.game, rng(seed), opt);
+  let k = n === null ? all.length - cut : Math.min(n, all.length);
+  if (until) { k = 1; while (k < all.length && !until(trainingStateFn(store.tr, all.slice(0, k)))) k++; }
+  store.tr.darts = all.slice(0, k);
+  store.tr.ui = { ...freshTrUi(), ...ui };
+  presetTraining();
+  presetInfo();
+  return '#/entrainement/jeu';
+}
+const X501 = { startScore: 501, outMode: 'double', legs: 1 };
 
 export const SCENES = {
+  // 0.14.0 : jeux en solo.
+  'tr-hub-jeux': () => { store.tr = null; store.trSetup = { player: 'p1', setId: 'ds-torpedo-22', mode: 'jeu', game: { kind: 'x01', ...X501 } }; presetInfo(); return '#/entrainement'; },
+  'tr-hub-jeux-info': () => { store.tr = null; store.trSetup = { player: 'p1', setId: 'ds-torpedo-22', mode: 'jeu', game: { kind: 'x01', ...X501 } }; presetInfo(['tr-game', 'tr-mode']); return '#/entrainement'; },
+  'tr-hub-cricket': () => { store.tr = null; store.trSetup = { player: 'p1', setId: 'ds-droit-22', mode: 'jeu', game: { kind: 'cricket', legs: 3 } }; presetInfo(); return '#/entrainement'; },
+  'tr-x01-debut': () => setSolo('x01', X501, { n: 0 }),
+  'tr-x01': () => setSolo('x01', X501, { n: 11 }),
+  'tr-x01-finition': () => setSolo('x01', X501, { until: st => st.gs.remaining[0] <= 100 && st.visitDarts === 0 }),
+  'tr-x01-bust': () => setSolo('x01', X501, { until: st => st.gs.lastEvent === 'bust' }),
+  'tr-x01-manche': () => setSolo('x01', { startScore: 301, outMode: 'double', legs: 3 }, { until: st => st.gs.lastEvent === 'leg_won' }),
+  'tr-x01-pause': () => setSolo('x01', X501, { n: 11, ui: { pause: true } }),
+  'tr-cricket': () => setSolo('cricket', { legs: 1 }, { n: 14 }),
+  'tr-cricket-debut': () => setSolo('cricket', { legs: 3 }, { n: 0 }),
+  'tr-cricket-fin-proche': () => setSolo('cricket', { legs: 1 }, { cut: 2 }),
+  'tr-fin-x01': () => { setSolo('x01', X501); return '#/entrainement/fin'; },
+  'tr-fin-x01-manches': () => { setSolo('x01', { startScore: 301, outMode: 'single', legs: 3 }, { seed: 11 }); return '#/entrainement/fin'; },
+  'tr-fin-x01-info': () => { setSolo('x01', X501); presetInfo(['tr-an-fin']); return '#/entrainement/fin'; },
+  'tr-fin-cricket': () => { setSolo('cricket', { legs: 1 }); return '#/entrainement/fin'; },
+  'tr-fin-cricket-jeux': () => { setSolo('cricket', { legs: 3 }, { seed: 5 }); store.tr.setChanges = [{ at: 30, setId: 'ds-droit-22' }]; return '#/entrainement/fin'; },
+  'tr-seance-x01': () => { store.tr = null; presetInfo(); presetDetail(); return `#/entrainement/seance/${store.trainings.find(x => x.exercise === 'x01').id}`; },
+  'tr-seance-cricket': () => { store.tr = null; presetInfo(); presetDetail(); return `#/entrainement/seance/${store.trainings.find(x => x.exercise === 'cricket').id}`; },
+  'tr-stats-x01': () => { presetTrainStats({ exercise: 'x01', metric: 'exercise' }); presetInfo(); return '#/entrainement/stats'; },
+  'tr-stats-cricket': () => { presetTrainStats({ exercise: 'cricket', metric: 'exercise' }); presetInfo(); return '#/entrainement/stats'; },
+  'tr-stats-secteur': () => { presetTrainStats({ exercise: 'vingt' }); presetInfo(['ts-filters']); return '#/entrainement/stats'; },
+  'tr-stats-jeux-info': () => { presetTrainStats({ metric: 'doubles' }); presetInfo(['ts-heat', 'ts-sets']); return '#/entrainement/stats'; },
   // Lot 8 : entraînement solo
   'tr-hub': () => { store.tr = null; store.trSetup = { player: 'p1', setId: 'ds-torpedo-22', mode: 'coach' }; presetInfo(); return '#/entrainement'; },
   'tr-hub-info': () => { store.tr = null; store.trSetup = { player: 'p1', setId: 'ds-torpedo-22', mode: 'coach' }; presetInfo(['tr-level', 'tr-exs', 'tr-ex-groupement', 'tr-set', 'tr-mode']); return '#/entrainement'; },
@@ -605,6 +645,33 @@ export function sommaire() {
       ${L('conseils-posture', '◆ Conseils : posture')}
       ${L('conseils-lancer', '◆ Conseils : lancer')}
       ${L('conseils-types', '◆ Conseils : types de fléchettes')}
+    </nav>
+    <div class="pad"><div class="sec">Version 0.14.0 · jeux en solo</div></div>
+    <nav class="toc">
+      ${L('tr-hub-jeux', '◆ Entraînement : jeux', 'X01 501, sortie double')}
+      ${L('tr-hub-jeux-info', '◆ Jeux : explications (i)')}
+      ${L('tr-hub-cricket', '◆ Jeux : Cricket, 3 manches')}
+      ${L('tr-x01-debut', '◆ X01 solo : début')}
+      ${L('tr-x01', '◆ X01 solo : en cours', 'pavé en portrait, cible en paysage')}
+      ${L('tr-x01-finition', '◆ X01 solo : finition proposée')}
+      ${L('tr-x01-bust', '◆ X01 solo : bust')}
+      ${L('tr-x01-manche', '◆ X01 solo : manche gagnée', '301, 3 manches')}
+      ${L('tr-x01-pause', '◆ X01 solo : pause')}
+      ${L('tr-cricket-debut', '◆ Cricket solo : début')}
+      ${L('tr-cricket', '◆ Cricket solo : en cours')}
+      ${L('tr-cricket-fin-proche', '◆ Cricket solo : presque fermé')}
+      ${L('tr-fin-x01', '◆ Fin : X01 solo', 'moyenne, finition, carte')}
+      ${L('tr-fin-x01-info', '◆ Fin : X01, explications (i)')}
+      ${L('tr-fin-x01-manches', '◆ Fin : 301 sortie simple, 3 manches')}
+      ${L('tr-fin-cricket', '◆ Fin : Cricket solo')}
+      ${L('tr-fin-cricket-jeux', '◆ Fin : Cricket, 3 manches, jeu changé')}
+      ${L('tr-seance-x01', '◆ Séance : X01 solo')}
+      ${L('tr-seance-cricket', '◆ Séance : Cricket solo')}
+      ${L('tr-stats', '◆ Stats : triples, doubles, carte', 'jeux et parties seulement')}
+      ${L('tr-stats-jeux-info', '◆ Stats : courbe des doubles, (i)')}
+      ${L('tr-stats-x01', '◆ Stats : X01 solo')}
+      ${L('tr-stats-cricket', '◆ Stats : Cricket solo')}
+      ${L('tr-stats-secteur', '◆ Stats : un exercice', 'ni triples ni carte')}
     </nav>
     <div class="pad"><div class="sec">Version 0.13.0 · entraînement</div></div>
     <nav class="toc">

@@ -253,6 +253,36 @@ export function aimedDart(r, t, { bias = [-0.05, 0.04], spread = 0.2, pos = true
   return d;
 }
 
+/** 0.14.0 : cible visée {s, z} pour une fléchette de finition proposée. */
+const aimOf = d => (d.segment === 25 ? { s: 25, z: d.multiplier === 2 ? 'd' : 's' } : { s: d.segment, z: d.multiplier === 3 ? 't' : d.multiplier === 2 ? 'd' : 's' });
+const plain = d => ({ segment: d.segment, multiplier: d.multiplier });
+/** 0.14.0 : un X01 joué seul ({ startScore, outMode, legs }) : T20 pour marquer, puis la finition proposée. */
+export function simulateSoloX01(game, r, opt = {}) {
+  const cfg = { startScore: game.startScore, outMode: game.outMode, legsToWin: game.legs, players: ['solo'] };
+  const darts = [];
+  while (darts.length < 400) {
+    const st = computeState(cfg, darts.map(plain));
+    if (st.status === 'finished') break;
+    const rem = st.remaining[0];
+    const route = suggestCheckout(rem, cfg.outMode, 3 - st.visit.darts.length);
+    const t = route ? aimOf(route[0]) : rem >= 62 ? { s: 20, z: 't' } : { s: 19, z: 's' };
+    darts.push(aimedDart(r, t, opt));
+  }
+  return darts;
+}
+/** 0.14.0 : un Cricket joué seul : on vise le triple de la première cible pas encore fermée (le bull en dernier). */
+export function simulateSoloCricket(game, r, opt = {}) {
+  const cfg = { game: 'cricket', players: ['solo'], mode: 'sans', legsToWin: game.legs };
+  const darts = [];
+  while (darts.length < 400) {
+    const st = computeCricket(cfg, darts.map(plain));
+    if (st.status === 'finished') break;
+    const t = [20, 19, 18, 17, 16, 15, 25].find(x => st.marks[0][x] < 3);
+    darts.push(aimedDart(r, t === 25 ? { s: 25, z: 'any' } : { s: t, z: 't' }, opt));
+  }
+  return darts;
+}
+
 /** Séances fictives de Guillaume (p1) sur trois semaines : tous les exercices, deux jeux de fléchettes, un peu de progrès. */
 export function mockTrainings(now = Date.now()) {
   const r = rng(808);
@@ -278,5 +308,22 @@ export function mockTrainings(now = Date.now()) {
     if (i === 6) rec.note = 'Nouvelle prise : trois doigts, plus près de la pointe.';
     if (i === 4) { rec.excluded = true; rec.note = 'Lancé par un ami, pour essayer.'; }
     return rec;
-  }).reverse();
+  }).reverse().concat(mockGameSessions(now)).sort((a, b) => b.startedAt - a.startedAt);
+}
+
+/** 0.14.0 : jeux en solo fictifs de p1 (deux 501, un Cricket), entre les séances d'exercices. */
+function mockGameSessions(now) {
+  const r = rng(1414);
+  const day = 86400e3;
+  const plan = [
+    [9.2, 'x01', { startScore: 501, outMode: 'double', legs: 1 }, 'ds-torpedo-22'],
+    [5.3, 'cricket', { legs: 1 }, 'ds-torpedo-22'],
+    [3.4, 'x01', { startScore: 501, outMode: 'double', legs: 1 }, 'ds-droit-22'],
+  ];
+  return plan.map(([days, exercise, game, setId], i) => {
+    const opt = { bias: [-0.03, 0.03], spread: 0.45 - 0.02 * i, pos: i % 2 === 1 };
+    const darts = exercise === 'x01' ? simulateSoloX01(game, r, opt) : simulateSoloCricket(game, r, opt);
+    const startedAt = now - days * day;
+    return { id: `tg${i + 1}`, startedAt, endedAt: startedAt + 1200e3, player: 'p1', setId, mode: 'jeu', exercise, game, darts };
+  });
 }

@@ -6,17 +6,21 @@
 // jeu de fléchettes n'est noté que pour l'entraînement, le filtre « jeu » ne garde donc que les séances.
 // 0.13.0 : une séance mise de côté n'y compte pas ; quand le jeu a changé pendant une séance, le filtre « jeu » et le
 // tableau par jeu ne prennent que les fléchettes lancées avec ce jeu.
+// 0.14.0 (demande de Guillaume) : la part de triples et de doubles et la carte de chaleur ne comptent que les fléchettes
+// lancées « comme en partie » : jeux X01 et Cricket en solo, et parties. Sur un exercice (un secteur visé, l'horloge qui
+// vise tout), la cible est imposée : ces chiffres n'y diraient rien. La précision et le groupement, à l'inverse, ne
+// comptent que les exercices (un jeu n'a pas de cible imposée).
 import { store, activePlayers, playerById, dartSetById } from '../store.js';
 import { esc, ico, topBar, plural, when } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
-import { EXERCISES, ALL_EXERCISES, analyze, sessionValue, heatCounts, zoneOf, pointsOf, setsUsed, setAt } from '../../engine/training.js';
+import { EXERCISES, ALL_EXERCISES, GAME_EXERCISES, analyze, sessionValue, zoneOf, pointsOf, setsUsed, setAt, isGameSession, gamePart } from '../../engine/training.js';
 import { gameState } from '../../engine/stats.js';
-import { boardSvg } from '../board.js';
 import { refresh, backFrom, go } from '../nav.js';
 import { infoBtn, infoBox } from '../info.js';
-import { fmtValue, sessionTitle, sessionFlags } from './training.js';
+import { fmtValue, sessionTitle, sessionFlags, heatBoard } from './training.js';
 
 const dec1 = v => (v === null || v === undefined || Number.isNaN(v) ? '—' : (Math.round(v * 10) / 10).toFixed(1).replace('.', ','));
+const dec2 = v => (v === null || v === undefined || Number.isNaN(v) ? '—' : (Math.round(v * 100) / 100).toFixed(2).replace('.', ','));
 const pctOf = v => (v === null || v === undefined ? '—' : `${Math.round(v * 100)} %`);
 const DAY = 86400000;
 const PERIODS = { '7j': 7, '30j': 30, '90j': 90, tout: null };
@@ -33,8 +37,25 @@ function sessionsOf(pid) {
   return store.trainings.filter(r => r.player === pid && !r.excluded && r.startedAt >= since() && (!ui.set || setsUsed(r).includes(ui.set)) && (!ui.exercise || r.exercise === ui.exercise))
     .sort((a, b) => a.startedAt - b.startedAt);
 }
+/** Rangs des fléchettes d'une séance lancées avec le jeu `setId` (toutes sans filtre, ou sans changement de jeu). */
+const idxOfSet = (r, setId = ui.set || null) => r.darts.map((_, i) => i).filter(i => setId === null || !(r.setChanges || []).length || (setAt(r, i) || '') === setId);
 /** Fléchettes d'une séance lancées avec le jeu filtré (toutes sans filtre). */
-const dartsOfSet = r => (ui.set && (r.setChanges || []).length ? r.darts.filter((_, i) => setAt(r, i) === ui.set) : r.darts);
+const dartsOfSet = r => idxOfSet(r).map(i => r.darts[i]);
+/** Jeux en solo : chiffres des fléchettes lancées avec le jeu `setId` ({ value, counted, triples, doubles, off, n, fin, finHits }). */
+function gameSetPart(r, setId = ui.set || null) {
+  const a = an(r);
+  const idx = idxOfSet(r, setId);
+  const out = gamePart(r.exercise, idx.map(i => r.darts[i]), idx.map(i => a.extra.credit[i]));
+  const ff = a.extra.finishFlags || [];
+  out.fin = idx.filter(i => ff[i] > 0).length;
+  out.finHits = idx.filter(i => ff[i] === 2).length;
+  return out;
+}
+/** Valeur d'un jeu sur plusieurs séances : moyenne sur 3 fléchettes (X01) ou MPR (Cricket), pondérée par les fléchettes comptées. */
+function gameValue(parts) {
+  const n = parts.reduce((k, p) => k + p.counted, 0);
+  return n ? parts.reduce((k, p) => k + (p.value || 0) * p.counted, 0) / n : null;
+}
 /** Chiffres d'une séance pour le jeu filtré : { darts, hits, spread, points } (la séance entière sans filtre ou sans changement de jeu). */
 function setPart(r, a = an(r), setId = ui.set || null) {
   if (setId !== null && a.extra.bySet) {
@@ -55,23 +76,36 @@ function gameDarts(g, pid) {
 }
 
 // ------------------------------------------------------------------ courbe (une séance ou une partie = un point)
+const FREE_AIM = 'Jeux X01 et Cricket (mode Jeux) et parties seulement : sur un exercice, la cible est imposée.';
 const METRICS = {
-  rate: { label: 'Précision', fmt: pctOf, pct: true, of: (r, a) => setPart(r, a).rate, info: 'Fléchettes dans la cible visée ÷ fléchettes lancées, séance par séance.' },
-  spread: { label: 'Groupement (cm)', fmt: v => dec1(v / 10), of: (r, a) => { const x = setPart(r, a); return x.points >= 3 ? x.spread : null; }, info: 'Distance moyenne des fléchettes à leur centre, en centimètres sur une vraie cible : plus c\'est bas, plus elles sont groupées.' },
-  exercise: { label: 'Résultat', of: (r, a) => { const v = sessionValue(r, a); return v ? v.v : null; }, info: 'Le résultat de l\'exercice : précision, fléchettes pour boucler l\'horloge, moyenne par volée, ou part près du centre.' },
+  rate: { label: 'Précision', fmt: pctOf, pct: true, of: (r, a) => (isGameSession(r) ? null : setPart(r, a).rate), info: 'Fléchettes dans la cible visée ÷ fléchettes lancées, séance par séance (exercices seulement : un jeu n\'a pas de cible imposée).' },
+  spread: { label: 'Groupement (cm)', fmt: v => dec1(v / 10), of: (r, a) => { if (isGameSession(r)) return null; const x = setPart(r, a); return x.points >= 3 ? x.spread : null; }, info: 'Distance moyenne des fléchettes à leur centre, en centimètres sur une vraie cible : plus c\'est bas, plus elles sont groupées (exercices seulement).' },
+  exercise: { label: 'Résultat', of: (r, a) => (isGameSession(r) ? gameSetPart(r).value : (v => (v ? v.v : null))(sessionValue(r, a))), info: 'Le résultat de l\'exercice : précision, fléchettes pour boucler l\'horloge, moyenne par volée, part près du centre ; en X01, la moyenne sur 3 fléchettes ; au Cricket, les marques par volée.' },
   average: { label: 'Moyenne', fmt: dec1, game: true, info: 'Moyenne sur 3 fléchettes dans chaque partie X01.' },
-  triples: { label: 'Triples', fmt: pctOf, pct: true, both: true, info: 'Fléchettes dans un triple ÷ fléchettes lancées.' },
+  triples: { label: 'Triples', fmt: pctOf, pct: true, free: true, info: `Fléchettes dans un triple ÷ fléchettes lancées. ${FREE_AIM}` },
+  doubles: { label: 'Doubles', fmt: pctOf, pct: true, free: true, info: `Fléchettes dans un double (le 50 compris) ÷ fléchettes lancées. ${FREE_AIM}` },
   off: { label: 'Hors cible', fmt: pctOf, pct: true, both: true, info: 'Fléchettes à côté de la cible ÷ fléchettes lancées.' },
 };
-const metricsFor = () => (ui.source === 'entrainements' ? ['rate', 'spread', ...(ui.exercise ? ['exercise'] : []), 'triples', 'off']
-  : ui.source === 'parties' ? ['average', 'triples', 'off'] : ['triples', 'off']);
+const exIsGame = () => GAME_EXERCISES.includes(ui.exercise);
+const metricsFor = () => (ui.source === 'entrainements'
+  ? (exIsGame() ? ['exercise', 'triples', 'doubles', 'off'] : ui.exercise ? ['rate', 'spread', 'exercise', 'off'] : ['rate', 'spread', 'triples', 'doubles', 'off'])
+  : ui.source === 'parties' ? ['average', 'triples', 'doubles', 'off'] : ['triples', 'doubles', 'off']);
 
 function exerciseFmt() {
   const ex = EXERCISES[ui.exercise];
   if (!ex) return pctOf;
+  if (ex.metric === 'mpr') return dec2;
   if (ex.clock) return v => String(Math.round(v));
   if (ex.metric === 'average') return dec1;
   return pctOf;
+}
+/** Nom du chiffre de l'exercice filtré. */
+function exerciseLabel() {
+  const ex = EXERCISES[ui.exercise];
+  if (ex.game === 'x01') return 'Moyenne / 3 fl.';
+  if (ex.game === 'cricket') return 'Marques / volée';
+  if (ex.clock) return ex.clock.max ? 'Doubles touchés' : 'Fléchettes';
+  return ex.metric === 'average' ? 'Moyenne / volée' : ex.metric === 'near' ? 'Près du centre' : 'Résultat';
 }
 
 /** Points de la courbe : [{ at, v, id?, kind }]. */
@@ -83,7 +117,9 @@ function points(pid, mk) {
   items.sort((a, b) => a.at - b.at);
   return items.map(x => {
     let v = null;
-    if (mk === 'triples') v = rate(x.darts, d => d.multiplier === 3);
+    if (METRICS[mk].free && x.kind === 't' && !isGameSession(x.r)) v = null; // triples, doubles : jeux et parties seulement
+    else if (mk === 'triples') v = rate(x.darts, d => d.multiplier === 3);
+    else if (mk === 'doubles') v = rate(x.darts, d => d.multiplier === 2);
     else if (mk === 'off') v = rate(x.darts, d => d.segment === 0);
     else if (mk === 'average') v = x.darts.length ? (x.darts.reduce((n, d) => n + pointsOf(d), 0) / x.darts.length) * 3 : null;
     else if (x.kind === 't') v = METRICS[mk].of(x.r, an(x.r));
@@ -114,15 +150,23 @@ function chart(pts, fmt, pct, key) {
 // ------------------------------------------------------------------ écran
 const segBtn = (act, v, cur, label) => `<button type="button" data-act="${act}" data-arg="${v}" aria-pressed="${cur === v}">${label}</button>`;
 
-function heatBoard(darts) {
-  const h = heatCounts(darts);
-  let max = 0;
-  const keys = [];
-  for (let s = 1; s <= 20; s++) keys.push([`${s}`, 'i'], [`${s}`, 'o'], [`T${s}`, ''], [`D${s}`, '']);
-  keys.push(['25', ''], ['50', '']);
-  for (const [k, r] of keys) max = Math.max(max, h.get(k, r));
-  const op = c => (max ? Math.pow(c / max, 0.6) : 0);
-  return { svg: boardSvg({ size: 380, heat: (k, r) => op(h.get(k, r)), cls: 'board', label: 'Carte de chaleur des impacts' }), off: h.off, total: h.total };
+const setName = k => (k ? (dartSetById(k) || { name: '?' }).name : 'Sans jeu noté');
+/** Jeux en solo par jeu de fléchettes : fléchettes, moyenne X01, MPR, triples, doubles. */
+function bySetGames(sessions) {
+  const rows = new Map();
+  for (const r of sessions) {
+    for (const k of setsUsed(r).map(x => x || '')) {
+      if (ui.set && k !== ui.set) continue;
+      if (!rows.has(k)) rows.set(k, { k, x01: [], cricket: [], n: 0, t: 0, d: 0 });
+      const x = rows.get(k), part = gameSetPart(r, (r.setChanges || []).length ? k : null);
+      x[r.exercise].push(part); x.n += part.n; x.t += part.triples; x.d += part.doubles;
+    }
+  }
+  if (!rows.size) return '';
+  const list = [...rows.values()];
+  const hasX = list.some(x => x.x01.length), hasC = list.some(x => x.cricket.length);
+  return `<table class="sectab trtab"><thead><tr><th>Jeu</th><th>Fl.</th>${hasX ? '<th>Moy.</th>' : ''}${hasC ? '<th>MPR</th>' : ''}<th>T %</th><th>D %</th></tr></thead><tbody>
+    ${list.map(x => `<tr><th class="ell">${esc(setName(x.k))}</th><td>${x.n}</td>${hasX ? `<td>${dec1(gameValue(x.x01))}</td>` : ''}${hasC ? `<td>${dec2(gameValue(x.cricket))}</td>` : ''}<td>${pctOf(x.n ? x.t / x.n : null)}</td><td>${pctOf(x.n ? x.d / x.n : null)}</td></tr>`).join('')}</tbody></table>`;
 }
 
 function bySet(sessions) {
@@ -137,9 +181,8 @@ function bySet(sessions) {
     }
   }
   if (rows.size < 1) return '';
-  const name = k => (k ? (dartSetById(k) || { name: '?' }).name : 'Sans jeu noté');
   return `<table class="sectab trtab"><thead><tr><th>Jeu</th><th>Séan.</th><th>Fl.</th><th>Préc.</th><th>Grp.</th></tr></thead><tbody>
-    ${[...rows.values()].map(x => `<tr><th class="ell">${esc(name(x.k))}</th><td>${x.n}</td><td>${x.darts}</td><td>${pctOf(x.darts ? x.hits / x.darts : null)}</td><td>${x.spread.length ? dec1(x.spread.reduce((a, b) => a + b, 0) / x.spread.length / 10) : '—'}</td></tr>`).join('')}</tbody></table>`;
+    ${[...rows.values()].map(x => `<tr><th class="ell">${esc(setName(x.k))}</th><td>${x.n}</td><td>${x.darts}</td><td>${pctOf(x.darts ? x.hits / x.darts : null)}</td><td>${x.spread.length ? dec1(x.spread.reduce((a, b) => a + b, 0) / x.spread.length / 10) : '—'}</td></tr>`).join('')}</tbody></table>`;
 }
 
 function byExercise(sessions) {
@@ -166,13 +209,24 @@ export function trainStatsScreen() {
   const tDarts = sessions.flatMap(dartsOfSet);
   const gDarts = games.flatMap(g => gameDarts(g, pid));
   const darts = [...tDarts, ...gDarts];
-  const parts = sessions.map(r => setPart(r));
+  // 0.14.0 : exercices (cible imposée) d'un côté, jeux en solo de l'autre ; triples, doubles et carte : jeux et parties.
+  const aimed = sessions.filter(r => !isGameSession(r));
+  const played = sessions.filter(isGameSession);
+  const free = [...played.flatMap(dartsOfSet), ...gDarts];
+  const parts = aimed.map(r => setPart(r));
   const hits = parts.reduce((n, a) => n + a.hits, 0), tN = parts.reduce((n, a) => n + a.darts, 0);
   const spreads = parts.filter(a => a.points >= 3 && a.spread !== null).map(a => a.spread);
   const k = (kk, label, value, cls = '') => `<div class="kpi ${cls}" data-k="${kk}"><small>${label}</small><b>${value}</b></div>`;
   const rate = f => (darts.length ? darts.filter(f).length / darts.length : null);
+  const freeRate = f => (free.length ? free.filter(f).length / free.length : null);
   const kpis = [];
-  if (ui.source !== 'parties') {
+  if (ui.source !== 'parties' && exIsGame()) {
+    const gp = played.map(r => gameSetPart(r));
+    const fin = gp.reduce((n, x) => n + x.fin, 0), finHits = gp.reduce((n, x) => n + x.finHits, 0);
+    kpis.push(ui.exercise === 'x01' ? k('average', 'Moyenne sur 3 fléchettes', dec1(gameValue(gp)), 'hero wide') : k('mpr', 'Marques par volée (MPR)', dec2(gameValue(gp)), 'hero wide'));
+    kpis.push(k('sessions', 'Séances', String(sessions.length)));
+    if (ui.exercise === 'x01') kpis.push(k('finish', 'Finition', fin ? `${pctOf(finHits / fin)}<small> · ${finHits}/${fin}</small>` : '—'));
+  } else if (ui.source !== 'parties') {
     kpis.push(k('rate', 'Précision', pctOf(tN ? hits / tN : null), 'hero wide'));
     kpis.push(k('sessions', 'Séances', String(sessions.length)));
     kpis.push(k('spread', 'Groupement moyen', spreads.length ? `${dec1(spreads.reduce((a, b) => a + b, 0) / spreads.length / 10)}<small> cm</small>` : '—'));
@@ -182,7 +236,8 @@ export function trainStatsScreen() {
     kpis.push(k('games', 'Parties', String(games.length)));
   }
   kpis.push(k('darts', 'Fléchettes', ui.source === 'deux' ? `${darts.length}<small> (${tDarts.length} + ${gDarts.length})</small>` : String(darts.length), ui.source === 'deux' ? 'wide' : ''));
-  kpis.push(k('triples', 'Triples', pctOf(rate(d => d.multiplier === 3))));
+  kpis.push(k('triples', 'Triples', pctOf(freeRate(d => d.multiplier === 3))));
+  kpis.push(k('doubles', 'Doubles', pctOf(freeRate(d => d.multiplier === 2))));
   kpis.push(k('offr', 'Hors cible', pctOf(rate(d => d.segment === 0))));
   if (ui.source !== 'parties') {
     const zs = tDarts.map(zoneOf);
@@ -190,6 +245,7 @@ export function trainStatsScreen() {
     kpis.push(k('rings', 'Simples int. / ext.', si + se ? `${si}<small> / ${se}</small>` : '—'));
   }
   if (kpis.length % 2 === 0) kpis.push(k('bulls', 'Bulls (25 · 50)', String(darts.filter(d => d.segment === 25).length)));
+  const freeNote = !free.length ? '<p class="note">Triples, doubles et carte de chaleur : seulement sur les jeux X01 et Cricket (mode Jeux) et les parties, où l\'on vise comme en partie. Sur un exercice, la cible est imposée.</p>' : '';
 
   const p = playerById(pid);
   const chips = list.length > 1 ? `<div class="chips">${list.map(q => `<button type="button" class="btn chip" data-act="ts-player" data-arg="${esc(q.id)}" aria-pressed="${q.id === pid}">${avatarHtml(q, 38)}<span class="nm">${esc(q.name.split(' ')[0])}</span></button>`).join('')}</div>` : '';
@@ -205,7 +261,7 @@ export function trainStatsScreen() {
     ${setChips}${exChips}`;
   const head = `${topBar('Stats d\'entraînement', backFrom('#/entrainement'))}<div class="pad">${chips}
     <div class="sec">Filtres${infoBtn('ts-filters')}</div>
-    ${infoBox('ts-filters', '<b>Entraînements</b> : les séances seules. <b>Parties</b> : les fléchettes du joueur dans ses parties X01 (sans cible visée : ni précision, ni groupement). <b>Les deux</b> : toutes les fléchettes, pour les chiffres qui se comparent (triples, hors cible, carte). Le jeu de fléchettes et l\'exercice ne concernent que l\'entraînement.')}
+    ${infoBox('ts-filters', '<b>Entraînements</b> : les séances seules. <b>Parties</b> : les fléchettes du joueur dans ses parties X01 (sans cible visée : ni précision, ni groupement). <b>Les deux</b> : séances et parties, pour les chiffres qui se comparent (triples, doubles, hors cible, carte). Le jeu de fléchettes et l\'exercice ne concernent que l\'entraînement. Triples, doubles et carte de chaleur ne comptent que les jeux X01 et Cricket (mode Jeux) et les parties ; précision et groupement, que les exercices.')}
     ${filters}</div>`;
   if (!darts.length) {
     return `<div class="screen trstats">${head}<div class="empty" style="padding-top:20px"><div class="big">RIEN À MONTRER</div>
@@ -217,19 +273,20 @@ export function trainStatsScreen() {
   const m = METRICS[mk];
   const fmt = mk === 'exercise' ? exerciseFmt() : m.fmt;
   const pct = mk === 'exercise' ? fmt === pctOf : !!m.pct;
-  const hb = heatBoard(darts);
+  const hb = heatBoard(free);
   return `<div class="screen trstats">${head}
     <div class="pad">
-      <div class="kpis">${kpis.join('')}</div>
+      <div class="kpis">${kpis.join('')}</div>${freeNote}
       <div class="sec">Progression${infoBtn('ts-curve')}</div>
       ${infoBox('ts-curve', esc(m.info) + ' Chaque point est une séance (ou une partie), dans l\'ordre ; la valeur est écrite au-dessus. Touchez la liste des séances plus bas pour en ouvrir une.')}
-      <div class="chips2">${allowed.map(x => `<button type="button" class="chip2" data-act="ts-metric" data-arg="${x}" aria-pressed="${x === mk}">${esc(x === 'exercise' ? (EXERCISES[ui.exercise].clock ? (EXERCISES[ui.exercise].clock.max ? 'Doubles touchés' : 'Fléchettes') : EXERCISES[ui.exercise].metric === 'average' ? 'Moyenne / volée' : EXERCISES[ui.exercise].metric === 'near' ? 'Près du centre' : 'Résultat') : METRICS[x].label)}</button>`).join('')}</div>
+      <div class="chips2">${allowed.map(x => `<button type="button" class="chip2" data-act="ts-metric" data-arg="${x}" aria-pressed="${x === mk}">${esc(x === 'exercise' ? exerciseLabel() : METRICS[x].label)}</button>`).join('')}</div>
       ${chart(points(pid, mk), fmt, pct, `ts:${pid}:${ui.source}:${mk}`)}
-      <div class="sec">Carte de chaleur <span class="n">${hb.total} fl.</span>${infoBtn('ts-heat')}</div>
-      ${infoBox('ts-heat', 'Chaque fléchette sur la cible, par zone : plus la zone est claire, plus elle a été touchée. À l\'entraînement, le simple intérieur et le simple extérieur sont comptés à part ; une fléchette de partie (simple sans anneau connu) compte pour moitié dans chacun.')}
-      <div class="heatbox">${hb.svg}</div><p class="note center">${plural(hb.off, 'fléchette', 'fléchettes')} hors cible, non dessinée${hb.off > 1 ? 's' : ''}.</p>
+      ${free.length ? `<div class="sec">Carte de chaleur <span class="n">${hb.total} fl.</span>${infoBtn('ts-heat')}</div>
+      ${infoBox('ts-heat', `Chaque fléchette sur la cible, par zone : plus la zone est claire, plus elle a été touchée. ${FREE_AIM} À l'entraînement, le simple intérieur et le simple extérieur sont comptés à part ; une fléchette de partie (simple sans anneau connu) compte pour moitié dans chacun.`)}
+      <div class="heatbox">${hb.svg}</div><p class="note center">${plural(hb.off, 'fléchette', 'fléchettes')} hors cible, non dessinée${hb.off > 1 ? 's' : ''}.</p>` : ''}
       ${ui.source !== 'parties' && sessions.length ? `<div class="sec">Par jeu de fléchettes${infoBtn('ts-sets')}</div>
-        ${infoBox('ts-sets', 'Pour comparer les jeux : séances, fléchettes, précision (dans la cible visée) et groupement moyen (cm) avec chaque jeu, sur les filtres choisis.')}${bySet(sessions)}
+        ${infoBox('ts-sets', 'Pour comparer les jeux : sur les exercices, séances, fléchettes, précision (dans la cible visée) et groupement moyen (cm) ; sur les jeux X01 et Cricket, fléchettes, moyenne sur 3 fléchettes, MPR, part de triples et de doubles. Sur les filtres choisis.')}
+        ${aimed.length ? bySet(aimed) : ''}${played.length ? `${aimed.length ? '<p class="small dim caps tsub">En jeu (X01, Cricket)</p>' : ''}${bySetGames(played)}` : ''}
         <div class="sec">Par exercice</div>${byExercise(sessions)}
         <div class="sec">Séances <span class="n">${sessions.length}</span></div>
         <ul class="trl">${[...sessions].reverse().slice(0, ui.folds.has('all') ? 200 : 10).map(r => `<li><a class="trow" href="#/entrainement/seance/${esc(r.id)}"><span class="l1"><b class="ell">${esc(sessionTitle(r))}</b><span>${when(r.startedAt)}</span></span>
