@@ -47,6 +47,7 @@ test('première ouverture : bienvenue, modes, mise en place, accueil selon les m
     assert.equal(await page.locator('[data-act="tr-zonepick"][data-arg="in"]').count(), 0);
     await page.click('[data-act="tr-zonepick"][data-arg="s"]');
     await settle(page);
+    let db;
     const cur = (await readDb(page)).trainings.find(r => r.endedAt === null);
     assert.deepEqual(cur.darts, [{ segment: 20, multiplier: 1 }]);
     // Activé : la couronne du simple se choisit.
@@ -58,10 +59,34 @@ test('première ouverture : bienvenue, modes, mise en place, accueil selon les m
     await page.click('[data-act="tr-zonepick"][data-arg="out"]');
     await settle(page);
     assert.deepEqual((await readDb(page)).trainings.find(r => r.endedAt === null).darts[1], { segment: 20, multiplier: 1, ring: 'out' });
+    // Rangées (par défaut) : du bord vers le bull, double à 2 barres, triple à 3 barres.
+    await page.click('[data-act="tr-key"][data-arg="19"]');
+    assert.deepEqual(await page.$$eval('.zrows [data-act="tr-zonepick"]', els => els.map(e => e.dataset.arg)), ['d', 'out', 't', 'in']);
+    assert.equal(await page.locator('.zr.z-d .zbars i').count(), 2);
+    assert.equal(await page.locator('.zr.z-t .zbars i').count(), 3);
+    assert.equal(await page.locator('.pickp.zcream').count(), 1, '19 : secteur crème et vert');
+    await page.click('[data-act="tr-pick-cancel"]');
+    // Secteur (Réglages › Saisie) : on touche la bande de la part de cible dessinée.
+    await page.evaluate(() => { location.hash = '#/reglages'; });
+    await page.click('[data-act="zone-pad"][data-arg="secteur"]');
+    await page.evaluate(() => { location.hash = '#/entrainement/jeu'; });
+    await page.waitForSelector('.game.train');
+    const band = async (n, word) => {
+      await page.click(`[data-act="tr-key"][data-arg="${n}"]`);
+      await page.waitForSelector('.zsec .zwedge');
+      const box = await page.locator('.zwedge text.zt-w', { hasText: word }).first().boundingBox();
+      await page.mouse.click(box.x + box.width / 2, box.y - 6); // juste au-dessus du mot : dans la bande, pas sur le texte
+      await settle(page);
+    };
+    await band(20, 'TRIPLE');
+    await band(19, 'SIMPLE EXT.');
+    db = await readDb(page);
+    assert.equal(db.settings.display.zonePad, 'secteur', 'réglage enregistré');
+    assert.deepEqual(db.trainings.find(r => r.endedAt === null).darts.slice(2), [{ segment: 20, multiplier: 3 }, { segment: 19, multiplier: 1, ring: 'out' }]);
     await page.evaluate(() => { location.hash = '#/entrainement'; });
     await page.waitForSelector('.trhub');
     await settle(page);
-    let db = await readDb(page);
+    db = await readDb(page);
     const me = db.players.find(p => p.name === 'Alice');
     assert.ok(me, 'profil créé');
     assert.deepEqual(me.avatar, { kind: 'icon', icon: 'renard', color: 3 });

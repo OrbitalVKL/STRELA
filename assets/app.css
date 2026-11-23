@@ -2003,16 +2003,40 @@ button.hrow { width: 100%; border: 0; border-bottom: var(--rule); background: va
 .pad-k.two-step { grid-template-rows: auto repeat(5, minmax(0, 1fr)); }
 .trpad .pstep { margin: 0; padding: 4px 10px; background: var(--bg); font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .trpad .pstep b { color: var(--fg); font-size: 13px; }
-.trpad .pickp { grid-row: span 4; display: grid; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.6fr); gap: 1px; min-height: 0; }
-.trpad .krow.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.trpad .key.zk { flex-direction: column; gap: 2px; font-size: 30px; font-weight: 800; }
-.trpad .key.zk .kl { flex-direction: column; line-height: 1; }
-.trpad .key.zk small { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; margin-top: 6px; }
-.trpad .key.zk[data-arg="d"] { background: color-mix(in srgb, var(--fg) 24%, var(--bg)); }
-.trpad .key.zk[data-arg="t"] { background: var(--inv-bg); color: var(--inv-fg); }
-.trpad .key.zk[data-arg="out"] { box-shadow: inset 0 -3px 0 var(--fg); }
-.trpad .key.zk.aimz { outline: 2px dashed currentColor; outline-offset: -7px; }
-.trpad .key.zk.hit, .trpad .key.zk:active { background: var(--fg); color: var(--bg); }
+.trpad .pickp { grid-row: span 4; display: grid; gap: 1px; min-height: 0; --zs: var(--board-black); --zm: var(--board-red); }
+.trpad .pickp.zcream { --zs: var(--board-cream); --zm: var(--board-green); }
+/* Choix de la zone B « rangées » (23/11) : une rangée par zone, du bord vers le bull ; tranche du secteur à gauche */
+.trpad .pickp.zrows { grid-template-rows: repeat(var(--zn), minmax(0, 1fr)) minmax(0, 0.6fr); }
+.trpad .key.zr { display: grid; grid-template-columns: 46px minmax(0, 1fr) 64px; grid-template-rows: minmax(0, 1fr); align-items: center; justify-items: start; gap: 0; padding: 0; overflow: hidden; }
+.trpad .key.zr .zsl { align-self: stretch; width: 100%; height: 100%; min-height: 0; display: block; overflow: hidden; position: relative; }
+.trpad .key.zr .zsl svg { position: absolute; inset: 0; }
+.trpad .key.zr .zsl svg { display: block; width: 100%; height: 100%; }
+.trpad .key.zr .zsl path { stroke: var(--board-wire); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.trpad .zsl .zs { fill: var(--zs); } .trpad .zsl .zm { fill: var(--zm); }
+.trpad .key.zr .zlab { display: flex; align-items: center; gap: 10px; padding-left: 12px; min-width: 0; max-width: 100%; line-height: 1; }
+.trpad .key.zr .zlab b { font-size: 26px; font-weight: 800; }
+.trpad .key.zr .zw { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; }
+.trpad .key.zr .zw small { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trpad .key.zr .zw .zdir { font-size: 9px; color: var(--dim); }
+.trpad .key.zr .zbars { justify-self: center; display: flex; flex-direction: column; gap: 4px; }
+.trpad .key.zr .zbars i { display: block; width: 36px; height: 5px; background: var(--zm); }
+.trpad .key.zr.z-d { background: color-mix(in srgb, var(--fg) 24%, var(--bg)); }
+.trpad .key.zr.z-t { background: var(--board-black); color: var(--board-num); box-shadow: inset 0 0 0 1px var(--board-wire); }
+.trpad .key.zr.z-t .zdir { color: inherit; }
+.trpad .key.zr.aimz { outline: 2px dashed currentColor; outline-offset: -5px; }
+.trpad .key.zr.hit, .trpad .key.zr:active { background: var(--fg); color: var(--bg); }
+/* Choix de la zone C « secteur » : la part de cible aux vraies couleurs, on touche la bande */
+.trpad .pickp.zsec { grid-template-rows: minmax(0, 1fr) minmax(0, 0.36fr); }
+.trpad .zwedge { display: block; width: 100%; height: 100%; min-height: 0; background: var(--bg); }
+.trpad .zwedge .zb { stroke: var(--board-wire); stroke-width: 1.5; cursor: pointer; }
+.trpad .zwedge .t-black { fill: var(--board-black); } .trpad .zwedge .t-cream { fill: var(--board-cream); }
+.trpad .zwedge .t-red { fill: var(--board-red); } .trpad .zwedge .t-green { fill: var(--board-green); }
+.trpad .zwedge .zb.aimz { stroke: var(--board-mark); stroke-width: 3; stroke-dasharray: 8 5; }
+.trpad .zwedge .zb.hit { opacity: 0.55; }
+.trpad .zwedge text, .trpad .zwedge rect { pointer-events: none; }
+.trpad .zwedge .zt { font-family: var(--font); font-size: 22px; font-weight: 800; }
+.trpad .zwedge .zt-w { font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; }
+.trpad .zwedge .zi-l { fill: var(--board-num); } .trpad .zwedge .zi-d { fill: var(--board-mark-ink); }
 .trpad .key.pback { font-size: 12px; font-weight: 800; letter-spacing: 0.1em; gap: 8px; }
 .trpad .key.pback svg { width: 18px; height: 18px; }
 .trule { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; margin: 0; padding: 4px 4px 0 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: var(--dim); min-width: 0; }
@@ -2158,7 +2182,6 @@ dl.rules dd { margin: 0; }
 .lrow > .av { flex: 0 0 36px; width: 36px; height: 36px; }
 .installer .btns.two { margin: 10px 0 14px; }
 .clog li, .installer .note { overflow-wrap: anywhere; }
-.trpad .krow.two > .span2 { grid-column: span 2; display: grid; }
 .hgroup.card { margin-left: 8px; margin-right: 8px; }
 .hgroup.card .hhead { padding: 10px 12px; column-gap: 8px; }
 .hgroup.card .hhead .d { display: block; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

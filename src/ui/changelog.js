@@ -2,6 +2,10 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.17.1', date: '2026-11-23', title: 'Saisie : la zone plus lisible', items: [
+    'Au pavé, après le nombre, le choix de la zone est dessiné aux couleurs de la cible (noir et rouge, ou crème et vert selon le secteur) : double à 2 barres, triple à 3 barres.',
+    'Deux présentations au choix, Réglages › Saisie › Choix de la zone. RANGÉES (par défaut) : une touche par zone, du bord vers le centre (double, simple extérieur, triple, simple intérieur), avec la tranche du secteur à gauche ; le triple est noir. SECTEUR : la part de cible dessinée en grand, on touche directement la bande.',
+  ] },
   { v: '0.17.0', date: '2026-11-23', title: 'Modes, bienvenue, réglages, exports, installation', items: [
     'Deux modes à allumer dans les Réglages : Entraînement et Soirée. Entraînement seul : un accueil épuré (S\'ENTRAÎNER, stats, armurerie, conseils), sans joueurs, verres ni classement. Les données restent toutes, quel que soit le mode.',
     'Première ouverture : un message de bienvenue avec le choix des modes, puis une mise en place guidée (ton nom, ton avatar, tes fléchettes), chaque étape passable ; tant qu\'elle n\'est pas finie, une carte « Terminer la mise en place » reste sur l\'accueil.',

@@ -44,6 +44,7 @@ export function resetMock() {
   for (const k of ['modes', 'setup', 'profile', 'updSnooze']) delete store.settings[k];
   store.settings.heatScale = 'clair';
   store.settings.padRing = false;
+  store.settings.zonePad = 'rangees';
   Object.assign(store.db, { openCode: null, writeFail: null, error: null });
   // Derniers réglages : ceux de la partie la plus récente.
   const last = store.games[0];

@@ -251,6 +251,8 @@ export const SCENES = {
   'tr-jeu-debut': () => setTr('groupement', 0),
   'tr-jeu-ext': () => setTr('groupement', 2, { ui: { pick: 20 } }),
   'tr-jeu-couronne': () => { store.settings.padRing = true; return setTr('groupement', 2, { ui: { pick: 20 } }); },
+  'tr-jeu-secteur': () => { store.settings.padRing = true; store.settings.zonePad = 'secteur'; return setTr('groupement', 2, { ui: { pick: 19 } }); },
+  'tr-jeu-secteur-simple': () => { store.settings.zonePad = 'secteur'; return setTr('triple20', 3, { ui: { pick: 20 } }); },
   'tr-jeu-triple': () => setTr('triple20', 3, { ui: { pick: 20 } }),
   'tr-jeu-double': () => setTr('libre', 1, { blocks: [{ s: 16, z: 'd', n: 9 }], ui: { pick: 16 } }),
   'tr-jeu-regles': () => setTr('horloge', 5, { ui: { rules: true } }),
@@ -639,6 +641,8 @@ export function sommaire() {
       ${L('tr-jeu', '◆ Saisie : en cours', 'pavé en portrait, cible en paysage')}
       ${L('tr-jeu-ext', '◆ Saisie : zone du 20 à choisir', 'nombre puis zone (23/11)')}
       ${L('tr-jeu-couronne', '◆ Saisie : simple intérieur / extérieur', 'réglage activé')}
+      ${L('tr-jeu-secteur', '◆ Saisie : zone en secteur (19)', 'réglage « secteur », intérieur / extérieur')}
+      ${L('tr-jeu-secteur-simple', '◆ Saisie : zone en secteur (20)', 'triple visé, sans intérieur / extérieur')}
       ${L('tr-jeu-triple', '◆ Saisie : triple 20, zone du 20')}
       ${L('tr-jeu-double', '◆ Saisie : libre, D16, zone du 16')}
       ${L('tr-jeu-regles', '◆ Saisie : règles de l\'exercice', 'horloge')}

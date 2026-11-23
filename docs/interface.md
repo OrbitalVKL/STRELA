@@ -952,6 +952,24 @@ bouton ENTRAÎNEMENT SOLO sous la soirée (ENTRAÎNEMENT EN COURS en vidéo inve
 joueur : bouton STATS D'ENTRAÎNEMENT s'il a des séances. La saisie au doigt sur la cible est passée dans
 `src/ui/boardinput.js` (même comportement en partie).
 
+## Version 0.17.1 (23/11 : choix de la zone au pavé)
+
+Demande de Guillaume sur maquettes (A, B, C proposées en images ; « je prends B et C, sélectionnable dans les
+réglages »). Après le nombre, le choix de la zone (training.js › `zonePick`) a deux présentations, réglage `zonePad`
+(Réglages › Saisie › Choix de la zone ; défaut `'rangees'`, aucune migration) :
+
+- **Rangées** (B) : une touche par zone dans l'ordre de la cible, du bord vers le bull — DOUBLE, SIMPLE EXT. (côté
+  double), TRIPLE, SIMPLE INT. (côté bull) ; trois rangées (DOUBLE, SIMPLE, TRIPLE) si « Simple intérieur / extérieur »
+  est désactivé. À gauche, la tranche du secteur aux couleurs de la cible (`zoneTone` : noir et rouge, ou crème et vert,
+  classe `zcream`). Double : fond gris, 2 barres ; triple : fond noir de la cible (`--board-black`, les deux thèmes),
+  3 barres ; barres à la couleur des doubles et triples du secteur.
+- **Secteur** (C) : la part de cible dessinée en grand (SVG, pointe vers le bull sous l'écran, `slice`), aux vraies
+  couleurs ; chaque bande est la commande (`path[data-act="tr-zonepick"]`, appui au relâcher comme les touches) ; 2 et
+  3 barres blanches sur le double et le triple. Sans intérieur / extérieur, les deux bandes du simple donnent SIMPLE.
+
+Les commandes restent `tr-zonepick` (`in`, `out`, `s`, `d`, `t`) ; zone visée en tirets (`aimz`). Sommaire :
+`tr-jeu-secteur`, `tr-jeu-secteur-simple`. Test : tests/lot8-appli-parcours.test.js.
+
 ## Version 0.17.0 (lot 8 du 23/11 : modes, bienvenue, réglages, exports, installation)
 
 Cahier des charges du 23/11, sections 6 à 9 ; avancement : docs/lot-8-avancement.md. **Aucune migration** : réglages
