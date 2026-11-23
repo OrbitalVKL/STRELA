@@ -67,6 +67,12 @@
       fait que sur ton appui. Aucune de tes données n'est envoyée : GitHub ne reçoit que la demande elle-même (comme
       toute visite d'un site, avec l'adresse IP du téléphone).</li>
     <li><b>Version web</b> : la page est servie par GitHub Pages ; tes données restent dans le navigateur.</li>
+    <li><b>Partie en ligne</b> (version GitHub et version web, seulement quand tu crées ou rejoins un salon) : pour
+      que les téléphones se trouvent, Strela passe par le service gratuit de mise en relation de PeerJS (0.peerjs.com)
+      et par des serveurs STUN publics (Google, Cloudflare), qui voient l'adresse réseau du téléphone et le code du
+      salon. Ensuite, les téléphones se parlent directement, chiffré : pseudo, avatar et animation de tour de ton
+      joueur, réglages et fléchettes de la partie. Rien n'est stocké sur un serveur ; chaque téléphone garde la partie
+      dans son propre historique, avec les joueurs des autres téléphones (rangés à part).</li>
   </ul>
 
   <h2>Suppression</h2>

@@ -2,7 +2,7 @@
 // Archiver : le joueur n'est plus proposé, ses stats restent ; RÉACTIVER (liste ou fiche) le remet. Supprimer : il
 // disparaît avec ses stats ; ses parties avec d'autres restent, où il devient « Joueur supprimé » (src/engine/players.js).
 // Photo : appareil photo ou galerie (sélecteur d'images d'Android), puis recadrage carré (screens/photo.js).
-import { store, newId, inCurrentGame, deletionPreview, deletePlayer, savePlayer, setArchived, animationsOn } from '../store.js';
+import { store, newId, inCurrentGame, deletionPreview, deletePlayer, savePlayer, setArchived, animationsOn, adoptRemote } from '../store.js';
 import { esc, ico, topBar, avg, plural } from '../dom.js';
 import { avatarHtml, iconSvg, ICONS, ICON_KEYS, ICON_GROUPS, AVATAR_COLOR_NAMES, colorIndex } from '../avatars.js';
 import { playerStats } from '../../engine/stats.js';
@@ -26,8 +26,9 @@ function row(p) {
 }
 
 export function playersList() {
-  const active = store.players.filter(p => !p.archived);
-  const archived = store.players.filter(p => p.archived);
+  const active = store.players.filter(p => !p.archived && !p.remote);
+  const archived = store.players.filter(p => p.archived && !p.remote);
+  const remote = store.players.filter(p => p.remote); // lot 9.2 : adversaires des parties en ligne, à part
   const add = `<a class="act" href="#/joueur/nouveau" aria-label="Nouveau joueur">${ico('plus')}</a>`;
   if (!store.players.length) {
     return `<div class="screen">${topBar('Joueurs', '#/', add)}
@@ -41,6 +42,9 @@ export function playersList() {
     ${archived.length ? `<div class="pad"><div class="sec">Archivés <span class="n">${archived.length}</span></div></div>
       <ul class="list">${archived.map(p => `<li class="arow">${row(p)}<button type="button" class="btn ghost react" data-act="unarchive-row" data-arg="${esc(p.id)}">RÉACTIVER</button></li>`).join('')}</ul>
       <p class="note pad">Un joueur archivé n'apparaît plus au lancement d'une partie ; ses parties et ses stats restent. RÉACTIVER le remet dans la liste.</p>` : ''}
+    ${remote.length ? `<div class="pad"><div class="sec">Adversaires en ligne <span class="n">${remote.length}</span></div></div>
+      <ul class="list">${remote.map(p => `<li class="arow">${row(p)}<button type="button" class="btn ghost react" data-act="adopt-remote" data-arg="${esc(p.id)}">AJOUTER</button></li>`).join('')}</ul>
+      <p class="note pad">Joueurs des autres téléphones, rencontrés en ligne : gardés pour l'historique, rangés à part. AJOUTER en fait un joueur de ce téléphone (proposé au lancement d'une partie, dans les stats).</p>` : ''}
   </div>`;
 }
 
@@ -255,6 +259,7 @@ export const actions = {
     refresh();
   },
   'unarchive-row'(id) { setArchived(id, false); refresh(); },
+  'adopt-remote'(id) { adoptRemote(id); refresh(); }, // lot 9.2
   'save-player'() {
     const d = store.draft;
     const name = d.name.trim().replace(/\s+/g, ' ');

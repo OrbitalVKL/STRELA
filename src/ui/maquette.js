@@ -4,6 +4,7 @@ import { store } from './store.js';
 import { MOCK_PLAYERS, EXTRA_PLAYERS, mockGames, mockSeason, mockCricket, mockTrainings } from './mock.js';
 import { SEED_SETS } from '../engine/dartsets.js';
 import { presetVoice } from './voiceinput.js';
+import { presetOnline } from './online.js';
 
 const clone = o => JSON.parse(JSON.stringify(o));
 
@@ -49,6 +50,7 @@ export function resetMock() {
   store.settings.voiceInput = true; // lot 9.3
   store.settings.voiceAsked = false;
   presetVoice();
+  presetOnline(); // lot 9.2
   Object.assign(store.db, { openCode: null, writeFail: null, error: null });
   // Derniers réglages : ceux de la partie la plus récente.
   const last = store.games[0];

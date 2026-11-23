@@ -38,6 +38,8 @@ import { trainSheetHtml, closeTrainSheet, actions as trainHonourActions } from '
 import { arsenalList, arsenalForm, inputs as arsenalInputs, actions as arsenalActions } from './screens/arsenal.js';
 import { adviceList, adviceSheet } from './screens/advice.js';
 import { voiceOverlayHtml, voiceRoute, actions as voiceActions } from './voiceinput.js';
+import { onlineScreen, actions as onlineActions, inputs as onlineInputs } from './screens/online.js';
+import { onlineToastHtml, resumeOnline, onlineGame } from './online.js';
 import { welcomeScreen, tutorialScreen, installerScreen, actions as welcomeActions, inputs as welcomeInputs } from './screens/welcome.js';
 
 // Version 0.8.0 : la refonte (lot 7.8, écrans de screens/v2/) remplace l'accueil, l'historique, les stats et les
@@ -68,6 +70,7 @@ const ROUTES = [
   [/^\/soiree$/, soireeScreen],
   [/^\/soiree\/(.+)$/, soireeDashScreen],
   // Lot 8 : entraînement solo, armurerie, conseils
+  [/^\/enligne(?:\/(.+))?$/, onlineScreen], // lot 9.2 : partie en ligne
   [/^\/entrainement$/, trainingHub],
   [/^\/entrainement\/jeu$/, trainingScreen],
   [/^\/entrainement\/fin$/, trainingEnd],
@@ -88,9 +91,9 @@ const ACTIONS = {
   ...playerActions, ...newGameActions, ...gameActions, ...resultActions,
   ...statsActions, ...settingsActions, ...historyActions, ...photoActions, ...aboutActions, ...sheetActions, ...soireeActions,
   ...stats2Actions, ...history2Actions, ...dashActions, ...infoActions, ...drinkActions, ...honourActions, ...cricketActions,
-  ...trainingActions, ...trainStatsActions, ...arsenalActions, ...trainHonourActions, ...welcomeActions, ...voiceActions,
+  ...trainingActions, ...trainStatsActions, ...arsenalActions, ...trainHonourActions, ...welcomeActions, ...voiceActions, ...onlineActions,
 };
-const INPUTS = { ...playerInputs, ...arsenalInputs, ...trainingInputs, ...trainStatsInputs, ...welcomeInputs };
+const INPUTS = { ...playerInputs, ...arsenalInputs, ...trainingInputs, ...trainStatsInputs, ...welcomeInputs, ...onlineInputs };
 
 const app = document.getElementById('app');
 let lastPath = null;
@@ -154,6 +157,7 @@ function draw() {
   html += badgeSheetHtml(); // lot 7.8 : fenêtre d'un badge, par-dessus l'écran qui l'a ouverte
   html += trainSheetHtml(); // lot 8 du 23/11 : badge d'entraînement ou petit défi en séance
   html += voiceOverlayHtml(); // lot 9.3 : phrase entendue, explication du micro
+  html += onlineToastHtml(); // lot 9.2 : message bref de la partie en ligne (demande refusée…)
   const sameScreen = screenIdx === lastScreen;
   const y = window.scrollY;
   if (lastHash !== null) pageY.set(lastHash, y);
@@ -364,6 +368,7 @@ if (new URLSearchParams(location.search).has('maquette')) {
 }
 started = true;
 render();
+if (!store.maquette && onlineGame()) resumeOnline(); // lot 9.2 : une partie en ligne en cours reprend sa liaison
 document.body.dataset.ready = '1';
 
 // Service worker « réseau d'abord » : appli installable, toujours la dernière version quand le réseau répond.

@@ -13,6 +13,7 @@ import { refresh, buzz, BUZZ, go } from '../nav.js';
 import { say, sound, voiceInfo } from '../feedback.js';
 import { isApk, call, callJson, onNative, nativeTheme, hasUpdater, nativeInfo } from '../native.js';
 import { voiceEngine } from '../voiceinput.js';
+import { onlineSupport } from '../online.js';
 
 const prefersLight = () => { try { return matchMedia('(prefers-color-scheme: light)').matches; } catch (e) { return false; } };
 export const isDark = () => store.settings.theme === 'dark' || (store.settings.theme === 'auto' && !prefersLight());
@@ -345,6 +346,7 @@ export function settings2Screen() {
         <div class="rows">
           ${srow('mode-train', 'Entraînement', 'Seul, pour progresser', modes.train)}
           ${srow('mode-soiree', 'Soirée', 'À plusieurs : joueurs, verres, classement', modes.soiree)}
+          ${onlineSupport().ok ? srow('mode-online', 'En ligne', 'Un joueur par téléphone, à distance', modes.online) : ''}
         </div>`)}
       ${card('wrench', 'Matériel', null, `
         <a class="lrow" href="#/armurerie">${ico('wrench')}<span><b>Armurerie</b><small>${plural(sets, 'jeu de fléchettes', 'jeux de fléchettes')}</small></span>${ico('chev')}</a>
@@ -446,6 +448,7 @@ export const actions = {
   'zone-pad'(v) { if (v === 'rangees' || v === 'secteur') saveSetting('zonePad', v); refresh(); },
   'mode-train'(v) { setMode('train', v === '1'); refresh(); },
   'mode-soiree'(v) { setMode('soiree', v === '1'); refresh(); },
+  'mode-online'(v) { setMode('online', v === '1'); refresh(); }, // lot 9.2
   autoBackup(v) { saveSetting('autoBackup', v === '1'); refresh(); }, // lot 9
   'show-update'() {
     revealUpdate = true;

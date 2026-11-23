@@ -13,6 +13,8 @@ import { go, refresh, buzz, BUZZ, backFrom } from '../nav.js';
 import { sound, dartSound, say } from '../feedback.js';
 import { turnFxKind } from '../turnfx.js';
 import { micButton, registerVoice } from '../voiceinput.js';
+import { registerOnlineGame, input as onlineInput, onlineGame, onlineQuit, onlineFinish, on as online } from '../online.js';
+import { onlineCover } from './game.js';
 
 export const CK_MODE_LABEL = Object.freeze({ points: 'AVEC POINTS', sans: 'SANS POINTS', cutthroat: 'CUT-THROAT' });
 const colorOf = p => `var(--av-${colorIndex(p.avatar?.color)})`;
@@ -116,19 +118,28 @@ function pad(v) {
     <div class="krow">${[16, 15, 25].map(key).join('')}<button type="button" class="ckk zero" data-act="ck-hit" data-arg="0" ${dis}><span data-shrink>RATÉ</span></button></div>
     <div class="krow mult">${mk(1, 'SIMPLE')}${mk(2, 'DOUBLE')}${mk(3, 'TRIPLE')}</div>
     ${over}
+    ${onlineCover()}
   </section>`;
 }
 
 function pauseSheet(v) {
   const ui = v.g.ui;
-  const abandon = ui.confirm === 'abandon'
+  let abandon = ui.confirm === 'abandon'
     ? `<div class="confirm" data-reveal><p><b>Abandonner la partie ?</b></p><p class="small dim">Elle restera dans l'historique, marquée « abandonnée ».</p>
         <div class="btns two"><button type="button" class="btn" data-act="ck-abandon-no">NON</button><button type="button" class="btn alert" data-act="ck-abandon-yes">ABANDONNER</button></div></div>`
     : '<button type="button" class="btn danger" data-act="ck-abandon">ABANDONNER LA PARTIE</button>';
-  const del = ui.confirm === 'delete'
+  let del = ui.confirm === 'delete'
     ? `<div class="confirm" role="alert" data-reveal><p class="alert-h">SUPPRIMER LA PARTIE ?</p><p class="small">Elle disparaît complètement : ni historique, ni stats.</p>
         <div class="btns two"><button type="button" class="btn" data-act="ck-abandon-no">NON</button><button type="button" class="btn alert" data-act="ck-delete-yes">SUPPRIMER</button></div></div>`
     : '<button type="button" class="btn danger" data-act="ck-delete">SUPPRIMER LA PARTIE</button>';
+  if (onlineGame()) { // lot 9.2 : partie en ligne, pas de suppression ; arrêter pour tous (hôte) ou quitter (invité)
+    const host = online.role === 'host';
+    abandon = ui.confirm === 'abandon'
+      ? `<div class="confirm" data-reveal><p><b>${host ? 'Arrêter la partie pour tous ?' : 'Quitter la partie en ligne ?'}</b></p>
+        <div class="btns two"><button type="button" class="btn" data-act="ck-abandon-no">NON</button><button type="button" class="btn alert" data-act="ck-abandon-yes">${host ? 'ARRÊTER' : 'QUITTER'}</button></div></div>`
+      : `<button type="button" class="btn danger" data-act="ck-abandon">${host ? 'ARRÊTER LA PARTIE POUR TOUS' : 'QUITTER LA PARTIE EN LIGNE'}</button>`;
+    del = `<a class="btn ghost" href="#/enligne">SALON ${esc(onlineGame().online.code)}</a>`;
+  }
   const seg = (val, label) => `<button type="button" data-act="ck-layout" data-arg="${val}" aria-pressed="${v.layout === val}">${label}</button>`;
   return `<div class="sheet-bg" role="dialog" aria-label="Pause" data-layer><div class="sheet">
     <header class="top" data-layer><h1><span>Pause</span></h1>${store.maquette ? `<a class="act mq" href="#/sommaire" aria-label="Sommaire de maquette">${ico('menu')}</a>` : ''}<button type="button" class="act" data-act="ck-resume" aria-label="Fermer">${ico('close')}</button></header>
@@ -221,10 +232,10 @@ export function cricketEnd() {
       <button type="button" class="btn ghost" style="margin-top:14px" data-act="ck-undo-end">ANNULER LA DERNIÈRE FLÉCHETTE</button>
       ${store.maquette ? `<div class="mq-row">${maquetteButtons('mq')}</div>` : ''}
     </div>
-    <div class="dock btns" data-layer>
+    ${onlineGame() ? `<div class="dock btns" data-layer><button type="button" class="btn primary big" data-act="online-finish">RETOUR AU SALON</button></div>` : `<div class="dock btns" data-layer>
       <button type="button" class="btn primary big" data-act="ck-rematch">REVANCHE <small>${g.config.players.length < 2 ? 'MÊMES RÉGLAGES' : g.shuffled ? 'ORDRE TIRÉ AU SORT' : `${esc(next.name).toUpperCase()} COMMENCE`}</small></button>
       <button type="button" class="btn" data-act="ck-home">ACCUEIL</button>
-    </div>
+    </div>`}
   </div>`;
 }
 
@@ -258,9 +269,9 @@ export function cricketDetail(id) {
 const detailUi = { del: null };
 
 // ------------------------------------------------------------------ actions
-function hit(seg, forced = null) {
+function hit(seg, forced = null, fromHost = false) {
   const g = store.ck;
-  if (!g || g.ui.pause) return false;
+  if (!g || (g.ui.pause && !fromHost)) return false;
   const s = ckState();
   if (pending(s, g) || s.status !== 'playing') return false;
   const m = g.ui.mult;
@@ -286,13 +297,51 @@ function hit(seg, forced = null) {
 // Lot 9.3 : saisie à la voix. Une fléchette hors des cibles du Cricket (« triple cinq ») compte comme au pavé : rien.
 registerVoice('#/cricket', {
   ready: () => !!store.ck && !store.ck.ui.pause,
-  play: d => hit(d.segment, makeDart(d.segment, d.multiplier)),
-  undo: () => { if (!store.ck || !store.ck.darts.length) return false; undoCk(); refresh(); return true; },
+  play: d => (onlineGame() ? onlineInput('dart', d) : hit(d.segment, makeDart(d.segment, d.multiplier))),
+  undo: () => { if (!store.ck || !store.ck.darts.length) return false; if (onlineGame()) return onlineInput('undo'); undoCk(); refresh(); return true; },
   validate: () => {
     const g = store.ck;
     if (!g || pending(ckState(), g) !== 'visit_end') return false;
     actions['ck-validate']();
     return true;
+  },
+});
+
+/** Lot 9.2 : touche du pavé en ligne (le multiplicateur reste sur ce téléphone). */
+function onlineHit(seg) {
+  const g = store.ck;
+  const m = g.ui.mult;
+  const dart = seg === 0 ? makeDart(0, 1) : seg === 25 ? (m === 3 ? null : makeDart(25, m === 2 ? 2 : 1)) : makeDart(seg, m);
+  if (dart && onlineInput('dart', dart)) { g.ui.mult = 1; refresh(); }
+}
+
+registerOnlineGame('cricket', {
+  apply(op) {
+    const g = store.ck;
+    if (!g) return false;
+    if (op.op === 'dart') return hit(op.dart.segment, makeDart(op.dart.segment, op.dart.multiplier), true);
+    if (op.op === 'undo') { if (!g.darts.length) return false; undoCk(); if (location.hash !== '#/cricket') go('#/cricket', { replace: true }); else refresh(); return true; }
+    if (op.op === 'validate') {
+      const p = pending(ckState(), g);
+      if (!p) return false;
+      g.validated = ckState().dartCount;
+      saveCk();
+      if (p === 'visit_end') { buzz(BUZZ.dart); sound('validate'); }
+      refresh();
+      return true;
+    }
+    return false;
+  },
+  ctx() {
+    const g = store.ck;
+    const s = ckState();
+    if (!g || !s) return {};
+    const ids = g.config.players;
+    const p = pending(s, g);
+    const last = s.lastVisit ? ids[s.lastVisit.player] : null;
+    const finished = s.status !== 'playing';
+    const undoable = g.darts.length > (g.validated || 0) ? (finished || p ? last : s.visit.darts.length ? ids[s.currentPlayer] : null) : null;
+    return { thrower: finished || p ? null : ids[s.currentPlayer], pending: finished ? null : p ? last : null, undoable };
   },
 });
 
@@ -308,10 +357,11 @@ function undoCk() {
 }
 
 export const actions = {
-  'ck-hit'(arg) { hit(Number(arg)); },
+  'ck-hit'(arg) { if (onlineGame()) { onlineHit(Number(arg)); return; } hit(Number(arg)); },
   'ck-mult'(arg) { const g = store.ck; if (!g) return; const m = Number(arg); g.ui.mult = g.ui.mult === m ? 1 : m; refresh(); },
-  'ck-undo'() { undoCk(); refresh(); },
+  'ck-undo'() { if (onlineGame()) { onlineInput('undo'); return; } undoCk(); refresh(); },
   'ck-validate'() {
+    if (onlineGame()) { onlineInput('validate'); return; } // lot 9.2
     const g = store.ck;
     if (!g) return;
     const s = ckState();
@@ -321,7 +371,9 @@ export const actions = {
     buzz(BUZZ.dart); sound('validate');
     refresh();
   },
+  'online-finish'() { onlineFinish(); },
   'ck-next-leg'() {
+    if (onlineGame()) { onlineInput('validate'); return; } // lot 9.2
     const g = store.ck;
     if (!g) return;
     const s = ckState();
@@ -336,9 +388,9 @@ export const actions = {
   'ck-abandon'() { store.ck.ui.confirm = 'abandon'; refresh(); },
   'ck-delete'() { store.ck.ui.confirm = 'delete'; refresh(); },
   'ck-abandon-no'() { store.ck.ui.confirm = false; refresh(); },
-  'ck-abandon-yes'() { archiveCk(true); go('#/'); },
+  'ck-abandon-yes'() { if (onlineGame()) { onlineQuit(); return; } archiveCk(true); go('#/'); },
   'ck-delete-yes'() { deleteCk(); go('#/'); },
-  'ck-undo-end'() { undoCk(); go('#/cricket', { replace: true }); },
+  'ck-undo-end'() { if (onlineGame()) { onlineInput('undo'); return; } undoCk(); go('#/cricket', { replace: true }); },
   'ck-home'() { archiveCk(false); go('#/'); },
   'ck-rematch'() {
     const g = store.ck;

@@ -212,7 +212,20 @@ export function withDrinks(g, rec) {
   if (g.drinksRaw && typeof g.drinksRaw === 'object') rec.drinksRaw = cleanDrinks(g.drinksRaw) || {};
   // 0.11.2 : tournées notées retirées d'une soirée (annulable), gardées à part.
   if (g.drinksTournee && typeof g.drinksTournee === 'object') rec.drinksTournee = cleanDrinks(g.drinksTournee) || {};
+  // Lot 9.2 : partie en ligne { code, role: 'host' | 'guest', me, host } (facultatif ; aucune migration).
+  const on = cleanOnline(g.online);
+  if (on) rec.online = on;
   return rec;
+}
+
+/** Marque « en ligne » d'une partie (lot 9.2), nettoyée, ou null. `room` (hôte, partie en cours) : salon à reprendre. */
+export function cleanOnline(x) {
+  if (!x || typeof x !== 'object' || typeof x.code !== 'string' || !/^[A-Z0-9]{3,8}$/.test(x.code)) return null;
+  const out = { code: x.code, role: x.role === 'host' ? 'host' : 'guest' };
+  if (typeof x.me === 'string') out.me = x.me;
+  if (typeof x.host === 'string') out.host = x.host;
+  if (x.room && typeof x.room === 'object') out.room = x.room;
+  return out;
 }
 
 /** Déclarations d'une partie (lot 7.8, défi « main gauche ») : { rang de volée: true | false } nettoyé, ou null. */
@@ -240,9 +253,13 @@ export function soireeRecord(x) {
 }
 
 /** Enregistrement d'une partie close (terminée ou abandonnée). */
-export const closedRecord = (g, abandoned, endedAt) => withDrinks(g, {
-  id: g.id, startedAt: g.startedAt, endedAt, config: g.config, darts: g.darts, validated: g.validated ?? g.darts.length, abandoned: !!abandoned,
-});
+export const closedRecord = (g, abandoned, endedAt) => {
+  const rec = withDrinks(g, {
+    id: g.id, startedAt: g.startedAt, endedAt, config: g.config, darts: g.darts, validated: g.validated ?? g.darts.length, abandoned: !!abandoned,
+  });
+  if (rec.online) delete rec.online.room; // lot 9.2 : le salon ne sert qu'à reprendre une partie en cours
+  return rec;
+};
 
 /**
  * Joueur tel qu'enregistré : rien d'autre que { id, name, avatar, archived, checkout, turnAnim? } (la photo seulement si
@@ -254,6 +271,8 @@ export function playerRecord(p) {
   const rec = { id: p.id, name: p.name, avatar: av, archived: !!p.archived, checkout: checkoutPrefs(p.checkout) };
   // Lot 7.4 : animation de tour, champ facultatif (absent = choix par défaut, voir src/ui/turnfx.js) ; aucune migration.
   if (TURN_ANIM_VALUES.includes(p.turnAnim)) rec.turnAnim = p.turnAnim;
+  // Lot 9.2 : adversaire d'une partie en ligne, rangé à part des joueurs du téléphone (facultatif).
+  if (p.remote === true) rec.remote = true;
   return rec;
 }
 

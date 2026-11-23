@@ -952,6 +952,25 @@ bouton ENTRAÎNEMENT SOLO sous la soirée (ENTRAÎNEMENT EN COURS en vidéo inve
 joueur : bouton STATS D'ENTRAÎNEMENT s'il a des séances. La saisie au doigt sur la cible est passée dans
 `src/ui/boardinput.js` (même comportement en partie).
 
+## Version 0.19.0 (lot 9.2 : partie en ligne)
+
+Détail technique : docs/enligne.md ; cahier : docs/lot-9.md (9.2). **Aucune migration**.
+
+- **Accueil** : EN LIGNE (ou PARTIE EN LIGNE · SALON CODE pendant une partie), réglage Réglages › Modes › En ligne
+  (`modes.online`, OUI par défaut ; absent de la variante play et sans WebRTC).
+- **`#/enligne`** (screens/online.js) : sans salon, choix du joueur du téléphone, CRÉER UN SALON, REJOINDRE (code) ;
+  dans un salon, code en grand, QR code (qr.js, couleurs de la cible), PARTAGER LE LIEN, téléphones (statut en
+  direct), réglages (modifiables chez l'hôte seulement), LANCER LA PARTIE / EN ATTENTE DE L'HÔTE / REPRENDRE LA
+  PARTIE, FERMER ou QUITTER LE SALON, (i) « Comment ça marche ». `#/enligne/rejoindre/CODE` préremplit le code.
+- **Jeu** (game.js, cricket.js) : `enter()` / `onlineInput()` envoient la saisie à l'hôte ; `registerOnlineGame`
+  applique ses opérations ; `onlineCover()` couvre le pavé (ou la cible, en paysage) quand ce téléphone n'a pas la
+  main : « À <joueur> », PAUSE (hôte : PASSER SON TOUR, EXCLURE), RECONNEXION. Message bref (`.ontoast`) quand une
+  saisie est refusée. Pause : ARRÊTER LA PARTIE POUR TOUS (hôte) ou QUITTER LA PARTIE EN LIGNE ; pas de suppression.
+  Fin de manche : MANCHE SUIVANTE sur le téléphone du gagnant ; fin de partie : RETOUR AU SALON.
+- **Joueurs** : section « Adversaires en ligne » (AJOUTER). **Stats et classement** : TOUTES / LOCALES / EN LIGNE.
+- Sommaire : `enligne`, `enligne-erreur`, `enligne-hote`, `enligne-invite`, `enligne-attente`, `enligne-pause`,
+  `enligne-reconnexion`, `enligne-cricket`.
+
 ## Version 0.18.0 (lot 9.3 : saisie à la voix)
 
 Cahier : docs/lot-9.md (9.3) ; avancement : docs/lot-9-avancement.md. **Aucune migration** : réglages d'affichage

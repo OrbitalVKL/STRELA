@@ -33,6 +33,7 @@ import { defiOf, defiResult, DEFIS } from '../../engine/defis.js';
 import { gameBadgesSay } from '../honours.js';
 import { bindBoardInput, boardHint, frozenLoupe } from '../boardinput.js';
 import { micKey, registerVoice } from '../voiceinput.js';
+import { registerOnlineGame, input as onlineInput, onlineGame, turnInfo, hostPass, onlineQuit, on as online } from '../online.js';
 
 export const ANNOUNCE_MS = 800;
 
@@ -445,6 +446,7 @@ export function game() {
         <button type="button" class="key undo" data-key="undo" ${g.darts.length ? '' : 'disabled'}>${ico('undo')}<span class="kl" data-shrink>ANNULER</span></button>
       </div>
       ${wait ? validateButton(v, 'over') : ''}
+      ${onlineCover()}
     </section>`;
 
   return `<div class="game port">
@@ -475,6 +477,7 @@ function landscape(v, slide, overlays) {
     <div class="rcol">
       <div class="bwrap${wait ? ' wait' : ''}" id="tboard">${boardSvg({ size: 400, impacts, label: 'Cible : touchez pour saisir' })}</div>
       <p class="bhint alert" id="bhint" role="status" data-layer hidden></p>
+      ${onlineCover()}
     </div>
     <div class="loupe" id="loupe" data-layer hidden><b class="lz"></b><div class="lens">${plainBoard()}<i class="cross"></i></div></div>
     ${overlays}${celebrationHtml()}
@@ -589,6 +592,27 @@ function pauseSheet() {
     ? `<div class="confirm" data-reveal><p><b>Abandonner la partie ?</b></p><p class="small dim">Elle restera dans l'historique, marquée « abandonnée ».</p>
         <div class="btns two"><button type="button" class="btn" data-act="abandon-no">NON</button><button type="button" class="btn alert" data-act="abandon-yes">ABANDONNER</button></div></div>`
     : '<button type="button" class="btn danger" data-act="abandon">ABANDONNER LA PARTIE</button>';
+  const og = onlineGame(); // lot 9.2 : partie en ligne
+  if (og) {
+    const host = online.role === 'host';
+    const q = ui.confirm === 'abandon'
+      ? `<div class="confirm" data-reveal><p><b>${host ? 'Arrêter la partie pour tous ?' : 'Quitter la partie en ligne ?'}</b></p><p class="small dim">${host ? 'Elle reste dans l\'historique de chaque téléphone, marquée « abandonnée » ; tout le monde revient au salon.' : 'Elle reste dans ton historique, marquée « abandonnée ». L\'hôte pourra passer tes volées ou t\'exclure.'}</p>
+        <div class="btns two"><button type="button" class="btn" data-act="abandon-no">NON</button><button type="button" class="btn alert" data-act="abandon-yes">${host ? 'ARRÊTER' : 'QUITTER'}</button></div></div>`
+      : `<button type="button" class="btn danger" data-act="abandon">${host ? 'ARRÊTER LA PARTIE POUR TOUS' : 'QUITTER LA PARTIE EN LIGNE'}</button>`;
+    return `<div class="sheet-bg" role="dialog" aria-label="Pause" data-layer><div class="sheet">
+    <header class="top" data-layer><h1><span>Pause</span></h1><button type="button" class="act" data-act="resume" aria-label="Fermer">${ico('close')}</button></header>
+    <div class="body" style="padding-top:16px">
+      ${storageBanner()}
+      <button type="button" class="btn primary big" data-act="resume">${ico('play')} REPRENDRE</button>
+      <button type="button" class="btn" data-act="open-history">${ico('history')} HISTORIQUE DE LA PARTIE</button>
+      ${drinksSection(store.current.config.players.filter(id => !playerById(id).remote))}
+      <div class="sec" style="margin-bottom:0">Réglages rapides</div>
+      ${themeControls()}
+      <div class="sec" style="margin-bottom:0">Partie en ligne · salon ${esc(og.online.code)}</div>
+      <a class="btn ghost" href="#/enligne">SALON <small>${host ? 'tu es l\'hôte' : 'joueurs connectés'}</small></a>
+      ${q}
+    </div></div></div>`;
+  }
   const del = ui.confirm === 'delete'
     ? `<div class="confirm" role="alert" data-reveal><p class="alert-h">SUPPRIMER LA PARTIE ?</p><p class="small">Elle disparaît complètement : ni historique, ni stats. Les joueurs et leurs photos restent.</p>
         <div class="btns two"><button type="button" class="btn" data-act="abandon-no">NON</button><button type="button" class="btn alert" data-act="delete-current-yes">SUPPRIMER</button></div></div>`
@@ -687,7 +711,7 @@ function bindBoard(wrap) {
     onStart: () => { stopAnnounce(true); store.current.ui.loupe = null; },
     onRelease: (x, y) => {
       const dart = segmentAt(x, y);
-      if (dart) play(dart, null, [x, y]);
+      if (dart) enter(dart, null, [x, y]);
       else { buzz(BUZZ.undo); hint('HORS CIBLE · RIEN N\'EST COMPTÉ'); }
     },
   });
@@ -770,10 +794,11 @@ registerVoice('#/jeu', {
   play: d => {
     const g = store.current;
     if (!g || pendingVisit(currentState(), g.validated)) return false;
+    if (onlineGame()) return onlineInput('dart', d);
     return play(makeDart(d.segment, d.multiplier), null);
   },
-  undo: () => { const g = store.current; if (!g || !g.darts.length) return false; undo(); refresh(); return true; },
-  validate: () => { const g = store.current; if (!g || !pendingVisit(currentState(), g.validated)) return false; validate(); return true; },
+  undo: () => { const g = store.current; if (!g || !g.darts.length) return false; if (onlineGame()) return onlineInput('undo'); undo(); refresh(); return true; },
+  validate: () => { const g = store.current; if (!g || !pendingVisit(currentState(), g.validated)) return false; if (onlineGame()) return onlineInput('validate'); validate(); return true; },
 });
 
 /** Après le rendu : l'annonce vocale ne passe jamais avant l'écran. */
@@ -945,7 +970,7 @@ export function key(k) {
   const g = store.current;
   if (!g || g.ui.pause || g.ui.panel || g.ui.drinks) return;
   const ui = g.ui;
-  if (k === 'undo') { undo(); refresh(); flash('undo'); return; }
+  if (k === 'undo') { if (onlineGame()) { onlineInput('undo'); flash('undo'); return; } undo(); refresh(); flash('undo'); return; }
   if (pendingVisit(currentState(), g.validated)) return; // volée en attente : seuls ANNULER et VALIDER
   if (k === 'S' || k === 'D' || k === 'T') {
     const m = { S: 1, D: 2, T: 3 }[k];
@@ -953,15 +978,81 @@ export function key(k) {
     stopAnnounce();
     refresh(); flash(k); return;
   }
-  if (k === '0') return play(makeDart(0, 1), k);
-  if (k === '50') return play(makeDart(25, 2), k);
-  if (k === '25') { if (ui.mult === 3) return; return play(makeDart(25, ui.mult === 2 ? 2 : 1), k); }
+  if (k === '0') return enter(makeDart(0, 1), k);
+  if (k === '50') return enter(makeDart(25, 2), k);
+  if (k === '25') { if (ui.mult === 3) return; return enter(makeDart(25, ui.mult === 2 ? 2 : 1), k); }
   const n = Number(k);
-  if (n >= 1 && n <= 20) play(makeDart(n, ui.mult), k);
+  if (n >= 1 && n <= 20) enter(makeDart(n, ui.mult), k);
+}
+
+/** Fléchette saisie sur ce téléphone : jouée ici, ou, en ligne (lot 9.2), demandée à l'hôte (seul le lanceur saisit). */
+function enter(dart, key = null, pos = null) {
+  if (onlineGame()) { if (onlineInput('dart', dart)) { store.current.ui.mult = 1; flash(key); } return true; }
+  return play(dart, key, pos);
+}
+
+// Lot 9.2 : partie en ligne. Les opérations acceptées par l'hôte sont jouées ici comme une saisie locale.
+registerOnlineGame('x01', {
+  apply(op) {
+    const g = store.current;
+    if (!g) return false;
+    if (op.op === 'dart') return play(makeDart(op.dart.segment, op.dart.multiplier), null);
+    if (op.op === 'undo') {
+      if (!g.darts.length) return false;
+      undo();
+      if (location.hash !== '#/jeu') go('#/jeu', { replace: true }); else refresh();
+      return true;
+    }
+    if (op.op === 'validate') {
+      if (legEndPending()) {
+        g.validated = g.darts.length;
+        saveCurrent();
+        if (g.config.players.length > 1) { g.ui.announce = currentState().currentPlayer; g.ui.frozen = false; }
+        go('#/jeu', { replace: true });
+        return true;
+      }
+      if (!pendingVisit(currentState(), g.validated)) return false;
+      validate();
+      return true;
+    }
+    return false;
+  },
+  ctx() {
+    const g = store.current;
+    const s = currentState();
+    if (!g || !s) return {};
+    const ids = g.config.players;
+    const pend = pendingVisit(s, g.validated);
+    const legEnd = legEndPending();
+    const finished = s.status !== 'playing';
+    const last = s.lastVisit ? ids[s.lastVisit.player] : null;
+    const undoable = g.darts.length > (g.validated || 0) ? (finished || pend || legEnd ? last : s.dartNumber > 1 ? ids[s.currentPlayer] : null) : null;
+    return { thrower: finished || pend || legEnd ? null : ids[s.currentPlayer], pending: finished ? null : pend || legEnd ? last : null, undoable };
+  },
+});
+
+/**
+ * Lot 9.2 : sur un téléphone qui n'a pas la main (autre lanceur, pause, connexion perdue), un cache sur le pavé (ou la
+ * cible) dit qui lance ; l'hôte y trouve PASSER SON TOUR et EXCLURE quand un joueur a perdu la connexion.
+ */
+export function onlineCover() {
+  const t = turnInfo();
+  if (!t) return '';
+  let body;
+  if (!t.connected) body = `<b>${t.role === 'host' ? 'EN ATTENTE DES JOUEURS' : 'RECONNEXION À L\'HÔTE…'}</b><small>${t.role === 'host' ? 'Les autres téléphones reviennent d\'eux-mêmes.' : 'Partie suspendue : elle reprend dès que l\'hôte répond.'}</small>`;
+  else if (t.paused) {
+    const name = esc(playerById(t.paused).name);
+    body = `<b>PAUSE</b><small><span class="nm">${name}</span> a perdu la connexion : la partie reprend à son retour.</small>${t.role === 'host'
+      ? `<div class="btns two"><button type="button" class="btn" data-act="on-pass" data-arg="0">PASSER SON TOUR</button><button type="button" class="btn" data-act="on-pass" data-arg="1">EXCLURE</button></div>` : ''}`;
+  } else if (t.mine) return '';
+  else if (t.who) body = `<b>À <span class="nm">${esc(playerById(t.who).name)}</span></b><small>Sur son téléphone. Ses fléchettes arrivent ici une par une.</small>`;
+  else return '';
+  return `<div class="oncover" role="status" data-layer>${body}</div>`;
 }
 
 export const actions = {
-  validate() { validate(); },
+  validate() { if (onlineGame()) { onlineInput('validate'); return; } validate(); },
+  'on-pass'(v) { hostPass(v === '1'); }, // lot 9.2 : joueur perdu
   pause() { stopAnnounce(); store.current.ui.pause = true; store.current.ui.confirm = false; refresh(); },
   resume() { store.current.ui.pause = false; store.current.ui.confirm = false; refresh(); },
   'open-board'() { openPanel(); },
@@ -969,7 +1060,7 @@ export const actions = {
   'close-panel'() { Object.assign(store.current.ui, { panel: null, fix: null }); refresh(); },
   'board-view'(val) { store.current.ui.boardView = val === 'leg' ? 'leg' : 'visit'; refresh(); },
   // Correction d'une fléchette (lot 3, I)
-  'fix-dart'(i) { store.current.ui.fix = { index: Number(i), mult: 1, pick: null, result: null }; refresh(); },
+  'fix-dart'(i) { if (onlineGame()) return; store.current.ui.fix = { index: Number(i), mult: 1, pick: null, result: null }; refresh(); }, // lot 9.2 : pas de correction en ligne
   'fix-mult'(m) { const f = store.current.ui.fix; if (f) { f.mult = f.mult === Number(m) ? 1 : Number(m); refresh(); } },
   'fix-key'(k) {
     const f = store.current.ui.fix;
@@ -1036,5 +1127,9 @@ export const actions = {
   'delete-current'() { store.current.ui.confirm = 'delete'; refresh(); },
   'delete-current-yes'() { stopAnnounce(); deleteCurrent(); go('#/'); },
   'abandon-no'() { store.current.ui.confirm = false; refresh(); },
-  'abandon-yes'() { stopAnnounce(); archiveCurrent(true); go('#/'); },
+  'abandon-yes'() {
+    stopAnnounce();
+    if (onlineGame()) { onlineQuit(); return; } // lot 9.2
+    archiveCurrent(true); go('#/');
+  },
 };

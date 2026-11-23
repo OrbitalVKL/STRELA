@@ -5,6 +5,7 @@
 // de page (un appui ouvre les nouveautés) ; repère NOUVEAU sur Nouveautés tant que la page de la version installée
 // n'a pas été ouverte (localStorage « strela.news »).
 import { store, activePlayers, playerById, soireeTotal, appModes, setupDone, firstRun } from '../../store.js';
+import { onlineGame, onlineSupport } from '../../online.js';
 import { isApk } from '../../native.js';
 import { sessionValue, EXERCISES } from '../../../engine/training.js';
 import { fmtValue, sessionTitle } from '../training.js';
@@ -80,6 +81,13 @@ function lastSessionCard() {
     <b class="ell">${esc(sessionTitle(r))}</b><span class="d">${when(r.startedAt)}${sv ? ` · ${fmtValue(sv)}` : ''}</span></a>`;
 }
 
+/** Lot 9.2 : entrée « En ligne » (partie en cours : REPRENDRE la mène au salon). */
+function onlineEntry(og) {
+  return og
+    ? `<a class="btn online-btn on" href="#/enligne"><span class="t">${ico('phone')} PARTIE EN LIGNE</span><small>SALON ${esc(og.online.code)}</small><span class="go">${ico('chev')}</span></a>`
+    : `<a class="btn ghost online-btn" href="#/enligne"><span class="t">${ico('phone')} EN LIGNE</span></a>`;
+}
+
 export function home2() {
   const modes = appModes();
   const first = firstRun();
@@ -101,6 +109,9 @@ export function home2() {
     ? `<a class="btn tr-btn on" href="#/entrainement"><span class="t">${ico('sniper')} ENTRAÎNEMENT EN COURS</span><small>${plural(store.tr.darts.length, 'FLÉCHETTE', 'FLÉCHETTES')}</small><span class="go">${ico('chev')}</span></a>`
     : trainMain ? `<a class="btn ${strong ? 'accent-line' : 'accent'} big tr-btn" href="#/entrainement">${ico('sniper')} S'ENTRAÎNER</a>`
       : welcome.first ? '' : `<a class="btn ghost tr-btn" href="#/entrainement"><span class="t">${ico('sniper')} ENTRAÎNEMENT SOLO</span></a>`;
+  // Lot 9.2 : partie en ligne (un joueur par téléphone), réglable dans Réglages › Modes.
+  const og = onlineGame();
+  const online = !modes.online || !onlineSupport().ok || welcome.first ? (og ? onlineEntry(og) : '') : onlineEntry(og);
   const nt = store.trainings.length;
   const items = modes.soiree
     ? [
@@ -128,7 +139,7 @@ export function home2() {
   return `<div class="screen home2 v-tableau">
     <header class="t-head"><h1 class="home-title" data-shrink>STRELA</h1><p>${modes.soiree ? 'Compteur de fléchettes · X01 · Cricket' : 'Entraînement aux fléchettes'}</p></header>
     <main class="t-main">${storageBanner()}${updateBadge()}
-      ${lead}${welcome.html}${resume}${trainMain ? `${train}${newGame}` : `${newGame}${soiree}${train}`}
+      ${lead}${welcome.html}${resume}${trainMain ? `${train}${newGame}${online}` : `${newGame}${soiree}${online}${train}`}
       <div class="hcards">${cards}</div>
       <nav class="tiles2" aria-label="Menu">${tiles}</nav>
     </main>${foot}</div>`;
