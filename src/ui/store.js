@@ -211,6 +211,28 @@ export function keepRemotePlayer(card) {
   return old || p;
 }
 
+/**
+ * Partie reçue de l'hôte (lot 9.2) : devient la partie en cours de ce téléphone (même identifiant, mêmes fléchettes),
+ * X01 ou Cricket. Une autre partie en cours est d'abord rangée ; les verres et l'affichage de ce téléphone sont gardés
+ * si c'est la même partie.
+ */
+export function adoptOnlineGame(rec, online) {
+  const ck = rec.config && rec.config.game === 'cricket';
+  const old = ck ? store.ck : store.current;
+  const same = old && old.id === rec.id;
+  if (!same) {
+    if (store.current) archiveCurrent(currentState().status !== STATUS.FINISHED);
+    if (store.ck) archiveCk(ckState().status !== 'finished');
+  }
+  const g = { id: rec.id, config: rec.config, darts: rec.darts.map(d => ({ segment: d.segment, multiplier: d.multiplier })), startedAt: rec.startedAt,
+    validated: rec.validated, online, ui: same ? old.ui : (ck ? freshCkUi() : freshUi()) };
+  for (const k of ['shuffled', 'defis', 'defiSet']) if (rec[k] !== undefined) g[k] = rec[k];
+  if (same && old.drinks) g.drinks = old.drinks;
+  if (ck) { store.ck = g; store.current = null; } else { store.current = g; store.ck = null; }
+  write([{ store: 'games', put: currentRecord(g) }]);
+  return g;
+}
+
 /** AJOUTER : un adversaire en ligne devient un joueur de ce téléphone. */
 export function adoptRemote(id) {
   const p = store.players.find(q => q.id === id && q.remote);
@@ -1024,11 +1046,14 @@ export function deleteDartSet(id) {
  */
 export function appModes() {
   const m = store.settings.modes;
-  if (m && typeof m === 'object' && (m.train || m.soiree)) return { train: !!m.train, soiree: !!m.soiree };
+  // Lot 9.2 : « en ligne », activé par défaut (sauf réglage), indépendant des deux autres.
+  const online = !(m && typeof m === 'object' && m.online === false);
+  if (m && typeof m === 'object' && (m.train || m.soiree)) return { train: !!m.train, soiree: !!m.soiree, online };
   const used = store.games.length || store.ckGames.length || store.players.length > 1 || store.current || store.ck || store.soiree;
-  return { train: true, soiree: !!used };
+  return { train: true, soiree: !!used, online };
 }
 export function setMode(kind, on) {
+  if (kind === 'online') { const m = { ...appModes(), online: !!on }; saveSetting('modes', m); return m; }
   const m = { ...appModes(), [kind === 'soiree' ? 'soiree' : 'train']: !!on };
   if (!m.train && !m.soiree) m[kind === 'soiree' ? 'train' : 'soiree'] = true; // jamais les deux éteints
   saveSetting('modes', m);

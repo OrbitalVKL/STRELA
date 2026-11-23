@@ -139,10 +139,17 @@ test('coupure : pause pour tous, reprise au retour, exclusion par l\'hôte, hôt
   assert.equal(x.out[0].msg.room.game.id, 'g-1');
   // Un inconnu ne peut pas entrer dans une partie lancée.
   assert.equal(hostReceive(r, 'g7', helloMsg(createGuest(), P('pZ'))).out[0].msg.reason, 'started');
-  // Exclusion : la partie reprend sans lui.
+  // Passer son tour : la partie reprend, jusqu'à son retour.
+  let s2 = hostExclude(r, 'pB', { forever: false }).room;
+  assert.equal(s2.paused, null);
+  assert.deepEqual(s2.skip, ['pB']);
+  s2 = hostReceive(s2, 'g1-ter', helloMsg(createGuest(), P('pB'))).room;
+  assert.deepEqual(s2.skip, [], 'de retour, il rejoue');
+  // Exclusion : la partie reprend sans lui, même s'il revient.
   r = hostExclude(r, 'pB').room;
   assert.equal(r.paused, null);
-  assert.deepEqual(r.skip, ['pB']);
+  assert.deepEqual(r.out, ['pB']);
+  assert.deepEqual(hostReceive(r, 'g1-q', helloMsg(createGuest(), P('pB'))).room.out, ['pB']);
   // Fin : retour au salon, les perdus partent.
   r = hostEnd(r).room;
   assert.equal(r.phase, 'lobby');

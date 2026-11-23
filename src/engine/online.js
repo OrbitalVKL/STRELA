@@ -74,7 +74,8 @@ export function createRoom({ code, hostPeer, hostPlayer, setup = {} }) {
     game: null,           // partie : l'enregistrement complet (config, darts, validated…), copie de celle de l'hôte
     ops: 0,               // opérations appliquées à la partie
     paused: null,         // { peer, player } : un joueur de la partie a perdu la connexion
-    skip: [],             // joueurs exclus de la partie : leurs volées sont passées (3 hors cible) par l'hôte
+    skip: [],             // joueurs absents dont les volées sont passées (3 hors cible) jusqu'à leur retour
+    out: [],              // joueurs exclus : volées passées jusqu'à la fin de la partie
   };
 }
 
@@ -90,10 +91,13 @@ export function roomPlayers(room) {
 /** Recalcule la pause : un joueur de la partie (non exclu) dont le téléphone n'est pas connecté. */
 function repause(room) {
   if (room.phase !== 'playing' || !room.game) { room.paused = null; return room; }
-  const lost = room.members.find(m => !m.host && m.player && m.status !== 'connected' && room.game.config.players.includes(m.player.id) && !room.skip.includes(m.player.id));
+  const lost = room.members.find(m => !m.host && m.player && m.status !== 'connected' && room.game.config.players.includes(m.player.id) && !passed(room, m.player.id));
   room.paused = lost ? { peer: lost.peer, player: lost.player.id } : null;
   return room;
 }
+
+/** Volées de ce joueur passées d'office (absent dont on passe le tour, ou exclu) ? */
+export const passed = (room, id) => (room.skip || []).includes(id) || (room.out || []).includes(id);
 
 const send = (to, msg) => ({ to, msg });
 const snapshot = (room, to) => send(to, { t: 'room', seq: room.seq, room: clone(room) });
@@ -123,6 +127,7 @@ export function hostReceive(roomIn, peer, msg, ctx = {}) {
       const card = playerCard(msg.player);
       if (m) { // retour d'un téléphone connu (reconnexion) : il reprend sa place
         m.status = 'connected';
+        if (m.player) room.skip = room.skip.filter(id => id !== m.player.id);
         if (card && room.phase === 'lobby') m.player = card;
       } else {
         if (room.members.length >= MAX_PHONES) { out.push(send(peer, { t: 'kick', seq: room.seq, reason: 'full' })); return { room: roomIn, out, op: null }; }
@@ -132,6 +137,7 @@ export function hostReceive(roomIn, peer, msg, ctx = {}) {
           if (!old) { out.push(send(peer, { t: 'kick', seq: room.seq, reason: 'started' })); return { room: roomIn, out, op: null }; }
           old.peer = peer;
           old.status = 'connected';
+          room.skip = room.skip.filter(id => id !== card.id); // de retour : il rejoue (sauf s'il a été exclu)
         } else {
           if (card && room.members.some(x => x.player && x.player.id === card.id)) { out.push(send(peer, { t: 'kick', seq: room.seq, reason: 'same-player' })); return { room: roomIn, out, op: null }; }
           room.members.push({ peer, host: false, status: 'connected', player: card });
@@ -199,6 +205,7 @@ export function hostStart(roomIn, game) {
   room.game = clone(game);
   room.ops = 0;
   room.skip = [];
+  room.out = [];
   repause(room);
   return { room, out: [broadcastRoom(room)] };
 }
@@ -212,6 +219,7 @@ export function hostEnd(roomIn, { abandoned = false } = {}) {
   room.ops = 0;
   room.paused = null;
   room.skip = [];
+  room.out = [];
   room.members = room.members.filter(m => m.host || m.status === 'connected');
   return { room, out: [broadcastRoom(room)] };
 }
@@ -227,10 +235,14 @@ export function hostMemberStatus(roomIn, peer, status) {
   return { room, out: [broadcastRoom(room)] };
 }
 
-/** L'hôte exclut un joueur perdu : ses volées seront passées ; la partie reprend. */
-export function hostExclude(roomIn, playerId) {
+/**
+ * L'hôte ne laisse pas la partie bloquée par un joueur perdu : PASSER SON TOUR (`forever` faux : ses volées sont passées
+ * jusqu'à son retour) ou EXCLURE (`forever` : jusqu'à la fin de la partie). La partie reprend.
+ */
+export function hostExclude(roomIn, playerId, { forever = true } = {}) {
   const room = clone(roomIn);
-  if (!room.skip.includes(playerId)) room.skip.push(playerId);
+  const list = forever ? room.out : room.skip;
+  if (!list.includes(playerId)) list.push(playerId);
   repause(room);
   return { room, out: [broadcastRoom(room)] };
 }

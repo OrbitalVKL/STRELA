@@ -4,6 +4,7 @@
 // La fin de manche sert de validation de la volée gagnante (pas de VALIDER en jeu pour une finition) : MANCHE SUIVANTE
 // l'enregistre (`validated`), une reprise avant cela revient sur cet écran.
 import { store, currentState, playerById, archiveCurrent, startGame, saveCurrent, gameDrinking } from '../store.js';
+import { onlineGame, turnInfo, input as onlineInput, onlineFinish, on as online } from '../online.js';
 import { gameRecords } from '../../engine/records.js';
 import { esc, avg, int, OUT_LABEL, maquetteButtons } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
@@ -52,7 +53,7 @@ export function legEnd() {
       <button type="button" class="btn ghost" style="margin-top:14px" data-act="undo-end">ANNULER LA DERNIÈRE FLÉCHETTE</button>
       ${store.maquette ? `<div class="mq-row">${maquetteButtons('mq')}</div>` : ''}
     </div>
-    <div class="dock" data-layer><button type="button" class="btn primary big" data-act="next-leg">MANCHE SUIVANTE</button></div>
+    <div class="dock" data-layer>${onlineGame() && !turnInfo()?.mine ? `<p class="note" style="margin:0;text-align:center">MANCHE SUIVANTE : sur le téléphone de <span class="nm">${esc(p.name)}</span>.</p>` : '<button type="button" class="btn primary big" data-act="next-leg">MANCHE SUIVANTE</button>'}</div>
     ${celebrationHtml()}
   </div>`;
 }
@@ -91,10 +92,10 @@ export function matchEnd() {
       <button type="button" class="btn ghost" style="margin-top:14px" data-act="undo-end">ANNULER LA DERNIÈRE FLÉCHETTE</button>
       ${store.maquette ? `<div class="mq-row">${maquetteButtons('mq')}</div>` : ''}
     </div>
-    <div class="dock btns" data-layer>
+    ${onlineGame() ? `<div class="dock btns" data-layer><button type="button" class="btn primary big" data-act="online-finish">RETOUR AU SALON <small>${online.role === 'host' ? 'REVANCHE OU NOUVELLE PARTIE' : 'L\'HÔTE LANCE LA SUIVANTE'}</small></button></div>` : `<div class="dock btns" data-layer>
       <button type="button" class="btn primary big" data-act="rematch">REVANCHE <small>${g.config.players.length < 2 ? 'MÊMES RÉGLAGES' : g.shuffled ? 'ORDRE TIRÉ AU SORT' : `${esc(nextFirst.name).toUpperCase()} COMMENCE`}</small></button>
       <button type="button" class="btn" data-act="finish-home">ACCUEIL</button>
-    </div>
+    </div>`}
     ${celebrationHtml()}
   </div>`;
 }
@@ -117,8 +118,10 @@ function finishBoard(g, s, fin, p) {
 }
 
 export const actions = {
-  'undo-end'() { undo(); go('#/jeu', { replace: true }); },
+  'undo-end'() { if (onlineGame()) { onlineInput('undo'); return; } undo(); go('#/jeu', { replace: true }); },
+  'online-finish'() { onlineFinish(); }, // lot 9.2
   'next-leg'() {
+    if (onlineGame()) { onlineInput('validate'); return; } // lot 9.2 : demandé à l'hôte
     // La fin de manche est validée (enregistrée : une reprise ne la remontre pas) ; annonce du premier lanceur de la
     // nouvelle manche, comme après une validation.
     const g = store.current;

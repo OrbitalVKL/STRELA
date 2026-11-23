@@ -2213,3 +2213,35 @@ dl.rules dd { margin: 0; }
 .key.mic small { font-size: 9px; letter-spacing: 0.08em; }
 .key.mic.on { background: var(--inv-bg); color: var(--inv-fg); }
 .land .lbtns.with-mic { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 0.8fr) minmax(0, 1.6fr); }
+
+/* ------------------------------------------------------------------ lot 9.2 : partie en ligne */
+.online-btn { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center; text-align: left; justify-content: stretch; min-height: 52px; }
+.online-btn .t { display: flex; align-items: center; gap: 8px; }
+.online-btn .t .ico { width: 20px; height: 20px; }
+.online-btn small { grid-column: 1; display: block; }
+.online-btn .go { grid-row: 1 / span 2; grid-column: 2; }
+/* Cache du pavé (ou de la cible) sur les téléphones qui n'ont pas la main. */
+.oncover { position: absolute; inset: 0; z-index: 4; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  padding: 16px; text-align: center; background: var(--bg); border: 1px solid var(--fg); }
+.oncover b { font-size: 22px; font-weight: 800; letter-spacing: 0.08em; }
+.oncover small { font-size: 13px; color: var(--dim); max-width: 32em; }
+.oncover .btns { width: 100%; max-width: 420px; margin-top: 6px; }
+.ontoast { position: fixed; z-index: 16; left: 50%; bottom: calc(var(--gesture-bottom, 16px) + 12px); transform: translateX(-50%); margin: 0; padding: 10px 14px;
+  max-width: calc(100vw - 32px); background: var(--inv-bg); color: var(--inv-fg); font-size: 13px; font-weight: 700; letter-spacing: 0.04em; pointer-events: none; }
+/* Salon */
+.oncodebox { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; margin-top: 14px; padding: 12px; border: var(--rule); }
+.oncodebox > div:first-child { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.oncodebig { font-size: clamp(30px, 11vw, 44px); font-weight: 800; letter-spacing: 0.16em; font-variant-numeric: tabular-nums; }
+.onqr { width: min(38vw, 160px); }
+.onqr .qr { display: block; width: 100%; height: auto; }
+.onmembers { list-style: none; margin: 0; padding: 0; border-top: var(--rule); }
+.onm { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 6px 0; border-bottom: var(--rule); }
+.onm .nm { flex: 1 1 auto; min-width: 0; font-weight: 700; }
+.onm .st { flex: 0 0 auto; font-size: 11px; letter-spacing: 0.1em; }
+.onm .st.alert { color: var(--red-text); }
+.onm.off { color: var(--dim); }
+.onm .act { width: 40px; height: 40px; display: grid; place-items: center; border: var(--rule); background: transparent; color: inherit; }
+.onpick { display: flex; flex-wrap: wrap; gap: 6px; }
+.onpick .chip.pl { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 4px 10px 4px 4px; }
+.oncode .input { font-size: 26px; letter-spacing: 0.3em; text-transform: uppercase; text-align: center; }
+.online-btn.on { background: var(--inv-bg); color: var(--inv-fg); border-color: var(--inv-bg); }
