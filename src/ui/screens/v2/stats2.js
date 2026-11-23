@@ -93,10 +93,16 @@ const tabs = active => `<div class="pad tabs2"><div class="seg">
     <a href="#/classement" role="button" aria-pressed="${active === 'classement'}">Classement</a>
     <a href="#/honneur" role="button" aria-pressed="false">Honneur</a></div></div>`;
 
+// Lot 9.2 : parties locales, en ligne, ou toutes (le choix n'apparaît qu'une fois une partie en ligne jouée).
+let source = 'tout';
+export const presetSource = v => { source = v; };
+const bySource = games => (source === 'local' ? games.filter(g => !g.online) : source === 'ligne' ? games.filter(g => g.online) : games);
 const periodSeg = () => {
   const p = currentPeriod();
   const b = (v, l) => `<button type="button" data-act="period" data-arg="${v}" aria-pressed="${p === v}">${l}</button>`;
-  return `<div class="seg">${b('7j', '7 jours')}${b('30j', '30 jours')}${b('tout', 'Tout')}</div>`;
+  const hasOnline = store.games.some(g => g.online) || store.ckGames.some(g => g.online);
+  const o = (v, l) => `<button type="button" data-act="stats-source" data-arg="${v}" aria-pressed="${source === v}">${l}</button>`;
+  return `<div class="seg">${b('7j', '7 jours')}${b('30j', '30 jours')}${b('tout', 'Tout')}</div>${hasOnline ? `<div class="seg" style="margin-top:6px" role="group" aria-label="Parties">${o('tout', 'Toutes')}${o('local', 'Locales')}${o('ligne', 'En ligne')}</div>` : ''}`;
 };
 
 // ------------------------------------------------------------------ courbe
@@ -198,7 +204,7 @@ function chart(pts, m, pid) {
 function chartBlock(games, pid) {
   const m = metric(ui.metric);
   // Lot 9 : comparer avec un autre joueur (deux courbes sur le même graphique).
-  const others = [...new Set(games.flatMap(g => g.config.players))].filter(id => id !== pid && store.players.some(p => p.id === id && !p.archived));
+  const others = [...new Set(games.flatMap(g => g.config.players))].filter(id => id !== pid && store.players.some(p => p.id === id && !p.archived && !p.remote));
   if (ui.compare === pid || (ui.compare && !others.includes(ui.compare))) ui.compare = null;
   const pts = series(games, pid, m, ui.compare);
   const chip = x => `<button type="button" class="chip2" data-act="v2-metric" data-arg="${x.k}" aria-pressed="${x.k === m.k}">${esc(x.label)}</button>`;
@@ -295,7 +301,7 @@ function sectorTable(seg) {
 // ------------------------------------------------------------------ écran Stats (joueur)
 /** Lot 10 : chiffres du Cricket du joueur sur la période (à part des chiffres X01), ou '' s'il n'en a pas joué. */
 function cricketBlock(pid) {
-  const c = cricketPlayerStats(inPeriod(store.ckGames, currentPeriod()), pid);
+  const c = cricketPlayerStats(bySource(inPeriod(store.ckGames, currentPeriod())), pid);
   if (!c.played) return '';
   const mpr = c.mpr === null ? '—' : (Math.round(c.mpr * 100) / 100).toFixed(2).replace('.', ',');
   return `${sec('Cricket', 'cricket')}
@@ -312,11 +318,11 @@ function trainingLink(pid) {
 }
 
 export function stats2Screen(id) {
-  const players = store.players.filter(p => !p.archived || store.games.some(g => g.config.players.includes(p.id)));
+  const players = store.players.filter(p => !p.remote && (!p.archived || store.games.some(g => g.config.players.includes(p.id)))); // lot 9.2 : adversaires en ligne à part
   if (!players.length) return `<div class="screen">${topBar('Stats', '#/')}<div class="empty"><div class="big">AUCUN JOUEUR</div></div></div>`;
   const pid = id && players.some(p => p.id === id) ? id : players[0].id;
   const p = playerById(pid);
-  const games = inPeriod(store.games, currentPeriod());
+  const games = bySource(inPeriod(store.games, currentPeriod()));
   const st = playerStats(games, pid);
   const chips = `<div class="chips">${players.map(q => `<a class="btn chip" href="#/stats/${esc(q.id)}" aria-pressed="${q.id === pid}">${avatarHtml(q, 38)}<span class="nm">${esc(q.name.split(' ')[0])}</span></a>`).join('')}</div>`;
   const head = `${topBar('Stats', backFrom('#/'))}${modeBand('soiree')}${tabs('joueur')}${chips}<div class="pad" style="margin-top:10px">${periodSeg()}</div>`;
@@ -436,7 +442,7 @@ function ranked(rows, m) {
 }
 
 export function rankingScreen() {
-  const games = inPeriod(store.games, currentPeriod());
+  const games = bySource(inPeriod(store.games, currentPeriod()));
   const rows = rankingData(games);
   const head = `${topBar('Classement', backFrom('#/'))}${modeBand('soiree')}${tabs('classement')}<div class="pad" style="margin-top:10px">${periodSeg()}</div>`;
   if (rows.length < 2) {
@@ -480,6 +486,7 @@ export function rankingScreen() {
 }
 
 export const actions = {
+  'stats-source'(v) { source = ['local', 'ligne'].includes(v) ? v : 'tout'; refresh(); }, // lot 9.2
   'v2-info'(k) { if (ui.info.has(k)) ui.info.delete(k); else ui.info.add(k); refresh(); },
   'v2-fold'(k) { if (ui.folds.has(k)) ui.folds.delete(k); else ui.folds.add(k); refresh(); },
   'v2-metric'(k) { ui.metric = k; ui.point = null; refresh(); },

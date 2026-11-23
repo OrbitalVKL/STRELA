@@ -168,7 +168,9 @@ export const DELETED_PLAYER = Object.freeze({ name: 'Joueur supprimé', avatar: 
 
 export const playerById = id => (isDeletedId(id) ? { id, ...DELETED_PLAYER }
   : store.players.find(p => p.id === id) || { id, name: '?', avatar: { kind: 'initials', color: 7 } });
-export const activePlayers = () => store.players.filter(p => !p.archived);
+export const activePlayers = () => store.players.filter(p => !p.archived && !p.remote);
+/** Lot 9.2 : adversaires des parties en ligne, rangés à part (jamais proposés aux choix de joueurs). */
+export const remotePlayers = () => store.players.filter(p => p.remote);
 
 /** Identifiant unique (l'heure en base 36 et un tirage) : jamais deux fois le même, même d'une session à l'autre. */
 export function newId(prefix) {
@@ -190,6 +192,30 @@ export function setArchived(id, archived) {
   const p = store.players.find(q => q.id === id);
   if (!p) return;
   p.archived = archived;
+  write([{ store: 'players', put: playerRecord(p) }]);
+}
+
+// ------------------------------------------------------------------ lot 9.2 : adversaires en ligne
+/**
+ * Joueur d'un autre téléphone (fiche reçue en ligne) : gardé à part (`remote`), mis à jour s'il change de pseudo ou
+ * d'avatar. Un joueur de ce téléphone au même identifiant (sauvegarde importée…) reste tel quel.
+ */
+export function keepRemotePlayer(card) {
+  if (!card || !card.id) return null;
+  const old = store.players.find(q => q.id === card.id);
+  if (old && !old.remote) return old;
+  const p = { id: card.id, name: String(card.name || '?'), avatar: card.avatar || { kind: 'initials', color: 7 }, archived: false, remote: true,
+    checkout: card.checkout, ...(card.turnAnim ? { turnAnim: card.turnAnim } : {}) };
+  if (old) Object.assign(old, p); else store.players.push(p);
+  write([{ store: 'players', put: playerRecord(old || p) }]);
+  return old || p;
+}
+
+/** AJOUTER : un adversaire en ligne devient un joueur de ce téléphone. */
+export function adoptRemote(id) {
+  const p = store.players.find(q => q.id === id && q.remote);
+  if (!p) return;
+  delete p.remote;
   write([{ store: 'players', put: playerRecord(p) }]);
 }
 
