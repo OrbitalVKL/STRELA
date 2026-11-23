@@ -2,6 +2,14 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.14.0', date: '2026-11-23', title: 'Entraînement : X01 et Cricket en solo', items: [
+    'Nouveau mode JEUX à l\'entraînement, à côté de COACHÉ et LIBRE : une vraie partie, seul, pour essayer un jeu de fléchettes en conditions réelles.',
+    'X01 : 301, 501 ou 701, sortie simple ou double, 1, 3 ou 5 manches. En haut de l\'écran, le reste et la finition proposée (selon ta fiche joueur) ; BUST et manches gagnées comme en partie.',
+    'Cricket : fermer le 20 au 15 et le bull, 1, 3 ou 5 manches ; les cibles et leurs marques en haut de l\'écran.',
+    'Même saisie que les exercices (pavé avec SIMPLE INTÉRIEUR / EXTÉRIEUR, cible au doigt en paysage, changement de jeu de fléchettes au menu pause).',
+    'À la fin : moyenne sur 3 fléchettes (X01) ou marques par volée (Cricket), finition au double, triples, doubles, carte de chaleur, détail des manches, et l\'exercice à travailler si la finition ou les triples sont faibles ; REJOUER relance les mêmes réglages.',
+    'Stats d\'entraînement : la part de triples, la part de doubles (nouvelle) et la carte de chaleur ne comptent plus que les jeux X01 et Cricket (et les parties) : sur un exercice, la cible est imposée. La précision et le groupement, eux, ne comptent que les exercices. Par jeu de fléchettes : un tableau « en jeu » (moyenne, MPR, triples, doubles).',
+  ] },
   { v: '0.13.0', date: '2026-11-22', title: 'Entraînement : niveau intermédiaire, couleurs, gestion des séances', items: [
     'Armurerie : une couleur pour chaque pièce de la fléchette (pointe, fût, tige, empennage), reprise dans son dessin partout où le jeu apparaît.',
     'Avant l\'entraînement, chaque jeu de fléchettes se choisit sur son dessin, en couleurs.',

@@ -30,7 +30,7 @@
 import { checkoutPrefs } from '../engine/checkout.js';
 import { cleanDrinks } from '../engine/alcohol.js';
 import { SEED_SETS, dartSetRecord } from '../engine/dartsets.js';
-import { cleanTrainingDart, cleanTarget } from '../engine/training.js';
+import { cleanTrainingDart, cleanTarget, cleanGame } from '../engine/training.js';
 
 export const DB_NAME = 'strela';
 export const STORES = Object.freeze(['players', 'games', 'settings', 'trainings', 'dartsets']);
@@ -282,7 +282,7 @@ export function trainingRecord(r) {
   if (typeof r.player !== 'string' || !r.player || typeof r.exercise !== 'string') return null;
   const rec = {
     id: r.id, startedAt: r.startedAt, endedAt: Number.isFinite(r.endedAt) ? r.endedAt : null, player: r.player,
-    setId: typeof r.setId === 'string' && r.setId ? r.setId : null, mode: r.mode === 'libre' ? 'libre' : 'coach', exercise: r.exercise,
+    setId: typeof r.setId === 'string' && r.setId ? r.setId : null, mode: r.mode === 'libre' || r.mode === 'jeu' ? r.mode : 'coach', exercise: r.exercise,
     darts: r.darts.map(cleanTrainingDart),
   };
   if (Array.isArray(r.blocks)) rec.blocks = r.blocks.map(b => { const t = cleanTarget(b); return t && { ...t, n: Math.max(1, Math.min(99, Math.round(Number(b.n)) || 9)) }; }).filter(Boolean);
@@ -296,6 +296,9 @@ export function trainingRecord(r) {
   }
   if (typeof r.note === 'string' && r.note.trim()) rec.note = r.note.slice(0, 300);
   if (r.excluded === true) rec.excluded = true;
+  // 0.14.0 (champ facultatif) : réglages d'un jeu en solo (X01, Cricket).
+  const g = cleanGame(r.exercise, r.game);
+  if (g) rec.game = g;
   return rec;
 }
 

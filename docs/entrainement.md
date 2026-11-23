@@ -164,6 +164,43 @@ par séance (ou partie), valeur écrite au-dessus de chaque point. Carte de chal
 part (un simple de partie compte pour moitié dans chacun). Tableaux par jeu (séances, fléchettes, précision, groupement)
 et par exercice (séances, dernière, meilleure). Lien depuis les Stats d'un joueur (« STATS D'ENTRAÎNEMENT »).
 
+## Jeux en solo : X01 et Cricket (0.14.0)
+
+Demande de Guillaume : « des jeux classiques X01 et Cricket en solo pour tester de vraies configs de jeu ; le taux de
+triple, de double et la carte de chaleur sont valables dans ce cas-là, pas pour les entraînements sur des secteurs ou
+l'horloge qui vise tout ».
+
+- **Hub** : troisième mode JEUX (`trSetup.mode = 'jeu'`, réglage `training.game = { kind, startScore, outMode, legs }`).
+  X01 : départ 301 / 501 / 701, sortie simple / double, 1 / 3 / 5 manches ; Cricket : manches.
+- **Séance** : `exercise` `'x01'` ou `'cricket'`, `mode: 'jeu'`, champ facultatif `game` (`cleanGame` : X01
+  `{ startScore, outMode, legs }`, Cricket `{ legs }`). **Aucune migration** ; une sauvegarde 0.14 avec des jeux ne se
+  relit pas dans une appli plus ancienne (séance refusée), c'est le seul sens qui ne marche pas.
+- **Moteur** : `trainingState` passe la main aux moteurs des parties (`gameConfig` : un seul joueur `'solo'` ; Cricket en
+  mode `sans`, seul on ferme sans points). `st.gs` = état du moteur ; pas de série ni de cible (`blocks: []`, `cur: null`).
+- **Saisie** (`gameScreen`) : même pavé (zone par défaut S INT.) et même cible au doigt. En tête : X01 = reste,
+  finition proposée (`suggestCheckout` avec la fiche du joueur), fléchettes de la manche ; Cricket = les 7 cibles avec
+  leurs marques (`markSvg`), cibles fermées. Volée en cours (ou la précédente estompée, BUST affiché) ; ligne du bas :
+  moyenne ou MPR, BUST · RETOUR À n, MANCHE n GAGNÉE.
+- **Analyse** (`analyzeGame`) : X01 = chiffres de `playerStats` (mêmes définitions que les parties : moyenne, 9
+  premières, finition = fléchettes lancées quand une seule pouvait finir, 100+, bust) ; Cricket = `cricketSummary` (MPR,
+  marques utiles par cible). Par fléchette : `credit` (points comptés en X01 — 0 dans un bust, null dans une volée pas
+  finie ; marques utiles au Cricket) et `finishFlags` (X01), pour les chiffres par jeu de fléchettes. Pas de précision
+  ni d'écart (`rate: null`). Coach : `gameNext` propose les doubles de finition (moins de 20 % sur 3 fléchettes au
+  moins) ou le triple 20 / les triples (moins de 6 % de triples).
+- **Objectifs** (`GOALS`) : X01 30 / 45 / 60 de moyenne ; Cricket MPR 1 / 1,5 / 2,2. Les jeux ne comptent ni pour le
+  niveau ni pour l'exercice proposé.
+- **Fin** : chiffres, objectif, conseils, carte de chaleur de la séance, manches, par jeu de fléchettes ; REJOUER
+  (`tr-finish-again`) relance les mêmes réglages ; le détail d'une séance a REFAIRE CETTE SÉANCE.
+
+### Stats (0.14.0)
+
+- Triples, **doubles** (nouveau : fléchettes dans un double, 50 compris) et carte de chaleur : seulement les fléchettes
+  des jeux en solo et des parties (`free`). Sur un exercice seul : « — » et une phrase d'explication, pas de carte.
+- Précision et groupement : seulement les exercices (`aimed`).
+- Filtre exercice X01 / Cricket : chiffre principal = moyenne sur 3 fléchettes / MPR (pondérés par les fléchettes),
+  finition (X01) ; courbe du résultat, des triples, des doubles, du hors cible.
+- Par jeu de fléchettes : tableau des exercices (précision, groupement) et tableau « en jeu » (moyenne, MPR, T %, D %).
+
 ## Armurerie
 
 Un jeu (0.13.0 : avec une couleur par pièce, carrés sous « Couleurs », AUCUNE = trait seul ; le dessin
@@ -182,4 +219,5 @@ d'empennage). Ajouter une fiche = une entrée de `SHEETS` et un dessin dans `ILL
 - Objectifs et seuils de niveau : estimations d'amateur (0.13.0), à ajuster sur les chiffres réels de Guillaume.
 - Pas d'exercice propre au niveau confirmé (les intermédiaires, avec des objectifs plus hauts).
 - « À moins de deux secteurs » (exercice Bull) : interprétation à confirmer.
+- Jeux en solo : pas de Cricket « avec points » (sans adversaire, rien ne rapporte) ; seuils de MPR à ajuster.
 - Nombre d'alternances de haut contre bas et gauche contre droite (3 aujourd'hui).

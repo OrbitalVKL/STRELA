@@ -6,13 +6,19 @@
 //   #/entrainement/fin        séance finie (pas encore enregistrée) : analyse, TERMINER, ENCORE UNE SÉRIE (libre)
 //   #/entrainement/seance/<id> détail d'une séance close : analyse, et sa gestion (0.13.0) : note, refaire, reprendre
 //                             (arrêtée), joueur, jeu de fléchettes de chaque partie de la séance, mettre de côté, supprimer
+// 0.14.0 : mode JEUX — X01 et Cricket en solo, aux vraies règles (même saisie ; en tête, le reste et la finition
+// proposée, ou les cibles du Cricket ; analyse du jeu et carte de chaleur à la fin).
 // Moteur : engine/training.js (exercices, analyse, coach) ; données : store.js (section « entraînement solo »).
 import { store, activePlayers, playerById, trState, startTraining, trThrow, trUndo, trAddBlock, closeTraining, deleteTrainings, trainingById, dartSetById, saveTrSetup,
   trChangeSet, updateTraining, resumeTraining } from '../store.js';
 import { esc, ico, topBar, plural, when } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
 import { EXERCISES, analyze, suggestNext, nextFor, levelOf, LEVELS, LEVEL_EXERCISES, ALL_EXERCISES, exerciseLevel, goalOf, goalMet, setRuns, setAt, setsUsed, trainingDartLabel, targetLabel, zoneLabelOf, ZONES_FOR, ZONE_LABEL, BULL_ZONE_LABEL,
-  isHit, sessionValue, cleanTarget, aimPoint, appPoint, pointsOf, trainingState } from '../../engine/training.js';
+  isHit, sessionValue, cleanTarget, aimPoint, appPoint, pointsOf, trainingState, GAME_EXERCISES, GAME_LEGS, isGameSession, cleanGame, gameLabel, heatCounts } from '../../engine/training.js';
+import { START_SCORES } from '../../engine/x01.js';
+import { CRICKET_TARGETS } from '../../engine/cricket.js';
+import { suggestCheckout, checkoutPrefs } from '../../engine/checkout.js';
+import { markSvg } from './cricket.js';
 import { dartSetSummary } from '../../engine/dartsets.js';
 import { dartDiagram } from './advice.js';
 import { makeDart } from '../../engine/darts.js';
@@ -26,9 +32,10 @@ import { infoBtn, infoBox } from '../info.js';
 
 const dec1 = v => (v === null || v === undefined ? '—' : (Math.round(v * 10) / 10).toFixed(1).replace('.', ','));
 const pctOf = v => (v === null || v === undefined ? '—' : `${Math.round(v * 100)} %`);
+const dec2 = v => (v === null || v === undefined ? '—' : (Math.round(v * 100) / 100).toFixed(2).replace('.', ','));
 const cmOf = mm => (mm === null || mm === undefined ? '—' : `${dec1(mm / 10)} cm`);
 /** Valeur affichée d'un chiffre de séance (sessionValue). */
-export const fmtValue = sv => (!sv ? '—' : sv.fmt === 'pct' ? pctOf(sv.v) : sv.fmt === 'avg' ? dec1(sv.v) : String(Math.round(sv.v)));
+export const fmtValue = sv => (!sv ? '—' : sv.fmt === 'pct' ? pctOf(sv.v) : sv.fmt === 'avg' ? dec1(sv.v) : sv.fmt === 'mpr' ? dec2(sv.v) : String(Math.round(sv.v)));
 
 // ------------------------------------------------------------------ choix (derniers choix gardés : réglage « training »)
 /** Choix effectifs de l'écran Entraînement (joueur actif, jeu non archivé, cible libre valide). */
@@ -38,7 +45,10 @@ export function trSetup() {
   const player = players.find(p => p.id === s.player) ? s.player : (players[0] ? players[0].id : null);
   const set = store.dartSets.find(x => x.id === s.setId && !x.archived);
   const free = cleanTarget(s.free) || { s: 20, z: 'any' };
-  return { player, setId: set ? set.id : null, mode: s.mode === 'libre' ? 'libre' : 'coach', free: { ...free, n: Math.max(1, Math.min(99, Number(s.free && s.free.n) || 9)) } };
+  // Jeux en solo (0.14.0) : jeu choisi et ses réglages (départ et sortie du X01 ; manches, communes aux deux).
+  const kind = s.game && s.game.kind === 'cricket' ? 'cricket' : 'x01';
+  const game = { kind, ...cleanGame('x01', s.game) };
+  return { player, setId: set ? set.id : null, mode: ['libre', 'jeu'].includes(s.mode) ? s.mode : 'coach', free: { ...free, n: Math.max(1, Math.min(99, Number(s.free && s.free.n) || 9)) }, game };
 }
 
 // Sommaire et tests : choix préparés sans base.
@@ -94,6 +104,7 @@ export function goalText(key, level) {
   const g = goalOf(key, level);
   if (!g) return '';
   const ex = EXERCISES[key];
+  if (ex.metric === 'mpr') return `MPR ${String(g.v).replace('.', ',')}`;
   if (ex.clock && ex.clock.max) return `${g.v} doubles sur 20`;
   if (ex.clock) return `${g.v} fl. au plus`;
   if (ex.metric === 'average') return `${g.v} de moyenne`;
@@ -136,7 +147,7 @@ let othersOpen = false; // exercices des autres niveaux, repliés
 function sessionRow(r) {
   const ex = EXERCISES[r.exercise] || EXERCISES.libre;
   const sv = sessionValue(r);
-  const what = r.exercise === 'libre' ? libreLabel(r) : ex.name;
+  const what = r.exercise === 'libre' ? libreLabel(r) : isGameSession(r) ? sessionTitle(r) : ex.name;
   return `<li><a class="trow${r.excluded ? ' excl' : ''}" href="#/entrainement/seance/${esc(r.id)}"><span class="l1"><b class="ell">${esc(what)}</b><span>${when(r.startedAt)}</span></span>
     <span class="l2"><span class="ell">${esc(sessionFlags(r))}</span><b>${fmtValue(sv)}</b></span></a></li>`;
 }
@@ -156,14 +167,14 @@ export function trainingHub() {
   const resume = store.tr
     ? `<a class="btn accent big resume tr-resume" href="${st.done ? '#/entrainement/fin' : '#/entrainement/jeu'}">${ico('play')} ${st.done ? 'SÉANCE FINIE : VOIR' : 'REPRENDRE LA SÉANCE'}<small>${esc(sessionTitle(store.tr))} · ${plural(store.tr.darts.length, 'fléchette', 'fléchettes')}</small></a>`
     : '';
-  const mode = `<div class="seg trmode"><button type="button" data-act="tr-mode" data-arg="coach" aria-pressed="${su.mode === 'coach'}">Coaché</button><button type="button" data-act="tr-mode" data-arg="libre" aria-pressed="${su.mode === 'libre'}">Libre</button></div>`;
+  const mode = `<div class="seg trmode">${[['coach', 'Coaché'], ['libre', 'Libre'], ['jeu', 'Jeux']].map(([k, l]) => `<button type="button" data-act="tr-mode" data-arg="${k}" aria-pressed="${su.mode === k}">${l}</button>`).join('')}</div>`;
   let body;
   if (su.mode === 'coach') {
     const level = levelOf(allSessions(), su.player).level;
     const next = suggestNext(allSessions(), su.player, level);
     const ex = EXERCISES[next.key];
     const mineKeys = LEVEL_EXERCISES[level];
-    const others = ALL_EXERCISES.filter(k => k !== 'libre' && !mineKeys.includes(k));
+    const others = ALL_EXERCISES.filter(k => k !== 'libre' && !GAME_EXERCISES.includes(k) && !mineKeys.includes(k));
     body = `${levelCard(su.player)}
       <div class="propose"><small>EXERCICE PROPOSÉ</small><b>${esc(ex.name)}</b><span>${esc(ex.short)} · ${esc(next.why)}</span></div>
       <button type="button" class="btn ${resume ? 'accent-line' : 'accent'} big" data-act="tr-start" data-arg="${next.key}">${ico('target')} COMMENCER</button>
@@ -172,6 +183,8 @@ export function trainingHub() {
       ${exerciseRows(su.player, next.key, mineKeys, level)}
       <button type="button" class="fold" data-act="tr-fold" aria-expanded="${othersOpen}"><span>${level === 'debutant' ? 'Exercices du niveau intermédiaire' : 'Exercices du niveau débutant'}</span><span class="n">${others.length}</span>${ico(othersOpen ? 'up' : 'down')}</button>
       ${othersOpen ? exerciseRows(su.player, next.key, others, level) : ''}`;
+  } else if (su.mode === 'jeu') {
+    body = gamePicker(su, resume);
   } else {
     const t = su.free;
     body = `<div class="sec">Cible${infoBtn('tr-free')}</div>
@@ -191,7 +204,7 @@ export function trainingHub() {
       ${activePlayers().length < 2 ? `<div class="who2" style="margin-top:14px">${avatarHtml(p, 44)}<div><b class="nm">${esc(p.name)}</b><span>${plural(mine.length, 'séance', 'séances')}</span></div></div>` : ''}
       ${setChips(su)}
       <div class="sec">Mode${infoBtn('tr-mode')}</div>
-      ${infoBox('tr-mode', '<b>Coaché</b> : l\'appli propose un exercice, analyse tes fléchettes et propose corrections, conseils et exercice suivant. <b>Libre</b> : tu fixes tes cibles (secteur, zone, nombre de fléchettes) ; l\'appli montre les écarts.')}
+      ${infoBox('tr-mode', '<b>Coaché</b> : l\'appli propose un exercice, analyse tes fléchettes et propose corrections, conseils et exercice suivant. <b>Libre</b> : tu fixes tes cibles (secteur, zone, nombre de fléchettes) ; l\'appli montre les écarts. <b>Jeux</b> : une vraie partie de X01 ou de Cricket, seul, aux règles du jeu, pour essayer un jeu de fléchettes en conditions réelles.')}
       ${mode}${body}
       <nav class="tiles2 trtiles" aria-label="Entraînement">${tiles.map(([h, i, l, s]) => `<a class="tile2" href="${h}">${ico(i)}<b data-shrink>${l}</b><span data-shrink>${s}</span></a>`).join('')}</nav>
       ${mine.length ? `<div class="sec">Dernières séances <span class="n">${mine.length}</span></div><ul class="trl">${mine.slice(0, 8).map(sessionRow).join('')}</ul>
@@ -199,13 +212,36 @@ export function trainingHub() {
     </div></div>`;
 }
 
-export const sessionTitle = r => (r.exercise === 'libre' ? `Libre · ${libreLabel(r)}` : (EXERCISES[r.exercise] || EXERCISES.libre).name);
+export const sessionTitle = r => (r.exercise === 'libre' ? `Libre · ${libreLabel(r)}` : isGameSession(r) ? [EXERCISES[r.exercise].name, gameLabel(r)].filter(Boolean).join(' · ') : (EXERCISES[r.exercise] || EXERCISES.libre).name);
 
-function startFrom(key) {
+/** Choix d'un jeu en solo (0.14.0) : X01 (départ, sortie, manches) ou Cricket (manches). */
+function gamePicker(su, resume) {
+  const g = su.game;
+  const chip = (field, v, label, cur) => `<button type="button" class="chip2" data-act="tr-game" data-arg="${field}|${v}" aria-pressed="${cur === v}">${label}</button>`;
+  const level = levelOf(allSessions(), su.player).level;
+  const last = lastOf(su.player, g.kind);
+  const sv = last ? sessionValue(last) : null;
+  const goal = goalText(g.kind, level);
+  const rec = { exercise: g.kind, game: g };
+  return `<div class="sec">Jeu${infoBtn('tr-game')}</div>
+    ${infoBox('tr-game', '<b>X01</b> : 301, 501 ou 701 à ramener à zéro, en sortie simple ou double (la finition proposée suit ta fiche joueur). <b>Cricket</b> : fermer le 20, le 19, le 18, le 17, le 16, le 15 et le bull, 3 marques chacun, en le moins de volées possible. Seul, on vise comme en partie : c\'est là que comptent, dans les stats, la part de triples et de doubles et la carte de chaleur (sur un exercice, la cible est imposée).')}
+    <div class="seg trgame">${[['x01', 'X01'], ['cricket', 'Cricket']].map(([k, l]) => `<button type="button" data-act="tr-game" data-arg="kind|${k}" aria-pressed="${g.kind === k}">${l}</button>`).join('')}</div>
+    <div class="tpick">
+      ${g.kind === 'x01' ? `<span class="small dim caps">Départ</span><div class="chips2">${START_SCORES.map(v => chip('start', v, v, g.startScore)).join('')}</div>
+      <span class="small dim caps">Sortie</span><div class="chips2">${chip('out', 'single', 'SIMPLE', g.outMode)}${chip('out', 'double', 'DOUBLE', g.outMode)}</div>` : ''}
+      <span class="small dim caps">Manches</span><div class="chips2">${GAME_LEGS.map(v => chip('legs', v, v, g.legs)).join('')}</div>
+    </div>
+    <p class="note">${sv ? `Dernière : <b>${fmtValue(sv)}</b> ${esc(sv.label.toLowerCase())}` : 'Jamais joué'}${goal ? ` · objectif (niveau ${esc(LEVELS[level].toLowerCase())}) : ${esc(goal)}` : ''}</p>
+    <button type="button" class="btn ${resume ? 'accent-line' : 'accent'} big" data-act="tr-start" data-arg="${g.kind}">${ico('play')} JOUER · ${esc((g.kind === 'x01' ? gameLabel(rec) : ['CRICKET', gameLabel(rec)].filter(Boolean).join(' · ')).toUpperCase())}</button>`;
+}
+
+function startFrom(key, game = null) {
   const su = trSetup();
   if (!su.player) return;
-  const setup = { player: su.player, setId: su.setId, mode: key === 'libre' ? 'libre' : 'coach', exercise: key };
+  const isGame = GAME_EXERCISES.includes(key);
+  const setup = { player: su.player, setId: su.setId, mode: key === 'libre' ? 'libre' : isGame ? 'jeu' : 'coach', exercise: key };
   if (key === 'libre') setup.blocks = [{ s: su.free.s, z: su.free.z, n: su.free.n }];
+  if (isGame) setup.game = cleanGame(key, game || su.game);
   startTraining(setup);
   sound('validate');
   buzz(BUZZ.dart);
@@ -344,7 +380,9 @@ function keyPad(r, st) {
 }
 
 function band(r) {
-  return `<header class="tband" data-layer><span class="t ell">ENTRAÎNEMENT · ${esc(r.exercise === 'libre' ? 'LIBRE' : EXERCISES[r.exercise].name.toUpperCase())}</span>
+  const g = cleanGame(r.exercise, r.game);
+  const what = r.exercise === 'libre' ? 'LIBRE' : r.exercise === 'x01' ? `${g.startScore} · ${g.outMode === 'double' ? 'DOUBLE' : 'SIMPLE'}` : r.exercise === 'cricket' ? 'CRICKET' : EXERCISES[r.exercise].name.toUpperCase();
+  return `<header class="tband" data-layer><span class="t ell">ENTRAÎNEMENT · ${esc(what)}</span>
     <button type="button" class="pause" data-act="tr-pause" data-press aria-label="Pause">${ico('pause')}</button></header>`;
 }
 
@@ -353,6 +391,7 @@ export function trainingScreen() {
   if (!r) { go('#/entrainement', { replace: true }); return ''; }
   const st = trState();
   if (st.done) { go('#/entrainement/fin', { replace: true }); return ''; }
+  if (st.game) return gameScreen(r, st);
   const t = st.blocks[st.cur.i];
   const overlays = r.ui.pause ? pauseSheet(r) : '';
   if (isLandscape()) {
@@ -377,6 +416,101 @@ export function trainingScreen() {
     ${keyPad(r, st)}${overlays}</div>`;
 }
 
+// ------------------------------------------------------------------ jeux en solo (0.14.0) : saisie
+const routeText = route => route.map(d => (d.segment === 25 ? (d.multiplier === 2 ? '50' : '25') : `${d.multiplier === 3 ? 'T' : d.multiplier === 2 ? 'D' : ''}${d.segment}`)).join(' · ');
+/** Fléchettes de la manche en cours (volée en cours comprise). */
+const legDarts = st => st.gs.legs[st.gs.legs.length - 1].visits.reduce((k, v) => k + v.darts.length, 0) + st.visitDarts;
+
+function gameHead(r, st) {
+  const gs = st.gs, g = st.setup;
+  const legTxt = g.legs > 1 ? `MANCHE ${gs.legNumber}/${g.legs}` : 'MANCHE';
+  if (st.game === 'x01') {
+    const rem = gs.remaining[0];
+    const p = playerById(r.player);
+    const route = suggestCheckout(rem, g.outMode, 3 - st.visitDarts, checkoutPrefs(p && p.checkout));
+    return `<section class="taim tgame" aria-label="Reste"><div class="tl"><small>RESTE</small><b class="tg" data-shrink>${rem}</b><span class="zl ell">${route ? `FINITION ${esc(routeText(route))}` : `${g.startScore} · SORTIE ${g.outMode === 'double' ? 'DOUBLE' : 'SIMPLE'}`}</span></div>
+      <div class="tp"><b>${legDarts(st)}<small> FL.</small></b><span>${legTxt}</span></div></section>`;
+  }
+  const m = gs.marks[0];
+  const closed = CRICKET_TARGETS.filter(t => m[t] >= 3).length;
+  const rounds = gs.legs[gs.legs.length - 1].visits.length + 1;
+  return `<section class="taim tgame tck" aria-label="Cibles du Cricket"><div class="ckline">${CRICKET_TARGETS.map(t => `<span class="${m[t] >= 3 ? 'shut' : ''}"><small>${t === 25 ? 'B' : t}</small><i>${markSvg(m[t])}</i></span>`).join('')}</div>
+    <div class="tp"><b>${closed}<small>/7</small></b><span>FERMÉES<br>${g.legs > 1 ? legTxt : `VOLÉE ${rounds}`}</span></div></section>`;
+}
+
+/** Volée affichée d'un jeu : celle en cours, ou la précédente (estompée) tant que la suivante n'a pas commencé. */
+function gameShown(r, st) {
+  const gs = st.gs;
+  if (st.visitDarts || !gs.lastVisit) return { darts: r.darts.slice(st.visitStart), start: st.visitStart, prev: false, v: gs.visit };
+  const k = gs.lastVisit.darts.length;
+  return { darts: r.darts.slice(r.darts.length - k), start: r.darts.length - k, prev: true, v: gs.lastVisit };
+}
+
+function gameVisit(r, st, a) {
+  const x = gameShown(r, st);
+  const ck = st.game === 'cricket';
+  const boxes = [0, 1, 2].map(i => {
+    const d = x.darts[i];
+    if (!d) return `<div class="dart left${!x.prev && i === x.darts.length ? ' todo' : ''}"></div>`;
+    const hit = ck && a.extra.credit[x.start + i] > 0;
+    return `<div class="dart done${ck ? (hit ? ' hit' : ' miss') : ''}"><span class="sv" data-shrink>${esc(trainingDartLabel(d))}</span></div>`;
+  }).join('');
+  const v = x.v || { total: 0, marks: 0 };
+  const total = ck ? (v.marks || 0) : v.bust ? 'BUST' : (v.total || 0);
+  return `<div class="visit${x.prev ? ' prev' : ''}">${boxes}<div class="total ${x.darts.length ? 'inv' : 'zero'}"><small>${ck ? 'MARQ.' : 'VOLÉE'}</small><span class="tv" data-shrink>${total}</span></div></div>`;
+}
+
+function gameLive(r, st, a) {
+  const gs = st.gs, x = a.extra;
+  const fresh = !st.visitDarts;
+  if (st.game === 'x01') {
+    if (fresh && gs.lastEvent === 'bust') return `<p class="tlive">BUST · RETOUR À <b>${gs.remaining[0]}</b></p>`;
+    if (fresh && gs.lastEvent === 'leg_won') { const l = x.legs[x.legs.length - 1]; return `<p class="tlive">MANCHE ${l.number} GAGNÉE EN <b>${l.darts}</b> FL.</p>`; }
+    return `<p class="tlive">${x.average !== null ? `MOY. <b>${dec1(x.average)}</b> · ${r.darts.length} FL.` : 'MOYENNE SUR 3 FLÉCHETTES'}</p>`;
+  }
+  if (fresh && gs.lastEvent === 'leg_won') { const l = x.legs[x.legs.length - 1]; return `<p class="tlive">MANCHE ${l.number} GAGNÉE EN <b>${l.rounds}</b> VOLÉES</p>`; }
+  return `<p class="tlive">${r.darts.length ? `MPR <b>${dec2(x.mpr)}</b> · ${r.darts.length} FL.` : 'MARQUES PAR VOLÉE (MPR)'}</p>`;
+}
+
+function gameScreen(r, st) {
+  const a = analyze(r);
+  const x = gameShown(r, st);
+  const impacts = x.darts.map((d, i) => (x.prev ? { dart: d, old: true } : { dart: d, n: i + 1 }));
+  const overlays = r.ui.pause ? pauseSheet(r) : '';
+  if (isLandscape()) {
+    return `<div class="game land train trgame">
+      <div class="lcol">${band(r)}${gameHead(r, st)}${gameVisit(r, st, a)}${gameLive(r, st, a)}
+        <div class="lbtns two">
+          <button type="button" class="key zero" data-act="tr-key" data-arg="0" data-press>0<small>HORS CIBLE</small></button>
+          <button type="button" class="key undo" data-act="tr-undo" data-press ${r.darts.length ? '' : 'disabled'}>${ico('undo')}<span class="kl" data-shrink>ANNULER</span></button>
+        </div>
+      </div>
+      <div class="rcol">
+        <div class="bwrap" id="tboard">${boardSvg({ size: 400, impacts, label: 'Cible : touchez pour saisir' })}</div>
+        <p class="bhint alert" id="bhint" role="status" data-layer hidden></p>
+      </div>
+      <div class="loupe" id="loupe" data-layer hidden><b class="lz"></b><div class="lens">${plainBoard()}<i class="cross"></i></div></div>
+      ${overlays}</div>`;
+  }
+  return `<div class="game port train trgame">
+    <div class="toparea">${band(r)}${gameHead(r, st)}</div>
+    <div class="vblock"><div class="vcol">${gameVisit(r, st, a)}${gameLive(r, st, a)}</div>
+      <div class="mini-board" aria-hidden="true">${boardSvg({ size: 104, impacts, label: 'Impacts de la volée' })}</div></div>
+    ${keyPad(r, st)}${overlays}</div>`;
+}
+
+/** Carte de chaleur d'un ensemble de fléchettes (stats, fin d'un jeu) : { svg, off, total }. */
+export function heatBoard(darts, size = 380) {
+  const h = heatCounts(darts);
+  let max = 0;
+  const keys = [];
+  for (let s = 1; s <= 20; s++) keys.push([`${s}`, 'i'], [`${s}`, 'o'], [`T${s}`, ''], [`D${s}`, '']);
+  keys.push(['25', ''], ['50', '']);
+  for (const [k, r] of keys) max = Math.max(max, h.get(k, r));
+  const op = c => (max ? Math.pow(c / max, 0.6) : 0);
+  return { svg: boardSvg({ size, heat: (k, r) => op(h.get(k, r)), cls: 'board', label: 'Carte de chaleur des impacts' }), off: h.off, total: h.total };
+}
+
 /** Fléchette saisie (pavé ou cible). */
 function play(dart) {
   const r = tr();
@@ -387,7 +521,9 @@ function play(dart) {
   const st = trState();
   buzz(BUZZ.dart);
   if (st.done) { sound('finish'); go('#/entrainement/fin'); return; }
-  sound(dartSound(dart));
+  if (st.game && st.gs.lastEvent === 'bust') sound('bust');
+  else if (st.game && st.gs.lastEvent === 'leg_won') sound('finish');
+  else sound(dartSound(dart));
   refresh();
 }
 
@@ -436,8 +572,62 @@ function messagesHtml(a) {
 }
 const SHEET_NAMES = { prise: 'PRISE EN MAIN', posture: 'POSTURE', lancer: 'LANCER', types: 'TYPES DE FLÉCHETTES' };
 
+/** Objectif du niveau du joueur (0.13.0) : ligne sous les chiffres. */
+function goalLine(r, a) {
+  const level = levelOf(allSessions(), r.player).level;
+  const g = goalText(r.exercise, level);
+  const ok = goalMet(r, a, level);
+  return g ? `<p class="goalline${ok ? ' ok' : ''}"><small>OBJECTIF · NIVEAU ${LEVELS[level]}</small><b>${esc(g)}</b><span>${ok === null ? 'séance incomplète' : ok ? '✓ TENU' : 'pas encore'}</span></p>` : '';
+}
+
+/** Analyse d'un jeu en solo (0.14.0) : chiffres du jeu, conseils, carte de chaleur, manches, par jeu de fléchettes. */
+function gameAnalysisHtml(r, a, key) {
+  const x = a.extra;
+  const k = (kk, label, value, cls = '') => `<div class="kpi ${cls}" data-k="${kk}"><small>${label}</small><b>${value}</b></div>`;
+  const sv = sessionValue(r, a);
+  const kpis = [k('value', sv ? sv.label : 'Résultat', sv ? fmtValue(sv) : '—', 'hero wide'), k('darts', 'Fléchettes', String(a.darts))];
+  const legsDone = x.legs.filter(l => l.done).length;
+  if (x.game === 'x01') {
+    kpis.push(k('legs', 'Manches', `${legsDone}<small> / ${x.setup.legs}</small>`));
+    kpis.push(k('finish', x.setup.outMode === 'double' ? 'Finition au double' : 'Finition', x.finishDarts ? `${pctOf(x.finishRate)}<small> · ${x.finishHits}/${x.finishDarts}</small>` : '—'));
+    kpis.push(k('triples', 'Triples', pctOf(x.tripleRate)));
+    kpis.push(k('doubles', 'Doubles', pctOf(x.doubleRate)));
+    kpis.push(k('best', 'Meilleure volée', String(x.bestVisit)));
+    kpis.push(k('tons', '100 et plus', String(x.ton + x.ton40 + x.max)));
+    kpis.push(k('first9', '9 premières (moy.)', dec1(x.first9)));
+    kpis.push(k('busts', 'Bust', String(x.busts)));
+  } else {
+    kpis.push(k('rounds', 'Volées', String(x.legs.reduce((n, l) => n + l.rounds, 0))));
+    kpis.push(k('legs', 'Manches', `${legsDone}<small> / ${x.setup.legs}</small>`));
+    kpis.push(k('marks', 'Marques', String(x.marks)));
+    kpis.push(k('triples', 'Triples', pctOf(x.tripleRate)));
+    kpis.push(k('doubles', 'Doubles', pctOf(x.doubleRate)));
+    kpis.push(k('best', 'Meilleure volée', `${x.bestVisit}<small> marques</small>`));
+    kpis.push(k('bulls', 'Bulls (25 · 50)', String(x.bulls)));
+  }
+  kpis.push(k('off', 'Hors cible', String(a.off)));
+  if (kpis.length % 2 === 0) kpis.push(k('pts', 'Points marqués', String(r.darts.reduce((n, d) => n + pointsOf(d), 0))));
+  const hb = heatBoard(r.darts, 260);
+  const legs = x.game === 'x01'
+    ? `<table class="sectab trtab"><thead><tr><th>Manche</th><th>Fl.</th><th>Moy.</th><th>Finition</th></tr></thead><tbody>${x.legs.map(l => `<tr><th>${l.number}</th><td>${l.darts}</td><td>${dec1(l.average)}</td><td>${l.done ? l.finish : '—'}</td></tr>`).join('')}</tbody></table>`
+    : `<table class="sectab trtab"><thead><tr><th>Manche</th><th>Volées</th><th>Fl.</th><th>MPR</th></tr></thead><tbody>${x.legs.map(l => `<tr><th>${l.number}${l.done ? '' : ' …'}</th><td>${l.rounds}</td><td>${l.darts}</td><td>${dec2(l.mpr)}</td></tr>`).join('')}</tbody></table>
+       <div class="sec">Marques par cible</div><div class="clockg">${CRICKET_TARGETS.map(t => `<span><small>${t === 25 ? 'B' : t}</small><b>${x.marksByTarget[t]}</b></span>`).join('')}</div>`;
+  const bySet = x.bySet ? `<div class="sec">Par jeu de fléchettes</div><table class="sectab trtab"><thead><tr><th>Jeu</th><th>Fl.</th><th>${x.game === 'x01' ? 'Moy.' : 'MPR'}</th><th>T %</th><th>D %</th></tr></thead><tbody>
+    ${x.bySet.map(y => `<tr><th class="ell">${esc(y.setId ? (dartSetById(y.setId) || { name: '?' }).name : 'Sans jeu noté')}</th><td>${y.darts}</td><td>${x.game === 'x01' ? dec1(y.value) : dec2(y.value)}</td><td>${pctOf(y.triples / y.n)}</td><td>${pctOf(y.doubles / y.n)}</td></tr>`).join('')}</tbody></table>` : '';
+  return `<div class="kpis">${kpis.join('')}</div>${goalLine(r, a)}
+    <div class="sec">Analyse du coach${infoBtn(`tr-an-${key}`)}</div>
+    ${infoBox(`tr-an-${key}`, x.game === 'x01'
+      ? '<b>Moyenne</b> : points marqués pour 3 fléchettes (un bust compte 0). <b>Finition</b> : fléchettes lancées quand une seule pouvait finir (un double en sortie double), et combien ont fini. <b>Triples</b>, <b>doubles</b> : part des fléchettes dans un triple, dans un double (le 50 compte comme double).'
+      : '<b>MPR</b> : marques par volée de 3 fléchettes ; seules comptent celles qui ferment une cible (seul, rien ne rapporte de points). <b>Triples</b>, <b>doubles</b> : part des fléchettes dans un triple, dans un double (le 50 compte comme double).')}
+    ${messagesHtml(a)}
+    <div class="sec">Carte de chaleur <span class="n">${hb.total} fl.</span></div>
+    <div class="heatbox">${hb.svg}</div>${hb.off ? `<p class="note center">${plural(hb.off, 'fléchette', 'fléchettes')} hors cible, non dessinée${hb.off > 1 ? 's' : ''}.</p>` : ''}
+    <div class="sec">Manches</div>${legs}${bySet}`;
+}
+
 /** Corps de l'analyse d'une séance (fin et détail). */
 function analysisHtml(r, a, key) {
+  if (a.game) return gameAnalysisHtml(r, a, key);
   const ex = EXERCISES[r.exercise] || EXERCISES.libre;
   const sv = sessionValue(r, a);
   const k = (kk, label, value, cls = '') => `<div class="kpi ${cls}" data-k="${kk}"><small>${label}</small><b>${value}</b></div>`;
@@ -467,11 +657,7 @@ function analysisHtml(r, a, key) {
   } else if (ex.metric === 'average') {
     detail = `<div class="sec">Volées</div><div class="clockg">${a.extra.visits.map((v, i) => `<span><small>${i + 1}</small><b>${v}</b></span>`).join('')}</div>`;
   }
-  // Objectif du niveau du joueur (0.13.0).
-  const level = levelOf(allSessions(), r.player).level;
-  const g = goalText(r.exercise, level);
-  const ok = goalMet(r, a, level);
-  const goal = g ? `<p class="goalline${ok ? ' ok' : ''}"><small>OBJECTIF · NIVEAU ${LEVELS[level]}</small><b>${esc(g)}</b><span>${ok === null ? 'séance incomplète' : ok ? '✓ TENU' : 'pas encore'}</span></p>` : '';
+  const goal = goalLine(r, a);
   // Par jeu de fléchettes, quand il a changé pendant la séance.
   const bySet = a.extra.bySet ? `<div class="sec">Par jeu de fléchettes</div><table class="sectab trtab"><thead><tr><th>Jeu</th><th>Fl.</th><th>Préc.</th><th>Grp.</th></tr></thead><tbody>
     ${a.extra.bySet.map(x => `<tr><th class="ell">${esc(x.setId ? (dartSetById(x.setId) || { name: '?' }).name : 'Sans jeu noté')}</th><td>${x.darts}</td><td>${pctOf(x.rate)}</td><td>${x.points >= 3 && x.spread !== null ? dec1(x.spread / 10) : '—'}</td></tr>`).join('')}</tbody></table>` : '';
@@ -494,10 +680,10 @@ const trainingStateOf = r => trainingState(r, r.darts);
 function nextCard(r, a, closeFirst) {
   const list = [...store.trainings.filter(x => x.id !== r.id), { ...r, endedAt: r.endedAt ?? Date.now() }];
   const level = levelOf(list, r.player).level;
-  const n = r.mode === 'coach' ? (nextFor(a, r, level) || suggestNext(list, r.player, level)) : null;
+  const n = r.mode === 'coach' ? (nextFor(a, r, level) || suggestNext(list, r.player, level)) : a.game ? a.next : null;
   if (!n) return '';
   const ex = EXERCISES[n.key];
-  return `<div class="propose"><small>EXERCICE SUIVANT</small><b>${esc(ex.name)}</b><span>${esc(ex.short)} · ${esc(n.why)}</span></div>
+  return `<div class="propose"><small>${a.game ? 'À TRAVAILLER' : 'EXERCICE SUIVANT'}</small><b>${esc(ex.name)}</b><span>${esc(ex.short)} · ${esc(n.why)}</span></div>
     <button type="button" class="btn accent big" data-act="${closeFirst ? 'tr-finish-next' : 'tr-start'}" data-arg="${n.key}">${ico('target')} ${esc(ex.name.toUpperCase())}</button>`;
 }
 
@@ -520,7 +706,8 @@ export function trainingEnd() {
       <div class="sec">Et maintenant</div>
       <div class="endbtns">
         ${nextCard(r, a, true)}
-        <button type="button" class="btn ${r.mode === 'coach' ? '' : 'accent big'}" data-act="tr-finish">${ico('check')} TERMINER LA SÉANCE</button>
+        <button type="button" class="btn ${r.mode === 'coach' || (a.game && a.next) ? '' : 'accent big'}" data-act="tr-finish">${ico('check')} TERMINER LA SÉANCE</button>
+        ${a.game ? `<button type="button" class="btn" data-act="tr-finish-again">${ico('play')} REJOUER${gameLabel(r) ? ` · ${esc(gameLabel(r).toUpperCase())}` : ''}</button>` : ''}
         ${addBox}
         <button type="button" class="btn ghost" data-act="tr-undo-end">${ico('undo')} ANNULER LA DERNIÈRE FLÉCHETTE</button>
       </div>
@@ -557,10 +744,10 @@ function managePanel(r) {
         <div class="btns two"><button type="button" class="btn" data-act="tr-del-no">NON</button><button type="button" class="btn alert" data-act="tr-del-yes" data-arg="${esc(r.id)}">SUPPRIMER</button></div></div>`;
   }
   const st = trainingState(r, r.darts);
-  const again = r.exercise === 'libre'
+  const again = r.exercise === 'libre' || isGameSession(r)
     ? `<button type="button" class="btn" data-act="tr-again" data-arg="${esc(r.id)}">${ico('target')} REFAIRE CETTE SÉANCE</button>`
     : `<button type="button" class="btn" data-act="tr-start" data-arg="${r.exercise}">${ico('target')} REFAIRE : ${esc(EXERCISES[r.exercise].name.toUpperCase())}</button>`;
-  const resume = r.stopped && !st.done ? `<button type="button" class="btn accent stack" data-act="tr-reopen" data-arg="${esc(r.id)}">${ico('play')} REPRENDRE CETTE SÉANCE<small>${store.tr ? 'la séance en cours sera arrêtée' : `il reste ${st.clock ? 'des numéros' : plural(st.blocks.reduce((n, b) => n + b.n, 0) - r.darts.length, 'fléchette', 'fléchettes')}`}</small></button>` : '';
+  const resume = r.stopped && !st.done ? `<button type="button" class="btn accent stack" data-act="tr-reopen" data-arg="${esc(r.id)}">${ico('play')} REPRENDRE CETTE SÉANCE<small>${store.tr ? 'la séance en cours sera arrêtée' : `${st.game ? 'la partie reprend où elle s\'était arrêtée' : `il reste ${st.clock ? 'des numéros' : plural(st.blocks.reduce((n, b) => n + b.n, 0) - r.darts.length, 'fléchette', 'fléchettes')}`}`}</small></button>` : '';
   const who = activePlayers().length > 1 || !activePlayers().some(q => q.id === r.player)
     ? `<button type="button" class="btn ghost" data-act="tr-det-edit" data-arg="${esc(r.id)}|player">${ico('players')} CHANGER DE JOUEUR</button>` : '';
   return `${note}
@@ -601,7 +788,17 @@ export const actions = {
   'tr-fold'() { othersOpen = !othersOpen; refresh(); },
   'tr-change-set'() { const r = tr(); if (r) { r.ui.confirm = 'set'; refresh(); } },
   'tr-set-now'(id) { const r = tr(); if (!r) return; if (trChangeSet(id || null)) { buzz(BUZZ.dart); sound('validate'); } r.ui.confirm = false; r.ui.pause = false; refresh(); },
-  'tr-mode'(m) { saveTrSetup({ mode: m === 'libre' ? 'libre' : 'coach' }); refresh(); },
+  'tr-mode'(m) { saveTrSetup({ mode: ['libre', 'jeu'].includes(m) ? m : 'coach' }); refresh(); },
+  'tr-game'(arg) {
+    const [field, val] = String(arg).split('|');
+    const g = { ...trSetup().game };
+    if (field === 'kind') g.kind = val === 'cricket' ? 'cricket' : 'x01';
+    else if (field === 'start') g.startScore = Number(val);
+    else if (field === 'out') g.outMode = val === 'single' ? 'single' : 'double';
+    else if (field === 'legs') g.legs = Number(val);
+    saveTrSetup({ game: { kind: g.kind, ...cleanGame('x01', g) } });
+    refresh();
+  },
   'tr-pick'(arg) {
     const [who, field, val] = String(arg).split('|');
     const t = who === 'add' ? addDraft : { ...trSetup().free };
@@ -646,12 +843,14 @@ export const actions = {
   'tr-stop'() { const rec = closeTraining({ stopped: true }); go(rec ? `#/entrainement/seance/${rec.id}` : '#/entrainement'); },
   'tr-finish'() { closeTraining(); addDraft = null; sound('validate'); go('#/entrainement'); },
   'tr-finish-next'(key) { closeTraining(); addDraft = null; startFrom(key); },
+  'tr-finish-again'() { const r = tr(); if (!r || !isGameSession(r)) return; closeTraining(); startFrom(r.exercise, r.game); },
   'tr-add'() { const st = trState(); const last = st.blocks[st.blocks.length - 1]; addDraft = { s: last.s, z: last.z, n: last.n }; refresh(); },
   'tr-add-cancel'() { addDraft = null; refresh(); },
   'tr-add-go'() { if (addDraft && trAddBlock(addDraft, addDraft.n)) { addDraft = null; go('#/entrainement/jeu'); } },
   'tr-again'(id) {
     const r = trainingById(id);
     if (!r) return;
+    if (isGameSession(r)) { startFrom(r.exercise, r.game); return; }
     const su = trSetup();
     startTraining({ player: r.player, setId: su.setId, mode: 'libre', exercise: 'libre', blocks: r.blocks });
     go('#/entrainement/jeu');

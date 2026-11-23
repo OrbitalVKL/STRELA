@@ -5,7 +5,8 @@
 // Séance enregistrée : { id, startedAt, endedAt (null : en cours), player, setId (jeu de fléchettes du début, ou null),
 //   mode ('coach' | 'libre'), exercise (clé d'EXERCISES), blocks? (libre : [{ s, z, n }]), darts[], stopped?,
 //   setChanges? ([{ at, setId }] : jeu changé en cours de séance, à partir de la fléchette de rang `at`, 0.13.0),
-//   note? (remarque libre, 0.13.0), excluded? (mise de côté : hors stats et hors niveau, 0.13.0) }
+//   note? (remarque libre, 0.13.0), excluded? (mise de côté : hors stats et hors niveau, 0.13.0),
+//   game? (jeu en solo, 0.14.0 : X01 { startScore, outMode, legs }, Cricket { legs } ; mode 'jeu') }
 // Fléchette d'entraînement : { segment, multiplier, ring?, pos? }
 //   ring : 'in' (simple intérieur, entre le 25 et le triple) ou 'out' (simple extérieur, entre le triple et le double),
 //          seulement pour un simple de 1 à 20 ; pos : position touchée sur la cible (repère de board.js) ;
@@ -15,7 +16,11 @@
 //   'any' (25 ou 50), 's' (25), 'd' (50).
 
 import { SECTORS, RINGS, sectorAngle, polar, segmentAt } from './board.js';
-import { dartError, BULL, MISS } from './darts.js';
+import { dartError, dartValue, BULL, MISS } from './darts.js';
+import { computeState, START_SCORES } from './x01.js';
+import { computeCricket, cricketSummary, CRICKET_TARGETS } from './cricket.js';
+import { playerStats } from './stats.js';
+import { suggestCheckout } from './checkout.js';
 
 // ------------------------------------------------------------------ zones
 export const ZONE_LABEL = Object.freeze({ any: 'TOUT LE SECTEUR', s: 'SIMPLE', si: 'SIMPLE INTÉRIEUR', se: 'SIMPLE EXTÉRIEUR', d: 'DOUBLE', t: 'TRIPLE' });
@@ -188,6 +193,13 @@ export const EXERCISES = Object.freeze({
   bull25: { name: 'Centre 25 / 50', short: '15 fléchettes dans le 25 ou le 50', level: 'intermediaire',
     goal: '15 fléchettes au centre : combien dans le 25 ou le 50 (la finition au bull et la sortie du 25).',
     blocks: [{ s: BULL, z: 'any', n: 15 }], metric: 'rate' },
+  // Jeux en solo (0.14.0) : une vraie partie, seul, aux règles du jeu ; pas de cible imposée (on vise comme en partie).
+  x01: { name: 'X01 solo', short: '301, 501 ou 701, comme en partie', game: 'x01',
+    goal: 'Une partie de X01 seul, aux vraies règles (départ, sortie simple ou double, manches) : la moyenne sur 3 fléchettes, les doubles de finition, les triples.',
+    metric: 'average' },
+  cricket: { name: 'Cricket solo', short: 'fermer du 20 au 15 et le bull', game: 'cricket',
+    goal: 'Un Cricket seul : fermer le 20, le 19, le 18, le 17, le 16, le 15 et le bull (3 marques chacun) en le moins de volées possible. Le chiffre : les marques par volée (MPR).',
+    metric: 'mpr' },
   libre: { name: 'Libre', short: 'tes cibles, tes fléchettes',
     goal: 'Tu choisis la cible (secteur et zone) et le nombre de fléchettes ; l\'appli compare la cible visée et les impacts.',
     metric: 'rate' },
@@ -200,10 +212,39 @@ export const LEVEL_EXERCISES = Object.freeze({
   intermediaire: Object.freeze(['triple20', 'doubles', 'triples', 'horlogedoubles', 'bull25', 'scorelibre']),
   confirme: Object.freeze(['triple20', 'doubles', 'triples', 'horlogedoubles', 'bull25', 'scorelibre']),
 });
-/** Tous les exercices du coach (débutant puis intermédiaire), puis libre. */
-export const ALL_EXERCISES = Object.freeze([...new Set([...COACH_ORDER, ...LEVEL_EXERCISES.intermediaire]), 'libre']);
+/** Jeux en solo (0.14.0). */
+export const GAME_EXERCISES = Object.freeze(['x01', 'cricket']);
+/** Séance d'un jeu en solo (on y vise comme en partie : triples, doubles et carte de chaleur y ont un sens). */
+export const isGameSession = r => !!r && GAME_EXERCISES.includes(r.exercise);
+/** Tous les exercices du coach (débutant puis intermédiaire), puis les jeux en solo, puis libre. */
+export const ALL_EXERCISES = Object.freeze([...new Set([...COACH_ORDER, ...LEVEL_EXERCISES.intermediaire]), ...GAME_EXERCISES, 'libre']);
 /** Niveau d'un exercice (débutant sauf mention). */
 export const exerciseLevel = k => (EXERCISES[k] && EXERCISES[k].level) || 'debutant';
+/** Manches proposées pour un jeu en solo. */
+export const GAME_LEGS = Object.freeze([1, 3, 5]);
+/** Réglages d'un jeu en solo nettoyés (valeurs par défaut : 501, sortie double, 1 manche), ou null si ce n'est pas un jeu. */
+export function cleanGame(exercise, g) {
+  const o = g && typeof g === 'object' ? g : {};
+  const legs = Number.isInteger(Number(o.legs)) && Number(o.legs) >= 1 && Number(o.legs) <= 9 ? Number(o.legs) : 1;
+  if (exercise === 'x01') return { startScore: START_SCORES.includes(Number(o.startScore)) ? Number(o.startScore) : 501, outMode: o.outMode === 'single' ? 'single' : 'double', legs };
+  if (exercise === 'cricket') return { legs };
+  return null;
+}
+/** Configuration du moteur (x01.js, cricket.js) d'une séance de jeu : un seul joueur ; Cricket sans points (seul, on ferme). */
+export function gameConfig(rec) {
+  const g = cleanGame(rec.exercise, rec.game);
+  if (!g) return null;
+  return rec.exercise === 'x01' ? { startScore: g.startScore, outMode: g.outMode, legsToWin: g.legs, players: ['solo'] }
+    : { game: 'cricket', players: ['solo'], mode: 'sans', legsToWin: g.legs };
+}
+/** Nom court des réglages : « 501 double », « 301 simple · 3 manches » ; Cricket : « 3 manches », ou rien pour une manche. */
+export function gameLabel(rec) {
+  const g = cleanGame(rec.exercise, rec.game);
+  if (!g) return '';
+  const legs = g.legs > 1 ? `${g.legs} manches` : '';
+  if (rec.exercise === 'cricket') return legs;
+  return [`${g.startScore} ${g.outMode === 'double' ? 'double' : 'simple'}`, legs].filter(Boolean).join(' · ');
+}
 const clockOf = cfg => (EXERCISES[cfg.exercise] && EXERCISES[cfg.exercise].clock) || null;
 
 /** Séries d'une séance (libre : celles choisies ; sinon celles de l'exercice). */
@@ -221,6 +262,7 @@ export function planOf(cfg) {
  */
 export function trainingState(cfg, darts) {
   for (const d of darts) if (trainingDartError(d)) throw new Error('fléchette invalide');
+  if (isGameSession(cfg)) return gameTrainingState(cfg, darts);
   const blocks = [];
   const ck = clockOf(cfg);
   if (ck) {
@@ -259,8 +301,20 @@ export function trainingState(cfg, darts) {
   return { blocks, cur, done: ci < 0 && blocks.length > 0, thrown: darts.length, visitDarts: k % 3, visitStart: (b ? b.start : 0) + k - (k % 3), clock: false };
 }
 
-/** Fléchettes prévues (null pour l'horloge). */
-export const plannedDarts = cfg => { const ck = clockOf(cfg); return ck ? (ck.max ? 20 * ck.max : null) : planOf(cfg).reduce((n, b) => n + b.n, 0); };
+/**
+ * État d'une séance de jeu en solo (0.14.0) : celui du moteur du jeu (`gs`, voir x01.js › computeState et
+ * cricket.js › computeCricket), plus les champs communs (done, thrown, visitDarts, visitStart). Pas de série ni de cible.
+ */
+function gameTrainingState(cfg, darts) {
+  const ecfg = gameConfig(cfg);
+  const gs = cfg.exercise === 'x01' ? computeState(ecfg, darts) : computeCricket(ecfg, darts);
+  const done = gs.status === 'finished';
+  const open = done || !gs.visit ? 0 : gs.visit.darts.length;
+  return { game: cfg.exercise, gs, setup: cleanGame(cfg.exercise, cfg.game), blocks: [], cur: null, done, thrown: darts.length, visitDarts: open, visitStart: darts.length - open, clock: false };
+}
+
+/** Fléchettes prévues (null pour l'horloge et les jeux). */
+export const plannedDarts = cfg => { if (isGameSession(cfg)) return null; const ck = clockOf(cfg); return ck ? (ck.max ? 20 * ck.max : null) : planOf(cfg).reduce((n, b) => n + b.n, 0); };
 
 // ------------------------------------------------------------------ jeu de fléchettes de chaque fléchette (0.13.0)
 /**
@@ -363,6 +417,7 @@ const visitsOf = darts => { const out = []; for (let i = 0; i < darts.length; i 
  *     value (chiffre principal de l'exercice), extra (propre à l'exercice), messages: [{ kind, text, tip?, sheet? }], next }
  */
 export function analyze(rec) {
+  if (isGameSession(rec)) return analyzeGame(rec);
   const st = trainingState(rec, rec.darts);
   const pairs = [];
   for (const b of st.blocks) b.darts.forEach((d, j) => pairs.push({ t: b, d, i: b.start + j }));
@@ -451,6 +506,7 @@ export const TIPS = Object.freeze({
   spread: { text: 'Même prise, même place des pieds et tête immobile à chaque fléchette : la précision vient de la régularité, pas de la force.', sheet: 'prise' },
   clock: { text: 'Pour les numéros des côtés et du bas, ne bouge que le bras : les pieds et les épaules restent en place.', sheet: 'posture' },
   doubles: { text: 'Sur un double, vise le milieu de la bande : une fléchette trop haute sort de la cible, une trop basse fait le simple et laisse une finition.', sheet: 'lancer' },
+  bust: { text: 'Sur une finition, garde un reste pair : sur un reste impair, joue le simple qui laisse un double plutôt que de forcer un triple.', sheet: null },
 });
 
 /** Écarts qui comptent le long des axes : [{ word ('à gauche', 'en haut'…), mm, vertical }]. */
@@ -527,6 +583,142 @@ export function nextFor(a, rec, level = 'debutant') {
   return null;
 }
 
+// ------------------------------------------------------------------ jeux en solo (0.14.0)
+const dec2 = v => (Math.round(v * 100) / 100).toFixed(2).replace('.', ',');
+const pl = (n, one, many) => `${n} ${n > 1 ? many : one}`;
+
+/**
+ * Analyse d'une séance de jeu en solo (X01, Cricket) : pas de cible imposée, donc ni précision ni écart ; les chiffres
+ * du jeu (moyenne, finition, MPR), la part de triples et de doubles, et les manches.
+ *   extra : { game, setup, triples, doubles, tripleRate, doubleRate, bulls, credit[] (par fléchette : points comptés en
+ *     X01, null dans une volée pas finie ; marques utiles au Cricket), legs[], bySet? }
+ *   X01 : average, first9, finishDarts, finishHits, finishRate (fléchettes lancées quand une seule pouvait finir, et
+ *     finitions), bestVisit, ton (100+), ton40 (140+), max (180), busts, remaining, legsDone, bestLeg ;
+ *     legs : [{ number, darts, average, done, finish (reste fini) }]
+ *   Cricket : mpr, marks, bestVisit, closed (cibles fermées dans la manche en cours ou la dernière), marksByTarget ;
+ *     legs : [{ number, darts, rounds, marks, mpr, done }]
+ */
+export function analyzeGame(rec) {
+  const st = trainingState(rec, rec.darts);
+  const darts = rec.darts;
+  const n = darts.length;
+  const count = f => darts.filter(f).length;
+  const triples = count(d => d.multiplier === 3), doubles = count(d => d.multiplier === 2);
+  const extra = { game: rec.exercise, setup: st.setup, triples, doubles, tripleRate: n ? triples / n : null, doubleRate: n ? doubles / n : null, bulls: count(d => d.segment === BULL) };
+  const credit = [];
+  const gs = st.gs;
+  const open = !st.done && gs.visit && gs.visit.darts.length ? gs.visit : null;
+  let value = null;
+  if (rec.exercise === 'x01') {
+    for (const v of gs.visits) for (const d of v.darts) credit.push(v.bust ? 0 : dartValue(d));
+    if (open) for (let i = 0; i < open.darts.length; i++) credit.push(null);
+    const ps = playerStats([{ id: rec.id, startedAt: rec.startedAt, config: gameConfig(rec), darts: darts.map(d => ({ segment: d.segment, multiplier: d.multiplier })) }], 'solo');
+    // Par fléchette : 0 = pas de finition possible en une fléchette, 1 = finition possible manquée, 2 = finition (même
+    // définition que les stats des parties : stats.js › doubleDarts / doubleHits).
+    const finishFlags = [];
+    for (const v of [...gs.visits, ...(open ? [{ ...open, finish: false }] : [])]) {
+      let left = v.startRemaining;
+      v.darts.forEach((d, i) => { finishFlags.push(suggestCheckout(left, st.setup.outMode, 1) ? (v.finish && i === v.darts.length - 1 ? 2 : 1) : 0); left -= dartValue(d); });
+    }
+    extra.finishFlags = finishFlags;
+    Object.assign(extra, { average: ps.average, first9: ps.first9, finishDarts: ps.doubleDarts, finishHits: ps.doubleHits, finishRate: ps.doubleRate,
+      bestVisit: ps.bestVisit, ton: ps.ton, ton40: ps.ton40, max: ps.max, busts: ps.busts, remaining: st.done ? 0 : gs.remaining[0], legsDone: gs.legsWon[0] });
+    extra.legs = gs.legs.map((l, i) => {
+      const last = i === gs.legs.length - 1;
+      const ds = l.visits.reduce((k, v) => k + v.darts.length, 0) + (last && open ? open.darts.length : 0);
+      const closedDarts = l.visits.reduce((k, v) => k + v.darts.length, 0);
+      const pts = l.visits.reduce((k, v) => k + v.scored, 0);
+      const fin = l.visits.find(v => v.finish);
+      return { number: l.number, darts: ds, average: closedDarts ? (pts / closedDarts) * 3 : null, done: l.winner !== null, finish: fin ? fin.startRemaining : null };
+    }).filter(l => l.darts);
+    const won = extra.legs.filter(l => l.done);
+    extra.bestLeg = won.length ? Math.min(...won.map(l => l.darts)) : null;
+    value = ps.average;
+  } else {
+    const fresh = () => Object.fromEntries(CRICKET_TARGETS.map(t => [t, 0]));
+    let marks = fresh();
+    const byTarget = fresh();
+    for (const d of darts) {
+      const t = CRICKET_TARGETS.includes(d.segment) ? d.segment : null;
+      const m = t === null ? 0 : Math.min(d.multiplier, 3 - marks[t]);
+      if (t !== null) { marks[t] += m; byTarget[t] += m; }
+      credit.push(m);
+      if (CRICKET_TARGETS.every(x => marks[x] >= 3)) marks = fresh();
+    }
+    const sum = cricketSummary(gs, 0);
+    Object.assign(extra, { mpr: sum.mpr, marks: sum.marks, bestVisit: sum.best, closed: CRICKET_TARGETS.filter(t => gs.marks[0][t] >= 3).length, marksByTarget: byTarget });
+    extra.legs = gs.legs.map((l, i) => {
+      const vs = [...l.visits, ...(i === gs.legs.length - 1 && open ? [open] : [])];
+      const ds = vs.reduce((k, v) => k + v.darts.length, 0), mk = vs.reduce((k, v) => k + v.marks, 0);
+      return { number: l.number, darts: ds, rounds: vs.length, marks: mk, mpr: ds ? (mk / ds) * 3 : null, done: l.winner !== null };
+    }).filter(l => l.darts);
+    value = sum.mpr;
+  }
+  extra.credit = credit;
+  const runs = setRuns(rec);
+  if (runs.length > 1) {
+    const by = new Map();
+    darts.forEach((d, i) => { const k = setAt(rec, i) || ''; if (!by.has(k)) by.set(k, []); by.get(k).push(i); });
+    extra.bySet = [...by.entries()].map(([k, idx]) => ({ setId: k || null, darts: idx.length, ...gamePart(rec.exercise, idx.map(i => darts[i]), idx.map(i => credit[i])) }));
+  }
+  const out = { darts: n, hits: 0, rate: null, off: count(d => d.segment === MISS), perTarget: [], bias: null, spread: null, axes: [], points: 0, value, extra, done: st.done, exercise: rec.exercise, game: true };
+  out.messages = gameMessages(out);
+  out.next = gameNext(out);
+  return out;
+}
+
+/**
+ * Chiffres d'un ensemble de fléchettes d'un jeu (`credit` : leur part dans le jeu, voir analyzeGame) :
+ * { value (moyenne sur 3 fléchettes en X01, MPR au Cricket), triples, doubles, off }.
+ */
+export function gamePart(game, darts, credit) {
+  const n = darts.length;
+  const counted = credit.map((c, i) => [c, darts[i]]).filter(([c]) => c !== null && c !== undefined);
+  const value = counted.length ? (counted.reduce((k, [c]) => k + c, 0) / counted.length) * 3 : null;
+  return { value, counted: counted.length, triples: darts.filter(d => d.multiplier === 3).length, doubles: darts.filter(d => d.multiplier === 2).length, off: darts.filter(d => d.segment === MISS).length, n };
+}
+
+/** Messages du coach pour un jeu en solo. */
+function gameMessages(a) {
+  const x = a.extra;
+  const msgs = [];
+  if (!a.darts) return msgs;
+  const pc = r => `${Math.round(r * 100)} %`;
+  if (x.game === 'x01') {
+    if (a.done) msgs.push({ kind: 'result', text: x.legs.length > 1 ? `${x.legs.length} manches en ${a.darts} fléchettes, moyenne ${avgTxt(x.average)} (meilleure manche : ${x.bestLeg} fl.).` : `${x.setup.startScore} fini en ${a.darts} fléchettes, moyenne ${avgTxt(x.average)}.` });
+    else msgs.push({ kind: 'result', text: `Arrêté à ${x.remaining} restants${x.legsDone ? ` (${pl(x.legsDone, 'manche gagnée', 'manches gagnées')})` : ''}${x.average !== null ? `, moyenne ${avgTxt(x.average)}` : ''}.` });
+    if (x.finishDarts) {
+      const r = x.finishHits / x.finishDarts;
+      const weak = x.finishDarts >= 3 && r < 0.25 && x.setup.outMode === 'double';
+      msgs.push({ kind: weak ? 'clock' : 'result', text: `Finition : ${x.finishHits} sur ${pl(x.finishDarts, 'fléchette', 'fléchettes')} ${x.setup.outMode === 'double' ? 'au double' : 'à la finition'} (${pc(r)}).`, tip: weak ? TIPS.doubles.text : null, sheet: weak ? TIPS.doubles.sheet : null });
+    }
+    const tons = x.ton + x.ton40 + x.max;
+    msgs.push({ kind: 'result', text: `${pl(x.triples, 'triple', 'triples')} sur ${a.darts} fléchettes (${pc(x.tripleRate)})${tons ? ` · ${pl(tons, 'volée', 'volées')} à 100 ou plus${x.max ? `, dont ${x.max} à 180` : ''}` : ''} · meilleure volée : ${x.bestVisit}.` });
+    if (x.busts) msgs.push({ kind: 'bust', text: `${pl(x.busts, 'bust', 'bust')}.`, tip: x.setup.outMode === 'double' ? TIPS.bust.text : null, sheet: null });
+  } else {
+    const rounds = x.legs.reduce((k, l) => k + l.rounds, 0);
+    if (a.done) msgs.push({ kind: 'result', text: x.legs.length > 1 ? `${x.legs.length} manches en ${rounds} volées, MPR ${dec2(x.mpr)}.` : `Tout fermé en ${rounds} volées (${a.darts} fléchettes), MPR ${dec2(x.mpr)}.` });
+    else msgs.push({ kind: 'result', text: `Arrêté : ${pl(x.closed, 'cible fermée', 'cibles fermées')} sur 7${x.mpr !== null ? `, MPR ${dec2(x.mpr)}` : ''}.` });
+    msgs.push({ kind: 'result', text: `${pl(x.triples, 'triple', 'triples')} (${pc(x.tripleRate)}), ${pl(x.doubles, 'double', 'doubles')} (${pc(x.doubleRate)}) · meilleure volée : ${pl(x.bestVisit, 'marque', 'marques')}.` });
+    const wasted = x.credit.filter((c, i) => c === 0 && a.darts > i).length - a.off;
+    if (a.darts >= 9 && wasted / a.darts >= 0.4) msgs.push({ kind: 'spread', text: `${wasted} fléchettes sans marque (hors des cibles du Cricket, ou sur une cible déjà fermée).`, tip: TIPS.spread.text, sheet: TIPS.spread.sheet });
+  }
+  if (a.off) msgs.push({ kind: 'off', text: `${pl(a.off, 'fléchette', 'fléchettes')} hors cible.` });
+  return msgs;
+}
+
+/** Exercice du coach proposé après un jeu, ou null. */
+function gameNext(a) {
+  const x = a.extra;
+  if (x.game === 'x01') {
+    if (x.setup.outMode === 'double' && x.finishDarts >= 3 && x.finishRate < 0.2) return { key: 'doubles', why: 'la finition au double est à travailler' };
+    if (a.darts >= 15 && x.tripleRate < 0.06) return { key: 'triple20', why: 'pour marquer plus : le triple 20' };
+    return null;
+  }
+  if (a.darts >= 15 && x.tripleRate < 0.06) return { key: 'triples', why: 'pour fermer plus vite : les triples' };
+  return null;
+}
+
 // ------------------------------------------------------------------ coach : objectifs, niveau, exercice proposé
 export const LEVEL_ORDER = Object.freeze(['debutant', 'intermediaire', 'confirme']);
 export const LEVELS = Object.freeze({ debutant: 'DÉBUTANT', intermediaire: 'INTERMÉDIAIRE', confirme: 'CONFIRMÉ' });
@@ -549,6 +741,9 @@ export const GOALS = Object.freeze({
   doubles: { debutant: 0.1, intermediaire: 0.2, confirme: 0.3 },
   horlogedoubles: { debutant: 5, intermediaire: 9, confirme: 13 },
   bull25: { debutant: 0.1, intermediaire: 0.2, confirme: 0.3 },
+  // Jeux en solo (0.14.0) : moyenne sur 3 fléchettes en X01 ; marques par volée au Cricket.
+  x01: { debutant: 30, intermediaire: 45, confirme: 60 },
+  cricket: { debutant: 1, intermediaire: 1.5, confirme: 2.2 },
 });
 /** Passage au niveau suivant : l'objectif du niveau actuel tenu sur LEVEL_SESSIONS séances complètes de suite, pour
  *  chacun de ces exercices (une séance sous l'objectif remet son compte à zéro ; un critère tenu une fois reste tenu). */
@@ -624,9 +819,11 @@ export function suggestNext(list, player, level = levelOf(list, player).level) {
 }
 
 // ------------------------------------------------------------------ stats
-/** Chiffre principal d'une séance pour sa courbe : { v, fmt: 'pct' | 'int' | 'avg', dir } ou null. */
+/** Chiffre principal d'une séance pour sa courbe : { v, fmt: 'pct' | 'int' | 'avg' | 'mpr', dir } ou null. */
 export function sessionValue(rec, a = analyze(rec)) {
   const ex = EXERCISES[rec.exercise] || EXERCISES.libre;
+  if (ex.game === 'x01') return a.extra.average === null || a.extra.average === undefined ? null : { v: a.extra.average, fmt: 'avg', dir: 1, label: 'Moyenne / 3 fl.' };
+  if (ex.game === 'cricket') return a.extra.mpr === null || a.extra.mpr === undefined ? null : { v: a.extra.mpr, fmt: 'mpr', dir: 1, label: 'Marques / volée' };
   if (ex.clock && ex.clock.max) return a.done ? { v: a.extra.hitCount, fmt: 'int', dir: 1, label: 'Doubles touchés' } : null;
   if (ex.clock) return a.done ? { v: a.darts, fmt: 'int', dir: -1, label: 'Fléchettes' } : null;
   if (ex.metric === 'average') return a.extra.average === null ? null : { v: a.extra.average, fmt: 'avg', dir: 1, label: 'Moyenne / volée' };

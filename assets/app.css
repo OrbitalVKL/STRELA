@@ -1880,6 +1880,17 @@ button.hrow { width: 100%; border: 0; border-bottom: var(--rule); background: va
 .taim .tp b { font-size: min(26cqh, 54px); font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
 .taim .tp b small { font-size: 0.45em; color: var(--dim); letter-spacing: 0; }
 .taim .tp span { font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; color: var(--dim); text-align: right; }
+.taim.tck { gap: 8px; padding: 6px 8px; }
+.ckline { flex: 1 1 auto; min-width: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; align-items: center; }
+.ckline span { min-width: 0; height: min(100%, 150px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border: var(--rule); }
+.ckline small { font-size: min(18px, 22cqh, 4.6cqw); font-weight: 800; color: var(--fg); letter-spacing: -0.04em; }
+.land .ckline { gap: 2px; }
+.ckline i { display: block; width: min(82%, 30cqh, 46px); aspect-ratio: 1; }
+.ckline i .mk { width: 100%; height: 100%; }
+.ckline span.shut { background: var(--inv-bg); color: var(--inv-fg); border-color: var(--inv-bg); }
+.ckline span.shut small { color: var(--inv-fg); }
+.taim.tgame .tp b small { font-size: 0.32em; }
+.trstats .tsub { margin: 14px 0 6px; }
 .tlive { margin: 0; font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tlive b { color: var(--fg); }
 .train .dart { font-size: 17px; }
