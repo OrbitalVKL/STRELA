@@ -25,7 +25,7 @@ import { markSvg } from './cricket.js';
 import { dartSetSummary } from '../../engine/dartsets.js';
 import { dartDiagram } from './advice.js';
 import { makeDart } from '../../engine/darts.js';
-import { segmentAt, RINGS } from '../../engine/board.js';
+import { segmentAt, RINGS, zoneTone } from '../../engine/board.js';
 import { boardSvg, plainBoard, svgN } from '../board.js';
 import { go, refresh, buzz, BUZZ, backFrom } from '../nav.js';
 import { sound, dartSound } from '../feedback.js';
@@ -435,26 +435,72 @@ function pauseSheet(r) {
     </div></div></div>`;
 }
 
+/** Présentation du choix de la zone (réglage `zonePad`, 23/11) : 'rangees' (B, par défaut) ou 'secteur' (C). */
+export const ZONE_PADS = ['rangees', 'secteur'];
+export const zonePad = () => (store.settings.zonePad === 'secteur' ? 'secteur' : 'rangees');
+
 /**
- * Pavé (portrait). Lot 8 du 23/11 (1.3) : saisie en deux temps, précise à la case — le nombre, puis sa zone : simple
- * intérieur ou extérieur, double, triple (multiplicateur et couronne du simple dans le même choix). 25, 50 et HORS CIBLE
+ * Choix de la zone du nombre `n` (pavé, après le nombre ; demande de Guillaume du 23/11, versions B et C retenues).
+ * Toujours des commandes tr-zonepick ('in', 'out' ou 's', 'd', 't'), dans l'ordre de la cible, du bord vers le bull.
+ * - B « rangées » : une rangée par zone, la tranche du secteur à gauche aux couleurs de la cible ; double gris à
+ *   2 barres, triple noir à 3 barres, barres rouges ou vertes comme les doubles et triples du secteur.
+ * - C « secteur » : la part de cible dessinée en grand, aux vraies couleurs, et on touche la bande ; 2 et 3 barres.
+ * `az` : zone visée (soulignée en tirets), ou null.
+ */
+function zonePick(n, az) {
+  const ring = padRing();
+  const cream = zoneTone(n, 1) === 'cream';
+  const zones = ring
+    ? [['d', `D${n}`, 'DOUBLE', 2, ''], ['out', String(n), 'SIMPLE EXT.', 0, 'CÔTÉ DOUBLE'], ['t', `T${n}`, 'TRIPLE', 3, ''], ['in', String(n), 'SIMPLE INT.', 0, 'CÔTÉ BULL']]
+    : [['d', `D${n}`, 'DOUBLE', 2, ''], ['s', String(n), 'SIMPLE', 0, ''], ['t', `T${n}`, 'TRIPLE', 3, '']];
+  const back = `<button type="button" class="key pback" data-act="tr-pick-cancel" data-press>${ico('undo')}<span class="kl" data-shrink>AUTRE NOMBRE</span></button>`;
+  const cls = `pickp${cream ? ' zcream' : ''}`;
+  const isMult = z => z === 'd' || z === 't';
+  if (zonePad() === 'rangees') {
+    const N = zones.length;
+    // Tranche du secteur : un trapèze continu, large au bord (en haut), découpé en une part par rangée.
+    const slice = (i, z) => {
+      const w0 = 40 - i * (24 / N), w1 = 40 - (i + 1) * (24 / N);
+      return `<span class="zsl" aria-hidden="true"><svg viewBox="0 0 46 100" preserveAspectRatio="none"><path class="${isMult(z) ? 'zm' : 'zs'}" d="M${23 - w0 / 2} 0L${23 + w0 / 2} 0L${23 + w1 / 2} 100L${23 - w1 / 2} 100Z"/></svg></span>`;
+    };
+    return `<div class="${cls} zrows" style="--zn:${N}" role="group" aria-label="Zone du ${n}">${zones.map(([z, big, word, bars, dir], i) => `<button type="button" class="key zr z-${z}${az === z || (az === 's' && z === 's') ? ' aimz' : ''}" data-act="tr-zonepick" data-arg="${z}" data-press aria-label="${word} ${n}">${slice(i, z)}<span class="zlab"><b>${big}</b><span class="zw"><small>${word}</small>${dir ? `<small class="zdir">${dir}</small>` : ''}</span></span><span class="zbars">${'<i></i>'.repeat(bars)}</span></button>`).join('')}${back}</div>`;
+  }
+  // C : bandes d'une part de cible (pointe vers le bull, sous l'écran), de l'intérieur vers le bord.
+  const W = 480, H = 236, RS = 511, cx = 240, cy = 486, A = 0.5;
+  const band = (r0, r1) => {
+    const p = (r, k) => [cx + Math.sin(k * A) * r * RS, cy - Math.cos(k * A) * r * RS].map(v => v.toFixed(1)).join(' ');
+    return `M${p(r0, -1)}L${p(r1, -1)}A${(r1 * RS).toFixed(1)} ${(r1 * RS).toFixed(1)} 0 0 1 ${p(r1, 1)}L${p(r0, 1)}A${(r0 * RS).toFixed(1)} ${(r0 * RS).toFixed(1)} 0 0 0 ${p(r0, -1)}Z`;
+  };
+  const sTone = cream ? 'cream' : 'black', mTone = cream ? 'green' : 'red';
+  const byZ = Object.fromEntries(zones.map(z => [z[0], z]));
+  const order = ring ? ['in', 't', 'out', 'd'] : ['s', 't', 's', 'd'];
+  const R = [[0.5, 0.61], [0.61, 0.72], [0.72, 0.83], [0.83, 0.94]];
+  const body = order.map((z, i) => {
+    const [, big, word, bars] = byZ[z];
+    const [r0, r1] = R[i];
+    const tone = isMult(z) ? mTone : sTone;
+    const ink = tone === 'cream' ? 'zi-d' : 'zi-l';
+    const y = cy - ((r0 + r1) / 2) * RS;
+    const x = bars ? cx - 22 : cx;
+    return `<path class="zb t-${tone}${az === z ? ' aimz' : ''}" d="${band(r0, r1)}" data-act="tr-zonepick" data-arg="${z}" data-press role="button" aria-label="${word} ${n}"/>
+      <text class="zt ${ink}" x="${x}" y="${(y + 2).toFixed(1)}" text-anchor="middle">${big}</text>
+      <text class="zt zt-w ${ink}" x="${x}" y="${(y + 17).toFixed(1)}" text-anchor="middle">${word}</text>
+      ${Array.from({ length: bars }, (_, j) => `<rect class="${ink}" x="${cx + 30}" y="${(y - 8 - (bars - 2) * 3 + j * 7).toFixed(1)}" width="30" height="4"/>`).join('')}`;
+  }).join('');
+  return `<div class="${cls} zsec" role="group" aria-label="Zone du ${n}"><svg class="zwedge" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice">${body}</svg>${back}</div>`;
+}
+
+/**
+ * Pavé (portrait). Lot 8 du 23/11 (1.3) : saisie en deux temps, précise à la case — le nombre, puis sa zone (zonePick :
+ * rangées ou secteur) : simple (intérieur ou extérieur si réglé), double, triple. 25, 50 et HORS CIBLE
  * en un appui ; un hors cible au pavé n'a pas de position (compté, sans distance). ANNULER pendant le choix de la zone
  * revient au choix du nombre.
  */
 function keyPad(r, st) {
   const pick = r.ui.pick;
   let grid;
-  if (pick) {
-    const az = aimedZone(st);
-    const b = (z, big, word) => `<button type="button" class="key zk${az === z ? ' aimz' : ''}" data-act="tr-zonepick" data-arg="${z}" data-press><span class="kl" data-shrink>${big}<small>${word}</small></span></button>`;
-    // Réglage « Simple intérieur / extérieur » (Réglages › Saisie, demande de Guillaume du 23/11) : activé, le simple se
-    // précise en intérieur ou extérieur ; sinon un seul SIMPLE (placé, pour les distances, au milieu du secteur).
-    const ringRow = padRing() ? `${b('in', String(pick), 'SIMPLE INT.')}${b('out', String(pick), 'SIMPLE EXT.')}` : `<span class="span2">${b('s', String(pick), 'SIMPLE')}</span>`;
-    grid = `<div class="pickp" role="group" aria-label="Zone du ${pick}">
-      <div class="krow two">${ringRow}</div>
-      <div class="krow two">${b('d', `D${pick}`, 'DOUBLE')}${b('t', `T${pick}`, 'TRIPLE')}</div>
-      <button type="button" class="key pback" data-act="tr-pick-cancel" data-press>${ico('undo')}<span class="kl" data-shrink>AUTRE NOMBRE</span></button></div>`;
-  } else {
+  if (pick) grid = zonePick(pick, aimedZone(st));
+  else {
     const rows = [];
     for (let row = 0; row < 4; row++) {
       rows.push(`<div class="krow nums">${[1, 2, 3, 4, 5].map(c => {

@@ -110,7 +110,7 @@ test('couleurs, jeu changé en pleine séance, note, mise de côté, reprise', {
     await page.click('[data-act="tr-start"][data-arg="triple20"]');
     await page.waitForSelector('.game.train');
     await page.click('[data-act="tr-key"][data-arg="20"]');
-    assert.equal(await page.locator('.key.zk.aimz[data-arg="t"]').count(), 1, 'zone visée soulignée');
+    assert.equal(await page.locator('.aimz[data-arg="t"]').count(), 1, 'zone visée soulignée');
     await page.click('[data-act="tr-zonepick"][data-arg="t"]');
     await zone(page, 'in'); await key(page, '20');
     await page.click('[data-act="tr-pause"]');

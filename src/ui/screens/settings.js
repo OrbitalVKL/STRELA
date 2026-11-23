@@ -296,6 +296,14 @@ function autoLine() {
   return `Dernière : ${p2(d.getDate())}/${p2(d.getMonth() + 1)} à ${p2(d.getHours())}:${p2(d.getMinutes())}`;
 }
 
+/** Présentation du choix de la zone au pavé (23/11) : rangées (B) ou secteur (C) ; voir training.js › zonePick. */
+const ZONE_PAD_LABELS = { rangees: 'Rangées', secteur: 'Secteur' };
+function zonePadSetting() {
+  const cur = store.settings.zonePad === 'secteur' ? 'secteur' : 'rangees';
+  return `<div class="heatset"><span class="small dim caps">Choix de la zone</span>
+    <div class="seg" role="group" aria-label="Choix de la zone">${Object.entries(ZONE_PAD_LABELS).map(([k, l]) => `<button type="button" data-act="zone-pad" data-arg="${k}" aria-pressed="${cur === k}">${l}</button>`).join('')}</div></div>`;
+}
+
 /** Échelle des cartes de chaleur (lot 8 du 23/11, 3.5), avec l'aperçu en direct. */
 function heatSetting() {
   const cur = heatScale();
@@ -341,7 +349,8 @@ export function settings2Screen() {
         <a class="lrow" href="#/armurerie">${ico('wrench')}<span><b>Armurerie</b><small>${plural(sets, 'jeu de fléchettes', 'jeux de fléchettes')}</small></span>${ico('chev')}</a>
         <a class="lrow" href="#/conseils">${ico('info')}<span><b>Conseils</b><small>Prise en main, posture, lancer, types de fléchettes</small></span>${ico('chev')}</a>`)}
       ${card('target', 'Saisie', 'saisie', `
-        ${s2box('saisie', 'Au pavé (téléphone debout), on choisit le nombre, puis sa zone : simple, double ou triple. Activé, le simple se précise en intérieur (entre le centre et le triple) ou extérieur (entre le triple et le double) : la distance à la cible et le groupement sont alors plus justes. Couché, sur la cible au doigt, la zone exacte est toujours gardée.')}
+        ${s2box('saisie', 'Au pavé (téléphone debout), on choisit le nombre, puis sa zone : simple, double ou triple. Activé, le simple se précise en intérieur (entre le centre et le triple) ou extérieur (entre le triple et le double) : la distance à la cible et le groupement sont alors plus justes. Couché, sur la cible au doigt, la zone exacte est toujours gardée. Choix de la zone : <b>Rangées</b>, une touche par zone, du bord (double) vers le bull, la tranche du secteur à gauche ; <b>Secteur</b>, la part de cible dessinée en grand, on touche la bande. Double : 2 barres ; triple : 3 barres.')}
+        ${zonePadSetting()}
         <div class="rows">${srow('pad-ring', 'Simple intérieur / extérieur', 'Au pavé, préciser la couronne du simple', store.settings.padRing === true)}</div>`)}
       ${card('theme', 'Affichage', 'aff', `
         ${s2box('aff', 'Auto suit le réglage du téléphone (sombre ou clair). Le mode nuit passe la console en rouge atténué, pour la pénombre ; il ne s\'applique qu\'en sombre.')}
@@ -431,6 +440,7 @@ export const actions = {
   'auto-update'(v) { saveSetting('autoUpdate', v === '1'); refresh(); },
   'update-snooze'() { const u = updateInfo(); saveSetting('updSnooze', { v: u.latest || '', until: Date.now() + SNOOZE_DAYS * 86400000 }); refresh(); },
   'pad-ring'(v) { saveSetting('padRing', v === '1'); refresh(); },
+  'zone-pad'(v) { if (v === 'rangees' || v === 'secteur') saveSetting('zonePad', v); refresh(); },
   'mode-train'(v) { setMode('train', v === '1'); refresh(); },
   'mode-soiree'(v) { setMode('soiree', v === '1'); refresh(); },
   autoBackup(v) { saveSetting('autoBackup', v === '1'); refresh(); }, // lot 9
