@@ -43,6 +43,7 @@ export function resetMock() {
   // Lot 8 du 23/11 : modes, mise en place, profil, mise à jour masquée, échelle de chaleur remis à leur défaut.
   for (const k of ['modes', 'setup', 'profile', 'updSnooze']) delete store.settings[k];
   store.settings.heatScale = 'clair';
+  store.settings.padRing = false;
   Object.assign(store.db, { openCode: null, writeFail: null, error: null });
   // Derniers réglages : ceux de la partie la plus récente.
   const last = store.games[0];

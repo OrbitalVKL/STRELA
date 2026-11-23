@@ -40,6 +40,26 @@ test('première ouverture : bienvenue, modes, mise en place, accueil selon les m
     await page.click('a[data-act="setup-done"][href="#/entrainement"]');
     await page.waitForSelector('.trhub');
     assert.equal(await page.locator('.trhub [data-act="tr-player"]').count(), 0, 'pas de choix de joueur sans le mode soirée');
+    // Pavé, réglage « Simple intérieur / extérieur » désactivé (défaut) : SIMPLE, DOUBLE, TRIPLE.
+    await page.click('[data-act="tr-start"][data-arg="groupement"]');
+    await page.waitForSelector('.game.train');
+    await page.click('[data-act="tr-key"][data-arg="20"]');
+    assert.equal(await page.locator('[data-act="tr-zonepick"][data-arg="in"]').count(), 0);
+    await page.click('[data-act="tr-zonepick"][data-arg="s"]');
+    await settle(page);
+    const cur = (await readDb(page)).trainings.find(r => r.endedAt === null);
+    assert.deepEqual(cur.darts, [{ segment: 20, multiplier: 1 }]);
+    // Activé : la couronne du simple se choisit.
+    await page.evaluate(() => { location.hash = '#/reglages'; });
+    await page.click('[data-act="pad-ring"][data-arg="1"]');
+    await page.evaluate(() => { location.hash = '#/entrainement/jeu'; });
+    await page.waitForSelector('.game.train');
+    await page.click('[data-act="tr-key"][data-arg="20"]');
+    await page.click('[data-act="tr-zonepick"][data-arg="out"]');
+    await settle(page);
+    assert.deepEqual((await readDb(page)).trainings.find(r => r.endedAt === null).darts[1], { segment: 20, multiplier: 1, ring: 'out' });
+    await page.evaluate(() => { location.hash = '#/entrainement'; });
+    await page.waitForSelector('.trhub');
     await settle(page);
     let db = await readDb(page);
     const me = db.players.find(p => p.name === 'Alice');
@@ -49,7 +69,7 @@ test('première ouverture : bienvenue, modes, mise en place, accueil selon les m
     await page.evaluate(() => { location.hash = '#/'; });
     await page.waitForSelector('.t-main');
     assert.equal(await page.locator('.welcome.w2, .setup-card').count(), 0);
-    assert.equal(await page.locator('a.btn.accent.tr-btn[href="#/entrainement"]').count(), 1);
+    assert.equal(await page.locator('a.tr-btn.on[href="#/entrainement"]').count(), 1, 'séance en cours en tête de l\'accueil');
     // Réglages : mode soirée allumé → partie et joueurs reviennent ; Développement replié.
     await page.evaluate(() => { location.hash = '#/reglages'; });
     await page.waitForSelector('.settings2');

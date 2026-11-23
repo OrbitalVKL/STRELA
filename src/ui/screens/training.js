@@ -288,7 +288,9 @@ function startFrom(key, game = null) {
 // ------------------------------------------------------------------ saisie
 const tr = () => store.tr;
 /** Zone de la cible visée, à souligner dans le choix de la zone (pavé, 23/11) : 'in', 'out', 'd', 't', ou null. */
-const aimedZone = st => (st && st.cur && st.cur.s !== 25 ? ({ si: 'in', se: 'out', d: 'd', t: 't' }[st.cur.z] || null) : null);
+const aimedZone = st => (st && st.cur && st.cur.s !== 25 ? (padRing() ? ({ si: 'in', se: 'out', d: 'd', t: 't' }[st.cur.z] || null) : ({ s: 's', si: 's', se: 's', d: 'd', t: 't' }[st.cur.z] || null)) : null);
+/** Le pavé demande-t-il simple intérieur ou extérieur ? (réglage `padRing`, désactivé par défaut) */
+export const padRing = () => store.settings.padRing === true;
 
 /** Fléchettes de la volée affichée : celle en cours, ou la précédente (estompée) tant que la suivante n'a pas commencé. */
 function shownVisit(r, st) {
@@ -445,8 +447,11 @@ function keyPad(r, st) {
   if (pick) {
     const az = aimedZone(st);
     const b = (z, big, word) => `<button type="button" class="key zk${az === z ? ' aimz' : ''}" data-act="tr-zonepick" data-arg="${z}" data-press><span class="kl" data-shrink>${big}<small>${word}</small></span></button>`;
+    // Réglage « Simple intérieur / extérieur » (Réglages › Saisie, demande de Guillaume du 23/11) : activé, le simple se
+    // précise en intérieur ou extérieur ; sinon un seul SIMPLE (placé, pour les distances, au milieu du secteur).
+    const ringRow = padRing() ? `${b('in', String(pick), 'SIMPLE INT.')}${b('out', String(pick), 'SIMPLE EXT.')}` : `<span class="span2">${b('s', String(pick), 'SIMPLE')}</span>`;
     grid = `<div class="pickp" role="group" aria-label="Zone du ${pick}">
-      <div class="krow two">${b('in', String(pick), 'SIMPLE INT.')}${b('out', String(pick), 'SIMPLE EXT.')}</div>
+      <div class="krow two">${ringRow}</div>
       <div class="krow two">${b('d', `D${pick}`, 'DOUBLE')}${b('t', `T${pick}`, 'TRIPLE')}</div>
       <button type="button" class="key pback" data-act="tr-pick-cancel" data-press>${ico('undo')}<span class="kl" data-shrink>AUTRE NOMBRE</span></button></div>`;
   } else {
@@ -971,6 +976,7 @@ export const actions = {
     const n = r.ui.pick;
     if (z === 'd' || z === 't') return play(makeDart(n, z === 'd' ? 2 : 3));
     if (z === 'in' || z === 'out') return play({ segment: n, multiplier: 1, ring: z });
+    if (z === 's') return play({ segment: n, multiplier: 1 });
   },
   'tr-pick-cancel'() { const r = tr(); if (r) { r.ui.pick = null; refresh(); } },
   'tr-rules'() { const r = tr(); if (r) { r.ui.rules = !r.ui.rules; r.ui.pause = false; refresh(); } },

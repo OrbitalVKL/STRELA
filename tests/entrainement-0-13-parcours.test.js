@@ -30,6 +30,9 @@ test('couleurs, jeu changé en pleine séance, note, mise de côté, reprise', {
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
     await openApp(page, srv.url);
+    // Réglage « Simple intérieur / extérieur » activé (désactivé par défaut) : ces parcours vérifient l'anneau du simple.
+    await page.evaluate(() => { location.hash = '#/reglages'; });
+    await page.click('[data-act="pad-ring"][data-arg="1"]');
     await createPlayer(page, 'Alpha', { color: 0 });
 
     // Armurerie : fût doré, empennage bleu sur la torpedo.

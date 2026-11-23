@@ -5,6 +5,7 @@ export const CHANGELOG = Object.freeze([
   { v: '0.17.0', date: '2026-11-23', title: 'Modes, bienvenue, réglages, exports, installation', items: [
     'Deux modes à allumer dans les Réglages : Entraînement et Soirée. Entraînement seul : un accueil épuré (S\'ENTRAÎNER, stats, armurerie, conseils), sans joueurs, verres ni classement. Les données restent toutes, quel que soit le mode.',
     'Première ouverture : un message de bienvenue avec le choix des modes, puis une mise en place guidée (ton nom, ton avatar, tes fléchettes), chaque étape passable ; tant qu\'elle n\'est pas finie, une carte « Terminer la mise en place » reste sur l\'accueil.',
+    'Réglages › Saisie : « Simple intérieur / extérieur ». Désactivé, le pavé propose SIMPLE, DOUBLE, TRIPLE après le nombre ; activé, le simple se précise en intérieur ou extérieur, pour des distances plus justes.',
     'Tutoriel : six pages à faire défiler sur les grands écrans ; rouvrable dans Réglages › À propos.',
     'Réglages réorganisés : Mises à jour en tête, puis Profil, Modes de l\'application, Matériel, Affichage, Son et animations, Données et sauvegarde, À propos ; les essais (son, voix, vibration), le sommaire de maquette et le diagnostic dans « Développement », replié tout en bas.',
     'Mise à jour : recherche à chaque ouverture de l\'appli ; une version disponible s\'affiche sur l\'accueil, bouton rouge qui bat doucement ; PLUS TARD la masque 3 jours (sauf mise à jour importante). Sans connexion, rien ne s\'affiche.',

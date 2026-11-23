@@ -208,6 +208,7 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
   tests/lot8-appli*.test.js. Coquille Android : Updater (recherche à chaque ouverture, version importante), Bridge
   (noms de fichiers des deux exports).
 - Choix faits sans Guillaume (à lui dire) : sans réglage, une installation qui a déjà des parties garde le mode soirée ;
+  réglage « Simple intérieur / extérieur » du pavé désactivé par défaut (demande du 23/11 : « option activable ») ;
   essais du son, de la voix et des vibrations rangés dans « Développement » ; PLUS TARD masque 3 jours ; « [important] »
   dans les notes de la release marque une mise à jour importante.
 

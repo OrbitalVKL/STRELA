@@ -340,6 +340,9 @@ export function settings2Screen() {
       ${card('wrench', 'Matériel', null, `
         <a class="lrow" href="#/armurerie">${ico('wrench')}<span><b>Armurerie</b><small>${plural(sets, 'jeu de fléchettes', 'jeux de fléchettes')}</small></span>${ico('chev')}</a>
         <a class="lrow" href="#/conseils">${ico('info')}<span><b>Conseils</b><small>Prise en main, posture, lancer, types de fléchettes</small></span>${ico('chev')}</a>`)}
+      ${card('target', 'Saisie', 'saisie', `
+        ${s2box('saisie', 'Au pavé (téléphone debout), on choisit le nombre, puis sa zone : simple, double ou triple. Activé, le simple se précise en intérieur (entre le centre et le triple) ou extérieur (entre le triple et le double) : la distance à la cible et le groupement sont alors plus justes. Couché, sur la cible au doigt, la zone exacte est toujours gardée.')}
+        <div class="rows">${srow('pad-ring', 'Simple intérieur / extérieur', 'Au pavé, préciser la couronne du simple', store.settings.padRing === true)}</div>`)}
       ${card('theme', 'Affichage', 'aff', `
         ${s2box('aff', 'Auto suit le réglage du téléphone (sombre ou clair). Le mode nuit passe la console en rouge atténué, pour la pénombre ; il ne s\'applique qu\'en sombre.')}
         <div class="seg" role="group" aria-label="Thème">${b('auto', 'Auto')}${b('dark', 'Sombre')}${b('light', 'Clair')}</div>
@@ -427,6 +430,7 @@ export const actions = {
   'update-install'() { call('installUpdate'); },
   'auto-update'(v) { saveSetting('autoUpdate', v === '1'); refresh(); },
   'update-snooze'() { const u = updateInfo(); saveSetting('updSnooze', { v: u.latest || '', until: Date.now() + SNOOZE_DAYS * 86400000 }); refresh(); },
+  'pad-ring'(v) { saveSetting('padRing', v === '1'); refresh(); },
   'mode-train'(v) { setMode('train', v === '1'); refresh(); },
   'mode-soiree'(v) { setMode('soiree', v === '1'); refresh(); },
   autoBackup(v) { saveSetting('autoBackup', v === '1'); refresh(); }, // lot 9

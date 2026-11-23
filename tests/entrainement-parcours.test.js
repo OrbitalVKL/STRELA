@@ -72,6 +72,9 @@ test('séance coachée au pavé : intérieur / extérieur, hors cible, ANNULER, 
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
     await openApp(page, srv.url);
+    // Réglage « Simple intérieur / extérieur » activé (désactivé par défaut) : ces parcours vérifient l'anneau du simple.
+    await page.evaluate(() => { location.hash = '#/reglages'; });
+    await page.click('[data-act="pad-ring"][data-arg="1"]');
     await createPlayer(page, 'Alpha', { color: 0 });
     // Accueil : le bouton Entraînement, à côté de la partie et de la soirée.
     await page.evaluate(() => { location.hash = '#/'; });
@@ -145,6 +148,9 @@ test('séance libre à la cible (paysage) : position gardée, anneau déduit, ho
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
     await openApp(page, srv.url);
+    // Réglage « Simple intérieur / extérieur » activé (désactivé par défaut) : ces parcours vérifient l'anneau du simple.
+    await page.evaluate(() => { location.hash = '#/reglages'; });
+    await page.click('[data-act="pad-ring"][data-arg="1"]');
     await createPlayer(page, 'Bravo', { color: 2 });
     // Armurerie : nouveau jeu d'après un modèle, renommé.
     await page.evaluate(() => { location.hash = '#/armurerie/nouveau/fusele-20'; });

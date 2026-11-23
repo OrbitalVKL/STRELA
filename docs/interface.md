@@ -968,6 +968,9 @@ d'affichage nouveaux (`modes`, `setup`, `profile`, `updSnooze`, `heatScale`), ch
   modes, nom, avatar (icône et fond), jeu de fléchettes (ou CRÉER MON JEU), fin ; PASSER à chaque étape. Réglage
   `setup` `{ started, step, done }` ; tant que `done` manque, carte « Terminer la mise en place » à l'accueil et dans
   Réglages › Profil. Une installation d'avant (joueurs, parties ou séances) est considérée comme mise en place.
+- **Saisie au pavé** (demande de Guillaume du 23/11, après le cahier) : réglage `padRing` (Réglages › Saisie, désactivé par
+  défaut). Désactivé : après le nombre, SIMPLE (sans anneau : point au milieu du secteur pour les distances), DOUBLE,
+  TRIPLE ; activé : SIMPLE INT., SIMPLE EXT., DOUBLE, TRIPLE (comme la 0.15.0).
 - **Tutoriel** (6.3) : `#/tutoriel`, six pages à faire défiler (scroll-snap) ; Réglages › À propos, accueil entraînement.
 - **Réglages** (7.1) : Mises à jour (en tête), Profil, Modes de l'application, Matériel, Affichage (thème, mode nuit,
   cartes de chaleur), Son et animations, Données et sauvegarde, À propos (nouveautés, tutoriel, installer, à propos),
