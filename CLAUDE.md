@@ -1,6 +1,6 @@
 # Strela — règles du projet
 
-Appli Android de fléchettes (X01, Cricket depuis la 0.10.0, entraînement solo depuis la 0.12.0, niveau intermédiaire depuis la 0.13.0) pour Guillaume. Dépôt `OrbitalVKL/STRELA` (public, branche `main`).
+Appli Android de fléchettes (X01, Cricket depuis la 0.10.0, entraînement solo depuis la 0.12.0, niveau intermédiaire depuis la 0.13.0, X01 et Cricket en solo à l'entraînement depuis la 0.14.0) pour Guillaume. Dépôt `OrbitalVKL/STRELA` (public, branche `main`).
 Cahier des charges : [docs/cahier-des-charges.md](docs/cahier-des-charges.md).
 
 ## Méthode de travail
@@ -189,7 +189,18 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 0.11 | Retours de la soirée du 20/11 : VALIDER en un appui, bandeau du défi, pastilles de rang, Tsia (menus, dégrisement), HPV, Atila et la moto d'Angelina, badges (fenêtre, rangs, soirée, roi des uns), 6 défis et étoiles, tirage vérifié (v0.11.0) — **fait, en attente de validation sur le Pixel** |
 | 8 | Entraînement solo : coaché (7 exercices débutant, analyse, conseils, niveau) et libre, saisie S INT. / S EXT., armurerie, stats entraînement / parties / les deux, conseils illustrés, base v3 (v0.12.0) — **fait, en attente de validation sur le Pixel** |
 | 8.1 | Entraînement : couleurs des pièces, dessin au choix du jeu, changer de jeu en pleine séance, niveau intermédiaire (5 exercices) et objectifs par niveau, gestion des séances (note, jeu, joueur, mise de côté, reprise) (v0.13.0) — **fait, en attente de validation sur le Pixel** |
+| 8.2 | Entraînement : mode JEUX, X01 et Cricket en solo aux vraies règles ; triples, doubles et carte de chaleur des stats réservés aux jeux et parties (v0.14.0) — **fait, en attente de validation sur le Pixel** |
 | 11 | Recette |
+
+## État (version 0.14.0 : X01 et Cricket en solo)
+
+- **0.14.0** (23/11) : mode JEUX de l'entraînement (docs/entrainement.md, « Jeux en solo »). **Aucune migration** :
+  `mode: 'jeu'` et champ facultatif `game` des séances ; testés (tests/entrainement-0-14*.test.js), sauvegarde comprise.
+- Choix faits sans Guillaume (à lui dire) : Cricket solo sans points (on ferme le 20 au 15 et le bull) ; « doubles » des
+  stats = part des fléchettes dans un double (50 compris), la finition au double est un chiffre à part (X01) ; précision
+  et groupement ne comptent plus que les exercices ; objectifs X01 30 / 45 / 60, MPR 1 / 1,5 / 2,2 ; les jeux ne
+  comptent pas pour le niveau.
+- À vérifier sur le Pixel : un 501 complet (finition proposée, bust), un Cricket, la fin (carte, manches), les stats.
 
 ## État (version 0.13.0 : entraînement, suite)
 

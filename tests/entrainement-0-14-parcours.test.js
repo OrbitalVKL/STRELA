@@ -52,7 +52,7 @@ test('jeux en solo : X01 et Cricket, stats réservées aux jeux', { skip, timeou
     assert.match(await page.innerText('.taim .zl'), /FINITION 1/);
     await key(page, '1');
     await page.waitForSelector('.trend');
-    assert.match(await page.innerText('.trend .kpi[data-k="value"]'), /180,0/);
+    assert.match(await page.innerText('.trend .kpi[data-k="value"]'), /150,5/, "301 en 6 fléchettes");
     await page.click('[data-act="tr-finish-again"]');
     await page.waitForSelector('.game.trgame');
     await settle(page);

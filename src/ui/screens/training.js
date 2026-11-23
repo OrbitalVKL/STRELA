@@ -381,7 +381,7 @@ function keyPad(r, st) {
 
 function band(r) {
   const g = cleanGame(r.exercise, r.game);
-  const what = r.exercise === 'libre' ? 'LIBRE' : r.exercise === 'x01' ? `${g.startScore} · ${g.outMode === 'double' ? 'DOUBLE' : 'SIMPLE'}` : EXERCISES[r.exercise].name.toUpperCase();
+  const what = r.exercise === 'libre' ? 'LIBRE' : r.exercise === 'x01' ? `${g.startScore} · ${g.outMode === 'double' ? 'DOUBLE' : 'SIMPLE'}` : r.exercise === 'cricket' ? 'CRICKET' : EXERCISES[r.exercise].name.toUpperCase();
   return `<header class="tband" data-layer><span class="t ell">ENTRAÎNEMENT · ${esc(what)}</span>
     <button type="button" class="pause" data-act="tr-pause" data-press aria-label="Pause">${ico('pause')}</button></header>`;
 }

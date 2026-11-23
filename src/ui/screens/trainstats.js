@@ -165,8 +165,8 @@ function bySetGames(sessions) {
   if (!rows.size) return '';
   const list = [...rows.values()];
   const hasX = list.some(x => x.x01.length), hasC = list.some(x => x.cricket.length);
-  return `<table class="sectab trtab"><thead><tr><th>Jeu</th><th>Fl.</th>${hasX ? '<th>Moy.</th>' : ''}${hasC ? '<th>MPR</th>' : ''}<th>T %</th><th>D %</th></tr></thead><tbody>
-    ${list.map(x => `<tr><th class="ell">${esc(setName(x.k))}</th><td>${x.n}</td>${hasX ? `<td>${dec1(gameValue(x.x01))}</td>` : ''}${hasC ? `<td>${dec2(gameValue(x.cricket))}</td>` : ''}<td>${pctOf(x.n ? x.t / x.n : null)}</td><td>${pctOf(x.n ? x.d / x.n : null)}</td></tr>`).join('')}</tbody></table>`;
+  return `<table class="sectab trtab"><thead><tr><th>Jeu</th>${hasX && hasC ? '' : '<th>Fl.</th>'}${hasX ? '<th>Moy.</th>' : ''}${hasC ? '<th>MPR</th>' : ''}<th>T %</th><th>D %</th></tr></thead><tbody>
+    ${list.map(x => `<tr><th class="ell">${esc(setName(x.k))}</th>${hasX && hasC ? '' : `<td>${x.n}</td>`}${hasX ? `<td>${dec1(gameValue(x.x01))}</td>` : ''}${hasC ? `<td>${dec2(gameValue(x.cricket))}</td>` : ''}<td>${pctOf(x.n ? x.t / x.n : null)}</td><td>${pctOf(x.n ? x.d / x.n : null)}</td></tr>`).join('')}</tbody></table>`;
 }
 
 function bySet(sessions) {
