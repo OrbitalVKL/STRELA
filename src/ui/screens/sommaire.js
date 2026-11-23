@@ -32,6 +32,7 @@ import { presetTraining, presetDetail } from './training.js';
 import { presetTrainStats } from './trainstats.js';
 import { presetTrainSheet } from '../trainhonours.js';
 import { presetInfo } from '../info.js';
+import { presetVoice } from '../voiceinput.js';
 import { aimedDart, rng, simulateSoloX01, simulateSoloCricket } from '../mock.js';
 
 // Lot 7 : jouer jusqu'au bout à 4 (301, sortie simple) ; après PO1, Guillaume, Mathilde et Karim sont à 80, Sacha à 301.
@@ -571,6 +572,14 @@ export const SCENES = {
   'bienvenue-fin': () => '#/bienvenue/fin',
   tutoriel: () => '#/tutoriel',
   installer: () => '#/installer',
+  // Lot 9.3 : saisie à la voix.
+  'voix-ecoute': () => { setGame(cfg(['p1', 'p2']), 'T20'); presetVoice({ listening: true, partial: 'triple vingt double' }); return '#/jeu'; },
+  'voix-entendu': () => { setGame(cfg(['p1', 'p2']), 'T20 D16'); presetVoice({ heard: 'triple vingt double seize', labels: ['T20', 'D16'] }); return '#/jeu'; },
+  'voix-trop': () => { setGame(cfg(['p1', 'p2']), 'T20 D16 S20'); store.current.validated = 0; presetVoice({ heard: 'triple vingt double seize vingt vingt', labels: ['T20', 'D16', '20'], msg: '1 fléchette en trop, ignorée.', alert: true }); return '#/jeu'; },
+  'voix-erreur': () => { setGame(cfg(['p1', 'p2']), ''); presetVoice({ heard: 'triple de seize', msg: 'Mot non compris : « de ».', alert: true }); return '#/jeu'; },
+  'voix-explication': () => { setGame(cfg(['p1', 'p2']), ''); presetVoice({ explain: true }); return '#/jeu'; },
+  'voix-cricket': () => { const h = setCk(['p1', 'p2'], CK2); presetVoice({ listening: true, partial: '' }); return h; },
+  'voix-entrainement': () => { const h = setTr('groupement', 2); presetVoice({ heard: 'vingt intérieur triple vingt', labels: ['20 INT.', 'T20'] }); return h; },
   'reglages-refonte': () => { store.mockApk = true; store.mockUpdate = { current: '0.16.0', latest: '0.17.0', available: true, state: 'idle', msg: 'Version 0.17.0 disponible.' }; return '#/reglages'; },
   'reglages-developpement': () => '#/reglages',
   'maj-importante': () => { store.mockApk = true; store.mockUpdate = { current: '0.16.0', latest: '0.17.0', available: true, important: true, state: 'idle' }; return '#/'; },
@@ -851,6 +860,13 @@ export function sommaire() {
       ${L('tutoriel', '◆ Tutoriel')}
       ${L('installer', '◆ Installer Strela', 'lien et mode d\'emploi')}
       ${L('reglages-refonte', '◆ Réglages refondus', 'mise à jour en tête')}
+      ${L('voix-ecoute', '◇ Voix : écoute', 'lot 9.3, touche micro du pavé')}
+      ${L('voix-entendu', '◇ Voix : phrase entendue', 'fléchettes posées')}
+      ${L('voix-trop', '◇ Voix : fléchette en trop')}
+      ${L('voix-erreur', '◇ Voix : pas compris')}
+      ${L('voix-explication', '◇ Voix : micro expliqué', 'avant la demande d\'Android')}
+      ${L('voix-cricket', '◇ Voix : Cricket', 'micro dans le bandeau')}
+      ${L('voix-entrainement', '◇ Voix : entraînement')}
       ${L('maj-importante', '◆ Accueil : mise à jour importante')}
       ${L('reglages-maj', '10 · Réglages : mise à jour disponible', 'INSTALLER')}
       ${L('reglages-maj-telechargement', '10 · Réglages : téléchargement', '42 %')}

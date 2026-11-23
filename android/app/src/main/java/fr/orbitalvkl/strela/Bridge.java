@@ -100,6 +100,26 @@ public class Bridge {
     @JavascriptInterface
     public String voice() { return act.speech.info(); }
 
+    // ------------------------------------------------------------------ saisie à la voix (lot 9.3)
+    /** { available, onDevice, permission: granted|ask|denied, listening } : le bouton micro n'apparaît que si available. */
+    @JavascriptInterface
+    public String listenInfo() { return act.listen.info(); }
+
+    /**
+     * Appui sur le micro : 'started' (écoute, la phrase arrive par l'événement strela-native { listen }), 'permission'
+     * (Android demande le micro, l'écoute suit si accordée), 'absent' (pas de reconnaissance vocale), 'error'.
+     */
+    @JavascriptInterface
+    public String listenStart() { return act.listen.start(); }
+
+    /** Fin de l'écoute (nouvel appui) : ce qui a été dit est analysé. */
+    @JavascriptInterface
+    public void listenStop() { act.listen.stop(); }
+
+    /** Abandon de l'écoute (écran quitté). */
+    @JavascriptInterface
+    public void listenCancel() { act.listen.cancel(); }
+
     // ------------------------------------------------------------------ fichiers
     /**
      * Sauvegarde : écrite dans Téléchargements/Strela/<name> (MediaStore, sans permission) ; `share` : puis proposée au

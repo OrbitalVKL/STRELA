@@ -1,6 +1,6 @@
 # Strela — règles du projet
 
-Appli Android de fléchettes (X01, Cricket depuis la 0.10.0, entraînement solo depuis la 0.12.0, niveau intermédiaire depuis la 0.13.0, X01 et Cricket en solo à l'entraînement depuis la 0.14.0) pour Guillaume. Dépôt `OrbitalVKL/STRELA` (public, branche `main`).
+Appli Android de fléchettes (X01, Cricket depuis la 0.10.0, entraînement solo depuis la 0.12.0, niveau intermédiaire depuis la 0.13.0, X01 et Cricket en solo à l'entraînement depuis la 0.14.0, saisie à la voix depuis la 0.18.0) pour Guillaume. Dépôt `OrbitalVKL/STRELA` (public, branche `main`).
 Cahier des charges : [docs/cahier-des-charges.md](docs/cahier-des-charges.md).
 
 ## Méthode de travail
@@ -52,7 +52,7 @@ assets/icon.svg           icône « Soyouz » (lot 6, grille 108) ; tools/make-i
                           icon-mono.svg, les calques vectoriels d'Android (res/drawable) et docs/play/icone-512.png
 confidentialite.html      politique de confidentialité (lot 6), publiée sur Pages ; liée depuis À propos
 android/                  coquille Android (lot 5, docs/android.md) : MainActivity, Bridge (passerelle strelaNative),
-                          Speech (voix) ; page copiée dans app/src/main/assets/www/ par apk-page.sh. Lot 6 : variantes
+                          Speech (voix), Listen (saisie à la voix, lot 9.3) ; page copiée dans app/src/main/assets/www/ par apk-page.sh. Lot 6 : variantes
                           src/github (Updater, UpdateBridge, Flavor : mise à jour, INTERNET) et src/play (Flavor vide)
 src/data/db.js            base du téléphone (IndexedDB) : migrations, relecture, écritures en une transaction ; sans DOM
 src/data/backup.js        sauvegarde JSON (lot 3) : format, vérification, REMPLACER TOUT / FUSIONNER ; sans DOM
@@ -105,6 +105,8 @@ src/ui/screens/welcome.js bienvenue et mise en place guidée, tutoriel, installe
                           src/engine/aiexport.js : export pour une IA
 src/engine/fun.js         jeux de cible solo (lot 8 du 23/11) ; src/engine/trainbadges.js : badges d'entraînement et petits
                           défis en séance ; src/ui/trainhonours.js : leur vitrine et leur fenêtre
+src/engine/voice.js       saisie à la voix (lot 9.3) : phrase entendue → fléchettes et commandes (pur, tests/voix.test.js) ;
+                          src/ui/voiceinput.js : micro, écoute (passerelle ou SpeechRecognition), phrase entendue
 src/engine/shuffle.js     tirage au sort de l'ordre (Fisher-Yates sans biais, 0.11.0 ; tests/tirage.test.js)
 src/engine/alcohol.js     verres : comptes (verre 25 cl, pinte 50 cl = 2 verres, 0.8.2), place dans la partie, alcoolémie estimée (lot 7) ;
                           src/ui/drinks.js : choix verre / pinte et affichage du compte (0.8.2)
@@ -198,7 +200,19 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 8.1 | Entraînement : couleurs des pièces, dessin au choix du jeu, changer de jeu en pleine séance, niveau intermédiaire (5 exercices) et objectifs par niveau, gestion des séances (note, jeu, joueur, mise de côté, reprise) (v0.13.0) — **fait, en attente de validation sur le Pixel** |
 | 8.2 | Entraînement : mode JEUX, X01 et Cricket en solo aux vraies règles ; triples, doubles et carte de chaleur des stats réservés aux jeux et parties (v0.14.0) — **fait, en attente de validation sur le Pixel** |
 | 8 (23/11) | Entraînement, stats et distribution (docs/lot-8-avancement.md) : 0.15.0 = saisie précise, règles, stats, listes en cartes — **fait** ; 0.16.0 = jeux de cible, défis en X01 solo, badges d'entraînement — **fait** ; 0.17.0 = modes, accueil, réglages, exports, installation — **fait** ; 0.17.1 = choix de la zone (rangées ou secteur) — **fait** |
+| 9 (23/11) | Lot 9 (docs/lot-9-avancement.md) : 0.18.0 = 9.3 saisie à la voix — **fait** ; 0.19.0 = 9.2 partie en ligne — à faire ; 9.1 (iPhone) et 9.4 (audio en ligne) reportés |
 | 11 | Recette |
+
+## État (version 0.18.0 : lot 9.3, saisie à la voix)
+
+- **Reprise** : lire docs/lot-9-avancement.md (découpage, décisions, prochain geste : 9.2 partie en ligne) et docs/lot-9.md.
+- **0.18.0** (23/11) : saisie à la voix (docs/interface.md « Version 0.18.0 », docs/android.md « Saisie à la voix »).
+  Aucune migration (réglages `voiceInput`, `voiceAsked`). Coquille : Listen.java, RECORD_AUDIO (les deux variantes),
+  `<queries>` RecognitionService ; passerelle `listenInfo` / `listenStart` / `listenStop` / `listenCancel`.
+- Choix faits sans Guillaume (à lui dire) : un appui (pas un appui maintenu) ; touche VOIX dans la rangée S / D / T en
+  X01 ; fléchettes en trop ignorées ; réglage OUI par défaut ; micro aussi dans la variante play.
+- À vérifier sur le Pixel : reconnaissance en français dans le bruit, hors ligne (langue installée ?), mots mal
+  reconnus à ajouter dans src/engine/voice.js (`WORDS`).
 
 ## État (version 0.17.1 : choix de la zone au pavé)
 

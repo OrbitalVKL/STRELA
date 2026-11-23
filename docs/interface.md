@@ -952,6 +952,44 @@ bouton ENTRAÎNEMENT SOLO sous la soirée (ENTRAÎNEMENT EN COURS en vidéo inve
 joueur : bouton STATS D'ENTRAÎNEMENT s'il a des séances. La saisie au doigt sur la cible est passée dans
 `src/ui/boardinput.js` (même comportement en partie).
 
+## Version 0.18.0 (lot 9.3 : saisie à la voix)
+
+Cahier : docs/lot-9.md (9.3) ; avancement : docs/lot-9-avancement.md. **Aucune migration** : réglages d'affichage
+nouveaux `voiceInput` (OUI par défaut) et `voiceAsked` (explication du micro déjà vue).
+
+- **Analyse** (src/engine/voice.js, pur, tests/voix.test.js) : `parse(phrase)` → actions `{ dart }` / `{ cmd: 'undo' |
+  'validate' }` dans l'ordre de la phrase ; `interpret(propositions)` prend la première si elle est comprise, sinon les
+  suivantes seulement si elles disent toutes la même chose (sinon `AMBIGUOUS`). Vocabulaire : simple / double / triple
+  (+ variantes « tripe », « doublé »…), nombres en lettres (« vin », « vain » = 20 ; « dix sept » = 17, « vingt cinq » =
+  25, « vingt et un » = 21 refusé) ou en chiffres, notation T20 / D16 ; « intérieur » / « extérieur » juste après un
+  simple de 1 à 20 (ou entre « simple » et le nombre) ; bull / bulle / centre / cinquante / double bull = 50 ; 25 /
+  demi-bull / simple bull = 25 ; dehors / raté / zéro / à côté / hors cible = 0 ; mots de liaison ignorés (et, puis,
+  euh, le, dans…). Tout autre mot (« de » pris pour « deux ») fait refuser la phrase ; 4 fléchettes ou plus aussi.
+- **Écran** (src/ui/voiceinput.js) : chaque écran de saisie s'inscrit (`registerVoice(route, { ready, play, undo,
+  validate })`) — X01 (`#/jeu`), Cricket, entraînement. Fléchettes posées une à une comme au pavé (mêmes sons,
+  annonces, célébrations) ; refusées pendant une volée en attente de VALIDER (« N fléchettes en trop, ignorées ») ou
+  après une fin de manche (l'écran a changé). « valider » = VALIDER ; à l'entraînement (pas de VALIDER), rien. X01 : la
+  couronne est oubliée (comme le pavé de partie) ; entraînement : gardée (`ring`). Pas de position : stats comme le pavé
+  (centre de la case, mention d'approximation).
+- **Micro** : X01, touche VOIX dans la rangée S / D / T (portrait ; le bandeau du joueur n'avait plus la place, test de
+  chevauchement) et entre ANNULER et VALIDER (paysage) ; Cricket et entraînement, bouton dans le bandeau à côté de la
+  pause. En portrait, pendant l'attente de VALIDER, le bouton VALIDER couvre le pavé (et la touche VOIX) : « valider »
+  se dit alors dans la même phrase, ou on touche VALIDER. Vidéo inverse et pictogramme qui clignote pendant l'écoute ;
+  nouvel appui = fin de l'écoute. Absent si le réglage est NON, sans moteur (navigateur sans SpeechRecognition, APK sans
+  service vocal) ou si `blockVoice` est posé (prévu pour 9.4, appel audio).
+- **Phrase entendue** (`.vline`, calque en haut à gauche, sans prendre les appuis) : « J'ÉCOUTE… » et la phrase
+  partielle, puis les fléchettes prises (T20 · D16 · 20 INT. · ANNULÉ · VALIDÉ) et la phrase entre guillemets, ou le
+  message d'erreur ; 7 s. **Confirmation dite** (si les annonces sont actives) : « triple 20, double 16 », sauf si
+  l'écran a déjà annoncé quelque chose (total de la volée, bust) : elle le couperait.
+- **Explication** (APK, première fois, micro pas encore accordé) : fenêtre « Saisie à la voix » (ce qui est écouté,
+  quand, par qui ; rien d'enregistré) avec AUTORISER LE MICRO, puis Android demande. Micro refusé : message vers les
+  réglages d'Android.
+- Moteur : APK → passerelle (docs/android.md « Saisie à la voix ») ; navigateur → `SpeechRecognition` /
+  `webkitSpeechRecognition` (`fr-FR`, 5 propositions), pour la future version web.
+- Sommaire : scènes `voix-ecoute`, `voix-entendu`, `voix-trop`, `voix-erreur`, `voix-explication`, `voix-cricket`,
+  `voix-entrainement`. Tests : tests/voix.test.js (analyse), tests/voix-parcours.test.js (moteur simulé, navigateur et
+  APK).
+
 ## Version 0.17.1 (23/11 : choix de la zone au pavé)
 
 Demande de Guillaume sur maquettes (A, B, C proposées en images ; « je prends B et C, sélectionnable dans les

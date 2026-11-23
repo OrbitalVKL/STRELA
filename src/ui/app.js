@@ -37,6 +37,7 @@ import { trainStatsScreen, actions as trainStatsActions, inputs as trainStatsInp
 import { trainSheetHtml, closeTrainSheet, actions as trainHonourActions } from './trainhonours.js';
 import { arsenalList, arsenalForm, inputs as arsenalInputs, actions as arsenalActions } from './screens/arsenal.js';
 import { adviceList, adviceSheet } from './screens/advice.js';
+import { voiceOverlayHtml, voiceRoute, actions as voiceActions } from './voiceinput.js';
 import { welcomeScreen, tutorialScreen, installerScreen, actions as welcomeActions, inputs as welcomeInputs } from './screens/welcome.js';
 
 // Version 0.8.0 : la refonte (lot 7.8, écrans de screens/v2/) remplace l'accueil, l'historique, les stats et les
@@ -87,7 +88,7 @@ const ACTIONS = {
   ...playerActions, ...newGameActions, ...gameActions, ...resultActions,
   ...statsActions, ...settingsActions, ...historyActions, ...photoActions, ...aboutActions, ...sheetActions, ...soireeActions,
   ...stats2Actions, ...history2Actions, ...dashActions, ...infoActions, ...drinkActions, ...honourActions, ...cricketActions,
-  ...trainingActions, ...trainStatsActions, ...arsenalActions, ...trainHonourActions, ...welcomeActions,
+  ...trainingActions, ...trainStatsActions, ...arsenalActions, ...trainHonourActions, ...welcomeActions, ...voiceActions,
 };
 const INPUTS = { ...playerInputs, ...arsenalInputs, ...trainingInputs, ...trainStatsInputs, ...welcomeInputs };
 
@@ -140,6 +141,7 @@ function restoreScrolls(root, saved) {
 function draw() {
   const path = decodeURIComponent(location.hash.replace(/^#/, ''));
   const returning = noteRoute(location.hash || '#/');
+  voiceRoute(location.hash || '#/'); // lot 9.3 : l'écoute s'arrête en quittant l'écran de saisie
   if (path !== lastPath) { leaveHistory(path); leaveHistory2(path); } closeBadgeSheet(path); closeTrainSheet(path); // sélection et confirmations de l'historique oubliées en changeant d'écran ; fenêtre d'un badge fermée (lot 7.8)
   let html = null;
   let screenIdx = -1;
@@ -151,6 +153,7 @@ function draw() {
   if (!html) return; // l'écran a redirigé
   html += badgeSheetHtml(); // lot 7.8 : fenêtre d'un badge, par-dessus l'écran qui l'a ouverte
   html += trainSheetHtml(); // lot 8 du 23/11 : badge d'entraînement ou petit défi en séance
+  html += voiceOverlayHtml(); // lot 9.3 : phrase entendue, explication du micro
   const sameScreen = screenIdx === lastScreen;
   const y = window.scrollY;
   if (lastHash !== null) pageY.set(lastHash, y);

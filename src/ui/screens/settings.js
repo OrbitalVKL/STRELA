@@ -12,6 +12,7 @@ import { BUILD } from '../build.js';
 import { refresh, buzz, BUZZ, go } from '../nav.js';
 import { say, sound, voiceInfo } from '../feedback.js';
 import { isApk, call, callJson, onNative, nativeTheme, hasUpdater, nativeInfo } from '../native.js';
+import { voiceEngine } from '../voiceinput.js';
 
 const prefersLight = () => { try { return matchMedia('(prefers-color-scheme: light)').matches; } catch (e) { return false; } };
 export const isDark = () => store.settings.theme === 'dark' || (store.settings.theme === 'auto' && !prefersLight());
@@ -349,9 +350,10 @@ export function settings2Screen() {
         <a class="lrow" href="#/armurerie">${ico('wrench')}<span><b>Armurerie</b><small>${plural(sets, 'jeu de fléchettes', 'jeux de fléchettes')}</small></span>${ico('chev')}</a>
         <a class="lrow" href="#/conseils">${ico('info')}<span><b>Conseils</b><small>Prise en main, posture, lancer, types de fléchettes</small></span>${ico('chev')}</a>`)}
       ${card('target', 'Saisie', 'saisie', `
-        ${s2box('saisie', 'Au pavé (téléphone debout), on choisit le nombre, puis sa zone : simple, double ou triple. Activé, le simple se précise en intérieur (entre le centre et le triple) ou extérieur (entre le triple et le double) : la distance à la cible et le groupement sont alors plus justes. Couché, sur la cible au doigt, la zone exacte est toujours gardée. Choix de la zone : <b>Rangées</b>, une touche par zone, du bord (double) vers le bull, la tranche du secteur à gauche ; <b>Secteur</b>, la part de cible dessinée en grand, on touche la bande. Double : 2 barres ; triple : 3 barres.')}
+        ${s2box('saisie', 'Au pavé (téléphone debout), on choisit le nombre, puis sa zone : simple, double ou triple. Activé, le simple se précise en intérieur (entre le centre et le triple) ou extérieur (entre le triple et le double) : la distance à la cible et le groupement sont alors plus justes. Couché, sur la cible au doigt, la zone exacte est toujours gardée. Choix de la zone : <b>Rangées</b>, une touche par zone, du bord (double) vers le bull, la tranche du secteur à gauche ; <b>Secteur</b>, la part de cible dessinée en grand, on touche la bande. Double : 2 barres ; triple : 3 barres. <b>Saisie à la voix</b> : un appui sur le micro (en haut, à côté de la pause), puis on annonce ses fléchettes, « triple vingt, double seize, vingt-cinq » ; « vingt intérieur » ou « extérieur » pour la couronne du simple ; bull, centre ou cinquante (50) ; demi-bull (25) ; dehors, raté, à côté ; « annuler », « valider ». Les fléchettes reconnues s\'affichent comme au pavé et se corrigent au doigt ; rien n\'est validé sans « valider » ou un appui. Strela n\'écoute que le temps d\'une phrase et n\'enregistre rien.')}
         ${zonePadSetting()}
-        <div class="rows">${srow('pad-ring', 'Simple intérieur / extérieur', 'Au pavé, préciser la couronne du simple', store.settings.padRing === true)}</div>`)}
+        <div class="rows">${srow('pad-ring', 'Simple intérieur / extérieur', 'Au pavé, préciser la couronne du simple', store.settings.padRing === true)}
+          ${srow('voice-input', 'Saisie à la voix', voiceEngine() ? 'Bouton micro en jeu et à l\'entraînement' : 'Pas de reconnaissance vocale sur cet appareil', store.settings.voiceInput !== false && !!voiceEngine(), !voiceEngine())}</div>`)}
       ${card('theme', 'Affichage', 'aff', `
         ${s2box('aff', 'Auto suit le réglage du téléphone (sombre ou clair). Le mode nuit passe la console en rouge atténué, pour la pénombre ; il ne s\'applique qu\'en sombre.')}
         <div class="seg" role="group" aria-label="Thème">${b('auto', 'Auto')}${b('dark', 'Sombre')}${b('light', 'Clair')}</div>
@@ -440,6 +442,7 @@ export const actions = {
   'auto-update'(v) { saveSetting('autoUpdate', v === '1'); refresh(); },
   'update-snooze'() { const u = updateInfo(); saveSetting('updSnooze', { v: u.latest || '', until: Date.now() + SNOOZE_DAYS * 86400000 }); refresh(); },
   'pad-ring'(v) { saveSetting('padRing', v === '1'); refresh(); },
+  'voice-input'(v) { saveSetting('voiceInput', v === '1'); refresh(); }, // lot 9.3
   'zone-pad'(v) { if (v === 'rangees' || v === 'secteur') saveSetting('zonePad', v); refresh(); },
   'mode-train'(v) { setMode('train', v === '1'); refresh(); },
   'mode-soiree'(v) { setMode('soiree', v === '1'); refresh(); },

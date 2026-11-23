@@ -16,7 +16,7 @@ l'extension, le nom est vérifié), écrite dans Téléchargements/Strela par Me
 | Identifiant | `fr.orbitalvkl.strela` (inchangé : mise à jour en place depuis 0.5.0, données gardées) | `fr.orbitalvkl.strela.play` |
 | Format, diffusion | APK signé, release GitHub `apk-vX.Y.Z` (`strela.apk`) | Android App Bundle signé (`strela-play.aab`), artefact de la CI, jamais publié ; à envoyer sur Google Play |
 | Mise à jour | intégrée (`src/github` : `Updater`, `UpdateBridge`, `Flavor`) | aucune (Play Store) : ni code ni bouton (`src/play/Flavor.java`) |
-| Permissions | VIBRATE, INTERNET, REQUEST_INSTALL_PACKAGES (`src/github/AndroidManifest.xml`) | VIBRATE seulement (vérifié dans le manifeste fusionné : `tests/android.test.js`) |
+| Permissions | VIBRATE, RECORD_AUDIO (lot 9.3), INTERNET, REQUEST_INSTALL_PACKAGES (`src/github/AndroidManifest.xml`) | VIBRATE et RECORD_AUDIO, sans INTERNET (vérifié dans le manifeste fusionné : `tests/android.test.js`) |
 
 Les deux peuvent être installées ensemble (autorité du FileProvider : `${applicationId}.files`) ; leurs données sont
 séparées. La page connaît la variante par `info().variant` (`BuildConfig.FLAVOR`) et par la présence des fonctions de
@@ -31,6 +31,7 @@ mise à jour dans la passerelle (`hasUpdater()` de native.js).
 | `MainActivity.java` | WebView, WebViewAssetLoader (`https://appassets.androidplatform.net/assets/www/index.html`), liens externes dans le navigateur, encarts (barres, découpe, zone des gestes), sélecteur de fichiers (photo, sauvegarde), plein écran, écran allumé, retour |
 | `Bridge.java` | passerelle `strelaNative` (ci-dessous) |
 | `Speech.java` | voix française d'Android (TextToSpeech) |
+| `Listen.java` | lot 9.3 : saisie à la voix, reconnaissance vocale d'Android (SpeechRecognizer, français, sur le téléphone de préférence) |
 | `src/github/…/Updater.java`, `UpdateBridge.java`, `Flavor.java` | variante github : mise à jour depuis l'appli (dernière release GitHub de OrbitalVKL/STRELA, PackageInstaller), recherche automatique (lot 6) |
 | `src/play/…/Flavor.java` | variante play : rien en plus |
 | `res/mipmap-anydpi/ic_launcher.xml`, `res/drawable/ic_launcher_fg.xml`, `ic_launcher_mono.xml` | icône adaptative « Soyouz » (lot 6) : calques vectoriels tirés de `assets/icon.svg` (fond `@color/icon_bg` `#0A0C0E`), monochrome pour les icônes à thème ; produits par `tools/make-icons.mjs`, vérifiés par `tests/icone.test.js` |
@@ -55,6 +56,7 @@ La page cherche `window.strelaNative` ; sans elle (navigateur), elle garde les A
 | `keepScreenOn(oui)`, `immersive(oui)` | FLAG_KEEP_SCREEN_ON, barres masquées (rappel par geste) | `keepAwake()` : partie et fin de manche |
 | `setDark(oui)` | fond de la fenêtre, icônes des barres système | `applyTheme()` |
 | `gestureInset()` | zone des gestes en bas, px CSS (aussi posée dans `--gesture-native`) | marge basse du pavé |
+| `listenInfo()`, `listenStart()`, `listenStop()`, `listenCancel()` | lot 9.3 : saisie à la voix (ci-dessous) ; ce qui est entendu arrive par l'événement `strela-native` `{ listen: { type, texts, code } }` | `src/ui/voiceinput.js` |
 | `checkUpdate()`, `autoCheckUpdate()`, `installUpdate()`, `updateState()` | variante github seulement : mise à jour ; recherche automatique (GitHub au plus une fois par 24 h, sinon état gardé) ; l'état arrive aussi par l'événement `strela-native` `{ update }` | Réglages › Appli Android, repère de l'accueil |
 
 - **Sons** : Web Audio dans la WebView, sans geste préalable (`setMediaPlaybackRequiresUserGesture(false)`).
@@ -91,6 +93,25 @@ La page cherche `window.strelaNative` ; sans elle (navigateur), elle garde les A
   Une sauvegarde choisie pendant ce temps n'est pas perdue : la coquille la relit et la remet à la page (événement
   `importFile`, aperçu dans les Réglages). Une photo, elle, est à reprendre.
 - **Police** : la WebView applique la taille de police d'Android (comme Chrome) ; la page est vérifiée jusqu'à 130 %.
+
+## Saisie à la voix (lot 9.3)
+
+- `Listen.java` : `SpeechRecognizer` sur le fil de l'interface. Android 12 et plus : `createOnDeviceSpeechRecognizer`
+  si `isOnDeviceRecognitionAvailable` (tout reste sur le téléphone) ; si la langue n'y est pas (erreurs 12 et 13),
+  repli aussitôt sur le moteur habituel avec `EXTRA_PREFER_OFFLINE` (le moteur de Google peut alors passer par ses
+  serveurs : dit dans confidentialite.html). Français (`fr-FR`), 5 propositions, résultats partiels, vocabulaire des
+  fléchettes en `EXTRA_BIASING_STRINGS` (Android 13 et plus).
+- Une écoute par appui (`listenStart`), arrêtée par Android au silence ou par un nouvel appui (`listenStop`) ;
+  `listenCancel` en quittant l'écran, et à `onPause`. La synthèse vocale est coupée avant d'écouter (l'appli ne
+  s'écoute pas elle-même).
+- Permission `RECORD_AUDIO` demandée au premier appui seulement (`requestPermissions`, réponse dans
+  `onRequestPermissionsResult`, l'écoute suit si accordée) ; la page explique avant (fenêtre « Saisie à la voix »).
+  `<queries>` déclare `android.speech.RecognitionService` (visibilité des paquets, Android 11 et plus), sans quoi
+  `isRecognitionAvailable` répond faux.
+- Événements `{ listen: { type } }` : `start` (onDevice), `ready`, `speech`, `partial` (texts), `heard`, `result`
+  (texts), `error` (code de SpeechRecognizer), `permission` (granted), `end` (cancelled).
+- Pas vérifiable sur l'émulateur de la CI (pas de micro ni de service vocal) : vérifié par la passerelle simulée
+  (`tests/voix-parcours.test.js`) et à faire sur le Pixel.
 
 ## Premier lancement et données
 

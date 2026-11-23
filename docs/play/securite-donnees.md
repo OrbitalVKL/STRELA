@@ -22,8 +22,12 @@ que si l'appli collecte quelque chose.
 
 ## Justificatifs (si Google demande des précisions)
 
-- Permissions de la variante play : VIBRATE seulement (et une permission interne d'AndroidX, propre à l'appli). Ni
-  INTERNET, ni appareil photo, ni stockage, ni localisation, ni contacts. Vérifié à chaque compilation
+- Permissions de la variante play : VIBRATE et RECORD_AUDIO (lot 9.3, saisie à la voix ; et une permission interne
+  d'AndroidX, propre à l'appli). Ni INTERNET, ni appareil photo, ni stockage, ni localisation, ni contacts.
+- Micro (lot 9.3) : ouvert seulement après un appui sur le bouton micro, le temps d'une phrase ; la reconnaissance est
+  faite par le service vocal du téléphone (SpeechRecognizer d'Android), l'appli ne reçoit que le texte, ne garde ni
+  le son ni le texte et ne peut rien envoyer (pas d'INTERNET). Au sens de Play, l'appli ne collecte donc pas
+  d'« enregistrements audio » ; si Google demande, répondre « traité sur l'appareil, non collecté ». Vérifié à chaque compilation
   (`tests/android.test.js`, manifeste fusionné).
 - Photos : prises par l'appareil photo d'Android ou choisies par son sélecteur ; l'appli n'a pas la permission caméra.
 - Sauvegarde : fichier écrit dans Téléchargements/Strela à la demande de l'utilisateur, ou partagé par le menu de
