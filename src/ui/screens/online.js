@@ -63,7 +63,7 @@ function setupBlock(host) {
   const st = on.room.setup;
   const b = (act, v, label, cur) => `<button type="button" data-act="${act}" data-arg="${v}" aria-pressed="${cur === v}" ${host ? '' : 'disabled'}>${label}</button>`;
   const seg = (act, list, cur) => `<div class="seg">${list.map(([v, l]) => b(act, v, l, cur)).join('')}</div>`;
-  const legs = seg('on-legs', [1, 2, 3, 5].map(n => [String(n), n === 1 ? '1 manche' : `${n}`]), String(st.legsToWin));
+  const legs = seg('on-legs', [1, 2, 3, 5].map(n => [String(n), String(n)]), String(st.legsToWin));
   return `${sec('Partie')}
     ${seg('on-game', [['x01', 'X01'], ['cricket', 'Cricket']], st.game)}
     ${st.game === 'cricket'

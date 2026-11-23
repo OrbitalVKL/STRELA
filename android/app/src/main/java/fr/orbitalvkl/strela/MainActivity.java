@@ -96,6 +96,28 @@ public class MainActivity extends Activity {
         flavor.start();
         // Activité recréée (thème du téléphone changé) : la page revient où elle était ; sinon, l'accueil.
         if (state == null || web.restoreState(state) == null) web.loadUrl(START);
+        takeJoin(getIntent());
+    }
+
+    // ------------------------------------------------------------------ lot 9.2 : lien d'un salon en ligne
+    String pendingJoin;                     // code reçu avant que la page soit prête
+
+    @Override
+    protected void onNewIntent(Intent i) {
+        super.onNewIntent(i);
+        setIntent(i);
+        takeJoin(i);
+    }
+
+    /** strela://rejoindre/CODE → la page ouvre le salon (événement strela-native { join }). */
+    void takeJoin(Intent i) {
+        if (i == null || !Intent.ACTION_VIEW.equals(i.getAction()) || i.getData() == null) return;
+        Uri u = i.getData();
+        if (!"strela".equals(u.getScheme()) || !"rejoindre".equals(u.getHost())) return;
+        String code = u.getLastPathSegment();
+        if (code == null || !code.matches("[A-Za-z0-9]{3,8}")) return;
+        if (pageReady) { try { JSONObject d = new JSONObject(); d.put("join", code.toUpperCase(java.util.Locale.ROOT)); push(d); } catch (Exception e) { /* */ } }
+        else pendingJoin = code.toUpperCase(java.util.Locale.ROOT);
     }
 
     @Override
@@ -161,6 +183,9 @@ public class MainActivity extends Activity {
             public void onPageFinished(WebView v, String url) {
                 pageReady = true;
                 pushGesture();
+                if (pendingJoin != null) {
+                    try { JSONObject d = new JSONObject(); d.put("join", pendingJoin); pendingJoin = null; push(d); } catch (Exception e) { /* */ }
+                }
                 if (pendingImport != null) {
                     try { JSONObject d = new JSONObject(); d.put("importFile", pendingImport); pendingImport = null; push(d); } catch (Exception e) { /* */ }
                 }

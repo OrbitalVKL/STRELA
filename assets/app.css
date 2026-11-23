@@ -2229,10 +2229,11 @@ dl.rules dd { margin: 0; }
 .ontoast { position: fixed; z-index: 16; left: 50%; bottom: calc(var(--gesture-bottom, 16px) + 12px); transform: translateX(-50%); margin: 0; padding: 10px 14px;
   max-width: calc(100vw - 32px); background: var(--inv-bg); color: var(--inv-fg); font-size: 13px; font-weight: 700; letter-spacing: 0.04em; pointer-events: none; }
 /* Salon */
-.oncodebox { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; margin-top: 14px; padding: 12px; border: var(--rule); }
-.oncodebox > div:first-child { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+/* Code au-dessus, QR code dessous (le code en grand ne tient pas à côté du QR sur un petit écran). */
+.oncodebox { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 14px; padding: 12px; border: var(--rule); text-align: center; }
+.oncodebox > div:first-child { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; width: 100%; }
 .oncodebig { font-size: clamp(30px, 11vw, 44px); font-weight: 800; letter-spacing: 0.16em; font-variant-numeric: tabular-nums; }
-.onqr { width: min(38vw, 160px); }
+.onqr { width: min(60vw, 220px); }
 .onqr .qr { display: block; width: 100%; height: auto; }
 .onmembers { list-style: none; margin: 0; padding: 0; border-top: var(--rule); }
 .onm { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 6px 0; border-bottom: var(--rule); }

@@ -2,6 +2,14 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.19.0', date: '2026-11-23', title: 'Partie en ligne', items: [
+    'Nouvelle entrée EN LIGNE à l\'accueil : une partie à plusieurs téléphones, un joueur par téléphone (2 à 4). Activable dans Réglages › Modes.',
+    'L\'hôte crée un salon : un code de 5 caractères et un QR code (PARTAGER LE LIEN aussi). Les autres tapent le code ou scannent le QR code, et chacun choisit son joueur ; la liste des téléphones se met à jour en direct (connecté, en attente, perdu).',
+    'L\'hôte choisit le jeu (X01 ou Cricket, mêmes réglages qu\'une partie locale) et l\'ordre (tiré au sort ou comme la liste), puis lance. Seul le téléphone du joueur dont c\'est le tour peut saisir (pavé, cible ou voix) ; les autres voient les fléchettes arriver une par une, avec les sons, annonces, moqueries et animations de tour. Les verres restent sur chaque téléphone.',
+    'Un téléphone se met en veille ou perd le réseau : la partie se met en pause pour tous et reprend d\'elle-même à son retour. L\'hôte peut passer son tour ou l\'exclure.',
+    'Chaque téléphone garde la partie dans son historique, marquée « en ligne » ; les joueurs des autres téléphones sont rangés à part (Joueurs › Adversaires en ligne, AJOUTER pour en faire un joueur du téléphone). Stats et classement : filtre Toutes / Locales / En ligne.',
+    'Les téléphones se parlent directement (chiffré) ; un service gratuit sert seulement à les mettre en relation. Sur certains réseaux (4G, Wi-Fi d\'entreprise), la connexion directe est bloquée : le même Wi-Fi marche presque toujours. Pas dans la version Google Play (sans accès à Internet).',
+  ] },
   { v: '0.18.0', date: '2026-11-23', title: 'Saisie à la voix', items: [
     'Un micro sur l\'écran de saisie : en partie X01, une touche VOIX à côté de S, D, T (couché : à côté de VALIDER) ; au Cricket et à l\'entraînement, en haut à côté de la pause. Un appui, puis on annonce ses fléchettes : « triple vingt, double seize, vingt-cinq ». Strela n\'écoute que le temps d\'une phrase, jamais en continu.',
     'Mots compris : simple, double, triple et le nombre (en lettres ou en chiffres) ; « vingt intérieur » ou « extérieur » pour la couronne du simple ; bull, centre ou cinquante (50) ; vingt-cinq ou demi-bull (25) ; dehors, raté, zéro, à côté (hors cible) ; « annuler » (la dernière fléchette) et « valider » (la volée). Une phrase porte 1 à 3 fléchettes ; ce qui est douteux est refusé plutôt que deviné.',

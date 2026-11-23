@@ -33,6 +33,8 @@ import { presetTrainStats } from './trainstats.js';
 import { presetTrainSheet } from '../trainhonours.js';
 import { presetInfo } from '../info.js';
 import { presetVoice } from '../voiceinput.js';
+import { presetOnline } from '../online.js';
+import { createRoom as roomOf, hostStart as roomStart, hostReceive as roomHello, hostMemberStatus as roomStatus, hostSetup as roomSetup, helloMsg, createGuest, playerCard } from '../../engine/online.js';
 import { aimedDart, rng, simulateSoloX01, simulateSoloCricket } from '../mock.js';
 
 // Lot 7 : jouer jusqu'au bout à 4 (301, sortie simple) ; après PO1, Guillaume, Mathilde et Karim sont à 80, Sacha à 301.
@@ -53,6 +55,26 @@ function setGame(setup, notation, ui = {}, pending = false) {
   store.current.validated = pending ? 0 : store.current.darts.length;
   store.current.ui = { ...freshUi(), ...ui };
   return currentState();
+}
+
+// Lot 9.2 : un salon fabriqué (hôte p1 sauf `host`), avec les joueurs `ids` connectés ; `lostLast` : le dernier perdu.
+function mockRoom(ids, { host = 'p1', lostLast = false } = {}) {
+  const pl = id => playerCard(store.players.find(p => p.id === id));
+  let r = roomOf({ code: 'BCD23', hostPeer: 'host', hostPlayer: pl(host) });
+  ids.filter(id => id !== host).forEach((id, i) => { r = roomHello(r, `g${i}`, helloMsg(createGuest(), pl(id))).room; });
+  if (lostLast) r = { ...r, members: r.members.map((m, i) => (i === r.members.length - 1 ? { ...m, status: 'waiting' } : m)) };
+  return r;
+}
+/** Partie X01 en ligne fabriquée : ce téléphone (p1) n'a pas la main, ou pause, ou reconnexion. */
+function onlineGameScene(role, notation, { paused = false, lost = false } = {}) {
+  setGame(cfg(['p2', 'p1']), notation);
+  const me = 'p1';
+  store.current.online = { code: 'BCD23', role, me, host: role === 'host' ? me : 'p2' };
+  let room = mockRoom(['p1', 'p2'], { host: role === 'host' ? 'p1' : 'p2' });
+  room = roomStart(room, { id: store.current.id, config: store.current.config, darts: [], startedAt: 0, validated: 0 }).room;
+  if (paused) room = roomStatus(room, 'g0', 'lost').room;
+  presetOnline({ role, code: 'BCD23', me, state: lost ? 'lost' : 'open', room });
+  return '#/jeu';
 }
 
 // Lot 10 : une partie de Cricket fabriquée (remplace celle en cours, sans rien ranger).
@@ -572,6 +594,20 @@ export const SCENES = {
   'bienvenue-fin': () => '#/bienvenue/fin',
   tutoriel: () => '#/tutoriel',
   installer: () => '#/installer',
+  // Lot 9.2 : partie en ligne.
+  enligne: () => { presetOnline({ me: 'p1' }); return '#/enligne'; },
+  'enligne-erreur': () => { presetOnline({ me: 'p1', state: 'error', error: 'Aucun salon à ce code (ou l\'hôte n\'est plus là). Vérifie le code.', draftCode: 'BCD2Q' }); return '#/enligne'; },
+  'enligne-hote': () => { presetOnline({ role: 'host', code: 'BCD23', me: 'p1', state: 'open', room: mockRoom(['p2', 'p3'], { lostLast: true }) }); return '#/enligne'; },
+  'enligne-invite': () => { presetOnline({ role: 'guest', code: 'BCD23', me: 'p2', state: 'open', room: roomSetup(mockRoom(['p2']), { game: 'cricket', ckMode: 'cutthroat', legsToWin: 3 }).room }); return '#/enligne'; },
+  'enligne-attente': () => onlineGameScene('guest', 'T20 S19'),
+  'enligne-pause': () => onlineGameScene('host', 'T20 S19 S5', { paused: true }),
+  'enligne-reconnexion': () => onlineGameScene('guest', 'T20', { lost: true }),
+  'enligne-cricket': () => {
+    const h = setCk(['p1', 'p2'], 'T20 S20 0');
+    store.ck.online = { code: 'BCD23', role: 'guest', me: 'p1', host: 'p2' };
+    presetOnline({ role: 'guest', code: 'BCD23', me: 'p1', state: 'open', room: { ...roomSetup(mockRoom(['p1'], { host: 'p2' }), { game: 'cricket' }).room, phase: 'playing' } });
+    return h;
+  },
   // Lot 9.3 : saisie à la voix.
   'voix-ecoute': () => { setGame(cfg(['p1', 'p2']), 'T20'); presetVoice({ listening: true, partial: 'triple vingt double' }); return '#/jeu'; },
   'voix-entendu': () => { setGame(cfg(['p1', 'p2']), 'T20 D16'); presetVoice({ heard: 'triple vingt double seize', labels: ['T20', 'D16'] }); return '#/jeu'; },
@@ -860,6 +896,14 @@ export function sommaire() {
       ${L('tutoriel', '◆ Tutoriel')}
       ${L('installer', '◆ Installer Strela', 'lien et mode d\'emploi')}
       ${L('reglages-refonte', '◆ Réglages refondus', 'mise à jour en tête')}
+      ${L('enligne', '◇ En ligne : créer ou rejoindre', 'lot 9.2')}
+      ${L('enligne-erreur', '◇ En ligne : code introuvable')}
+      ${L('enligne-hote', '◇ En ligne : salon de l\'hôte', 'code, QR, téléphones, réglages')}
+      ${L('enligne-invite', '◇ En ligne : salon d\'un invité', 'Cricket')}
+      ${L('enligne-attente', '◇ En ligne : au tour d\'un autre', 'pavé couvert')}
+      ${L('enligne-pause', '◇ En ligne : pause (hôte)', 'joueur perdu')}
+      ${L('enligne-reconnexion', '◇ En ligne : reconnexion')}
+      ${L('enligne-cricket', '◇ En ligne : Cricket, au tour d\'un autre')}
       ${L('voix-ecoute', '◇ Voix : écoute', 'lot 9.3, touche micro du pavé')}
       ${L('voix-entendu', '◇ Voix : phrase entendue', 'fléchettes posées')}
       ${L('voix-trop', '◇ Voix : fléchette en trop')}

@@ -109,7 +109,7 @@ test('première ouverture : bienvenue, modes, mise en place, accueil selon les m
     await page.evaluate(() => { location.hash = '#/'; });
     await page.waitForSelector('.t-main');
     db = await readDb(page);
-    assert.deepEqual(db.settings.display.modes, { train: true, soiree: false }, 'jamais les deux éteints, gardé au rechargement');
+    assert.deepEqual(db.settings.display.modes, { train: true, soiree: false, online: true }, 'jamais les deux éteints, gardé au rechargement');
     await page.evaluate(() => { location.hash = '#/reglages'; });
     await page.click('[data-act="mode-soiree"][data-arg="1"]');
     await page.evaluate(() => { location.hash = '#/'; });

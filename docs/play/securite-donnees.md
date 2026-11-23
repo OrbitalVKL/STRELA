@@ -24,6 +24,7 @@ que si l'appli collecte quelque chose.
 
 - Permissions de la variante play : VIBRATE et RECORD_AUDIO (lot 9.3, saisie à la voix ; et une permission interne
   d'AndroidX, propre à l'appli). Ni INTERNET, ni appareil photo, ni stockage, ni localisation, ni contacts.
+- Partie en ligne (lot 9.2) : absente de la variante play (pas d'INTERNET), rien à déclarer.
 - Micro (lot 9.3) : ouvert seulement après un appui sur le bouton micro, le temps d'une phrase ; la reconnaissance est
   faite par le service vocal du téléphone (SpeechRecognizer d'Android), l'appli ne reçoit que le texte, ne garde ni
   le son ni le texte et ne peut rien envoyer (pas d'INTERNET). Au sens de Play, l'appli ne collecte donc pas

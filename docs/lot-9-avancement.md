@@ -8,8 +8,8 @@ ligne) sont reportés : ne pas les faire. Aucun service payant, aucun compte ave
 
 | Sous-lot | Version | Contenu | État |
 |---|---|---|---|
-| 9.3 | 0.18.0 | saisie à la voix (X01, Cricket, entraînement ; APK et navigateur) | fait (demande de fusion en cours) |
-| 9.2 | 0.19.0 | partie en ligne, score partagé (WebRTC, salon, hôte qui fait autorité) | à faire |
+| 9.3 | 0.18.0 | saisie à la voix (X01, Cricket, entraînement ; APK et navigateur) | fait, publié (#39) |
+| 9.2 | 0.19.0 | partie en ligne, score partagé (WebRTC, salon, hôte qui fait autorité) | fait (docs/enligne.md) |
 
 ## 9.3 — décisions
 
@@ -30,7 +30,21 @@ ligne) sont reportés : ne pas les faire. Aucun service payant, aucun compte ave
   réellement produites par Google (« vin », chiffres…) — à ajuster dans `WORDS` de src/engine/voice.js.
 - La CI n'a ni micro ni service vocal sur l'émulateur.
 
-## 9.2 — prochain geste
+## 9.2 — décisions
 
-Lire la section 9.2 du cahier ; commencer par le moteur de synchronisation pur (src/engine/online.js : messages
-numérotés, état complet, reprise) et ses tests, puis la signalisation derrière une petite interface.
+- Signalisation : serveur public de PeerJS, son protocole sans sa bibliothèque (src/net/signal.js, interface
+  `openSignal`) ; pas de TURN (aucun gratuit sans compte) → limite documentée (docs/enligne.md).
+- L'hôte fait autorité ; les opérations acceptées sont rejouées partout par les fonctions de saisie locales.
+- Variante play : mode en ligne absent (pas d'INTERNET ajouté).
+- QR code → page rejoindre.html → lien `strela://` (les liens https n'ouvrent plus une appli non vérifiée).
+- Joueurs distants dans `players` avec `remote: true` (rangés à part, AJOUTER pour les adopter).
+
+## 9.2 — non vérifié
+
+- Le vrai serveur 0.peerjs.com (WebSocket bloqués dans les sessions), deux vrais téléphones, 4G, veille réelle d'un
+  téléphone, QR code lu par l'appareil photo (seulement relu par le lecteur du test).
+
+## Après le lot
+
+9.1 (iPhone) et 9.4 (audio en ligne) restent à faire quand Guillaume le demandera ; 9.4 : `blockVoice('appel', true)`
+(voiceinput.js) coupe la saisie vocale pendant l'appel.

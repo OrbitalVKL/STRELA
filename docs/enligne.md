@@ -1,0 +1,83 @@
+# Partie en ligne (lot 9.2, version 0.19.0)
+
+Un joueur par téléphone, 2 à 4 téléphones (conçu pour 4, essayé à 2). Cahier : docs/lot-9.md (9.2).
+
+## Architecture
+
+| Couche | Fichier | Rôle |
+|---|---|---|
+| Règles du salon et synchronisation | `src/engine/online.js` | pur, sans réseau ni DOM ; `tests/enligne.test.js` |
+| Signalisation | `src/net/signal.js` | trouver l'autre téléphone : serveur public PeerJS (`wss://0.peerjs.com/peerjs`), sans compte, avec son protocole mais sans sa bibliothèque ; petite interface `openSignal(id)` pour pouvoir en changer |
+| Liaison | `src/net/link.js` | WebRTC, canal de données (`hostLink`, `guestLink`) ; messages JSON découpés au-delà de 15 000 caractères ; présence (ping 2 s, perdu après 8 s) |
+| Contrôleur | `src/ui/online.js` | salon, hôte / invité, reprise, lien avec les écrans de jeu |
+| Écran | `src/ui/screens/online.js` | `#/enligne` (créer, rejoindre, salon), `#/enligne/rejoindre/CODE` |
+| QR code | `src/ui/qr.js` | encodeur maison (mode octets, correction M, versions 1 à 10) ; `tests/qr.test.js` le relit |
+| Tests | `tools/lib/signal-server.mjs`, `tests/enligne-parcours.test.js` | serveur de signalisation local au même protocole (WebSocket écrit à la main) ; deux navigateurs séparés |
+
+Aucune dépendance à la passerelle Android : la WebView et les navigateurs ont WebRTC (compatible avec une future
+version web pour iPhone, lot 9.1 reporté).
+
+## Salon
+
+- L'hôte crée un salon : code de 5 caractères (alphabet sans 0/O, 1/I/L ni voyelles), identifiant
+  `strela-<code>` chez PeerJS ; un code déjà pris → nouveau tirage. QR code du lien
+  `https://orbitalvkl.github.io/STRELA/rejoindre.html#CODE` et bouton PARTAGER LE LIEN.
+- `rejoindre.html` (Pages) : OUVRIR DANS L'APPLI (lien `intent://…#Intent;scheme=strela;package=fr.orbitalvkl.strela`,
+  filtre d'intention `strela://rejoindre/CODE` de MainActivity → événement `{ join }` → `#/enligne/rejoindre/CODE`) ou
+  CONTINUER DANS LE NAVIGATEUR (version web). Un lien https n'ouvre plus une appli non vérifiée depuis Android 12
+  (il faudrait `assetlinks.json` à la racine de orbitalvkl.github.io) : d'où ce détour.
+- Chacun choisit le joueur de son téléphone (fiche existante : pseudo, avatar, animation de tour, finition) ; deux
+  téléphones ne peuvent pas prendre le même joueur. Liste en direct : HÔTE, CONNECTÉ, EN ATTENTE, PERDU.
+- L'hôte choisit X01 (départ, sortie, manches) ou Cricket (mode, manches), l'ordre (tiré au sort ou comme la liste,
+  flèche pour monter un joueur) et lance (2 joueurs au moins, tous connectés). Les invités voient les réglages.
+
+## Partie
+
+- L'hôte crée la partie chez lui (`startGame` / `startCricket`, même identifiant partout) et l'envoie entière ; chaque
+  téléphone l'adopte (`adoptOnlineGame`, store.js ; une autre partie en cours est d'abord rangée).
+- Saisie : seul le téléphone du joueur dont c'est le tour peut saisir (pavé, cible, voix). La demande part à l'hôte
+  (`intent`), qui vérifie (son tour ? volée en attente ? pause ?) et diffuse une opération numérotée (`op`, n = 1, 2…)
+  que tous appliquent par les mêmes fonctions qu'une saisie locale (`registerOnlineGame` dans game.js et cricket.js) :
+  fléchettes une par une, sons, annonces, célébrations, moqueries, animations de tour sur tous les téléphones. Les
+  défis sont tirés de la même façon partout (tirage déterministe sur l'identifiant de la partie). Verres, voyelles de
+  Tsia : propres à chaque téléphone.
+- ANNULER : seulement le lanceur, avant VALIDER. VALIDER, MANCHE SUIVANTE : le lanceur. Pas de correction d'une
+  fléchette en ligne. Les autres téléphones ont le pavé (ou la cible) couvert : « À <joueur> ».
+- Fin : chaque téléphone range la partie dans son historique, marquée `online: { code, role, me, host }` ; RETOUR AU
+  SALON (l'hôte ramène tout le monde au salon et peut relancer). Pause › ARRÊTER LA PARTIE POUR TOUS (hôte : rangée
+  « abandonnée » partout) ou QUITTER LA PARTIE EN LIGNE (invité).
+
+## Robustesse
+
+- Chaque message de l'hôte porte un numéro de séquence ; un invité ignore les doublons et, devant un trou, redemande
+  l'état complet (`room` : salon + partie + nombre d'opérations). À chaque (re)connexion, l'hôte renvoie l'état complet.
+- Téléphone perdu (canal fermé, veille, réseau) : « PERDU », la partie se met en pause pour tous ; l'invité se
+  reconnecte de lui-même toutes les 3 s (et au lancement de l'appli : `resumeOnline`, la partie en cours garde sa
+  marque) ; à son retour la pause se lève. L'hôte peut PASSER SON TOUR (ses volées passées, 3 hors cible, jusqu'à son
+  retour) ou l'EXCLURE (jusqu'à la fin de la partie).
+- Hôte perdu : les invités voient « RECONNEXION À L'HÔTE… », la partie est suspendue (gardée chez tous). L'hôte qui
+  rouvre l'appli reprend son salon (enregistré avec la partie, `online.room`) sous le même code ; les invités
+  reviennent.
+- Signalisation tombée chez l'hôte : les téléphones déjà reliés continuent ; nouvelle tentative toutes les 5 s.
+
+## Réseau et limites
+
+- STUN publics (Google, Cloudflare) ; **pas de relais TURN** : aucun gratuit, fiable et sans compte n'existe
+  (Open Relay demande maintenant un compte). Sans TURN, certains réseaux empêchent la connexion directe (4G
+  d'opérateur avec NAT symétrique, Wi-Fi d'entreprise ou d'hôtel) : « Impossible de joindre l'autre téléphone ». Sur
+  le même Wi-Fi, ça passe presque toujours. Si un service TURN est choisi un jour, l'ajouter à `ICE_SERVERS`.
+- Le serveur PeerJS ne voit que la mise en relation (adresses réseau, empreintes de chiffrement) ; les messages de la
+  partie vont directement d'un téléphone à l'autre (DTLS). Rien n'est stocké sur un serveur.
+- Variante **play** : pas d'accès réseau (pas de permission INTERNET) → mode en ligne absent (message à la place).
+  Variante github et version web : disponible. Réglages › Modes › En ligne (OUI par défaut).
+- Les sessions Claude ne laissent pas passer les WebSocket : le vrai serveur PeerJS n'a pas pu être essayé d'ici
+  (seulement le serveur local au même protocole). À vérifier par Guillaume à deux téléphones.
+
+## Joueurs distants, stats, sauvegarde
+
+- Les joueurs des autres téléphones sont gardés dans `players` avec `remote: true` (champ facultatif, aucune
+  migration) : absents des choix de joueurs, des stats et du classement, rangés dans Joueurs › Adversaires en ligne
+  (AJOUTER en fait un joueur du téléphone). Un joueur local au même identifiant (sauvegarde importée) reste tel quel.
+- Stats et classement : filtre TOUTES / LOCALES / EN LIGNE (affiché dès qu'une partie en ligne existe).
+- Sauvegarde, export, mise à jour : les champs `online` (partie) et `remote` (joueur) passent par `withDrinks` et
+  `playerRecord` (db.js), donc dans la base, la sauvegarde et l'import.

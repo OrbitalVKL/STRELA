@@ -9,13 +9,16 @@
 import { store, saveCurrent, saveCk, keepRemotePlayer, playerById, startGame, startCricket, adoptOnlineGame, archiveCurrent, archiveCk,
   profilePlayer, activePlayers, currentState, ckState } from './store.js';
 import { refresh, go, buzz, BUZZ } from './nav.js';
-import { variant } from './native.js';
+import { variant, onNative } from './native.js';
 import { say } from './feedback.js';
 import { blockVoice } from './voiceinput.js';
 import * as E from '../engine/online.js';
 import { hostLink, guestLink, webrtcAvailable } from '../net/link.js';
 
 export const HOST_PEER = 'host';
+
+// Lien d'un salon ouvert dans l'APK (strela://rejoindre/CODE, page rejoindre.html du QR code) : écran En ligne, code prêt.
+onNative(d => { if (d && typeof d.join === 'string') { const c = E.cleanCode(d.join); if (c) { on.draftCode = c; go(`#/enligne/rejoindre/${c}`); } } });
 
 /** État de la session en ligne de ce téléphone (en mémoire ; la partie, elle, est enregistrée avec sa marque `online`). */
 export const on = {
@@ -31,6 +34,11 @@ export const on = {
   signal: 'online',     // hôte : signalisation joignable ou non
   draftCode: '',
 };
+/** Sommaire de maquette et tests : état imposé (sans liaison) ; sans argument, remis à zéro. */
+export function presetOnline(st = {}) {
+  clearTimeout(retryTimer);
+  Object.assign(on, { role: null, code: null, me: null, room: null, guest: E.createGuest(), link: null, state: 'idle', error: '', notice: '', signal: 'online', draftCode: '' }, st);
+}
 let retryTimer = 0;
 let noticeTimer = 0;
 

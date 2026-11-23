@@ -94,6 +94,13 @@ La page cherche `window.strelaNative` ; sans elle (navigateur), elle garde les A
   `importFile`, aperçu dans les Réglages). Une photo, elle, est à reprendre.
 - **Police** : la WebView applique la taille de police d'Android (comme Chrome) ; la page est vérifiée jusqu'à 130 %.
 
+## Lien d'un salon en ligne (lot 9.2)
+
+Filtre d'intention `strela://rejoindre/CODE` (VIEW, BROWSABLE) sur MainActivity (`singleTask` : `onNewIntent`) ;
+`takeJoin` envoie `{ join: CODE }` à la page (gardé jusqu'à `onPageFinished` si la page n'est pas prête). Ouvert depuis
+la page `rejoindre.html` du QR code (lien `intent://…;package=fr.orbitalvkl.strela`). La partie en ligne n'utilise pas
+la passerelle (WebRTC de la WebView) ; variante play : mode en ligne absent (pas d'INTERNET). Détail : docs/enligne.md.
+
 ## Saisie à la voix (lot 9.3)
 
 - `Listen.java` : `SpeechRecognizer` sur le fil de l'interface. Android 12 et plus : `createOnDeviceSpeechRecognizer`
