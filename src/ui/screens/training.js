@@ -10,12 +10,14 @@
 // proposée, ou les cibles du Cricket ; analyse du jeu et carte de chaleur à la fin).
 // Moteur : engine/training.js (exercices, analyse, coach) ; données : store.js (section « entraînement solo »).
 import { store, activePlayers, playerById, trState, startTraining, trThrow, trUndo, trAddBlock, closeTraining, deleteTrainings, trainingById, dartSetById, saveTrSetup,
-  trChangeSet, updateTraining, resumeTraining } from '../store.js';
+  trChangeSet, updateTraining, resumeTraining, saveTr } from '../store.js';
 import { esc, ico, topBar, plural, when } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
 import { EXERCISES, analyze, suggestNext, nextFor, levelOf, LEVELS, LEVEL_EXERCISES, ALL_EXERCISES, exerciseLevel, goalOf, goalMet, setRuns, setAt, setsUsed, trainingDartLabel, targetLabel, zoneLabelOf, ZONES_FOR, ZONE_LABEL, BULL_ZONE_LABEL,
   isHit, sessionValue, cleanTarget, aimPoint, appPoint, pointsOf, trainingState, GAME_EXERCISES, GAME_LEGS, isGameSession, cleanGame, gameLabel, heatCounts,
-  rulesOf, volleyInfo, OFF_R } from '../../engine/training.js';
+  rulesOf, volleyInfo, OFF_R, FUN_KEYS, isFunSession, soloDefiNow } from '../../engine/training.js';
+import { DEFIS } from '../../engine/defis.js';
+import { FUN } from '../../engine/fun.js';
 import { START_SCORES } from '../../engine/x01.js';
 import { CRICKET_TARGETS } from '../../engine/cricket.js';
 import { suggestCheckout, checkoutPrefs } from '../../engine/checkout.js';
@@ -31,6 +33,7 @@ import { bindBoardInput, boardHint, frozenLoupe } from '../boardinput.js';
 import { isLandscape } from './game.js';
 import { infoBtn, infoBox } from '../info.js';
 import { heatScale } from '../heat.js';
+import { featChips } from '../trainhonours.js';
 
 const dec1 = v => (v === null || v === undefined ? '—' : (Math.round(v * 10) / 10).toFixed(1).replace('.', ','));
 const pctOf = v => (v === null || v === undefined ? '—' : `${Math.round(v * 100)} %`);
@@ -57,7 +60,7 @@ export const volleyCount = v => Math.max(3, Math.min(99, Math.round((Number(v) |
 
 // Sommaire et tests : choix préparés sans base.
 let addDraft = null; // libre : série ajoutée en fin de séance { s, z, n }
-export function presetTraining({ add = null, others = false } = {}) { addDraft = add; othersOpen = others; }
+export function presetTraining({ add = null, others = false, fun = false } = {}) { addDraft = add; othersOpen = others; funOpen = fun; }
 
 function playersChips(su) {
   const players = activePlayers();
@@ -108,6 +111,7 @@ export function goalText(key, level) {
   const g = goalOf(key, level);
   if (!g) return '';
   const ex = EXERCISES[key];
+  if (ex.fun) return `${g.v} ${FUN[key].unit}${g.dir < 0 ? ' au plus' : ''}`;
   if (ex.metric === 'mpr') return `MPR ${String(g.v).replace('.', ',')}`;
   if (ex.clock && ex.clock.max) return `${g.v} doubles sur 20`;
   if (ex.clock) return `${g.v} fl. au plus`;
@@ -148,6 +152,7 @@ function exerciseRows(pid, proposed, keys, level) {
 }
 
 let othersOpen = false; // exercices des autres niveaux, repliés
+let funOpen = false;    // jeux de cible (lot 8 du 23/11), repliés
 
 // Lot 8 du 23/11 (4.3) : chaque séance est une carte — en-tête : date, exercice, jeu de fléchettes, résultat clé ; le
 // détail fléchette par fléchette (volée par volée, avec la cible visée) se déplie au toucher ; VOIR LA SÉANCE ouvre
@@ -200,7 +205,7 @@ export function trainingHub() {
     const next = suggestNext(allSessions(), su.player, level);
     const ex = EXERCISES[next.key];
     const mineKeys = LEVEL_EXERCISES[level];
-    const others = ALL_EXERCISES.filter(k => k !== 'libre' && !GAME_EXERCISES.includes(k) && !mineKeys.includes(k));
+    const others = ALL_EXERCISES.filter(k => k !== 'libre' && !GAME_EXERCISES.includes(k) && !FUN_KEYS.includes(k) && !mineKeys.includes(k));
     body = `${levelCard(su.player)}
       <div class="propose"><small>EXERCICE PROPOSÉ</small><b>${esc(ex.name)}</b><span>${esc(ex.short)} · ${esc(next.why)}</span></div>
       <button type="button" class="btn ${resume ? 'accent-line' : 'accent'} big" data-act="tr-start" data-arg="${next.key}">${ico('target')} COMMENCER</button>
@@ -208,7 +213,9 @@ export function trainingHub() {
       ${infoBox('tr-exs', 'Le coach propose un exercice d\'après la dernière séance (un écart à corriger, un objectif tenu), sinon un exercice de ton niveau pas encore fait, ou le moins récent. Touchez un autre exercice pour le lancer ; (i) donne son but et son objectif ; ✓ : la dernière séance tient l\'objectif.')}
       ${exerciseRows(su.player, next.key, mineKeys, level)}
       <button type="button" class="fold" data-act="tr-fold" aria-expanded="${othersOpen}"><span>${level === 'debutant' ? 'Exercices du niveau intermédiaire' : 'Exercices du niveau débutant'}</span><span class="n">${others.length}</span>${ico(othersOpen ? 'up' : 'down')}</button>
-      ${othersOpen ? exerciseRows(su.player, next.key, others, level) : ''}`;
+      ${othersOpen ? exerciseRows(su.player, next.key, others, level) : ''}
+      <button type="button" class="fold" data-act="tr-fold-fun" aria-expanded="${funOpen}"><span>Jeux de cible</span><span class="n">${FUN_KEYS.length}</span>${ico(funOpen ? 'up' : 'down')}</button>
+      ${funOpen ? `<p class="note">Plus ludiques : parcours, golf, Shanghai, Killer… Ils comptent dans les stats (précision, écarts), pas pour le niveau.</p>${exerciseRows(su.player, next.key, FUN_KEYS, level)}` : ''}`;
   } else if (su.mode === 'jeu') {
     body = gamePicker(su, resume);
   } else {
@@ -254,7 +261,9 @@ function gamePicker(su, resume) {
     <div class="seg trgame">${[['x01', 'X01'], ['cricket', 'Cricket']].map(([k, l]) => `<button type="button" data-act="tr-game" data-arg="kind|${k}" aria-pressed="${g.kind === k}">${l}</button>`).join('')}</div>
     <div class="tpick">
       ${g.kind === 'x01' ? `<span class="small dim caps">Départ</span><div class="chips2">${START_SCORES.map(v => chip('start', v, v, g.startScore)).join('')}</div>
-      <span class="small dim caps">Sortie</span><div class="chips2">${chip('out', 'single', 'SIMPLE', g.outMode)}${chip('out', 'double', 'DOUBLE', g.outMode)}</div>` : ''}
+      <span class="small dim caps">Sortie</span><div class="chips2">${chip('out', 'single', 'SIMPLE', g.outMode)}${chip('out', 'double', 'DOUBLE', g.outMode)}</div>
+      <span class="small dim caps">Défis${infoBtn('tr-defis')}</span>${infoBox('tr-defis', 'Les défis des soirées, tirés de la même façon et vérifiés de la même façon : un défi tombe sur une volée de temps en temps (parfois : une sur 8 environ ; souvent : une sur 4), annoncé en haut de l\'écran avant la volée, puis réussi ou raté. Seul, pas de gage : le compte des défis réussis est dans l\'analyse.')}
+      <div class="chips2">${chip('defis', 'aucun', 'AUCUN', g.defis || 'aucun')}${chip('defis', 'parfois', 'PARFOIS', g.defis || 'aucun')}${chip('defis', 'souvent', 'SOUVENT', g.defis || 'aucun')}</div>` : ''}
       <span class="small dim caps">Manches</span><div class="chips2">${GAME_LEGS.map(v => chip('legs', v, v, g.legs)).join('')}</div>
     </div>
     <p class="note">${sv ? `Dernière : <b>${fmtValue(sv)}</b> ${esc(sv.label.toLowerCase())}` : 'Jamais joué'}${goal ? ` · objectif (niveau ${esc(LEVELS[level].toLowerCase())}) : ${esc(goal)}` : ''}</p>
@@ -295,7 +304,20 @@ function targetAt(st, i) {
   return st.cur ? st.blocks[st.cur.i] : null;
 }
 
+/** En-tête d'un jeu de cible : la cible (ou le reste à faire), le score en cours, la volée. */
+function funHead(r, st) {
+  const fs = st.fun, f = FUN[r.exercise], x = fs.extra;
+  const v = volleyInfo(st);
+  const t = st.cur ? st.blocks[st.cur.i] : null;
+  const big = r.exercise === 'cent' ? String(x.remaining) : t ? targetLabel(t) : '—';
+  const small = r.exercise === 'cent' ? 'À FAIRE' : r.exercise === 'killer' ? (x.killer ? 'ADVERSAIRE' : 'TON NUMÉRO') : r.exercise === 'golf' ? `TROU ${t ? t.s : 9}` : 'VISE';
+  const zl = r.exercise === 'killer' ? (x.killer ? `VIES ${x.lives.map(l => l).join(' · ')}` : `${x.marks}/3 MARQUES`) : r.exercise === 'moitie' && t && t.s === 25 ? '25 OU 50' : r.exercise === 'cent' ? 'VISE CE QUE TU VEUX' : 'TOUT LE SECTEUR';
+  return `<section class="taim" aria-label="Cible visée"><div class="tl"><small>${small}</small><b class="tg" data-shrink>${esc(big)}</b><span class="zl ell">${esc(zl)}</span></div>
+    <div class="tp"><b>${f.unit === 'fl.' ? r.darts.length : fs.live}<small> ${esc(f.unit)}</small></b><span>VOLÉE ${v.n}${v.total ? `/${v.total}` : ''}</span></div></section>`;
+}
+
 function aimHead(r, st) {
+  if (st.fun) return funHead(r, st);
   const ex = EXERCISES[r.exercise] || EXERCISES.libre;
   const cur = st.cur;
   const t = cur ? st.blocks[cur.i] : st.blocks[st.blocks.length - 1];
@@ -334,6 +356,7 @@ function rulesSheet(r) {
 
 function liveLine(r, st) {
   const ex = EXERCISES[r.exercise] || EXERCISES.libre;
+  if (st.fun) return `<p class="tlive">${esc(st.fun.status)}</p>`;
   if (st.clock) {
     const hits = st.blocks.filter(b => b.hits).length;
     if (st.clockMax) return `<p class="tlive">${r.darts.length ? `${plural(hits, 'DOUBLE TOUCHÉ', 'DOUBLES TOUCHÉS')} · ${r.darts.length} FL.` : `${st.clockMax} FLÉCHETTES AU PLUS PAR DOUBLE`}</p>`;
@@ -360,12 +383,12 @@ function visitBoxes(r, st) {
     const todo = !v.prev && i === v.darts.length;
     if (!d) return `<div class="dart left${todo ? ' todo' : ''}">${todo ? tag(st.cur && st.blocks[st.cur.i]) : ''}${todo && r.ui.pick ? `<span class="sv pk" data-shrink>${r.ui.pick}…</span>` : ''}</div>`;
     const t = targetAt(st, v.start + i);
-    const hit = t && isHit(t, d);
-    return `<div class="dart done${hit ? ' hit' : ' miss'}">${tag(t)}<span class="sv" data-shrink>${esc(trainingDartLabel(d))}</span></div>`;
+    const hit = t && t.s && isHit(t, d);
+    return `<div class="dart done${!t || !t.s ? '' : hit ? ' hit' : ' miss'}">${tag(t)}<span class="sv" data-shrink>${esc(trainingDartLabel(d))}</span></div>`;
   }).join('');
-  const total = ex.metric === 'average' ? v.darts.reduce((n, d) => n + pointsOf(d), 0)
+  const total = ex.metric === 'average' || ex.fun ? v.darts.reduce((n, d) => n + pointsOf(d), 0)
     : `${v.darts.filter((d, i) => { const t = targetAt(st, v.start + i); return t && isHit(t, d); }).length}<small>/${v.darts.length || 0}</small>`;
-  return `<div class="visit${v.prev ? ' prev' : ''}">${boxes}<div class="total ${v.darts.length ? 'inv' : 'zero'}"><small>${ex.metric === 'average' ? 'VOLÉE' : 'DEDANS'}</small><span class="tv" data-shrink>${total}</span></div></div>`;
+  return `<div class="visit${v.prev ? ' prev' : ''}">${boxes}<div class="total ${v.darts.length ? 'inv' : 'zero'}"><small>${ex.metric === 'average' || ex.fun ? 'VOLÉE' : 'DEDANS'}</small><span class="tv" data-shrink>${total}</span></div></div>`;
 }
 
 /** Impacts de la série en cours (volée en cours numérotée, le reste de la série en discret). */
@@ -540,6 +563,23 @@ function gameLive(r, st, a) {
   return `<p class="tlive">${r.darts.length ? `MPR <b>${dec2(x.mpr)}</b> · ${r.darts.length} FL.` : 'MARQUES PAR VOLÉE (MPR)'}</p>`;
 }
 
+/**
+ * Bandeau du défi d'un X01 solo (lot 8 du 23/11, 5.2) : le défi de la volée (texte court, sans gage : on est seul),
+ * puis son résultat jusqu'à la volée suivante ; « main gauche » se déclare (FAIT / PAS FAIT), comme en soirée.
+ */
+function soloDefiBand(r, st) {
+  const d = soloDefiNow(r, st);
+  if (!d) return '';
+  const def = DEFIS[d.key];
+  if (d.open) return `<section class="dfb open" role="status" aria-label="Défi : ${esc(def.short)}"><div class="dfc"><b class="dft" data-shrink><span class="dfl">${ico('flag')}DÉFI</span> ${esc(def.short)}</b>${def.hint ? `<small class="dfh">${esc(def.hint)}</small>` : ''}</div></section>`;
+  const x = d.result;
+  if (x.declare && x.declared === undefined) {
+    return `<section class="dfb res ask" role="status" aria-label="Défi à déclarer">${ico('star', 'ico dfs')}<div class="dfc"><small class="dfl">DÉFI À DÉCLARER</small><b class="dft" data-shrink>${esc(def.short)} ?</b></div>
+      <div class="dfask"><button type="button" data-act="tr-defi-decl" data-arg="${d.index}|1">FAIT</button><button type="button" data-act="tr-defi-decl" data-arg="${d.index}|0">PAS FAIT</button></div></section>`;
+  }
+  return `<section class="dfb res ${x.ok ? 'ok' : 'ko'}" role="status" aria-label="Défi ${x.ok ? 'réussi' : 'raté'}">${ico(x.ok ? 'starf' : 'star', 'ico dfs')}<div class="dfc"><small class="dfl">${x.ok ? 'DÉFI RÉUSSI' : 'DÉFI RATÉ'}</small><b class="dft" data-shrink>${esc(def.short)}</b></div></section>`;
+}
+
 function gameScreen(r, st) {
   const a = analyze(r);
   const x = gameShown(r, st);
@@ -547,7 +587,7 @@ function gameScreen(r, st) {
   const overlays = r.ui.pause ? pauseSheet(r) : r.ui.rules ? rulesSheet(r) : '';
   if (isLandscape()) {
     return `<div class="game land train trgame">
-      <div class="lcol">${band(r)}${ruleLine(r)}${gameHead(r, st)}${gameVisit(r, st, a)}${gameLive(r, st, a)}
+      <div class="lcol">${band(r)}${soloDefiBand(r, st) || ruleLine(r)}${gameHead(r, st)}${gameVisit(r, st, a)}${gameLive(r, st, a)}
         <div class="lbtns two">
           <button type="button" class="key zero" data-act="tr-key" data-arg="0" data-press>0<small>HORS CIBLE</small></button>
           <button type="button" class="key undo" data-act="tr-undo" data-press ${r.darts.length ? '' : 'disabled'}>${ico('undo')}<span class="kl" data-shrink>ANNULER</span></button>
@@ -561,7 +601,7 @@ function gameScreen(r, st) {
       ${overlays}</div>`;
   }
   return `<div class="game port train trgame">
-    <div class="toparea">${band(r)}${ruleLine(r)}${gameHead(r, st)}</div>
+    <div class="toparea">${band(r)}${soloDefiBand(r, st) || ruleLine(r)}${gameHead(r, st)}</div>
     <div class="vblock"><div class="vcol">${gameVisit(r, st, a)}${gameLive(r, st, a)}</div>
       <div class="mini-board" aria-hidden="true">${boardSvg({ size: 104, impacts, label: 'Impacts de la volée' })}</div></div>
     ${keyPad(r, st)}${overlays}</div>`;
@@ -665,6 +705,7 @@ function gameAnalysisHtml(r, a, key) {
     kpis.push(k('tons', '100 et plus', String(x.ton + x.ton40 + x.max)));
     kpis.push(k('first9', '9 premières (moy.)', dec1(x.first9)));
     kpis.push(k('busts', 'Bust', String(x.busts)));
+    if (x.defis && x.defis.length) kpis.push(k('defis', 'Défis réussis', `${x.defis.filter(d => d.ok).length}<small> / ${x.defis.length}</small>`));
   } else {
     kpis.push(k('rounds', 'Volées', String(x.legs.reduce((n, l) => n + l.rounds, 0))));
     kpis.push(k('legs', 'Manches', `${legsDone}<small> / ${x.setup.legs}</small>`));
@@ -701,9 +742,11 @@ function analysisHtml(r, a, key) {
   const sv = sessionValue(r, a);
   const k = (kk, label, value, cls = '') => `<div class="kpi ${cls}" data-k="${kk}"><small>${label}</small><b>${value}</b></div>`;
   const kpis = [];
-  kpis.push(k('value', sv ? sv.label : 'Résultat', sv ? fmtValue(sv) + (sv.fmt === 'int' ? '<small> fl.</small>' : '') : a.done ? '—' : 'INCOMPLET', 'hero wide'));
+  const unit = ex.fun ? FUN[r.exercise].unit : 'fl.';
+  kpis.push(k('value', sv ? sv.label : 'Résultat', sv ? fmtValue(sv) + (sv.fmt === 'int' ? `<small> ${esc(unit)}</small>` : '') : a.done ? '—' : 'INCOMPLET', 'hero wide'));
   kpis.push(k('darts', 'Fléchettes', String(a.darts)));
-  if (ex.clock && ex.clock.max) kpis.push(k('reached', 'Atteint', `D${a.extra.reached}`));
+  if (ex.fun) { /* le score du jeu est le chiffre principal */ }
+  else if (ex.clock && ex.clock.max) kpis.push(k('reached', 'Atteint', `D${a.extra.reached}`));
   else if (ex.clock) kpis.push(k('reached', 'Atteint', `${a.extra.reached}<small> / 20</small>`));
   else if (!sv || sv.label !== 'Dans la cible') kpis.push(k('hits', 'Dans la cible', `${a.hits}<small> / ${a.darts}</small>`));
   else kpis[0] = k('value', 'Dans la cible', `${fmtValue(sv)}<small> · ${a.hits} / ${a.darts}</small>`, 'hero wide');
@@ -715,11 +758,12 @@ function analysisHtml(r, a, key) {
   if (a.extra.average !== undefined && ex.metric !== 'average') kpis.push(k('avg', 'Moyenne / volée', dec1(a.extra.average)));
   if (kpis.length % 2 === 0) kpis.push(k('pts', 'Points marqués', String(r.darts.reduce((n, d) => n + pointsOf(d), 0))));
   // Cibles : une par cible visée (horloge : une seule, toutes les fléchettes).
-  const groups = ex.clock ? [{ s: 0, z: 'any', darts: r.darts, bias: null, label: 'Toutes les fléchettes' }]
+  const groups = ex.clock || ex.fun ? [{ s: 0, z: 'any', darts: r.darts, bias: null, label: 'Toutes les fléchettes' }]
     : a.perTarget.map(t => ({ ...t, darts: dartsOfTarget(r, t), label: `${targetLabel(t)} : ${t.hits}/${t.darts}` }));
   const boards = `<div class="tboards n${Math.min(groups.length, 3)}">${groups.map(g => `<figure>${analysisBoard(g, g.darts, g.bias, groups.length > 1 ? 160 : 260, g.label)}<figcaption>${esc(g.label)}</figcaption></figure>`).join('')}</div>`;
   let detail = '';
-  if (ex.clock) {
+  if (ex.fun) detail = funDetail(r, a);
+  else if (ex.clock) {
     detail = ex.clock.max
       ? `<div class="sec">Doubles</div><div class="clockg">${a.extra.perNumber.map(x => `<span class="${x.hit ? '' : 'open'}"><small>D${x.s}</small><b>${x.hit ? `✓${x.darts}` : '—'}</b></span>`).join('')}</div>`
       : `<div class="sec">Fléchettes par numéro</div><div class="clockg">${a.extra.perNumber.map(x => `<span class="${x.hit ? '' : 'open'}"><small>${x.s}</small><b>${x.darts}</b></span>`).join('')}</div>`;
@@ -735,6 +779,23 @@ function analysisHtml(r, a, key) {
     ${infoBox(`tr-an-${key}`, 'Écarts mesurés sur une vraie cible (en centimètres) : chaque fléchette est placée au point touché (saisie sur la cible) ou au milieu de sa zone (saisie au pavé). <b>Croix</b> : point visé ; <b>carré</b> : centre des impacts ; le trait entre les deux est l\'écart moyen. <b>Groupement</b> : distance moyenne des fléchettes à leur centre (plus c\'est petit, plus elles sont groupées).')}
     ${messagesHtml(a)}
     ${boards}${detail}${bySet}`;
+}
+
+/** Détail d'un jeu de cible : une case par secteur, trou, manche ou volée. */
+function funDetail(r, a) {
+  const x = a.extra.fun.extra;
+  const cell = (k, v, open = false) => `<span class="${open ? 'open' : ''}"><small>${k}</small><b>${v}</b></span>`;
+  switch (r.exercise) {
+    case 'serpent': case 'rebours': return `<div class="sec">Fléchettes par secteur</div><div class="clockg">${x.per.filter(p => p.darts).map(p => cell(p.s, p.darts, !p.hit)).join('')}</div>`;
+    case 'golf': return `<div class="sec">Trous</div><div class="clockg">${x.holes.map(h => cell(`T${h.s}`, h.strokes, h.strokes === 5)).join('')}</div>`;
+    case 'shanghai': return `<div class="sec">Manches</div><div class="clockg">${x.rounds.map(m => cell(m.s, `${m.points}${m.shanghai ? '+100' : ''}`)).join('')}</div>`;
+    case 'moitie': return `<div class="sec">Volées (total après chacune)</div><div class="clockg">${x.rounds.map(m => cell(m.s === 25 ? 'B' : m.s, m.halved ? `÷2 ${m.total}` : m.total, m.halved)).join('')}</div>`;
+    case 'roulette': return `<div class="sec">Volées</div><div class="clockg">${x.rounds.map(m => cell(m.s, m.points, !m.points)).join('')}</div>`;
+    case 'mur60': return `<div class="sec">Volées</div><div class="clockg">${x.rounds.map((m, i) => cell(i + 1, m.points, !m.brick)).join('')}</div>`;
+    case 'plushaut': return `<div class="sec">Volées</div><div class="clockg">${x.rounds.map((m, i) => cell(i + 1, m.points, m.ok === false)).join('')}</div>`;
+    case 'killer': return `<div class="sec">Numéros</div><div class="clockg">${cell(`TOI ${x.mine}`, `${x.marks}/3`)}${x.foes.map((f, i) => cell(f, x.lives[i] ? `${x.lives[i]} ♥` : '✕', !!x.lives[i])).join('')}</div>`;
+    default: return '';
+  }
 }
 
 /** Fléchettes visées sur une cible (toutes séries confondues). */
@@ -772,6 +833,7 @@ export function trainingEnd() {
     <div class="pad">
       <div class="trhead"><b>${esc(sessionTitle(r))}</b><span>${esc(playerById(r.player).name)} · ${esc(setsText(r))} · ${when(r.startedAt)}</span></div>
       ${analysisHtml(r, a, 'fin')}
+      ${featChips(r)}
       <div class="sec">Et maintenant</div>
       <div class="endbtns">
         ${nextCard(r, a, true)}
@@ -842,6 +904,7 @@ export function trainingDetail(id) {
       <div class="trhead"><b>${esc(sessionTitle(r))}</b><span>${esc(playerById(r.player).name)} · ${esc(setsText(r))} · ${when(r.startedAt)}${r.stopped ? ' · arrêtée avant la fin' : ''}</span>
         ${r.excluded ? '<span class="excl-tag">MISE DE CÔTÉ · HORS STATS</span>' : ''}</div>
       ${analysisHtml(r, a, 'detail')}
+      ${featChips(r)}
       ${managePanel(r)}
     </div></div>`;
 }
@@ -856,6 +919,7 @@ export const actions = {
   'tr-card'(id) { if (openCards.has(id)) openCards.delete(id); else openCards.add(id); refresh(); },
   'tr-set'(id) { saveTrSetup({ setId: id || null }); refresh(); },
   'tr-fold'() { othersOpen = !othersOpen; refresh(); },
+  'tr-fold-fun'() { funOpen = !funOpen; refresh(); },
   'tr-change-set'() { const r = tr(); if (r) { r.ui.confirm = 'set'; refresh(); } },
   'tr-set-now'(id) { const r = tr(); if (!r) return; if (trChangeSet(id || null)) { buzz(BUZZ.dart); sound('validate'); } r.ui.confirm = false; r.ui.pause = false; refresh(); },
   'tr-mode'(m) { saveTrSetup({ mode: ['libre', 'jeu'].includes(m) ? m : 'coach' }); refresh(); },
@@ -866,6 +930,7 @@ export const actions = {
     else if (field === 'start') g.startScore = Number(val);
     else if (field === 'out') g.outMode = val === 'single' ? 'single' : 'double';
     else if (field === 'legs') g.legs = Number(val);
+    else if (field === 'defis') { if (val === 'aucun') delete g.defis; else g.defis = val; }
     saveTrSetup({ game: { kind: g.kind, ...cleanGame('x01', g) } });
     refresh();
   },
@@ -889,6 +954,14 @@ export const actions = {
     if (k === '25') return play(makeDart(25, 1));
     // Lot 8 du 23/11 (1.3) : un nombre de 1 à 20, puis sa zone (tr-zonepick).
     if (n >= 1 && n <= 20) { r.ui.pick = n; buzz(BUZZ.dart); refresh(); }
+  },
+  'tr-defi-decl'(arg) {
+    const r = tr();
+    if (!r) return;
+    const [i, v] = String(arg).split('|');
+    r.defiDecl = { ...(r.defiDecl || {}), [i]: v === '1' };
+    saveTr();
+    refresh();
   },
   'tr-zonepick'(z) {
     const r = tr();

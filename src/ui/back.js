@@ -7,6 +7,7 @@
 // Commandes qui ferment quelque chose, de la plus « au-dessus » à la plus « en dessous ».
 export const CLOSERS = [
   'badge-close',      // fenêtre d'un badge (lot 7.8)
+  'tb-close',         // lot 8 du 23/11 : badge d'entraînement ou petit défi en séance
   'fix-cancel',       // correction d'une fléchette
   'abandon-no',       // confirmations du menu pause
   'ck-abandon-no',    // confirmations du menu pause du Cricket (lot 10)

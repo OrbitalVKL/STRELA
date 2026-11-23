@@ -263,3 +263,40 @@ sans `rules` gardent `blocksV1`, 20). Libre : de 3 en 3.
   `--mode-train` / `--mode-soiree`.
 - Listes : séances en cartes (`sessionCard`, détail volée par volée au toucher, `tr-card`) ; historique : une carte par
   soirée ou par jour, repliée, gagnant dans l'en-tête, AFFICHER LES RÉSULTATS en pied.
+
+## Lot 8 du 23/11 : jeux de cible, défis, badges (0.16.0)
+
+**Aucune migration** : nouvelles clés d'exercice, champ facultatif `defiDecl` des séances, `game.defis` du X01 solo.
+
+### Jeux de cible (5.1) — src/engine/fun.js, à valider par Guillaume
+Règles complètes dans `RULES` (training.js). Ne comptent pas pour le niveau ; dans les stats (précision et écarts sur
+leurs cibles), objectifs dans `GOALS`. État : `funState(key, darts, seed)` ; dans la séance, présenté en séries
+(`funTrainingState`). Tirages (Roulette, Killer) d'après l'identifiant de la séance.
+
+| Clé | Jeu | Règle | Score | Cible change |
+|---|---|---|---|---|
+| serpent | Serpent | les 20 secteurs dans l'ordre de la cible depuis le 20 | fléchettes (−) | au toucher |
+| rebours | Compte à rebours | du 20 au 1 | fléchettes (−) | au toucher |
+| golf | Golf | trous 1 à 9, 3 fléchettes au plus ; triple 1, double 2, simple 3, manqué 5 | coups, par 27 (−) | au toucher |
+| shanghai | Shanghai | volée n sur le n (1 à 7), numéro × multiplicateur ; S + D + T = +100 | points (+) | volée |
+| moitie | Moitié | départ 40 ; 20, 19, 18, 17, 16, 15, bull ; volée ratée = total ÷ 2 | points (+) | volée |
+| roulette | Roulette | 10 volées, cible tirée au sort ; 1 / 2 / 3 points | points sur 90 (+) | volée |
+| mur60 | Mur de 60 | 10 volées sur le 20 ; 60 ou plus = une brique | briques sur 10 (+) | volée |
+| plushaut | Plus haut | chaque volée bat la précédente, sinon une vie (3) ; 15 volées au plus | volées réussies (+) | volée |
+| cent | Pile 100 | 100 tout juste ; une volée qui dépasse ne compte pas ; 20 volées au plus | fléchettes (−) | libre |
+| killer | Killer solo | ton numéro jusqu'à 3 marques, puis 3 adversaires à 3 vies | fléchettes (−) | au toucher |
+
+### Défis en X01 solo (5.2)
+Réglage `training.game.defis` (aucun, parfois, souvent), gardé dans `game.defis` de la séance. `soloDefiGame(rec)` présente
+la séance comme une partie à engine/defis.js (même tirage d'après l'identifiant et le rang de la volée, jeu de défis
+`DEFI_SET`, même validation) ; « main gauche » se déclare (`defiDecl`). Bandeau sous la bande du titre (texte court, sans
+gage) ; KPI « Défis réussis » et message dans l'analyse.
+
+### Badges d'entraînement et petits défis (5.3, 5.4) — src/engine/trainbadges.js, src/ui/trainhonours.js
+- Petits défis (`FEATS`, sur chaque volée complète d'un exercice ou d'un jeu de cible) : volée parfaite, trio, même trou,
+  œil de bœuf. Fin et détail d'une séance : une pastille par défi ; fenêtre (signification, séance, volée).
+- Badges à rangs (`TRAIN_BADGES`, seuils à valider) : Assidu 5 / 14 / 30 jours d'affilée ; Bras de fer 2 000 / 10 000 /
+  30 000 fléchettes ; Tireur d'élite 4 / 3 / 2 cm d'écart moyen (18 fléchettes visées au moins) ; Mouchoir de poche 3 /
+  2,2 / 1,5 cm de groupement (9 au moins) ; En progrès +15 / +30 / +50 % (5 dernières contre 5 premières séances d'un
+  exercice, 10 au moins) ; Chasseur de défis 10 / 50 / 200 petits défis. Recalculés sur tout l'historique
+  (`trainingHonours`), chaque rang garde la séance où il a été atteint. Vitrine dans les stats d'entraînement.

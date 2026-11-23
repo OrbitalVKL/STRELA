@@ -24,8 +24,8 @@ de Guillaume, copié dans la conversation de la session). Ce fichier dit où en 
 
 | Publication | Contenu | État |
 |---|---|---|
-| 0.15.0 | 1 (saisie, précision, marqueur, règle de passage), 2 (règles et aide), 3 (stats : tendances, graphes, période, 0 %, chaleur, bandeau), 4 (listes en cartes) | fait (publication en cours) |
-| 0.16.0 | 5 (exercices ludiques, défis en X01 solo, badges d'entraînement, petits défis en séance) | à faire |
+| 0.15.0 | 1 (saisie, précision, marqueur, règle de passage), 2 (règles et aide), 3 (stats : tendances, graphes, période, 0 %, chaleur, bandeau), 4 (listes en cartes) | fait, publié (#35) |
+| 0.16.0 | 5 (exercices ludiques, défis en X01 solo, badges d'entraînement, petits défis en séance) | fait (publication en cours) |
 | 0.17.0 | 6 (modes, accueil, tutoriel), 7 (réglages, mise à jour), 8 (sauvegarde, export IA, feuille KPI entraînement), 9 (lien d'installation, page et guide) | à faire |
 
 ## Décisions
@@ -45,7 +45,9 @@ Voir la première ligne « en cours » du tableau ; le détail des sous-tâches 
 
 - 0.15.0 : sections 1 à 4 entières (détail : docs/entrainement.md « Lot 8 du 23/11 » ; tests : tests/lot8-stats.test.js).
 
-## Pour 0.16.0 (section 5), idées retenues à ce stade
+- 0.16.0 : section 5 entière (détail : docs/entrainement.md « jeux de cible, défis, badges » ; tests : tests/lot8-jeux.test.js).
+
+## Pour 0.16.0 (section 5), notes d'origine
 
 - Exercices ludiques (5.1, à valider par Guillaume) : Killer solo, Serpent (parcours de secteurs dans l'ordre de la
   cible), Shanghai, Moitié (halve-it), Plus haut, Roulette, Golf 9 trous, Mur de 60, plus Tour de l'horloge et Cricket

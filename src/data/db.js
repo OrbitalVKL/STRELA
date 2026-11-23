@@ -302,6 +302,9 @@ export function trainingRecord(r) {
   // Lot 8 du 23/11 (champ facultatif) : version des règles des exercices (2 : la cible change à la fin d'une volée ;
   // une séance d'avant, sans ce champ, garde ses règles, par exemple 20 fléchettes par numéro au 20-19-18).
   if (Number.isInteger(r.rules) && r.rules >= 2 && r.rules <= 99) rec.rules = r.rules;
+  // Lot 8 du 23/11 (5.2) : déclarations des défis à déclarer (« main gauche ») d'un X01 solo, comme une partie.
+  const decl = cleanDecl(r.defiDecl);
+  if (decl) rec.defiDecl = decl;
   return rec;
 }
 

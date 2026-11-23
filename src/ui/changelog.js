@@ -2,6 +2,12 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.16.0', date: '2026-11-23', title: 'Entraînement : jeux de cible, défis, badges', items: [
+    'Dix jeux de cible, plus ludiques, sous « Jeux de cible » en mode Coaché : Serpent (les 20 secteurs dans l\'ordre de la cible), Compte à rebours (du 20 au 1), Golf (9 trous), Shanghai, Moitié, Roulette, Mur de 60, Plus haut, Pile 100, Killer solo. Chacun a ses règles écrites (i) et son score ; ils comptent dans les stats, pas pour le niveau.',
+    'X01 solo : réglage DÉFIS (aucun, parfois, souvent) au lancement. Les mêmes défis qu\'en soirée, tirés et vérifiés de la même façon ; le défi s\'affiche en haut de l\'écran, puis réussi ou raté ; le compte est dans l\'analyse.',
+    'Petits défis en séance : volée parfaite (3 dans la cible), trio (3 dans le même secteur), même trou (3 dans la même case), œil de bœuf (2 au centre). À la fin de la séance, chaque défi réussi s\'ouvre dans une fenêtre : ce qu\'il veut dire, la séance et la volée.',
+    'Badges d\'entraînement, bronze, argent, or (stats d\'entraînement) : Assidu (jours d\'affilée), Bras de fer (fléchettes lancées), Tireur d\'élite (écart moyen), Mouchoir de poche (groupement), En progrès (sur un exercice), Chasseur de défis. Calculés sur tout l\'historique ; chaque rang garde la séance où il a été gagné.',
+  ] },
   { v: '0.15.0', date: '2026-11-23', title: 'Entraînement : saisie précise, règles, stats revues', items: [
     'Saisie au pavé en deux temps : le nombre, puis sa zone (simple intérieur ou extérieur, double, triple). La zone visée est soulignée ; AUTRE NOMBRE ou ANNULER revient en arrière. 25, 50 et HORS CIBLE en un appui.',
     'Cible au doigt (paysage) : une zone d\'une dizaine de centimètres autour de la cible permet de poser un hors cible à sa vraie place ; il garde sa position et sa distance (il ne compte que zéro point).',

@@ -100,6 +100,8 @@ src/ui/screens/training.js entraînement : choix, saisie (pavé S INT./S EXT., c
                           src/ui/boardinput.js : saisie au doigt sur la cible (loupe), commune au jeu et à l'entraînement
 src/engine/trends.js      tendances (10 dernières séances), période des stats, axe du temps des courbes (lot 8 du 23/11) ;
                           src/ui/heat.js : échelle des cartes de chaleur ; src/ui/modeband.js : bandeau des pages de stats
+src/engine/fun.js         jeux de cible solo (lot 8 du 23/11) ; src/engine/trainbadges.js : badges d'entraînement et petits
+                          défis en séance ; src/ui/trainhonours.js : leur vitrine et leur fenêtre
 src/engine/shuffle.js     tirage au sort de l'ordre (Fisher-Yates sans biais, 0.11.0 ; tests/tirage.test.js)
 src/engine/alcohol.js     verres : comptes (verre 25 cl, pinte 50 cl = 2 verres, 0.8.2), place dans la partie, alcoolémie estimée (lot 7) ;
                           src/ui/drinks.js : choix verre / pinte et affichage du compte (0.8.2)
@@ -192,8 +194,15 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 8 | Entraînement solo : coaché (7 exercices débutant, analyse, conseils, niveau) et libre, saisie S INT. / S EXT., armurerie, stats entraînement / parties / les deux, conseils illustrés, base v3 (v0.12.0) — **fait, en attente de validation sur le Pixel** |
 | 8.1 | Entraînement : couleurs des pièces, dessin au choix du jeu, changer de jeu en pleine séance, niveau intermédiaire (5 exercices) et objectifs par niveau, gestion des séances (note, jeu, joueur, mise de côté, reprise) (v0.13.0) — **fait, en attente de validation sur le Pixel** |
 | 8.2 | Entraînement : mode JEUX, X01 et Cricket en solo aux vraies règles ; triples, doubles et carte de chaleur des stats réservés aux jeux et parties (v0.14.0) — **fait, en attente de validation sur le Pixel** |
-| 8 (23/11) | Entraînement, stats et distribution (docs/lot-8-avancement.md) : 0.15.0 = saisie précise, règles, stats, listes en cartes — **fait** ; 0.16.0 (exercices ludiques, défis, badges) et 0.17.0 (modes, accueil, réglages, exports, installation) à faire |
+| 8 (23/11) | Entraînement, stats et distribution (docs/lot-8-avancement.md) : 0.15.0 = saisie précise, règles, stats, listes en cartes — **fait** ; 0.16.0 = jeux de cible, défis en X01 solo, badges d'entraînement — **fait** ; 0.17.0 (modes, accueil, réglages, exports, installation) à faire |
 | 11 | Recette |
+
+## État (version 0.16.0 : lot 8 du 23/11, deuxième partie)
+
+- **0.16.0** (23/11) : section 5 du cahier (docs/entrainement.md « jeux de cible, défis, badges »). Aucune migration.
+  Nouveaux fichiers : src/engine/fun.js (10 jeux de cible), src/engine/trainbadges.js (badges, petits défis),
+  src/ui/trainhonours.js (vitrine, pastilles, fenêtre), tests/lot8-jeux.test.js.
+- À faire valider par Guillaume : la liste des 10 jeux (règles, scores), les seuils des badges, les libellés.
 
 ## État (version 0.15.0 : lot 8 du 23/11, première partie)
 
