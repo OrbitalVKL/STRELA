@@ -21,6 +21,7 @@ import { fmtValue, sessionCard, heatBoard } from './training.js';
 import { trend, periodBounds, inPeriod, timeAxis, labelIndexes, isoDay } from '../../engine/trends.js';
 import { heatLegend } from '../heat.js';
 import { modeBand } from '../modeband.js';
+import { trainBadgesGrid } from '../trainhonours.js';
 
 const dec1 = v => (v === null || v === undefined || Number.isNaN(v) ? '—' : (Math.round(v * 10) / 10).toFixed(1).replace('.', ','));
 const dec2 = v => (v === null || v === undefined || Number.isNaN(v) ? '—' : (Math.round(v * 100) / 100).toFixed(2).replace('.', ','));
@@ -350,6 +351,9 @@ export function trainStatsScreen() {
       ${infoBox('ts-heat', `Chaque fléchette sur la cible, par zone : ${heatLegend()} (échelle au choix dans Réglages › Affichage). ${FREE_AIM} À l'entraînement, le simple intérieur et le simple extérieur sont comptés à part ; une fléchette de partie (simple sans anneau connu) compte pour moitié dans chacun.`)}
       <div class="heatbox">${hb.svg}</div><p class="note center">${plural(hb.off, 'fléchette', 'fléchettes')} hors cible, non dessinée${hb.off > 1 ? 's' : ''}.</p>` : ''}
       ${ui.source !== 'parties' && !exIsGame() ? trendsBlock(sessions) : ''}
+      ${ui.source !== 'parties' ? `<div class="sec">Badges d'entraînement${infoBtn('ts-badges')}</div>
+        ${infoBox('ts-badges', 'Bronze, argent, or : jours d\'affilée, fléchettes lancées, écart moyen à la cible, groupement, progrès sur un exercice, petits défis réussis en séance (volée parfaite, trio, même trou, œil de bœuf). Calculés sur tout l\'historique du joueur, quelle que soit la période choisie. Touchez un badge pour voir ce qu\'il veut dire et la séance où il a été gagné.')}
+        ${trainBadgesGrid(pid)}` : ''}
       ${ui.source !== 'parties' && sessions.length ? `<div class="sec">Par jeu de fléchettes${infoBtn('ts-sets')}</div>
         ${infoBox('ts-sets', 'Pour comparer les jeux : sur les exercices, séances, fléchettes, précision (dans la cible visée) et groupement moyen (cm) ; sur les jeux X01 et Cricket, fléchettes, moyenne sur 3 fléchettes, MPR, part de triples et de doubles. Sur les filtres choisis.')}
         ${aimed.length ? bySet(aimed) : ''}${played.length ? `${aimed.length ? '<p class="small dim caps tsub">En jeu (X01, Cricket)</p>' : ''}${bySetGames(played)}` : ''}

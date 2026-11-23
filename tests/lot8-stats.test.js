@@ -91,6 +91,7 @@ describe('règles écrites et passage de la cible (1.6, 2.1 à 2.3)', () => {
       assert.equal(rulesOf(k), r);
       const ex = EXERCISES[k];
       if (ex.game) assert.equal(r.advance, 'game');
+      else if (ex.fun) assert.ok(['hit', 'volley'].includes(r.advance), k);
       else if (ex.clock) assert.equal(r.advance, 'hit', k);
       else {
         assert.equal(r.advance, 'volley', k);

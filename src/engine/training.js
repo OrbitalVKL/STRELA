@@ -21,6 +21,8 @@ import { computeState, START_SCORES } from './x01.js';
 import { computeCricket, cricketSummary, CRICKET_TARGETS } from './cricket.js';
 import { playerStats } from './stats.js';
 import { suggestCheckout } from './checkout.js';
+import { FUN, FUN_KEYS, funState, funSummary } from './fun.js';
+import { DEFI_FREQS, DEFI_SET, defiOf, defiResult, gameDefis } from './defis.js';
 
 // ------------------------------------------------------------------ zones
 export const ZONE_LABEL = Object.freeze({ any: 'TOUT LE SECTEUR', s: 'SIMPLE', si: 'SIMPLE INTÉRIEUR', se: 'SIMPLE EXTÉRIEUR', d: 'DOUBLE', t: 'TRIPLE' });
@@ -219,6 +221,27 @@ export const EXERCISES = Object.freeze({
   cricket: { name: 'Cricket solo', short: 'fermer du 20 au 15 et le bull', game: 'cricket',
     goal: 'Un Cricket seul : fermer le 20, le 19, le 18, le 17, le 16, le 15 et le bull (3 marques chacun) en le moins de volées possible. Le chiffre : les marques par volée (MPR).',
     metric: 'mpr' },
+  // Jeux de cible (lot 8 du 23/11, 5.1) : plus ludiques, pour le débutant ; ne comptent pas pour le niveau.
+  serpent: { name: 'Serpent', short: 'les 20 secteurs dans l\'ordre de la cible', fun: true, metric: 'fun',
+    goal: 'Faire le tour de la cible dans l\'ordre où les secteurs se suivent (20, 1, 18, 4… jusqu\'au 5), en le moins de fléchettes possible.' },
+  rebours: { name: 'Compte à rebours', short: 'du 20 au 1, dans l\'ordre', fun: true, metric: 'fun',
+    goal: 'Le tour de l\'horloge à l\'envers : du 20 au 1, en le moins de fléchettes possible.' },
+  golf: { name: 'Golf', short: '9 trous, du 1 au 9', fun: true, metric: 'fun',
+    goal: 'Neuf trous (les secteurs 1 à 9), trois fléchettes au plus par trou : le moins de coups possible (par 27).' },
+  shanghai: { name: 'Shanghai', short: '7 manches, du 1 au 7', fun: true, metric: 'fun',
+    goal: 'Une volée sur le 1, puis sur le 2, jusqu\'au 7 : marquer le plus de points dans le bon secteur ; simple, double et triple dans la même volée : Shanghai, 100 points de plus.' },
+  moitie: { name: 'Moitié', short: '7 cibles, sinon le total est divisé par deux', fun: true, metric: 'fun',
+    goal: 'Sept volées, une cible chacune (20, 19, 18, 17, 16, 15, bull) : chaque volée qui rate sa cible divise ton total par deux.' },
+  roulette: { name: 'Roulette', short: '10 volées, cible tirée au sort', fun: true, metric: 'fun',
+    goal: 'À chaque volée, une cible tirée au sort : 1 point par simple, 2 par double, 3 par triple dans la cible.' },
+  mur60: { name: 'Mur de 60', short: '10 volées, une brique à 60', fun: true, metric: 'fun',
+    goal: 'Dix volées en visant le 20 : chaque volée de 60 points ou plus pose une brique. Combien de briques sur 10 ?' },
+  plushaut: { name: 'Plus haut', short: 'chaque volée bat la précédente, 3 vies', fun: true, metric: 'fun',
+    goal: 'Chaque volée doit faire plus de points que la précédente ; sinon tu perds une vie. Combien de volées réussies avant de perdre les trois vies ?' },
+  cent: { name: 'Pile 100', short: '100 points tout juste', fun: true, metric: 'fun',
+    goal: 'Arriver à 100 points tout juste, en le moins de fléchettes possible : une volée qui dépasse 100 ne compte pas.' },
+  killer: { name: 'Killer solo', short: 'ton numéro, puis trois adversaires', fun: true, metric: 'fun',
+    goal: 'Deviens tueur sur ton numéro (tiré au sort), puis élimine trois numéros adverses à 3 vies chacun, en le moins de fléchettes possible.' },
   libre: { name: 'Libre', short: 'tes cibles, tes fléchettes',
     goal: 'Tu choisis la cible (secteur et zone) et le nombre de fléchettes ; l\'appli compare la cible visée et les impacts.',
     metric: 'rate' },
@@ -236,7 +259,10 @@ export const GAME_EXERCISES = Object.freeze(['x01', 'cricket']);
 /** Séance d'un jeu en solo (on y vise comme en partie : triples, doubles et carte de chaleur y ont un sens). */
 export const isGameSession = r => !!r && GAME_EXERCISES.includes(r.exercise);
 /** Tous les exercices du coach (débutant puis intermédiaire), puis les jeux en solo, puis libre. */
-export const ALL_EXERCISES = Object.freeze([...new Set([...COACH_ORDER, ...LEVEL_EXERCISES.intermediaire]), ...GAME_EXERCISES, 'libre']);
+export const ALL_EXERCISES = Object.freeze([...new Set([...COACH_ORDER, ...LEVEL_EXERCISES.intermediaire]), ...FUN_KEYS, ...GAME_EXERCISES, 'libre']);
+/** Jeux de cible (lot 8 du 23/11, 5.1). */
+export { FUN_KEYS };
+export const isFunSession = r => !!r && FUN_KEYS.includes(r.exercise);
 /** Niveau d'un exercice (débutant sauf mention). */
 export const exerciseLevel = k => (EXERCISES[k] && EXERCISES[k].level) || 'debutant';
 /**
@@ -265,6 +291,16 @@ export const RULES = Object.freeze({
   bull25: { advance: 'volley', flow: '5 volées de 3 fléchettes au centre.', success: 'Une fléchette dans le 25 ou le 50.', entry: ENTRY_VOLLEY, now: 'Vise le centre · saisie après les 3 fléchettes' },
   x01: { advance: 'game', flow: 'Une partie de X01 seul : ramener le départ (301, 501 ou 701) à zéro, en sortie simple ou double ; une volée qui dépasse (bust) ne compte pas.', success: 'Finir chaque manche. Le chiffre : la moyenne sur 3 fléchettes.', entry: 'Saisis chaque volée de 3 fléchettes, comme en partie : le reste et la finition proposée se mettent à jour.', now: 'Comme en partie · saisie de chaque volée' },
   cricket: { advance: 'game', flow: 'Fermer le 20, le 19, le 18, le 17, le 16, le 15 et le bull, 3 marques chacun (un double vaut 2, un triple 3), dans n\'importe quel ordre.', success: 'Chaque marque utile (sur une cible pas encore fermée). Le chiffre : les marques par volée (MPR).', entry: 'Saisis chaque volée de 3 fléchettes ; les cibles fermées s\'affichent en tête.', now: 'Ferme du 20 au 15 et le bull · saisie de chaque volée' },
+  serpent: { advance: 'hit', flow: 'Les 20 secteurs dans l\'ordre où ils se suivent sur la cible, en partant du 20 et en tournant dans le sens des aiguilles d\'une montre : 20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5. On passe au suivant dès qu\'il est touché.', success: 'Le secteur visé, dans n\'importe quelle zone. Score : les fléchettes utilisées (moins, c\'est mieux).', entry: ENTRY_HIT, now: 'Le secteur suivant dès que celui-ci est touché' },
+  rebours: { advance: 'hit', flow: 'Du 20 au 1 dans l\'ordre ; on passe au numéro suivant dès qu\'il est touché.', success: 'Le numéro visé, dans n\'importe quelle zone. Score : les fléchettes utilisées (moins, c\'est mieux).', entry: ENTRY_HIT, now: 'Du 20 au 1 · la cible avance dès qu\'elle est touchée' },
+  golf: { advance: 'hit', flow: 'Neuf trous : le trou 1 est le secteur 1, et ainsi de suite jusqu\'au 9. Trois fléchettes au plus par trou ; on passe au trou suivant dès que le secteur est touché.', success: 'Coups du trou, d\'après la fléchette qui touche : triple 1, double 2, simple 3 ; trou manqué après 3 fléchettes : 5. Score : le total (par 27 ; moins, c\'est mieux).', entry: ENTRY_HIT, now: 'Un trou par secteur · 3 fléchettes au plus' },
+  shanghai: { advance: 'volley', flow: 'Sept volées : la première sur le 1, la deuxième sur le 2… la septième sur le 7.', success: 'Chaque fléchette dans le secteur de la manche rapporte le numéro × 1, 2 ou 3 (simple, double, triple). Un simple, un double et un triple du numéro dans la même volée : Shanghai, 100 points de plus. Score : le total.', entry: ENTRY_VOLLEY, now: 'Une volée par numéro, du 1 au 7 · saisie après les 3' },
+  moitie: { advance: 'volley', flow: 'Départ à 40 points. Sept volées, une cible chacune : 20, 19, 18, 17, 16, 15, puis le bull (25 ou 50).', success: 'Les points des fléchettes dans la cible s\'ajoutent au total ; une volée sans aucune fléchette dans la cible divise le total par deux (arrondi en dessous). Score : le total final.', entry: ENTRY_VOLLEY, now: 'Une cible par volée · rater, c\'est diviser par deux' },
+  roulette: { advance: 'volley', flow: 'Dix volées ; avant chacune, une cible de 1 à 20 est tirée au sort (la même si on reprend la séance).', success: 'Dans la cible : 1 point par simple, 2 par double, 3 par triple. Score : le total (sur 90).', entry: ENTRY_VOLLEY, now: 'Une cible tirée au sort par volée · saisie après les 3' },
+  mur60: { advance: 'volley', flow: 'Dix volées en visant le 20 (toutes les fléchettes comptent, où qu\'elles tombent).', success: 'Une volée de 60 points ou plus pose une brique. Score : les briques, sur 10.', entry: ENTRY_VOLLEY, now: 'Vise le 20 · 60 points ou plus = une brique' },
+  plushaut: { advance: 'volley', flow: 'Vise où tu veux (le 20 est conseillé). La première volée donne la référence ; chaque volée suivante doit faire plus de points que celle d\'avant, sinon tu perds une vie. Trois vies ; quinze volées au plus.', success: 'Une volée qui fait plus que la précédente. Score : les volées réussies.', entry: ENTRY_VOLLEY, now: 'Fais plus que ta volée d\'avant · 3 vies' },
+  cent: { advance: 'volley', flow: 'Vise ce que tu veux pour arriver à 100 points tout juste. Une volée qui dépasse 100 ne compte pas : on revient au total d\'avant la volée. Vingt volées au plus.', success: 'Atteindre 100 pile. Score : les fléchettes utilisées (moins, c\'est mieux).', entry: 'Saisis chaque fléchette dans l\'ordre : on s\'arrête dès que 100 est atteint, même au milieu d\'une volée.', now: 'Exactement 100 · ce qui dépasse ne compte pas' },
+  killer: { advance: 'hit', flow: 'Ton numéro et trois numéros adverses sont tirés au sort. D\'abord, touche ton numéro jusqu\'à 3 marques (simple 1, double 2, triple 3) : tu deviens tueur. Ensuite, élimine les adversaires l\'un après l\'autre : chaque marque sur son numéro lui retire une vie (3 vies chacun).', success: 'Une marque sur le numéro visé. Score : les fléchettes pour éliminer les trois (moins, c\'est mieux).', entry: ENTRY_HIT, now: 'Ton numéro, puis les adversaires un à un' },
   libre: { advance: 'volley', flow: 'Les séries que tu choisis : une cible (secteur et zone) et un nombre de fléchettes, toujours un multiple de 3.', success: 'Une fléchette dans la cible choisie ; on regarde aussi l\'écart au point visé.', entry: ENTRY_VOLLEY, now: 'Ta cible · saisie après les 3 fléchettes' },
 });
 /** Règles d'un exercice (celles de « libre » par défaut). */
@@ -276,10 +312,39 @@ export const GAME_LEGS = Object.freeze([1, 3, 5]);
 export function cleanGame(exercise, g) {
   const o = g && typeof g === 'object' ? g : {};
   const legs = Number.isInteger(Number(o.legs)) && Number(o.legs) >= 1 && Number(o.legs) <= 9 ? Number(o.legs) : 1;
-  if (exercise === 'x01') return { startScore: START_SCORES.includes(Number(o.startScore)) ? Number(o.startScore) : 501, outMode: o.outMode === 'single' ? 'single' : 'double', legs };
+  if (exercise === 'x01') {
+    const g = { startScore: START_SCORES.includes(Number(o.startScore)) ? Number(o.startScore) : 501, outMode: o.outMode === 'single' ? 'single' : 'double', legs };
+    // Lot 8 du 23/11 (5.2) : défis de la soirée, même tirage et même validation (« parfois », « souvent »).
+    if (DEFI_FREQS[o.defis]) g.defis = o.defis;
+    return g;
+  }
   if (exercise === 'cricket') return { legs };
   return null;
 }
+/**
+ * Défis d'un X01 solo (lot 8 du 23/11, 5.2) : la séance vue comme une partie pour engine/defis.js (même tirage, d'après
+ * l'identifiant de la séance et le rang de la volée ; mêmes défis que les nouvelles soirées ; même validation).
+ */
+export function soloDefiGame(rec) {
+  const g = cleanGame(rec.exercise, rec.game);
+  return g && g.defis ? { id: rec.id, defis: g.defis, defiSet: DEFI_SET, defiDecl: rec.defiDecl || null } : null;
+}
+/** Défi de la volée en cours ou, tant que la suivante n'a pas commencé, de la volée close : { index, key, open, result? } ou null. */
+export function soloDefiNow(rec, st) {
+  const dg = st && st.game === 'x01' ? soloDefiGame(rec) : null;
+  if (!dg) return null;
+  const gs = st.gs;
+  if (!st.visitDarts && gs.visits.length) {
+    const idx = gs.visits.length - 1;
+    const r = defiResult(dg, gs, idx);
+    if (r) return { index: idx, key: r.key, open: false, result: r };
+  }
+  if (gs.status !== 'playing') return null;
+  const idx = gs.visits.length;
+  const key = defiOf(dg, idx, gs.visit && gs.visit.darts.length ? gs.visit.startRemaining : gs.remaining[0]);
+  return key ? { index: idx, key, open: true } : null;
+}
+
 /** Configuration du moteur (x01.js, cricket.js) d'une séance de jeu : un seul joueur ; Cricket sans points (seul, on ferme). */
 export function gameConfig(rec) {
   const g = cleanGame(rec.exercise, rec.game);
@@ -314,6 +379,7 @@ export function planOf(cfg) {
 export function trainingState(cfg, darts) {
   for (const d of darts) if (trainingDartError(d)) throw new Error('fléchette invalide');
   if (isGameSession(cfg)) return gameTrainingState(cfg, darts);
+  if (isFunSession(cfg)) return funTrainingState(cfg, darts);
   const blocks = [];
   const ck = clockOf(cfg);
   if (ck) {
@@ -371,6 +437,7 @@ function gameTrainingState(cfg, darts) {
  */
 export function volleyInfo(st) {
   if (st.game) return null;
+  if (st.fun) return { n: Math.floor(st.thrown / 3) + 1 - (st.done && st.thrown % 3 === 0 ? 1 : 0), total: FUN[st.funKey].volleys, dart: st.thrown % 3 };
   if (st.clock) return { n: Math.floor(st.thrown / 3) + 1 - (st.done && st.thrown % 3 === 0 ? 1 : 0), total: null, dart: st.thrown % 3 };
   const per = b => Math.ceil(b.n / 3);
   const total = st.blocks.reduce((k, b) => k + per(b), 0);
@@ -379,8 +446,34 @@ export function volleyInfo(st) {
   return { n: before + Math.floor(st.cur.k / 3) + 1, total, dart: st.cur.k % 3 };
 }
 
+/**
+ * État d'un jeu de cible (lot 8 du 23/11, 5.1) : celui de fun.js (`fun`), présenté en séries comme un exercice (les
+ * fléchettes qui se suivent sur la même cible forment une série) pour que la saisie, l'analyse et les écarts servent tels
+ * quels. Cible libre (Pile 100) : secteur 0, hors précision.
+ */
+function funTrainingState(cfg, darts) {
+  const fs = funState(cfg.exercise, darts, cfg.id);
+  const blocks = [];
+  darts.forEach((d, i) => {
+    const t = fs.targets[i];
+    const last = blocks[blocks.length - 1];
+    if (last && last.s === t.s && last.z === t.z) last.darts.push(d);
+    else blocks.push({ s: t.s, z: t.z, n: null, start: i, darts: [d], hits: 0 });
+  });
+  let cur = null;
+  if (!fs.done) {
+    const last = blocks[blocks.length - 1];
+    if (!last || last.s !== fs.cur.s || last.z !== fs.cur.z) blocks.push({ s: fs.cur.s, z: fs.cur.z, n: null, start: darts.length, darts: [], hits: 0 });
+    const b = blocks[blocks.length - 1];
+    cur = { i: blocks.length - 1, s: b.s, z: b.z, n: null, k: b.darts.length };
+  }
+  for (const b of blocks) b.hits = b.s ? b.darts.filter(d => isHit(b, d)).length : 0;
+  const open = darts.length % 3;
+  return { fun: fs, funKey: cfg.exercise, blocks, cur, done: fs.done, thrown: darts.length, visitDarts: fs.done ? 0 : open, visitStart: darts.length - open, clock: false };
+}
+
 /** Fléchettes prévues (null pour l'horloge et les jeux). */
-export const plannedDarts = cfg => { if (isGameSession(cfg)) return null; const ck = clockOf(cfg); return ck ? (ck.max ? 20 * ck.max : null) : planOf(cfg).reduce((n, b) => n + b.n, 0); };
+export const plannedDarts = cfg => { if (isGameSession(cfg) || isFunSession(cfg)) return null; const ck = clockOf(cfg); return ck ? (ck.max ? 20 * ck.max : null) : planOf(cfg).reduce((n, b) => n + b.n, 0); };
 
 // ------------------------------------------------------------------ jeu de fléchettes de chaque fléchette (0.13.0)
 /**
@@ -485,11 +578,13 @@ const visitsOf = darts => { const out = []; for (let i = 0; i < darts.length; i 
 export function analyze(rec) {
   if (isGameSession(rec)) return analyzeGame(rec);
   const st = trainingState(rec, rec.darts);
-  const pairs = [];
-  for (const b of st.blocks) b.darts.forEach((d, j) => pairs.push({ t: b, d, i: b.start + j }));
-  const n = pairs.length;
+  const all0 = [];
+  for (const b of st.blocks) b.darts.forEach((d, j) => all0.push({ t: b, d, i: b.start + j }));
+  // Jeux de cible : une fléchette sans cible (Pile 100) compte, mais pas dans la précision ni les écarts.
+  const pairs = all0.filter(p => p.t.s);
+  const n = all0.length;
   const hits = pairs.filter(p => isHit(p.t, p.d)).length;
-  const off = pairs.filter(p => p.d.segment === MISS).length;
+  const off = all0.filter(p => p.d.segment === MISS).length;
   // Par cible (une même cible visée dans plusieurs séries est regroupée).
   const groups = new Map();
   for (const p of pairs) {
@@ -507,8 +602,12 @@ export function analyze(rec) {
   const all = deviation(pairs, single ? axesOf(single) : null);
   const ex = EXERCISES[rec.exercise] || EXERCISES.libre;
   const extra = {};
-  let value = n ? hits / n : null;
-  if (ex.clock) {
+  let value = pairs.length ? hits / pairs.length : null;
+  if (ex.fun) {
+    extra.fun = st.fun;
+    extra.summary = funSummary(rec.exercise, st.fun, n);
+    value = st.fun.score;
+  } else if (ex.clock) {
     extra.reached = st.done ? 20 : st.cur.s - 1;
     extra.perNumber = st.blocks.map(b => ({ s: b.s, darts: b.darts.length, hit: !!b.hits, open: !st.done && b === st.blocks[st.blocks.length - 1] }));
     extra.hitCount = st.blocks.filter(b => b.hits).length;
@@ -545,7 +644,7 @@ export function analyze(rec) {
   // Précision (lot 8 du 23/11, 3.4) : distance moyenne au point visé, hors cible posés compris ; `approx` : fléchettes
   // placées au milieu de leur case (saisie au pavé), `offNoPos` : hors cible sans position (comptés, sans distance).
   const prec = precisionOf(pairs);
-  const out = { darts: n, hits, rate: n ? hits / n : null, off, perTarget, bias: all.bias, spread: all.spread, axes: all.axes, points: all.n, value, extra, done: st.done, exercise: rec.exercise, ...prec };
+  const out = { darts: n, hits, rate: pairs.length ? hits / pairs.length : null, off, perTarget, bias: all.bias, spread: all.spread, axes: all.axes, points: all.n, value, extra, done: st.done, exercise: rec.exercise, ...prec };
   out.messages = coachMessages(out, rec);
   out.next = nextFor(out, rec);
   return out;
@@ -611,7 +710,9 @@ export function coachMessages(a, rec) {
   if (!a.darts) return msgs;
   const ex = EXERCISES[rec.exercise] || EXERCISES.libre;
   // Résultat de l'exercice.
-  if (ex.clock && ex.clock.max) {
+  if (ex.fun) {
+    msgs.push({ kind: 'result', text: a.extra.summary });
+  } else if (ex.clock && ex.clock.max) {
     const missed = a.extra.perNumber.filter(x => !x.hit && !x.open).map(x => `D${x.s}`);
     msgs.push({ kind: 'result', text: a.done ? `${a.extra.hitCount} double${a.extra.hitCount > 1 ? 's' : ''} sur 20, en ${a.darts} fléchettes.` : `Arrêté au D${a.extra.reached + 1} : ${a.extra.hitCount} double${a.extra.hitCount > 1 ? 's' : ''} touché${a.extra.hitCount > 1 ? 's' : ''}.` });
     if (missed.length && missed.length <= 10) msgs.push({ kind: 'clock', text: `Manqués : ${missed.join(', ')}.`, tip: TIPS.doubles.text, sheet: TIPS.doubles.sheet });
@@ -718,6 +819,8 @@ export function analyzeGame(rec) {
     }).filter(l => l.darts);
     const won = extra.legs.filter(l => l.done);
     extra.bestLeg = won.length ? Math.min(...won.map(l => l.darts)) : null;
+    const dg = soloDefiGame(rec);
+    extra.defis = dg ? gameDefis(dg, gs) : [];
     value = ps.average;
   } else {
     const fresh = () => Object.fromEntries(CRICKET_TARGETS.map(t => [t, 0]));
@@ -780,6 +883,7 @@ function gameMessages(a) {
     const tons = x.ton + x.ton40 + x.max;
     msgs.push({ kind: 'result', text: `${pl(x.triples, 'triple', 'triples')} sur ${a.darts} fléchettes (${pc(x.tripleRate)})${tons ? ` · ${pl(tons, 'volée', 'volées')} à 100 ou plus${x.max ? `, dont ${x.max} à 180` : ''}` : ''} · meilleure volée : ${x.bestVisit}.` });
     if (x.busts) msgs.push({ kind: 'bust', text: `${pl(x.busts, 'bust', 'bust')}.`, tip: x.setup.outMode === 'double' ? TIPS.bust.text : null, sheet: null });
+    if (x.defis && x.defis.length) { const ok = x.defis.filter(d => d.ok).length; msgs.push({ kind: ok ? 'good' : 'result', text: `Défis : ${ok} réussi${ok > 1 ? 's' : ''} sur ${x.defis.length}.` }); }
   } else {
     const rounds = x.legs.reduce((k, l) => k + l.rounds, 0);
     if (a.done) msgs.push({ kind: 'result', text: x.legs.length > 1 ? `${x.legs.length} manches en ${rounds} volées, MPR ${dec2(x.mpr)}.` : `Tout fermé en ${rounds} volées (${a.darts} fléchettes), MPR ${dec2(x.mpr)}.` });
@@ -829,6 +933,17 @@ export const GOALS = Object.freeze({
   // Jeux en solo (0.14.0) : moyenne sur 3 fléchettes en X01 ; marques par volée au Cricket.
   x01: { debutant: 30, intermediaire: 45, confirme: 60 },
   cricket: { debutant: 1, intermediaire: 1.5, confirme: 2.2 },
+  // Jeux de cible (lot 8 du 23/11) : ordres de grandeur, à ajuster sur les vrais chiffres de Guillaume.
+  serpent: { debutant: 60, intermediaire: 40, confirme: 30 },
+  rebours: { debutant: 60, intermediaire: 40, confirme: 30 },
+  golf: { debutant: 36, intermediaire: 30, confirme: 25 },
+  shanghai: { debutant: 60, intermediaire: 100, confirme: 150 },
+  moitie: { debutant: 80, intermediaire: 150, confirme: 220 },
+  roulette: { debutant: 10, intermediaire: 16, confirme: 22 },
+  mur60: { debutant: 1, intermediaire: 3, confirme: 6 },
+  plushaut: { debutant: 3, intermediaire: 5, confirme: 7 },
+  cent: { debutant: 15, intermediaire: 9, confirme: 6 },
+  killer: { debutant: 45, intermediaire: 30, confirme: 22 },
 });
 /** Passage au niveau suivant : l'objectif du niveau actuel tenu sur LEVEL_SESSIONS séances complètes de suite, pour
  *  chacun de ces exercices (une séance sous l'objectif remet son compte à zéro ; un critère tenu une fois reste tenu). */
@@ -842,7 +957,7 @@ export const LEVEL_SESSIONS = 3;
 export function goalOf(key, level) {
   const g = GOALS[key];
   if (!g || g[level] === undefined) return null;
-  return { v: g[level], dir: key === 'horloge' ? -1 : 1 };
+  return { v: g[level], dir: key === 'horloge' ? -1 : FUN[key] ? FUN[key].dir : 1 };
 }
 /** La séance tient-elle l'objectif du niveau ? true / false, ou null (pas d'objectif, séance incomplète, pas de résultat). */
 export function goalMet(rec, a, level) {
@@ -907,6 +1022,7 @@ export function suggestNext(list, player, level = levelOf(list, player).level) {
 /** Chiffre principal d'une séance pour sa courbe : { v, fmt: 'pct' | 'int' | 'avg' | 'mpr', dir } ou null. */
 export function sessionValue(rec, a = analyze(rec)) {
   const ex = EXERCISES[rec.exercise] || EXERCISES.libre;
+  if (ex.fun) return a.value === null || a.value === undefined ? null : { v: a.value, fmt: 'int', dir: FUN[rec.exercise].dir, label: FUN[rec.exercise].label };
   if (ex.game === 'x01') return a.extra.average === null || a.extra.average === undefined ? null : { v: a.extra.average, fmt: 'avg', dir: 1, label: 'Moyenne / 3 fl.' };
   if (ex.game === 'cricket') return a.extra.mpr === null || a.extra.mpr === undefined ? null : { v: a.extra.mpr, fmt: 'mpr', dir: 1, label: 'Marques / volée' };
   if (ex.clock && ex.clock.max) return a.done ? { v: a.extra.hitCount, fmt: 'int', dir: 1, label: 'Doubles touchés' } : null;

@@ -30,6 +30,7 @@ import { startTraining, freshTrUi } from '../store.js';
 import { trainingState as trainingStateFn } from '../../engine/training.js';
 import { presetTraining, presetDetail } from './training.js';
 import { presetTrainStats } from './trainstats.js';
+import { presetTrainSheet } from '../trainhonours.js';
 import { presetInfo } from '../info.js';
 import { aimedDart, rng, simulateSoloX01, simulateSoloCricket } from '../mock.js';
 
@@ -254,6 +255,17 @@ export const SCENES = {
   'tr-jeu-regles': () => setTr('horloge', 5, { ui: { rules: true } }),
   'tr-jeu-horshors': () => setTr('groupement', 2, { darts: [{ segment: 0, multiplier: 1, pos: [0.2, -1.27] }, { segment: 20, multiplier: 1, ring: 'out', pos: [0.02, -0.75] }] }),
   'tr-jeu-horloge': () => setTr('horloge', 23),
+  // Lot 8 du 23/11 (5.1) : jeux de cible.
+  'tr-hub-cible': () => { store.tr = null; store.trSetup = { player: 'p1', setId: 'ds-torpedo-22', mode: 'coach' }; presetTraining({ fun: true }); presetInfo(['tr-ex-killer']); return '#/entrainement'; },
+  'tr-jeu-golf': () => setTr('golf', 7),
+  'tr-fin-golf': () => { setTr('golf', 40); return '#/entrainement/fin'; },
+  'tr-fin-defi': () => { setTr('groupement', 9, { darts: [{ segment: 20, multiplier: 1, ring: 'in' }, { segment: 20, multiplier: 3 }, { segment: 20, multiplier: 1, ring: 'out' }, ...Array.from({ length: 6 }, (_, i) => ({ segment: i % 2 ? 5 : 20, multiplier: 1, ring: 'in' }))] }); presetTrainSheet({ kind: 'feat', key: 'parfaite', sessionId: store.tr.id, start: 0 }); return '#/entrainement/fin'; },
+  'tr-stats-badges': () => { presetTrainStats(); presetInfo(['ts-badges']); return '#/entrainement/stats'; },
+  'tr-stats-badge-fenetre': () => { presetTrainStats(); presetInfo(); presetTrainSheet({ kind: 'badge', key: 'elite', pid: 'p1' }); return '#/entrainement/stats'; },
+  'tr-jeu-killer': () => setTr('killer', 4),
+  'tr-jeu-shanghai': () => setTr('shanghai', 10),
+  'tr-jeu-moitie': () => setTr('moitie', 9),
+  'tr-jeu-cent': () => setTr('cent', 0, { darts: [{ segment: 20, multiplier: 3 }, { segment: 5, multiplier: 1, ring: 'in' }, { segment: 1, multiplier: 1, ring: 'out' }, { segment: 20, multiplier: 1, ring: 'in' }] }),
   'tr-jeu-hautbas': () => setTr('hautbas', 4),
   'tr-jeu-bull': () => setTr('bull', 5),
   'tr-jeu-score': () => setTr('scorelibre', 13),
@@ -615,6 +627,16 @@ export function sommaire() {
       ${L('tr-jeu-regles', '◆ Saisie : règles de l\'exercice', 'horloge')}
       ${L('tr-jeu-horshors', '◆ Saisie : hors cible posé', 'à côté de la cible, en paysage')}
       ${L('tr-jeu-horloge', '◆ Saisie : tour de l\'horloge')}
+      ${L('tr-hub-cible', '◆ Entraînement : jeux de cible', 'les 10, règles du Killer')}
+      ${L('tr-jeu-golf', '◆ Saisie : golf')}
+      ${L('tr-fin-golf', '◆ Fin : golf')}
+      ${L('tr-fin-defi', '◆ Fin : petit défi (fenêtre)', 'volée parfaite')}
+      ${L('tr-stats-badges', '◆ Stats : badges d\'entraînement')}
+      ${L('tr-stats-badge-fenetre', '◆ Stats : fenêtre d\'un badge', 'tireur d\'élite')}
+      ${L('tr-jeu-killer', '◆ Saisie : Killer solo')}
+      ${L('tr-jeu-shanghai', '◆ Saisie : Shanghai')}
+      ${L('tr-jeu-moitie', '◆ Saisie : Moitié')}
+      ${L('tr-jeu-cent', '◆ Saisie : Pile 100')}
       ${L('tr-jeu-hautbas', '◆ Saisie : haut contre bas')}
       ${L('tr-jeu-bull', '◆ Saisie : bull')}
       ${L('tr-jeu-score', '◆ Saisie : score libre')}
