@@ -871,7 +871,7 @@ export function deleteCk() {
 // Séances dans le magasin « trainings » (v3), jeux de fléchettes dans « dartsets » ; derniers choix dans le réglage
 // « training ». La séance en cours est écrite à chaque fléchette et à chaque ANNULER, comme une partie.
 /** État d'affichage d'une séance (non enregistré) : nombre choisi au pavé en attente de sa zone (23/11), règles ouvertes, menu, loupe figée. */
-export const freshTrUi = () => ({ pick: null, rules: false, pause: false, confirm: false, loupe: null, add: null, cele: null });
+export const freshTrUi = () => ({ pick: null, zone: null, rules: false, pause: false, confirm: false, loupe: null, add: null, cele: null });
 
 export const trState = () => (store.tr ? trainingState(store.tr, store.tr.darts) : null);
 

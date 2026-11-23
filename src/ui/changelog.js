@@ -2,6 +2,14 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.19.1', date: '2026-11-23', title: 'Entraînement : la saisie rapide revient', items: [
+    'Le réglage de la saisie au pavé marche vraiment : deux modes, SECTEUR ENTIER (par défaut) et SECTEUR TOUCHÉ.',
+    'SECTEUR ENTIER, la saisie rapide d\'avant : S, D ou T dans la barre du haut, puis le nombre, et la fléchette est notée d\'un appui. La zone visée par l\'exercice est armée d\'office (T pour le triple 20…). Le simple n\'a pas de couronne : précision et groupement sont alors approchés (mention ≈ dans les stats).',
+    'SECTEUR TOUCHÉ, la saisie précise : le nombre, puis sa zone — simple intérieur ou extérieur, double, triple.',
+    'Le mode se change directement sur le pavé (en haut : SECTEUR ENTIER / TOUCHÉ) et reste mémorisé ; aussi dans Réglages › Saisie.',
+    'Barre S / D / T : un trait pour le simple, deux pour le double, trois pour le triple, en partie, au Cricket et à l\'entraînement.',
+    'Les séances déjà enregistrées ne changent pas.',
+  ] },
   { v: '0.19.0', date: '2026-11-23', title: 'Partie en ligne', items: [
     'Nouvelle entrée EN LIGNE à l\'accueil : une partie à plusieurs téléphones, un joueur par téléphone (2 à 4). Activable dans Réglages › Modes.',
     'L\'hôte crée un salon : un code de 5 caractères et un QR code (PARTAGER LE LIEN aussi). Les autres tapent le code ou scannent le QR code, et chacun choisit son joueur ; la liste des téléphones se met à jour en direct (connecté, en attente, perdu).',

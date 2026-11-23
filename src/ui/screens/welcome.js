@@ -74,7 +74,7 @@ function saveSetupStarted(step) {
 const PAGES = [
   ['target', 'Strela', 'Un compteur de fléchettes pour t\'entraîner seul et jouer à plusieurs. Deux modes, à allumer dans les Réglages : Entraînement et Soirée. Tout reste sur ton téléphone.'],
   ['sniper', 'L\'entraînement', 'Coaché : l\'appli propose un exercice et t\'explique où partent tes fléchettes. Libre : tu choisis la cible. Jeux : X01 ou Cricket seul, avec des défis si tu veux. Jeux de cible : Golf, Killer, Shanghai… pour varier.'],
-  ['plusplus', 'La saisie', 'Lance tes 3 fléchettes, puis saisis-les. Téléphone debout : le nombre, puis sa zone (simple intérieur ou extérieur, double, triple). Couché : touche la cible au doigt, la loupe aide à viser ; un hors cible se pose à côté de la cible.'],
+  ['plusplus', 'La saisie', 'Lance tes 3 fléchettes, puis saisis-les. Téléphone debout : S, D ou T, puis le nombre (secteur entier, rapide) ; ou, en secteur touché, le nombre puis sa zone (simple intérieur ou extérieur, double, triple). Couché : touche la cible au doigt, la loupe aide à viser ; un hors cible se pose à côté de la cible.'],
   ['stats', 'Les stats', 'Précision (écart à la cible, en cm), groupement, tendances sur tes 10 dernières séances, carte de chaleur, badges. Choisis la période en haut ; exporte une feuille à partager, ou un fichier pour te faire coacher par une IA.'],
   ['glass', 'Les soirées', 'Mode Soirée : parties X01 et Cricket à plusieurs, joueurs avec leur avatar, verres, défis, classement et rapport de soirée.'],
   ['info', 'Les (i)', 'Partout, le petit (i) déplie une explication courte. Les règles de chaque exercice sont derrière le (i) de l\'exercice, et pendant la saisie.'],
