@@ -35,9 +35,8 @@ async function withPage(fn, { init = null } = {}) {
 
 test('partie rechargée en plein jeu : état retrouvé à l’identique, REPRENDRE, abandon', { skip, timeout: 120e3 }, () => withPage(async (page, url) => {
   await openApp(page, url);
-  assert.ok(await page.locator('.welcome').count(), 'premier lancement : invitation à créer les joueurs');
-  await page.click('.welcome a');
-  await page.waitForSelector('#name');
+  assert.ok(await page.locator('.welcome').count(), 'premier lancement : bienvenue (lot 8 du 23/11 : choix des modes, mise en place)');
+  assert.equal(await page.getAttribute('.welcome a.btn.accent', 'href'), '#/bienvenue/nom');
   await createPlayer(page, 'Alpha', { icon: 'renard', color: 0 });
   await createPlayer(page, 'Bravo', { color: 3 });
   let db = await readDb(page);

@@ -951,3 +951,34 @@ Tout est dans [entrainement.md](entrainement.md) : écrans `#/entrainement…`, 
 bouton ENTRAÎNEMENT SOLO sous la soirée (ENTRAÎNEMENT EN COURS en vidéo inverse quand une séance est ouverte). Stats d'un
 joueur : bouton STATS D'ENTRAÎNEMENT s'il a des séances. La saisie au doigt sur la cible est passée dans
 `src/ui/boardinput.js` (même comportement en partie).
+
+## Version 0.17.0 (lot 8 du 23/11 : modes, bienvenue, réglages, exports, installation)
+
+Cahier des charges du 23/11, sections 6 à 9 ; avancement : docs/lot-8-avancement.md. **Aucune migration** : réglages
+d'affichage nouveaux (`modes`, `setup`, `profile`, `updSnooze`, `heatScale`), champs facultatifs de la sauvegarde
+(`settings.soiree`, `settings.training`).
+
+- **Modes** (6.1, store.js › `appModes`, `setMode`) : `{ train, soiree }`, jamais les deux éteints. Sans réglage
+  enregistré : l'entraînement, et la soirée si le téléphone a déjà des parties, plusieurs joueurs ou une soirée (une
+  installation d'avant garde tout). Soirée éteinte : accueil « entraînement » (S'ENTRAÎNER, Stats d'entraînement,
+  Armurerie, Conseils, Tutoriel, Réglages, Nouveautés), entraînement au nom du profil (`profilePlayer`, réglage
+  `profile`), sans choix de joueur. Rien n'est effacé.
+- **Bienvenue** (6.2, screens/welcome.js) : premier lancement (`firstRun`) → carte de bienvenue à l'accueil (choix des
+  modes, COMMENCER LA MISE EN PLACE, TUTORIEL, PLUS TARD ; APK : IMPORTER UNE SAUVEGARDE). `#/bienvenue/<étape>` :
+  modes, nom, avatar (icône et fond), jeu de fléchettes (ou CRÉER MON JEU), fin ; PASSER à chaque étape. Réglage
+  `setup` `{ started, step, done }` ; tant que `done` manque, carte « Terminer la mise en place » à l'accueil et dans
+  Réglages › Profil. Une installation d'avant (joueurs, parties ou séances) est considérée comme mise en place.
+- **Tutoriel** (6.3) : `#/tutoriel`, six pages à faire défiler (scroll-snap) ; Réglages › À propos, accueil entraînement.
+- **Réglages** (7.1) : Mises à jour (en tête), Profil, Modes de l'application, Matériel, Affichage (thème, mode nuit,
+  cartes de chaleur), Son et animations, Données et sauvegarde, À propos (nouveautés, tutoriel, installer, à propos),
+  puis « Développement » replié (`s2-diag`) : tests de la voix, des sons, de la vibration, sommaire de maquette,
+  diagnostic. Sauvegarde, import et export restent dans « Données et sauvegarde ».
+- **Mise à jour** (7.2) : coquille (Updater.java) : recherche à chaque ouverture, au plus une fois par 10 min
+  (`MIN_GAP`) ; release dont les notes contiennent « [important] » : `important`. Accueil : carte `.updcard`
+  (METTRE À JOUR en rouge, battement léger sauf animations coupées ; PLUS TARD = `updSnooze` 3 jours, absent si
+  importante). Réglages : carte Mises à jour en tête, bouton INSTALLER rouge.
+- **Exports** (8.2, 8.3, trainstats.js › `exportData`) : FEUILLE À PARTAGER (src/ui/trainreport.js, A4 image ou PDF,
+  `strela-entrainement-…`) et EXPORT POUR UNE IA (src/engine/aiexport.js, `strela-analyse-….md`, partager ou copier),
+  côte à côte, sur les filtres de l'écran. Bridge.saveFile accepte ces deux noms (.md en text/plain).
+- **Installer** (9.1, 9.2) : lien stable `releases/latest/download/strela.apk` ; page installer.html (Pages, version
+  remplie au build) et écran `#/installer` (PARTAGER / COPIER LE LIEN) avec le même guide (src/ui/installguide.js).

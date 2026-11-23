@@ -85,6 +85,8 @@ function build() {
   writeFileSync(join(OUT, 'index.html'), page);
   // Lot 6 : politique de confidentialité (GitHub Pages, adresse donnée à Google Play), mêmes marques.
   writeFileSync(join(OUT, 'confidentialite.html'), render(readFileSync(join(ROOT, 'confidentialite.html'), 'utf8'), values));
+  // Lot 8 du 23/11 (9.2) : page d'installation (lien stable vers la dernière version, mode d'emploi), mêmes marques.
+  writeFileSync(join(OUT, 'installer.html'), render(readFileSync(join(ROOT, 'installer.html'), 'utf8'), values));
   cpSync(join(ROOT, 'assets'), join(OUT, 'assets'), { recursive: true });
   cpSync(join(ROOT, 'src'), join(OUT, 'src'), { recursive: true });
   cpSync(join(ROOT, 'manifest.webmanifest'), join(OUT, 'manifest.webmanifest'));

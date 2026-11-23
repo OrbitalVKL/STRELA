@@ -25,8 +25,8 @@ de Guillaume, copié dans la conversation de la session). Ce fichier dit où en 
 | Publication | Contenu | État |
 |---|---|---|
 | 0.15.0 | 1 (saisie, précision, marqueur, règle de passage), 2 (règles et aide), 3 (stats : tendances, graphes, période, 0 %, chaleur, bandeau), 4 (listes en cartes) | fait, publié (#35) |
-| 0.16.0 | 5 (exercices ludiques, défis en X01 solo, badges d'entraînement, petits défis en séance) | fait (publication en cours) |
-| 0.17.0 | 6 (modes, accueil, tutoriel), 7 (réglages, mise à jour), 8 (sauvegarde, export IA, feuille KPI entraînement), 9 (lien d'installation, page et guide) | à faire |
+| 0.16.0 | 5 (exercices ludiques, défis en X01 solo, badges d'entraînement, petits défis en séance) | fait, publié (#36) |
+| 0.17.0 | 6 (modes, accueil, tutoriel), 7 (réglages, mise à jour), 8 (sauvegarde, export IA, feuille KPI entraînement), 9 (lien d'installation, page et guide) | fait (publication en cours) |
 
 ## Décisions
 
@@ -46,6 +46,13 @@ Voir la première ligne « en cours » du tableau ; le détail des sous-tâches 
 - 0.15.0 : sections 1 à 4 entières (détail : docs/entrainement.md « Lot 8 du 23/11 » ; tests : tests/lot8-stats.test.js).
 
 - 0.16.0 : section 5 entière (détail : docs/entrainement.md « jeux de cible, défis, badges » ; tests : tests/lot8-jeux.test.js).
+
+- 0.17.0 : sections 6 à 9 (détail : docs/interface.md « Version 0.17.0 » ; tests : tests/lot8-appli*.test.js).
+
+## Après le lot
+
+Rien d'ouvert dans le cahier ; à faire valider par Guillaume : jeux de cible, seuils des badges, libellés (voir CLAUDE.md
+« État »). Page d'installation : https://orbitalvkl.github.io/STRELA/installer.html (après publication de Pages).
 
 ## Pour 0.16.0 (section 5), notes d'origine
 

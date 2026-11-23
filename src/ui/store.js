@@ -673,7 +673,7 @@ export function deleteCurrent() {
 export function exportBackup(app) {
   const display = { ...store.settings };
   return makeBackup({ players: store.players, games: [...store.games, ...store.ckGames], current: store.current || store.ck, display, lastSetup: store.lastSetup,
-    trainings: store.trainings, training: store.tr, dartSets: store.dartSets },
+    trainings: store.trainings, training: store.tr, dartSets: store.dartSets, soiree: store.soiree, trSetup: store.trSetup },
   { app, dbVersion: store.db.version });
 }
 
@@ -706,6 +706,8 @@ export function applyImport(backup, mode) {
   store.tr = plan.state.training ? (plan.state.training === local.training ? local.training : { ...plan.state.training, ui: freshTrUi() }) : null;
   store.dartSets = [...plan.state.dartSets];
   store.trDraft = null;
+  if (plan.state.soiree) store.soiree = plan.state.soiree; // lot 8 du 23/11 : soirée en cours de la sauvegarde
+  if (plan.state.trSetup) store.trSetup = plan.state.trSetup;
   Object.assign(store.settings, plan.state.display);
   if (!store.maquette) mirrorSettings();
   write(plan.ops);
@@ -986,4 +988,48 @@ export function deleteDartSet(id) {
   if (store.trSetup && store.trSetup.setId === id) saveTrSetup({ setId: null });
   write([{ store: 'dartsets', del: id }]);
   return true;
+}
+
+// ------------------------------------------------------------------ modes de l'application, mise en place (lot 8 du 23/11)
+/**
+ * Modes de l'application (6.1) : { train, soiree }. Réglage `modes` ; sans réglage enregistré : l'entraînement, et la
+ * soirée si le téléphone sert déjà aux soirées (parties, plusieurs joueurs, soirée en cours) — une installation d'avant
+ * garde donc tout. Jamais les deux éteints. Les données restent toutes, quel que soit l'état des interrupteurs.
+ */
+export function appModes() {
+  const m = store.settings.modes;
+  if (m && typeof m === 'object' && (m.train || m.soiree)) return { train: !!m.train, soiree: !!m.soiree };
+  const used = store.games.length || store.ckGames.length || store.players.length > 1 || store.current || store.ck || store.soiree;
+  return { train: true, soiree: !!used };
+}
+export function setMode(kind, on) {
+  const m = { ...appModes(), [kind === 'soiree' ? 'soiree' : 'train']: !!on };
+  if (!m.train && !m.soiree) m[kind === 'soiree' ? 'train' : 'soiree'] = true; // jamais les deux éteints
+  saveSetting('modes', m);
+  return m;
+}
+/** Mise en place terminée (6.2) ? Réglage `setup` ; sans réglage : terminée si le téléphone a déjà des données. */
+export function setupDone() {
+  const s = store.settings.setup;
+  if (s && typeof s === 'object') return !!s.done;
+  return store.players.length > 0 || store.games.length > 0 || store.trainings.length > 0;
+}
+/** Premier lancement : rien sur le téléphone et mise en place jamais commencée. */
+export const firstRun = () => !setupDone() && !(store.settings.setup && store.settings.setup.started);
+export function saveSetup(patch) { saveSetting('setup', { ...(store.settings.setup || {}), ...patch }); }
+/** Joueur du profil (Réglages › Profil, entraînement sans mode soirée) : réglage `profile`, sinon le premier joueur actif. */
+export function profilePlayer() {
+  const id = store.settings.profile;
+  return store.players.find(p => p.id === id && !p.archived) || activePlayers()[0] || null;
+}
+/** Crée ou renomme le joueur du profil ; renvoie le joueur. */
+export function saveProfile({ name, avatar } = {}) {
+  const cur = profilePlayer();
+  const p = cur ? { ...cur } : { id: newId('p'), name: 'Moi', avatar: { kind: 'initials', color: 0 }, archived: false };
+  if (typeof name === 'string' && name.trim()) p.name = name.trim().slice(0, 24);
+  if (avatar && typeof avatar === 'object') p.avatar = { ...p.avatar, ...avatar };
+  const rec = playerRecord(p);
+  savePlayer({ ...p, ...rec });
+  saveSetting('profile', rec.id);
+  return playerById(rec.id);
 }

@@ -2,6 +2,16 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.17.0', date: '2026-11-23', title: 'Modes, bienvenue, réglages, exports, installation', items: [
+    'Deux modes à allumer dans les Réglages : Entraînement et Soirée. Entraînement seul : un accueil épuré (S\'ENTRAÎNER, stats, armurerie, conseils), sans joueurs, verres ni classement. Les données restent toutes, quel que soit le mode.',
+    'Première ouverture : un message de bienvenue avec le choix des modes, puis une mise en place guidée (ton nom, ton avatar, tes fléchettes), chaque étape passable ; tant qu\'elle n\'est pas finie, une carte « Terminer la mise en place » reste sur l\'accueil.',
+    'Tutoriel : six pages à faire défiler sur les grands écrans ; rouvrable dans Réglages › À propos.',
+    'Réglages réorganisés : Mises à jour en tête, puis Profil, Modes de l\'application, Matériel, Affichage, Son et animations, Données et sauvegarde, À propos ; les essais (son, voix, vibration), le sommaire de maquette et le diagnostic dans « Développement », replié tout en bas.',
+    'Mise à jour : recherche à chaque ouverture de l\'appli ; une version disponible s\'affiche sur l\'accueil, bouton rouge qui bat doucement ; PLUS TARD la masque 3 jours (sauf mise à jour importante). Sans connexion, rien ne s\'affiche.',
+    'Stats d\'entraînement, deux exports côte à côte, qui suivent la période choisie : FEUILLE À PARTAGER (une page A4 en image ou PDF : précision, groupement, courbe, tendances, badges, carte de chaleur) et EXPORT POUR UNE IA (un fichier texte avec la consigne de coaching en tête, à donner à ChatGPT, Claude, Gemini…).',
+    'Sauvegarde complète : elle garde aussi la soirée en cours et les derniers choix de l\'entraînement.',
+    'Installer Strela sur un autre téléphone : Réglages › À propos › Installer Strela, ou la page orbitalvkl.github.io/STRELA/installer.html — un lien qui mène toujours à la dernière version et un mode d\'emploi en images (autoriser la source, Play Protect).',
+  ] },
   { v: '0.16.0', date: '2026-11-23', title: 'Entraînement : jeux de cible, défis, badges', items: [
     'Dix jeux de cible, plus ludiques, sous « Jeux de cible » en mode Coaché : Serpent (les 20 secteurs dans l\'ordre de la cible), Compte à rebours (du 20 au 1), Golf (9 trous), Shanghai, Moitié, Roulette, Mur de 60, Plus haut, Pile 100, Killer solo. Chacun a ses règles écrites (i) et son score ; ils comptent dans les stats, pas pour le niveau.',
     'X01 solo : réglage DÉFIS (aucun, parfois, souvent) au lancement. Les mêmes défis qu\'en soirée, tirés et vérifiés de la même façon ; le défi s\'affiche en haut de l\'écran, puis réussi ou raté ; le compte est dans l\'analyse.',

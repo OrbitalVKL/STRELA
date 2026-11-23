@@ -10,7 +10,7 @@
 // proposée, ou les cibles du Cricket ; analyse du jeu et carte de chaleur à la fin).
 // Moteur : engine/training.js (exercices, analyse, coach) ; données : store.js (section « entraînement solo »).
 import { store, activePlayers, playerById, trState, startTraining, trThrow, trUndo, trAddBlock, closeTraining, deleteTrainings, trainingById, dartSetById, saveTrSetup,
-  trChangeSet, updateTraining, resumeTraining, saveTr } from '../store.js';
+  trChangeSet, updateTraining, resumeTraining, saveTr, appModes, profilePlayer } from '../store.js';
 import { esc, ico, topBar, plural, when } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
 import { EXERCISES, analyze, suggestNext, nextFor, levelOf, LEVELS, LEVEL_EXERCISES, ALL_EXERCISES, exerciseLevel, goalOf, goalMet, setRuns, setAt, setsUsed, trainingDartLabel, targetLabel, zoneLabelOf, ZONES_FOR, ZONE_LABEL, BULL_ZONE_LABEL,
@@ -47,7 +47,9 @@ export const fmtValue = sv => (!sv ? '—' : sv.fmt === 'pct' ? pctOf(sv.v) : sv
 export function trSetup() {
   const s = store.trSetup || {};
   const players = activePlayers();
-  const player = players.find(p => p.id === s.player) ? s.player : (players[0] ? players[0].id : null);
+  // Lot 8 du 23/11 (6.1) : sans le mode soirée, l'entraînement est au nom du profil (pas de choix de joueur).
+  const me = profilePlayer();
+  const player = appModes().soiree && players.find(p => p.id === s.player) ? s.player : (me ? me.id : players[0] ? players[0].id : null);
   const set = store.dartSets.find(x => x.id === s.setId && !x.archived);
   const free = cleanTarget(s.free) || { s: 20, z: 'any' };
   // Jeux en solo (0.14.0) : jeu choisi et ses réglages (départ et sortie du X01 ; manches, communes aux deux).
@@ -64,7 +66,7 @@ export function presetTraining({ add = null, others = false, fun = false } = {})
 
 function playersChips(su) {
   const players = activePlayers();
-  if (players.length < 2) return '';
+  if (players.length < 2 || !appModes().soiree) return '';
   return `<div class="sec">Joueur</div><div class="chips">${players.map(p => `<button type="button" class="btn chip" data-act="tr-player" data-arg="${esc(p.id)}" aria-pressed="${p.id === su.player}">${avatarHtml(p, 38)}<span class="nm">${esc(p.name.split(' ')[0])}</span></button>`).join('')}</div>`;
 }
 
@@ -191,7 +193,7 @@ export function trainingHub() {
   const su = trSetup();
   if (!su.player) {
     return `<div class="screen">${topBar('Entraînement', backFrom('#/'))}<div class="empty"><div class="big">AUCUN JOUEUR</div>
-      <p>L'entraînement se note au nom d'un joueur : crée d'abord le tien.</p><a class="btn primary" href="#/joueur/nouveau">${ico('plus')} NOUVEAU JOUEUR</a></div></div>`;
+      <p>L'entraînement se note à ton nom : crée d'abord ton profil.</p><a class="btn primary" href="#/bienvenue/nom">${ico('plus')} CRÉER MON PROFIL</a></div></div>`;
   }
   const p = playerById(su.player);
   const st = store.tr ? trState() : null;
@@ -234,7 +236,7 @@ export function trainingHub() {
   return `<div class="screen trhub">${topBar('Entraînement', backFrom('#/'))}
     <div class="pad">${resume}
       ${playersChips(su)}
-      ${activePlayers().length < 2 ? `<div class="who2" style="margin-top:14px">${avatarHtml(p, 44)}<div><b class="nm">${esc(p.name)}</b><span>${plural(mine.length, 'séance', 'séances')}</span></div></div>` : ''}
+      ${activePlayers().length < 2 || !appModes().soiree ? `<div class="who2" style="margin-top:14px">${avatarHtml(p, 44)}<div><b class="nm">${esc(p.name)}</b><span>${plural(mine.length, 'séance', 'séances')}</span></div></div>` : ''}
       ${setChips(su)}
       <div class="sec">Mode${infoBtn('tr-mode')}</div>
       ${infoBox('tr-mode', '<b>Coaché</b> : l\'appli propose un exercice, analyse tes fléchettes et propose corrections, conseils et exercice suivant. <b>Libre</b> : tu fixes tes cibles (secteur, zone, nombre de fléchettes) ; l\'appli montre les écarts. <b>Jeux</b> : une vraie partie de X01 ou de Cricket, seul, aux règles du jeu, pour essayer un jeu de fléchettes en conditions réelles.')}

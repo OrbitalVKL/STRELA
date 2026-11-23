@@ -37,6 +37,7 @@ import { trainStatsScreen, actions as trainStatsActions, inputs as trainStatsInp
 import { trainSheetHtml, closeTrainSheet, actions as trainHonourActions } from './trainhonours.js';
 import { arsenalList, arsenalForm, inputs as arsenalInputs, actions as arsenalActions } from './screens/arsenal.js';
 import { adviceList, adviceSheet } from './screens/advice.js';
+import { welcomeScreen, tutorialScreen, installerScreen, actions as welcomeActions, inputs as welcomeInputs } from './screens/welcome.js';
 
 // Version 0.8.0 : la refonte (lot 7.8, écrans de screens/v2/) remplace l'accueil, l'historique, les stats et les
 // réglages ; accueil A « tableau de bord » (choix de Guillaume, 13/11/2026).
@@ -76,15 +77,19 @@ const ROUTES = [
   [/^\/armurerie\/(.+)$/, arsenalForm],
   [/^\/conseils$/, adviceList],
   [/^\/conseils\/(.+)$/, adviceSheet],
+  // Lot 8 du 23/11 : mise en place guidée, tutoriel, installer sur un autre téléphone
+  [/^\/bienvenue(?:\/(.+))?$/, welcomeScreen],
+  [/^\/tutoriel$/, tutorialScreen],
+  [/^\/installer$/, installerScreen],
 ];
 
 const ACTIONS = {
   ...playerActions, ...newGameActions, ...gameActions, ...resultActions,
   ...statsActions, ...settingsActions, ...historyActions, ...photoActions, ...aboutActions, ...sheetActions, ...soireeActions,
   ...stats2Actions, ...history2Actions, ...dashActions, ...infoActions, ...drinkActions, ...honourActions, ...cricketActions,
-  ...trainingActions, ...trainStatsActions, ...arsenalActions, ...trainHonourActions,
+  ...trainingActions, ...trainStatsActions, ...arsenalActions, ...trainHonourActions, ...welcomeActions,
 };
-const INPUTS = { ...playerInputs, ...arsenalInputs, ...trainingInputs, ...trainStatsInputs };
+const INPUTS = { ...playerInputs, ...arsenalInputs, ...trainingInputs, ...trainStatsInputs, ...welcomeInputs };
 
 const app = document.getElementById('app');
 let lastPath = null;
