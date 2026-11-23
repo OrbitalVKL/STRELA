@@ -24,6 +24,12 @@ export const RINGS = Object.freeze({
   edge: 1.18,      // bord du dessin
 });
 
+/**
+ * Rayon jusqu'où l'on peut poser un hors cible au doigt (lot 8 du 23/11, 1.2) : une dizaine de centimètres réels autour
+ * de la cible (270 mm sur une vraie cible, dont le double s'arrête à 170 mm et la couronne des numéros à 225 mm).
+ */
+export const OFF_R = 1.33;
+
 const SECTOR_DEG = 360 / SECTORS.length;
 
 /** Angle (degrés, 0 = haut, sens horaire, 0 ≤ a < 360) d'un point du repère. */
@@ -87,8 +93,8 @@ export function impactPoint(dart) {
   if (dart && Array.isArray(dart.pos) && dart.pos.length === 2) {
     const hit = segmentAt(dart.pos[0], dart.pos[1]);
     if (hit && hit.segment === dart.segment && hit.multiplier === dart.multiplier) return [dart.pos[0], dart.pos[1]];
-    // Lot 8 : fléchette hors cible posée sur la couronne des numéros (entraînement).
-    if (!hit && dart.segment === MISS && Math.hypot(dart.pos[0], dart.pos[1]) <= RINGS.edge) return [dart.pos[0], dart.pos[1]];
+    // Lot 8 : fléchette hors cible posée sur la couronne des numéros ou autour de la cible (entraînement, OFF_R).
+    if (!hit && dart.segment === MISS && Math.hypot(dart.pos[0], dart.pos[1]) <= OFF_R + 0.01) return [dart.pos[0], dart.pos[1]];
   }
   return dartPoint(dart);
 }

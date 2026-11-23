@@ -4,7 +4,7 @@
 // Géométrie et couleur de chaque zone : src/engine/board.js (rayon 1 = bord du double, anneaux élargis).
 // Sert partout : petite cible du jeu (portrait), cible agrandie, saisie en paysage (et sa loupe), historique,
 // fins de manche, carte des segments des stats (mode « chaleur »).
-import { SECTORS, RINGS, polar, impactPoint, zoneTone } from '../engine/board.js';
+import { SECTORS, RINGS, OFF_R, polar, impactPoint, zoneTone } from '../engine/board.js';
 
 // Le dessin est à l'échelle K (rayon du double = 100) : évite les polices de moins de 1 px dans le SVG.
 const K = 100;
@@ -45,13 +45,16 @@ function numbers(r) {
 }
 
 /** Rayons des marques d'impact, en px affichés : volée en cours (pleine, numérotée) et volées précédentes. */
-export const MARK = Object.freeze({ small: 8, big: 11, old: 4.5 });
+export const MARK = Object.freeze({ small: 7, big: 9.5, old: 4.5 });
 
-/** Marque d'impact (centre x, y dans le repère ; r en unités) : disque clair cerclé de sombre, numéro sombre. */
+/**
+ * Marque d'impact (centre x, y dans le repère ; r en unités). Lot 8 du 23/11 (1.5) : petit disque rouge Strela (--red)
+ * semi-transparent, fin contour clair, numéro clair ; les numéros des secteurs sont dessinés par-dessus (jamais masqués).
+ */
 function mark(x, y, r, n) {
-  const ring = Math.max(r * 0.16, 0.006);
+  const ring = Math.max(r * 0.12, 0.005);
   return `<g class="imp"><circle class="imp-o" cx="${f(x)}" cy="${f(y)}" r="${f(r)}"/><circle class="imp-i" cx="${f(x)}" cy="${f(y)}" r="${f(r - ring)}"/>`
-    + (n ? `<text x="${f(x)}" y="${f(y)}" dy="0.36em" text-anchor="middle" style="font-size:${f(r * 1.3)}px">${n}</text>` : '') + '</g>';
+    + (n ? `<text x="${f(x)}" y="${f(y)}" dy="0.36em" text-anchor="middle" style="font-size:${f(r * 1.2)}px">${n}</text>` : '') + '</g>';
 }
 
 /**
@@ -85,11 +88,14 @@ function spread(marks, R) {
  *   aim      : lot 8 — cible visée { s, z } (engine/training.js), entourée ; extra : SVG ajouté par-dessus (échelle K)
  *   heat     : reçoit aussi l'anneau ('i' / 'o' pour les simples) en second argument (lot 8)
  */
-export function boardSvg({ size = 300, labels = size >= 150, impacts = [], heat = null, act = null, cls = '', id = '', label = 'Cible', selected = null, counts = null, aim = null, extra = '' } = {}) {
-  const edge = labels ? RINGS.edge : RINGS.doubleOut + 0.04;
+export function boardSvg({ size = 300, labels = size >= 150, impacts = [], heat = null, act = null, cls = '', id = '', label = 'Cible', selected = null, counts = null, aim = null, extra = '', margin = null } = {}) {
+  // Lot 8 du 23/11 (1.2) : `margin` (saisie au doigt de l'entraînement) montre la zone autour de la cible où l'on pose un
+  // hors cible (jusqu'à OFF_R) ; d'office quand un impact est posé au-delà du dessin.
+  const wide = margin ?? (labels && impacts.some(i => { const p = impactPoint(i.dart); return p && Math.hypot(p[0], p[1]) > RINGS.edge; }));
+  const edge = wide ? OFF_R : labels ? RINGS.edge : RINGS.doubleOut + 0.04;
   const vb = `${f(-edge)} ${f(-edge)} ${f(2 * edge)} ${f(2 * edge)}`;
   const unit = (2 * edge) / size; // unités du repère par px affiché
-  const parts = [`<circle class="ring" r="${f(edge)}"/>`];
+  const parts = wide ? [`<circle class="offz" r="${f(OFF_R)}"/>`, `<circle class="ring" r="${f(RINGS.edge)}"/>`] : [`<circle class="ring" r="${f(edge)}"/>`];
   for (const z of ZONES) parts.push(shape(z, `class="z z-${z.tone}"`));
   if (heat) {
     // Carte des segments : la cible est assombrie, chaque zone s'éclaire d'autant plus qu'elle a été touchée.
@@ -106,7 +112,6 @@ export function boardSvg({ size = 300, labels = size >= 150, impacts = [], heat 
     const sel = ZONES.filter(inAim);
     parts.push(`<g class="aim">${sel.map(z => shape(z, 'class="aim-o"')).join('')}${sel.map(z => shape(z, 'class="aim-i"')).join('')}</g>`);
   }
-  if (labels) parts.push(`<g class="num" style="font-size:${f(0.115)}px">${numbers(RINGS.labels)}</g>`);
   if (counts) {
     // Nombre d'impacts de chaque secteur sur une plaquette sombre, au milieu du simple extérieur ; bull au centre.
     const r = (RINGS.tripleOut + RINGS.doubleIn) / 2;
@@ -126,12 +131,14 @@ export function boardSvg({ size = 300, labels = size >= 150, impacts = [], heat 
   }
   const R = (size < 150 ? MARK.small : MARK.big) * unit;
   for (const m of spread(cur.map(i => ({ p: impactPoint(i.dart), n: i.n })).filter(m => m.p), R)) parts.push(mark(m.p[0], m.p[1], R, m.n));
+  // Numéros des secteurs au premier plan (lot 8 du 23/11, 1.5) : une marque posée sur la couronne ne les cache plus.
+  if (labels) parts.push(`<g class="num" style="font-size:${f(0.115)}px">${numbers(RINGS.labels)}</g>`);
   if (extra) parts.push(extra);
   return `<svg class="tgt${size < 150 ? ' sm' : ''} ${cls}"${id ? ` id="${id}"` : ''} viewBox="${vb}" role="img" aria-label="${label}">${parts.join('')}</svg>`;
 }
 
-/** Cible nue (sans impacts), pour la loupe de saisie. */
-export const plainBoard = () => boardSvg({ size: 400, labels: true, label: 'Loupe' });
+/** Cible nue (sans impacts), pour la loupe de saisie ; `margin` : avec la zone autour (hors cible posé, entraînement). */
+export const plainBoard = (margin = false) => boardSvg({ size: 400, labels: true, label: 'Loupe', margin });
 
 /** Légende des marques (pastilles SVG) : `full` = volée en cours, sinon volées précédentes. */
 export function markIcon(full = true) {

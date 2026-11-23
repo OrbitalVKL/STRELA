@@ -15,7 +15,7 @@
 //   'any' (tout le secteur), 's' (simple, intérieur ou extérieur), 'si', 'se', 'd', 't' ; pour le centre :
 //   'any' (25 ou 50), 's' (25), 'd' (50).
 
-import { SECTORS, RINGS, sectorAngle, polar, segmentAt } from './board.js';
+import { SECTORS, RINGS, OFF_R, sectorAngle, polar, segmentAt } from './board.js';
 import { dartError, dartValue, BULL, MISS } from './darts.js';
 import { computeState, START_SCORES } from './x01.js';
 import { computeCricket, cricketSummary, CRICKET_TARGETS } from './cricket.js';
@@ -45,11 +45,12 @@ export function cleanTrainingDart(d) {
 }
 
 const posHit = d => (Array.isArray(d.pos) && d.pos.length === 2 ? segmentAt(d.pos[0], d.pos[1]) : undefined);
+export { OFF_R };
 /** La position est-elle cohérente avec la fléchette ? (même zone, ou au-delà du double pour un hors cible) */
-function posOk(d) {
+export function posOk(d) {
   const h = posHit(d);
   if (h === undefined) return false;
-  if (d.segment === MISS) return h === null && Math.hypot(d.pos[0], d.pos[1]) <= RINGS.edge + 0.05;
+  if (d.segment === MISS) return h === null && Math.hypot(d.pos[0], d.pos[1]) <= OFF_R + 0.01;
   return !!h && h.segment === d.segment && h.multiplier === d.multiplier;
 }
 
@@ -132,7 +133,10 @@ const mid = (a, b) => (REAL_R[a] + REAL_R[b]) / 2;
 const ZONE_R = Object.freeze({ si: mid(2, 3), s: mid(2, 3), t: mid(3, 4), se: mid(4, 5), d: mid(5, 6) });
 const AIM_R = Object.freeze({ any: (ZONE_R.si + ZONE_R.se) / 2, s: (ZONE_R.si + ZONE_R.se) / 2, si: ZONE_R.si, se: ZONE_R.se, t: ZONE_R.t, d: ZONE_R.d });
 
-/** Point d'impact (mm, x vers la droite, y vers le bas, centre 0) : position touchée si connue, sinon milieu de la zone. */
+/**
+ * Point d'impact (mm, x vers la droite, y vers le bas, centre 0) : position touchée si connue (hors cible posé compris,
+ * 23/11), sinon milieu de la zone (saisie au pavé : point approché) ; null pour un hors cible sans position.
+ */
 export function realPoint(d) {
   if (posOk(d)) {
     const [x, y] = d.pos;
@@ -150,6 +154,19 @@ export function realPoint(d) {
 
 /** Point visé (mm) d'une cible. */
 export const aimPoint = t => (t.s === BULL ? [0, 0] : polar(sectorAngle(t.s), AIM_R[t.z] ?? AIM_R.any));
+
+/** Le point d'impact est-il approché (saisie au pavé : milieu de la case) plutôt qu'exact (posé sur la cible) ? */
+export const approxPoint = d => d.segment !== MISS && !posOk(d);
+
+/**
+ * Distance (mm, sur une vraie cible) entre l'impact et le point visé de la cible `t` (lot 8 du 23/11, 3.4 : la précision
+ * devient cette distance). null pour un hors cible saisi au pavé (sans position : compté, mais sans distance).
+ */
+export function aimDistance(t, d) {
+  const p = realPoint(d);
+  if (!p) return null;
+  return dist(p, aimPoint(t));
+}
 
 // ------------------------------------------------------------------ exercices
 /** Niveau débutant (lot 8 : pas de doubles seuls) et intermédiaire (0.13.0 : triples, doubles, centre). `clock` : tour
@@ -174,9 +191,11 @@ export const EXERCISES = Object.freeze({
   bull: { name: 'Bull', short: '9 fléchettes au centre',
     goal: '9 fléchettes au centre : combien tombent près du centre (le 25, le 50 ou le simple intérieur).',
     blocks: [{ s: BULL, z: 'any', n: 9 }], metric: 'near' },
-  vingt: { name: '20-19-18', short: '20 fléchettes sur chacun',
-    goal: '20 fléchettes sur le 20, puis 20 sur le 19, puis 20 sur le 18 : la précision sur chacun et les triples.',
-    blocks: rep([20, 19, 18], 20), metric: 'rate' },
+  // Lot 8 du 23/11 (1.6) : 21 fléchettes par numéro (7 volées), pour que la cible change à la fin d'une volée ; les
+  // séances d'avant (sans `rules`) gardent leurs 20 (blocksV1).
+  vingt: { name: '20-19-18', short: '21 fléchettes sur chacun',
+    goal: '7 volées sur le 20, puis 7 sur le 19, puis 7 sur le 18 : la précision sur chacun et les triples.',
+    blocks: rep([20, 19, 18], 21), blocksV1: rep([20, 19, 18], 20), metric: 'rate' },
   // Niveau intermédiaire (0.13.0).
   triple20: { name: 'Triple 20', short: '30 fléchettes sur le T20', level: 'intermediaire',
     goal: '10 volées sur le triple 20 : combien de triples, combien restent dans le secteur, et la moyenne par volée.',
@@ -220,6 +239,37 @@ export const isGameSession = r => !!r && GAME_EXERCISES.includes(r.exercise);
 export const ALL_EXERCISES = Object.freeze([...new Set([...COACH_ORDER, ...LEVEL_EXERCISES.intermediaire]), ...GAME_EXERCISES, 'libre']);
 /** Niveau d'un exercice (débutant sauf mention). */
 export const exerciseLevel = k => (EXERCISES[k] && EXERCISES[k].level) || 'debutant';
+/**
+ * Règles écrites de chaque exercice (lot 8 du 23/11, 2.1 et 2.3) : jamais improvisées, les mêmes dans l'encart (i)
+ * « Règles » du choix, sous le titre de la saisie et dans docs/entrainement.md. `advance` : quand la cible change —
+ * 'volley' (par défaut : à la fin de la volée complète, saisie après les 3 fléchettes) ou 'hit' (dès qu'elle est
+ * touchée : tours de l'horloge) ; 'game' : règles du jeu (X01, Cricket).
+ *   flow : déroulé exact ; success : ce qui compte comme réussi ; entry : le moment de la saisie ; now : rappel court
+ *   affiché sous le titre de la saisie.
+ */
+export const RULES_VERSION = 2;
+const ENTRY_VOLLEY = 'Lance tes 3 fléchettes, puis saisis-les. La cible change à la fin de la volée complète.';
+const ENTRY_HIT = 'Lance tes 3 fléchettes, puis saisis-les dans l\'ordre où tu les as lancées : la cible avance dès qu\'elle est touchée, même au milieu de la volée.';
+export const RULES = Object.freeze({
+  groupement: { advance: 'volley', flow: '3 volées de 3 fléchettes, toutes sur le 20.', success: 'Une fléchette dans le secteur du 20 (simple, double ou triple). On regarde aussi l\'écart moyen au point visé et le groupement.', entry: ENTRY_VOLLEY, now: 'Vise le 20 · saisie après les 3 fléchettes' },
+  horloge: { advance: 'hit', flow: 'Du 1 au 20 dans l\'ordre. On reste sur un numéro tant qu\'il n\'est pas touché ; dès qu\'il l\'est, la fléchette suivante vise le numéro d\'après.', success: 'Le numéro visé touché, dans n\'importe quelle zone. Le chiffre : le nombre de fléchettes pour boucler le tour.', entry: ENTRY_HIT, now: 'La cible avance dès qu\'elle est touchée' },
+  hautbas: { advance: 'volley', flow: 'Une volée de 3 sur le 20 (en haut), une sur le 3 (en bas), trois fois : 18 fléchettes.', success: 'Une fléchette dans le secteur visé.', entry: ENTRY_VOLLEY, now: 'Une volée en haut, une en bas · saisie après les 3' },
+  gauchedroite: { advance: 'volley', flow: 'Une volée de 3 sur le 11 (à gauche), une sur le 6 (à droite), trois fois : 18 fléchettes.', success: 'Une fléchette dans le secteur visé.', entry: ENTRY_VOLLEY, now: 'Une volée à gauche, une à droite · saisie après les 3' },
+  scorelibre: { advance: 'volley', flow: '10 volées de 3 fléchettes en visant le 20.', success: 'Les points marqués par chaque fléchette (comme en partie) ; le chiffre : la moyenne par volée et sa régularité.', entry: ENTRY_VOLLEY, now: 'Vise le 20 · 10 volées · saisie après les 3' },
+  bull: { advance: 'volley', flow: '3 volées de 3 fléchettes au centre.', success: 'Le 25, le 50, ou le simple intérieur à moins de 5 cm du centre.', entry: ENTRY_VOLLEY, now: 'Vise le centre · saisie après les 3 fléchettes' },
+  vingt: { advance: 'volley', flow: '7 volées sur le 20, puis 7 sur le 19, puis 7 sur le 18 : 21 fléchettes sur chacun.', success: 'Une fléchette dans le secteur visé.', entry: ENTRY_VOLLEY, now: '7 volées par numéro · saisie après les 3' },
+  triple20: { advance: 'volley', flow: '10 volées de 3 fléchettes sur le triple 20.', success: 'Une fléchette dans le triple 20. On note aussi la part restée dans le secteur du 20 et la moyenne par volée.', entry: ENTRY_VOLLEY, now: 'Vise le T20 · saisie après les 3 fléchettes' },
+  triples: { advance: 'volley', flow: 'Une volée sur le T20, une sur le T19, cinq fois : 30 fléchettes.', success: 'Une fléchette dans le triple visé.', entry: ENTRY_VOLLEY, now: 'T20 puis T19 à chaque volée · saisie après les 3' },
+  doubles: { advance: 'volley', flow: '3 volées sur le D20, puis 3 sur le D16, puis 3 sur le D8 : 27 fléchettes.', success: 'Une fléchette dans le double visé.', entry: ENTRY_VOLLEY, now: '3 volées par double · saisie après les 3' },
+  horlogedoubles: { advance: 'hit', flow: 'Du D1 au D20 dans l\'ordre, 3 fléchettes au plus sur chaque double : on passe au suivant dès qu\'il est touché, ou après 3 fléchettes manquées.', success: 'Le double visé touché. Le chiffre : combien de doubles sur 20.', entry: ENTRY_HIT, now: 'Le double avance dès qu\'il est touché, ou après 3' },
+  bull25: { advance: 'volley', flow: '5 volées de 3 fléchettes au centre.', success: 'Une fléchette dans le 25 ou le 50.', entry: ENTRY_VOLLEY, now: 'Vise le centre · saisie après les 3 fléchettes' },
+  x01: { advance: 'game', flow: 'Une partie de X01 seul : ramener le départ (301, 501 ou 701) à zéro, en sortie simple ou double ; une volée qui dépasse (bust) ne compte pas.', success: 'Finir chaque manche. Le chiffre : la moyenne sur 3 fléchettes.', entry: 'Saisis chaque volée de 3 fléchettes, comme en partie : le reste et la finition proposée se mettent à jour.', now: 'Comme en partie · saisie de chaque volée' },
+  cricket: { advance: 'game', flow: 'Fermer le 20, le 19, le 18, le 17, le 16, le 15 et le bull, 3 marques chacun (un double vaut 2, un triple 3), dans n\'importe quel ordre.', success: 'Chaque marque utile (sur une cible pas encore fermée). Le chiffre : les marques par volée (MPR).', entry: 'Saisis chaque volée de 3 fléchettes ; les cibles fermées s\'affichent en tête.', now: 'Ferme du 20 au 15 et le bull · saisie de chaque volée' },
+  libre: { advance: 'volley', flow: 'Les séries que tu choisis : une cible (secteur et zone) et un nombre de fléchettes, toujours un multiple de 3.', success: 'Une fléchette dans la cible choisie ; on regarde aussi l\'écart au point visé.', entry: ENTRY_VOLLEY, now: 'Ta cible · saisie après les 3 fléchettes' },
+});
+/** Règles d'un exercice (celles de « libre » par défaut). */
+export const rulesOf = key => RULES[key] || RULES.libre;
+
 /** Manches proposées pour un jeu en solo. */
 export const GAME_LEGS = Object.freeze([1, 3, 5]);
 /** Réglages d'un jeu en solo nettoyés (valeurs par défaut : 501, sortie double, 1 manche), ou null si ce n'est pas un jeu. */
@@ -251,7 +301,8 @@ const clockOf = cfg => (EXERCISES[cfg.exercise] && EXERCISES[cfg.exercise].clock
 export function planOf(cfg) {
   if (cfg.exercise === 'libre') return (cfg.blocks || []).map(b => ({ ...cleanTarget(b), n: Math.max(1, Math.min(99, Number(b.n) || 9)) })).filter(b => b.s);
   const ex = EXERCISES[cfg.exercise];
-  return ex && ex.blocks ? ex.blocks.map(b => ({ ...b })) : [];
+  const blocks = ex && ex.blocksV1 && !(cfg.rules >= RULES_VERSION) ? ex.blocksV1 : ex && ex.blocks;
+  return blocks ? blocks.map(b => ({ ...b })) : [];
 }
 
 /**
@@ -311,6 +362,21 @@ function gameTrainingState(cfg, darts) {
   const done = gs.status === 'finished';
   const open = done || !gs.visit ? 0 : gs.visit.darts.length;
   return { game: cfg.exercise, gs, setup: cleanGame(cfg.exercise, cfg.game), blocks: [], cur: null, done, thrown: darts.length, visitDarts: open, visitStart: darts.length - open, clock: false };
+}
+
+/**
+ * Volée en cours d'une séance d'exercice (lot 8 du 23/11, 2.2 : « volée 2 sur 5, cible : 14 ») : { n (1, 2…), total
+ * (null pour les tours de l'horloge, dont la longueur dépend des fléchettes), dart (rang dans la volée, 0 à 2) }.
+ * Les volées se comptent depuis le début de chaque série (une série de 20 fléchettes d'avant a 7 volées, la dernière de 2).
+ */
+export function volleyInfo(st) {
+  if (st.game) return null;
+  if (st.clock) return { n: Math.floor(st.thrown / 3) + 1 - (st.done && st.thrown % 3 === 0 ? 1 : 0), total: null, dart: st.thrown % 3 };
+  const per = b => Math.ceil(b.n / 3);
+  const total = st.blocks.reduce((k, b) => k + per(b), 0);
+  if (!st.cur) return { n: total, total, dart: 0 };
+  const before = st.blocks.slice(0, st.cur.i).reduce((k, b) => k + per(b), 0);
+  return { n: before + Math.floor(st.cur.k / 3) + 1, total, dart: st.cur.k % 3 };
 }
 
 /** Fléchettes prévues (null pour l'horloge et les jeux). */
@@ -474,12 +540,31 @@ export function analyze(rec) {
   if (runs.length > 1) {
     const by = new Map();
     for (const p of pairs) { const k = setAt(rec, p.i) || ''; if (!by.has(k)) by.set(k, []); by.get(k).push(p); }
-    extra.bySet = [...by.entries()].map(([k, ps]) => { const dv = deviation(ps, single ? axesOf(single) : null); const h = ps.filter(p => isHit(p.t, p.d)).length; return { setId: k || null, darts: ps.length, hits: h, rate: h / ps.length, spread: dv.spread, points: dv.n }; });
+    extra.bySet = [...by.entries()].map(([k, ps]) => { const dv = deviation(ps, single ? axesOf(single) : null); const h = ps.filter(p => isHit(p.t, p.d)).length; return { setId: k || null, darts: ps.length, hits: h, rate: h / ps.length, spread: dv.spread, points: dv.n, ...precisionOf(ps) }; });
   }
-  const out = { darts: n, hits, rate: n ? hits / n : null, off, perTarget, bias: all.bias, spread: all.spread, axes: all.axes, points: all.n, value, extra, done: st.done, exercise: rec.exercise };
+  // Précision (lot 8 du 23/11, 3.4) : distance moyenne au point visé, hors cible posés compris ; `approx` : fléchettes
+  // placées au milieu de leur case (saisie au pavé), `offNoPos` : hors cible sans position (comptés, sans distance).
+  const prec = precisionOf(pairs);
+  const out = { darts: n, hits, rate: n ? hits / n : null, off, perTarget, bias: all.bias, spread: all.spread, axes: all.axes, points: all.n, value, extra, done: st.done, exercise: rec.exercise, ...prec };
   out.messages = coachMessages(out, rec);
   out.next = nextFor(out, rec);
   return out;
+}
+
+/**
+ * Précision d'un ensemble de { t (cible visée), d (fléchette) } : { dist (mm, moyenne des distances au point visé, ou
+ * null), distN (fléchettes mesurées), approx (dont au milieu de leur case), offNoPos (hors cible sans position) }.
+ */
+export function precisionOf(pairs) {
+  const ds = [];
+  let approx = 0, offNoPos = 0;
+  for (const { t, d } of pairs) {
+    const x = aimDistance(t, d);
+    if (x === null) { offNoPos++; continue; }
+    ds.push(x);
+    if (approxPoint(d)) approx++;
+  }
+  return { dist: mean(ds), distN: ds.length, approx, offNoPos };
 }
 
 /** Près du centre (exercice Bull) : 25, 50, ou simple intérieur à moins de 2 largeurs de secteur au bord du 25. */
@@ -661,7 +746,7 @@ export function analyzeGame(rec) {
     darts.forEach((d, i) => { const k = setAt(rec, i) || ''; if (!by.has(k)) by.set(k, []); by.get(k).push(i); });
     extra.bySet = [...by.entries()].map(([k, idx]) => ({ setId: k || null, darts: idx.length, ...gamePart(rec.exercise, idx.map(i => darts[i]), idx.map(i => credit[i])) }));
   }
-  const out = { darts: n, hits: 0, rate: null, off: count(d => d.segment === MISS), perTarget: [], bias: null, spread: null, axes: [], points: 0, value, extra, done: st.done, exercise: rec.exercise, game: true };
+  const out = { darts: n, hits: 0, rate: null, off: count(d => d.segment === MISS), perTarget: [], bias: null, spread: null, axes: [], points: 0, dist: null, distN: 0, approx: 0, offNoPos: 0, value, extra, done: st.done, exercise: rec.exercise, game: true };
   out.messages = gameMessages(out);
   out.next = gameNext(out);
   return out;

@@ -11,8 +11,15 @@ import { openApp, reload, readDb, settle, createPlayer } from '../tools/lib/app.
 const pw = await loadPlaywright();
 const skip = !pw && 'Playwright absent';
 
-const key = (page, k) => page.click(`[data-act="tr-key"][data-arg="${k}"]`);
-const zone = (page, z) => page.click(`[data-act="tr-zone"][data-arg="${z}"]`);
+// Lot 8 du 23/11 : au pavé, le nombre puis sa zone (simple intérieur si rien n'est demandé avant, comme `zone`).
+let armed = null;
+const zone = async (page, z) => { armed = z; };
+async function key(page, k) {
+  await page.click(`[data-act="tr-key"][data-arg="${k}"]`);
+  const n = Number(k);
+  if (n >= 1 && n <= 20) await page.click(`[data-act="tr-zonepick"][data-arg="${armed || 'in'}"]`);
+  armed = null;
+}
 
 test('couleurs, jeu changé en pleine séance, note, mise de côté, reprise', { skip, timeout: 150e3 }, async () => {
   const srv = await serve();
@@ -94,12 +101,14 @@ test('couleurs, jeu changé en pleine séance, note, mise de côté, reprise', {
     await settle(page);
     assert.equal((await readDb(page)).trainings.find(r => r.id === id).excluded, undefined);
 
-    // Triple 20 : T armé d'office ; ARRÊTER puis REPRENDRE la séance arrêtée.
+    // Triple 20 : le T de la cible visée souligné au choix de la zone ; ARRÊTER puis REPRENDRE la séance arrêtée.
     await page.evaluate(() => { location.hash = '#/entrainement'; });
     await page.click('[data-act="tr-fold"]');
     await page.click('[data-act="tr-start"][data-arg="triple20"]');
     await page.waitForSelector('.game.train');
-    await key(page, '20');
+    await page.click('[data-act="tr-key"][data-arg="20"]');
+    assert.equal(await page.locator('.key.zk.aimz[data-arg="t"]').count(), 1, 'zone visée soulignée');
+    await page.click('[data-act="tr-zonepick"][data-arg="t"]');
     await zone(page, 'in'); await key(page, '20');
     await page.click('[data-act="tr-pause"]');
     await page.click('[data-act="tr-stop"]');
