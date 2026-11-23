@@ -17,24 +17,32 @@ import { EXERCISES, ALL_EXERCISES, GAME_EXERCISES, analyze, sessionValue, zoneOf
 import { gameState } from '../../engine/stats.js';
 import { refresh, backFrom, go } from '../nav.js';
 import { infoBtn, infoBox } from '../info.js';
-import { fmtValue, sessionTitle, sessionFlags, heatBoard } from './training.js';
+import { fmtValue, sessionCard, heatBoard } from './training.js';
+import { trend, periodBounds, inPeriod, timeAxis, labelIndexes, isoDay } from '../../engine/trends.js';
+import { heatLegend } from '../heat.js';
+import { modeBand } from '../modeband.js';
 
 const dec1 = v => (v === null || v === undefined || Number.isNaN(v) ? '—' : (Math.round(v * 10) / 10).toFixed(1).replace('.', ','));
 const dec2 = v => (v === null || v === undefined || Number.isNaN(v) ? '—' : (Math.round(v * 100) / 100).toFixed(2).replace('.', ','));
 const pctOf = v => (v === null || v === undefined ? '—' : `${Math.round(v * 100)} %`);
-const DAY = 86400000;
-const PERIODS = { '7j': 7, '30j': 30, '90j': 90, tout: null };
+// Lot 8 du 23/11 (3.3) : période en raccourcis (7 jours, 30 jours, tout) ou plage libre au calendrier (`range`, jours
+// « AAAA-MM-JJ ») ; les courbes, les chiffres et les exports suivent la même période (trainStatsPeriod).
+const PERIODS = ['7j', '30j', 'tout', 'plage'];
 
 // État de l'écran (gardé d'une visite à l'autre, comme les Stats).
-const ui = { source: 'entrainements', player: null, set: '', exercise: '', period: 'tout', metric: null, folds: new Set() };
-export function presetTrainStats(state = {}) { Object.assign(ui, { source: 'entrainements', player: null, set: '', exercise: '', period: 'tout', metric: null, folds: new Set() }, state); }
+const fresh = () => ({ source: 'entrainements', player: null, set: '', exercise: '', period: 'tout', range: { from: '', to: '' }, metric: null, folds: new Set() });
+const ui = fresh();
+export function presetTrainStats(state = {}) { Object.assign(ui, fresh(), state); }
 
-const since = () => (PERIODS[ui.period] ? Date.now() - PERIODS[ui.period] * DAY : -Infinity);
+const bounds = () => periodBounds(ui.period, ui.range);
+/** Filtres de l'écran (période, source, joueur, jeu, exercice), pour les exports (8.2, 8.3) : mêmes séances que l'écran. */
+export const trainStatsFilter = () => ({ source: ui.source, player: ui.player, set: ui.set, exercise: ui.exercise, period: ui.period, range: { ...ui.range }, bounds: bounds() });
 const analysisCache = new Map();
 const an = r => { const k = `${r.id}:${r.darts.length}:${(r.blocks || []).length}:${JSON.stringify(r.setChanges || [])}:${r.setId}`; if (!analysisCache.has(k)) analysisCache.set(k, analyze(r)); return analysisCache.get(k); };
 
-function sessionsOf(pid) {
-  return store.trainings.filter(r => r.player === pid && !r.excluded && r.startedAt >= since() && (!ui.set || setsUsed(r).includes(ui.set)) && (!ui.exercise || r.exercise === ui.exercise))
+/** Séances du joueur sur les filtres (lot 8 du 23/11, 3.4 : jamais une séance sans fléchette saisie). */
+export function sessionsOf(pid, f = { set: ui.set, exercise: ui.exercise, bounds: bounds() }) {
+  return store.trainings.filter(r => r.player === pid && !r.excluded && r.darts.length > 0 && inPeriod(r.startedAt, f.bounds) && (!f.set || setsUsed(r).includes(f.set)) && (!f.exercise || r.exercise === f.exercise))
     .sort((a, b) => a.startedAt - b.startedAt);
 }
 /** Rangs des fléchettes d'une séance lancées avec le jeu `setId` (toutes sans filtre, ou sans changement de jeu). */
@@ -60,13 +68,17 @@ function gameValue(parts) {
 function setPart(r, a = an(r), setId = ui.set || null) {
   if (setId !== null && a.extra.bySet) {
     const x = a.extra.bySet.find(y => (y.setId || '') === setId);
-    return x ? { darts: x.darts, hits: x.hits, spread: x.spread, points: x.points, rate: x.rate } : { darts: 0, hits: 0, spread: null, points: 0, rate: null };
+    return x ? { darts: x.darts, hits: x.hits, spread: x.spread, points: x.points, rate: x.rate, dist: x.dist, distN: x.distN, approx: x.approx, offNoPos: x.offNoPos }
+      : { darts: 0, hits: 0, spread: null, points: 0, rate: null, dist: null, distN: 0, approx: 0, offNoPos: 0 };
   }
-  return { darts: a.darts, hits: a.hits, spread: a.spread, points: a.points, rate: a.rate };
+  return { darts: a.darts, hits: a.hits, spread: a.spread, points: a.points, rate: a.rate, dist: a.dist, distN: a.distN, approx: a.approx, offNoPos: a.offNoPos };
 }
+/** Moyenne des distances de plusieurs séances, pondérée par les fléchettes mesurées (mm), ou null. */
+const distOf = parts => { const n = parts.reduce((k, x) => k + (x.distN || 0), 0); return n ? parts.reduce((k, x) => k + (x.dist || 0) * (x.distN || 0), 0) / n : null; };
 function gamesOf(pid) {
   if (ui.set || ui.exercise) return []; // une partie n'a ni jeu de fléchettes noté ni exercice
-  return store.games.filter(g => g.config.players.includes(pid) && g.startedAt >= since()).sort((a, b) => a.startedAt - b.startedAt);
+  const b = bounds();
+  return store.games.filter(g => g.config.players.includes(pid) && inPeriod(g.startedAt, b)).sort((a, b2) => a.startedAt - b2.startedAt);
 }
 function gameDarts(g, pid) {
   const i = g.config.players.indexOf(pid);
@@ -78,8 +90,11 @@ function gameDarts(g, pid) {
 // ------------------------------------------------------------------ courbe (une séance ou une partie = un point)
 const FREE_AIM = 'Jeux X01 et Cricket (mode Jeux) et parties seulement : sur un exercice, la cible est imposée.';
 const METRICS = {
-  rate: { label: 'Précision', fmt: pctOf, pct: true, of: (r, a) => (isGameSession(r) ? null : setPart(r, a).rate), info: 'Fléchettes dans la cible visée ÷ fléchettes lancées, séance par séance (exercices seulement : un jeu n\'a pas de cible imposée).' },
-  spread: { label: 'Groupement (cm)', fmt: v => dec1(v / 10), of: (r, a) => { if (isGameSession(r)) return null; const x = setPart(r, a); return x.points >= 3 ? x.spread : null; }, info: 'Distance moyenne des fléchettes à leur centre, en centimètres sur une vraie cible : plus c\'est bas, plus elles sont groupées (exercices seulement).' },
+  // Lot 8 du 23/11 (3.4) : la précision est la distance au point visé (plus c'est bas, mieux c'est), hors cible posés
+  // compris ; la part dans la cible reste à côté.
+  prec: { label: 'Précision (cm)', fmt: v => dec1(v / 10), dir: -1, of: (r, a) => (isGameSession(r) ? null : setPart(r, a).dist), info: 'Distance moyenne entre chaque fléchette et le point visé, en centimètres sur une vraie cible, séance par séance : plus c\'est bas, plus c\'est précis. Un hors cible posé sur la cible compte avec sa distance ; un hors cible saisi au pavé (sans position) n\'en a pas. Saisie au pavé : la fléchette est placée au centre de sa case (distance approchée). Exercices seulement : un jeu n\'a pas de cible imposée.' },
+  rate: { label: 'Dans la cible', fmt: pctOf, pct: true, of: (r, a) => (isGameSession(r) ? null : setPart(r, a).rate), info: 'Fléchettes dans la cible visée ÷ fléchettes lancées, séance par séance (exercices seulement : un jeu n\'a pas de cible imposée).' },
+  spread: { label: 'Groupement (cm)', fmt: v => dec1(v / 10), dir: -1, of: (r, a) => { if (isGameSession(r)) return null; const x = setPart(r, a); return x.points >= 3 ? x.spread : null; }, info: 'Distance moyenne des fléchettes à leur centre, en centimètres sur une vraie cible : plus c\'est bas, plus elles sont groupées (exercices seulement).' },
   exercise: { label: 'Résultat', of: (r, a) => (isGameSession(r) ? gameSetPart(r).value : (v => (v ? v.v : null))(sessionValue(r, a))), info: 'Le résultat de l\'exercice : précision, fléchettes pour boucler l\'horloge, moyenne par volée, part près du centre ; en X01, la moyenne sur 3 fléchettes ; au Cricket, les marques par volée.' },
   average: { label: 'Moyenne', fmt: dec1, game: true, info: 'Moyenne sur 3 fléchettes dans chaque partie X01.' },
   triples: { label: 'Triples', fmt: pctOf, pct: true, free: true, info: `Fléchettes dans un triple ÷ fléchettes lancées. ${FREE_AIM}` },
@@ -88,7 +103,7 @@ const METRICS = {
 };
 const exIsGame = () => GAME_EXERCISES.includes(ui.exercise);
 const metricsFor = () => (ui.source === 'entrainements'
-  ? (exIsGame() ? ['exercise', 'triples', 'doubles', 'off'] : ui.exercise ? ['rate', 'spread', 'exercise', 'off'] : ['rate', 'spread', 'triples', 'doubles', 'off'])
+  ? (exIsGame() ? ['exercise', 'triples', 'doubles', 'off'] : ui.exercise ? ['prec', 'spread', 'exercise', 'rate', 'off'] : ['prec', 'spread', 'rate', 'triples', 'doubles', 'off'])
   : ui.source === 'parties' ? ['average', 'triples', 'doubles', 'off'] : ['triples', 'doubles', 'off']);
 
 function exerciseFmt() {
@@ -127,24 +142,67 @@ function points(pid, mk) {
   }).filter(p => p.v !== null && p.v !== undefined);
 }
 
+/**
+ * Courbe (lot 8 du 23/11, 3.2) : abscisses proportionnelles au temps réel (deux séances du même soir restent séparées
+ * d'un écart minimal), une date seulement quand elle a la place (une sur deux ou trois), la valeur écrite au-dessus de
+ * chaque point.
+ */
 function chart(pts, fmt, pct, key) {
   if (pts.length < 2) return '<p class="note">Il faut au moins deux séances (ou parties) avec ce chiffre pour tracer la courbe.</p>';
-  const H = 180, T = 22, B = 18;
-  const step = 44;
-  const W = Math.max(300, 48 + (pts.length - 1) * step);
-  const xs = i => 24 + i * step;
+  const H = 190, T = 22, B = 20;
+  const ax = timeAxis(pts.map(p => p.at), { left: 26, width: Math.max(250, (pts.length - 1) * 40), gap: 36 });
+  const W = Math.max(300, ax.width + 52);
+  const xs = ax.xs;
   const vals = pts.map(p => (pct ? p.v * 100 : p.v));
   let lo = Math.min(...vals), hi = Math.max(...vals);
   if (pct) { lo = 0; hi = 100; } else { const pad = Math.max(1, (hi - lo) * 0.15); lo = Math.max(0, lo - pad); hi += pad; }
   const y = v => T + (1 - (v - lo) / (hi - lo || 1)) * (H - T - B);
-  const line = vals.map((v, i) => `${xs(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const line = vals.map((v, i) => `${xs[i].toFixed(1)},${y(v).toFixed(1)}`).join(' ');
   const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
-  const dots = pts.map((p, i) => `<rect class="pt" x="${(xs(i) - 3.5).toFixed(1)}" y="${(y(vals[i]) - 3.5).toFixed(1)}" width="7" height="7"/>
-    <text class="pv" x="${xs(i).toFixed(1)}" y="${(y(vals[i]) - 8).toFixed(1)}" text-anchor="middle">${fmt(p.v)}</text>
-    <text x="${xs(i).toFixed(1)}" y="${H - 4}" text-anchor="middle">${new Date(p.at).getDate()}/${String(new Date(p.at).getMonth() + 1).padStart(2, '0')}</text>`).join('');
+  const show = new Set(labelIndexes(xs, 66));
+  const day = at => { const d = new Date(at); return `${d.getDate()}/${String(d.getMonth() + 1).padStart(2, '0')}`; };
+  const dots = pts.map((p, i) => `<rect class="pt" x="${(xs[i] - 3.5).toFixed(1)}" y="${(y(vals[i]) - 3.5).toFixed(1)}" width="7" height="7"/>
+    <text class="pv" x="${xs[i].toFixed(1)}" y="${(y(vals[i]) - 8).toFixed(1)}" text-anchor="middle">${fmt(p.v)}</text>
+    ${show.has(i) ? `<text x="${xs[i].toFixed(1)}" y="${H - 4}" text-anchor="middle">${day(p.at)}</text><line class="tick" x1="${xs[i].toFixed(1)}" x2="${xs[i].toFixed(1)}" y1="${H - B + 2}" y2="${H - B + 6}"/>` : ''}`).join('');
   return `<div class="chartbox"><div class="chscroll" data-hscroll="${esc(key)}"><svg class="chart2" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Courbe de progression">
       <line class="mean" x1="0" x2="${W}" y1="${y(mean).toFixed(1)}" y2="${y(mean).toFixed(1)}"/><polyline class="ln" points="${line}"/>${dots}</svg></div></div>
-    <div class="chlegend"><span><i class="lg-ln"></i> ${plural(pts.length, 'point', 'points')}, du plus ancien au plus récent</span><span><i class="lg-mean"></i> moyenne ${pct ? `${Math.round(mean)} %` : fmt(mean)}</span></div>`;
+    <div class="chlegend"><span><i class="lg-ln"></i> ${plural(pts.length, 'point', 'points')}, placés selon leur date</span><span><i class="lg-mean"></i> moyenne ${pct ? `${Math.round(mean)} %` : fmt(mean)}</span></div>`;
+}
+
+// ------------------------------------------------------------------ tendances (lot 8 du 23/11, 3.1)
+/** Flèche d'une tendance : sens de la valeur, et en toutes lettres si c'est mieux ou moins bien. */
+export function trendBadge(t) {
+  if (!t || t.arrow === null) return '<span class="trd na">—</span>';
+  if (t.arrow === 'flat') return '<span class="trd flat">→ <small>stable</small></span>';
+  return `<span class="trd ${t.better ? 'good' : 'bad'}">${t.arrow === 'up' ? '↗' : '↘'} <small>${t.better ? 'mieux' : 'moins bien'}</small></span>`;
+}
+/**
+ * Tendances par exercice et au global : précision (distance au point visé) et groupement, moyenne et flèche sur les
+ * dix dernières séances de la période (il en faut quatre pour une flèche).
+ */
+export function trendRows(sessions, part = r => setPart(r)) {
+  const aimed = sessions.filter(r => !isGameSession(r));
+  const one = (name, key, list) => {
+    const parts = list.map(part);
+    const prec = parts.map(x => x.dist), spr = parts.map(x => (x.points >= 3 ? x.spread : null));
+    return { name, key, n: list.length, prec: trend(prec, -1), spread: trend(spr, -1) };
+  };
+  const rows = [one('Toutes', '', aimed)];
+  for (const k of ALL_EXERCISES) {
+    if (GAME_EXERCISES.includes(k)) continue;
+    const list = aimed.filter(r => r.exercise === k);
+    if (list.length) rows.push(one(EXERCISES[k].name, k, list));
+  }
+  return aimed.length ? rows : [];
+}
+function trendsBlock(sessions) {
+  const rows = trendRows(sessions);
+  if (!rows.length) return '';
+  const cell = t => (t.mean === null ? '<td>—</td>' : `<td><b>${dec1(t.mean / 10)}</b> ${trendBadge(t)}</td>`);
+  return `<div class="sec">Tendances${infoBtn('ts-trend')}</div>
+    ${infoBox('ts-trend', 'Sur les dix dernières séances de la période (pour chaque exercice, et toutes ensemble) : la moyenne, en centimètres, et une flèche quand la progression dépasse 5 % (il faut au moins quatre séances). <b>Précision</b> : distance au point visé ; <b>groupement</b> : distance des fléchettes à leur centre. Pour les deux, plus bas = mieux : une flèche vers le bas est un progrès.')}
+    <table class="sectab trtab trends"><thead><tr><th>Exercice</th><th>Préc. (cm)</th><th>Grp. (cm)</th></tr></thead><tbody>
+    ${rows.map(r => `<tr${r.key ? '' : ' class="all"'}><th class="ell">${esc(r.name)} <small>${r.n}</small></th>${cell(r.prec)}${cell(r.spread)}</tr>`).join('')}</tbody></table>`;
 }
 
 // ------------------------------------------------------------------ écran
@@ -175,14 +233,14 @@ function bySet(sessions) {
     const a = an(r);
     for (const k of setsUsed(r).map(x => x || '')) {
       if (ui.set && k !== ui.set) continue;
-      if (!rows.has(k)) rows.set(k, { k, n: 0, darts: 0, hits: 0, spread: [] });
+      if (!rows.has(k)) rows.set(k, { k, n: 0, darts: 0, hits: 0, spread: [], parts: [] });
       const x = rows.get(k), part = setPart(r, a, a.extra.bySet ? k : null);
-      x.n++; x.darts += part.darts; x.hits += part.hits; if (part.points >= 3 && part.spread !== null) x.spread.push(part.spread);
+      x.n++; x.darts += part.darts; x.hits += part.hits; x.parts.push(part); if (part.points >= 3 && part.spread !== null) x.spread.push(part.spread);
     }
   }
   if (rows.size < 1) return '';
-  return `<table class="sectab trtab"><thead><tr><th>Jeu</th><th>Séan.</th><th>Fl.</th><th>Préc.</th><th>Grp.</th></tr></thead><tbody>
-    ${[...rows.values()].map(x => `<tr><th class="ell">${esc(setName(x.k))}</th><td>${x.n}</td><td>${x.darts}</td><td>${pctOf(x.darts ? x.hits / x.darts : null)}</td><td>${x.spread.length ? dec1(x.spread.reduce((a, b) => a + b, 0) / x.spread.length / 10) : '—'}</td></tr>`).join('')}</tbody></table>`;
+  return `<table class="sectab trtab"><thead><tr><th>Jeu</th><th>Séan.</th><th>Préc.</th><th>Cible</th><th>Grp.</th></tr></thead><tbody>
+    ${[...rows.values()].map(x => { const d = distOf(x.parts); return `<tr><th class="ell">${esc(setName(x.k))}</th><td>${x.n}</td><td>${d === null ? '—' : dec1(d / 10)}</td><td>${pctOf(x.darts ? x.hits / x.darts : null)}</td><td>${x.spread.length ? dec1(x.spread.reduce((a, b) => a + b, 0) / x.spread.length / 10) : '—'}</td></tr>`; }).join('')}</tbody></table>`;
 }
 
 function byExercise(sessions) {
@@ -227,7 +285,9 @@ export function trainStatsScreen() {
     kpis.push(k('sessions', 'Séances', String(sessions.length)));
     if (ui.exercise === 'x01') kpis.push(k('finish', 'Finition', fin ? `${pctOf(finHits / fin)}<small> · ${finHits}/${fin}</small>` : '—'));
   } else if (ui.source !== 'parties') {
-    kpis.push(k('rate', 'Précision', pctOf(tN ? hits / tN : null), 'hero wide'));
+    const d = distOf(parts);
+    kpis.push(k('prec', 'Précision · écart moyen à la cible', d === null ? '—' : `${dec1(d / 10)}<small> cm</small>`, 'hero wide'));
+    kpis.push(k('rate', 'Dans la cible', pctOf(tN ? hits / tN : null)));
     kpis.push(k('sessions', 'Séances', String(sessions.length)));
     kpis.push(k('spread', 'Groupement moyen', spreads.length ? `${dec1(spreads.reduce((a, b) => a + b, 0) / spreads.length / 10)}<small> cm</small>` : '—'));
   } else {
@@ -245,6 +305,9 @@ export function trainStatsScreen() {
     kpis.push(k('rings', 'Simples int. / ext.', si + se ? `${si}<small> / ${se}</small>` : '—'));
   }
   if (kpis.length % 2 === 0) kpis.push(k('bulls', 'Bulls (25 · 50)', String(darts.filter(d => d.segment === 25).length)));
+  // Lot 8 du 23/11 (1.4) : la distance et le groupement d'une saisie au pavé partent du centre de la case.
+  const approx = parts.reduce((n2, x) => n2 + (x.approx || 0), 0), noPos = parts.reduce((n2, x) => n2 + (x.offNoPos || 0), 0);
+  const approxNote = ui.source !== 'parties' && (approx || noPos) ? `<p class="note approx">≈ ${approx ? `${plural(approx, 'fléchette saisie', 'fléchettes saisies')} au pavé, placée${approx > 1 ? 's' : ''} au centre de leur case : précision et groupement approchés.` : ''}${noPos ? ` ${plural(noPos, 'hors cible', 'hors cible')} au pavé, compté${noPos > 1 ? 's' : ''} sans distance.` : ''}</p>` : '';
   const freeNote = !free.length ? '<p class="note">Triples, doubles et carte de chaleur : seulement sur les jeux X01 et Cricket (mode Jeux) et les parties, où l\'on vise comme en partie. Sur un exercice, la cible est imposée.</p>' : '';
 
   const p = playerById(pid);
@@ -257,9 +320,11 @@ export function trainStatsScreen() {
     <button type="button" class="chip2" data-act="ts-ex" data-arg="" aria-pressed="${!ui.exercise}">TOUS</button>
     ${ALL_EXERCISES.filter(x => x === ui.exercise || store.trainings.some(r => r.player === pid && r.exercise === x)).map(x => `<button type="button" class="chip2" data-act="ts-ex" data-arg="${x}" aria-pressed="${ui.exercise === x}">${esc(EXERCISES[x].name)}</button>`).join('')}</div>`;
   const filters = `<div class="seg tsrc">${segBtn('ts-source', 'entrainements', ui.source, 'Entraîn.')}${segBtn('ts-source', 'parties', ui.source, 'Parties')}${segBtn('ts-source', 'deux', ui.source, 'Les deux')}</div>
-    <div class="seg tper">${segBtn('ts-period', '7j', ui.period, '7 j')}${segBtn('ts-period', '30j', ui.period, '30 j')}${segBtn('ts-period', '90j', ui.period, '90 j')}${segBtn('ts-period', 'tout', ui.period, 'Tout')}</div>
     ${setChips}${exChips}`;
-  const head = `${topBar('Stats d\'entraînement', backFrom('#/entrainement'))}<div class="pad">${chips}
+  const per = `<div class="seg tper">${segBtn('ts-period', '7j', ui.period, '7 jours')}${segBtn('ts-period', '30j', ui.period, '30 jours')}${segBtn('ts-period', 'tout', ui.period, 'Tout')}<button type="button" data-act="ts-period" data-arg="plage" aria-pressed="${ui.period === 'plage'}" aria-label="Plage de dates">${ico('calendar')}</button></div>
+    ${ui.period === 'plage' ? `<div class="trange"><label><small>DU</small><input type="date" class="input" data-input="ts-from" value="${esc(ui.range.from)}" max="${isoDay(Date.now())}"></label><label><small>AU</small><input type="date" class="input" data-input="ts-to" value="${esc(ui.range.to)}" max="${isoDay(Date.now())}"></label></div>` : ''}
+    <p class="small dim tperl">Période : ${esc(bounds().label)}</p>`;
+  const head = `${topBar('Stats d\'entraînement', backFrom('#/entrainement'))}${modeBand('train')}<div class="pad">${per}${chips}
     <div class="sec">Filtres${infoBtn('ts-filters')}</div>
     ${infoBox('ts-filters', '<b>Entraînements</b> : les séances seules. <b>Parties</b> : les fléchettes du joueur dans ses parties X01 (sans cible visée : ni précision, ni groupement). <b>Les deux</b> : séances et parties, pour les chiffres qui se comparent (triples, doubles, hors cible, carte). Le jeu de fléchettes et l\'exercice ne concernent que l\'entraînement. Triples, doubles et carte de chaleur ne comptent que les jeux X01 et Cricket (mode Jeux) et les parties ; précision et groupement, que les exercices.')}
     ${filters}</div>`;
@@ -276,34 +341,39 @@ export function trainStatsScreen() {
   const hb = heatBoard(free);
   return `<div class="screen trstats">${head}
     <div class="pad">
-      <div class="kpis">${kpis.join('')}</div>${freeNote}
+      <div class="kpis">${kpis.join('')}</div>${approxNote}${freeNote}
       <div class="sec">Progression${infoBtn('ts-curve')}</div>
       ${infoBox('ts-curve', esc(m.info) + ' Chaque point est une séance (ou une partie), dans l\'ordre ; la valeur est écrite au-dessus. Touchez la liste des séances plus bas pour en ouvrir une.')}
       <div class="chips2">${allowed.map(x => `<button type="button" class="chip2" data-act="ts-metric" data-arg="${x}" aria-pressed="${x === mk}">${esc(x === 'exercise' ? exerciseLabel() : METRICS[x].label)}</button>`).join('')}</div>
       ${chart(points(pid, mk), fmt, pct, `ts:${pid}:${ui.source}:${mk}`)}
       ${free.length ? `<div class="sec">Carte de chaleur <span class="n">${hb.total} fl.</span>${infoBtn('ts-heat')}</div>
-      ${infoBox('ts-heat', `Chaque fléchette sur la cible, par zone : plus la zone est claire, plus elle a été touchée. ${FREE_AIM} À l'entraînement, le simple intérieur et le simple extérieur sont comptés à part ; une fléchette de partie (simple sans anneau connu) compte pour moitié dans chacun.`)}
+      ${infoBox('ts-heat', `Chaque fléchette sur la cible, par zone : ${heatLegend()} (échelle au choix dans Réglages › Affichage). ${FREE_AIM} À l'entraînement, le simple intérieur et le simple extérieur sont comptés à part ; une fléchette de partie (simple sans anneau connu) compte pour moitié dans chacun.`)}
       <div class="heatbox">${hb.svg}</div><p class="note center">${plural(hb.off, 'fléchette', 'fléchettes')} hors cible, non dessinée${hb.off > 1 ? 's' : ''}.</p>` : ''}
+      ${ui.source !== 'parties' && !exIsGame() ? trendsBlock(sessions) : ''}
       ${ui.source !== 'parties' && sessions.length ? `<div class="sec">Par jeu de fléchettes${infoBtn('ts-sets')}</div>
         ${infoBox('ts-sets', 'Pour comparer les jeux : sur les exercices, séances, fléchettes, précision (dans la cible visée) et groupement moyen (cm) ; sur les jeux X01 et Cricket, fléchettes, moyenne sur 3 fléchettes, MPR, part de triples et de doubles. Sur les filtres choisis.')}
         ${aimed.length ? bySet(aimed) : ''}${played.length ? `${aimed.length ? '<p class="small dim caps tsub">En jeu (X01, Cricket)</p>' : ''}${bySetGames(played)}` : ''}
         <div class="sec">Par exercice</div>${byExercise(sessions)}
         <div class="sec">Séances <span class="n">${sessions.length}</span></div>
-        <ul class="trl">${[...sessions].reverse().slice(0, ui.folds.has('all') ? 200 : 10).map(r => `<li><a class="trow" href="#/entrainement/seance/${esc(r.id)}"><span class="l1"><b class="ell">${esc(sessionTitle(r))}</b><span>${when(r.startedAt)}</span></span>
-          <span class="l2"><span class="ell">${esc(sessionFlags(r))}</span><b>${fmtValue(sessionValue(r, an(r)))}</b></span></a></li>`).join('')}</ul>
+        <ul class="trl">${[...sessions].reverse().slice(0, ui.folds.has('all') ? 200 : 10).map(sessionCard).join('')}</ul>
         ${sessions.length > 10 && !ui.folds.has('all') ? `<button type="button" class="btn ghost" data-act="ts-all">${ico('down')} LES ${sessions.length} SÉANCES</button>` : ''}` : ''}
     </div></div>`;
 }
 
 export const actions = {
   'ts-source'(v) { ui.source = ['entrainements', 'parties', 'deux'].includes(v) ? v : 'entrainements'; refresh(); },
-  'ts-period'(v) { ui.period = Object.hasOwn(PERIODS, v) ? v : 'tout'; refresh(); },
+  'ts-period'(v) { ui.period = PERIODS.includes(v) ? v : 'tout'; refresh(); },
   'ts-player'(id) { ui.player = id; refresh(); },
   'ts-set'(id) { ui.set = id || ''; refresh(); },
   'ts-ex'(k) { ui.exercise = EXERCISES[k] ? k : ''; if (ui.exercise) ui.metric = 'exercise'; refresh(); },
   'ts-metric'(k) { ui.metric = k; refresh(); },
-  'ts-reset'() { Object.assign(ui, { period: 'tout', set: '', exercise: '' }); refresh(); },
+  'ts-reset'() { Object.assign(ui, { period: 'tout', range: { from: '', to: '' }, set: '', exercise: '' }); refresh(); },
   'ts-all'() { ui.folds.add('all'); refresh(); },
   // Depuis les Stats d'un joueur : ses stats d'entraînement.
   'ts-open'(pid) { ui.player = pid; go('#/entrainement/stats'); },
+};
+
+export const inputs = {
+  'ts-from'(v) { ui.range = { ...ui.range, from: v || '' }; refresh(); },
+  'ts-to'(v) { ui.range = { ...ui.range, to: v || '' }; refresh(); },
 };

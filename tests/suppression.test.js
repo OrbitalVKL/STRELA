@@ -83,6 +83,7 @@ test('supprimer des parties : détail, sélection par appui long, partie en cour
     db = await readDb(page);
     assert.equal(db.games.length, 4);
     assert.ok(!db.games.some(g => g.id === first));
+    await page.click('[data-act="h2-all"][data-arg="1"]'); // lot 8 du 23/11 : parties repliées par défaut
 
     // Liste : un appui court ouvre le détail ; un appui long entre en sélection, sans ouvrir le détail.
     const cdp = await ctx.newCDPSession(page);

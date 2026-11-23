@@ -1,7 +1,9 @@
 // Lot 7.8 (dans l'appli depuis la 0.8.0) : historique plus facile à parcourir quand les parties s'accumulent.
 // - Filtres : joueur (une pastille par joueur), résultat (toutes, terminées, abandonnées), mois.
 // - Parties rangées par soirée (parties d'une même soirée ensemble, avec ses verres) ou, hors soirée, par jour ;
-//   chaque groupe se replie (les deux plus récents ouverts) ; titres de mois.
+//   chaque groupe se replie ; titres de mois. Lot 8 du 23/11 (4.1, 4.2) : chaque soirée (ou jour) est une carte à part,
+//   en-tête : date, nombre de parties, gagnant (le plus de victoires) ; parties repliées par défaut ; AFFICHER LES
+//   RÉSULTATS en pied de carte (tableau de bord de la soirée).
 // - Lignes compactes : heure, jeu, avatars, vainqueur. Appui long : sélection (plusieurs parties), puis REGROUPER EN
 //   SOIRÉE, AJOUTER À UNE SOIRÉE, SORTIR DE LA SOIRÉE ou SUPPRIMER. Un jour hors soirée : EN FAIRE UNE SOIRÉE.
 //   Une soirée : TABLEAU DE BORD (#/soiree/<id>, soireedash.js).
@@ -78,6 +80,23 @@ function row(g) {
   return `<li><a class="hrow" href="#/partie/${esc(g.id)}" data-long="h2-select" data-arg="${esc(g.id)}">${inner}</a></li>`;
 }
 
+/** Gagnant d'un groupe de parties : le plus de victoires (ex aequo : tous) ; null sans partie gagnée. */
+function groupWinners(games) {
+  const wins = new Map();
+  for (const g of games) {
+    if (g.abandoned) continue;
+    let w = null;
+    try {
+      if (isCricket(g)) { const s = computeCricket(g.config, g.darts); if (s.status === 'finished') w = g.config.players[s.winner]; } else w = gameWinner(g);
+    } catch (e) { /* illisible */ }
+    if (w) wins.set(w, (wins.get(w) || 0) + 1);
+  }
+  if (!wins.size) return null;
+  const top = Math.max(...wins.values());
+  const ids = [...wins.keys()].filter(id => wins.get(id) === top);
+  return { names: ids.map(id => playerById(id).name).join(', '), wins: top, tie: ids.length > 1 };
+}
+
 /** Groupes : une soirée (même identifiant) ou, hors soirée, un jour. Du plus récent au plus ancien. */
 function groups(games) {
   const out = [];
@@ -127,7 +146,7 @@ export function history2List() {
     && (f.result === 'all' || (f.result === 'abandoned' ? g.abandoned : !g.abandoned))
     && (f.month === 'all' || monthKey(g.startedAt) === f.month));
   const gs = groups(games);
-  const open = f.open || new Set(gs.slice(0, 2).map(x => x.key));
+  const open = f.open || new Set();
   // Joueurs présents dans l'historique (actifs d'abord).
   const ids = [...new Set(all.flatMap(g => g.config.players))].filter(id => store.players.some(p => p.id === id));
   const pchip = id => {
@@ -155,15 +174,17 @@ export function history2List() {
     const drinks = drinkT.units;
     const players = [...new Set(grp.games.flatMap(g => g.config.players))];
     const span = grp.games.length > 1 ? `${hhmm(first.startedAt)} – ${hhmm(grp.games[0].startedAt)}` : hhmm(first.startedAt);
-    body += `<li class="hgroup${isOpen ? ' open' : ''}">
+    const best = groupWinners(grp.games);
+    body += `<li class="hgroup card${isOpen ? ' open' : ''}">
       <button type="button" class="hhead" data-act="h2-open" data-arg="${esc(grp.key)}" aria-expanded="${isOpen}">
         <span class="d">${grp.soiree ? `${ico('glass')} ` : ''}${dayLabel(first.startedAt)}</span>
         <span class="k">${grp.soiree ? 'SOIRÉE · ' : ''}${plural(grp.games.length, 'PARTIE', 'PARTIES')}${drinks ? ` · ${drinksText(drinkT).toUpperCase()}` : ''}</span>
         <span class="avs">${players.slice(0, 3).map(id => avatarHtml(playerById(id), 20)).join('')}${players.length > 3 ? `<small>+${players.length - 3}</small>` : ''}</span>
-        <span class="sp">${span}</span>${ico(isOpen ? 'up' : 'down')}</button>
+        <span class="sp">${span}</span>${ico(isOpen ? 'up' : 'down')}
+        ${best ? `<span class="hw">${ico('trophy')}<span class="nm ell">${esc(best.names)}</span><small>${plural(best.wins, 'victoire', 'victoires')}${best.tie ? ' chacun' : ''}</small></span>` : ''}</button>
       ${isOpen ? `<ul class="hrows">${grp.games.map(row).join('')}</ul>
-        ${sel ? '' : grp.soiree ? `<a class="hlink" href="#/soiree/${esc(grp.key.slice(2))}">${ico('stats')} TABLEAU DE BORD DE LA SOIRÉE${ico('chev')}</a>`
-          : grp.games.length > 1 ? `<button type="button" class="hlink" data-act="h2-makesoiree" data-arg="${esc(grp.games.map(g => g.id).join(','))}">${ico('glass')} EN FAIRE UNE SOIRÉE</button>` : ''}` : ''}</li>`;
+        ${!sel && !grp.soiree && grp.games.length > 1 ? `<button type="button" class="hlink" data-act="h2-makesoiree" data-arg="${esc(grp.games.map(g => g.id).join(','))}">${ico('glass')} EN FAIRE UNE SOIRÉE</button>` : ''}` : ''}
+      ${!sel && grp.soiree ? `<a class="btn ghost hfoot" href="#/soiree/${esc(grp.key.slice(2))}">${ico('stats')} AFFICHER LES RÉSULTATS</a>` : ''}</li>`;
   }
   const filtered = f.player || f.result !== 'all' || f.month !== 'all';
   const empty = !gs.length ? `<div class="empty" style="padding:28px 16px"><div class="big">AUCUNE PARTIE</div><p>Aucune partie ne correspond à ces filtres.</p>
@@ -204,7 +225,7 @@ export const actions = {
   'h2-clear'() { presetHistory2(); refresh(); },
   'h2-open'(key) {
     const all = [...store.games, ...store.ckGames].sort((a, b) => b.startedAt - a.startedAt);
-    if (!f.open) f.open = new Set(groups(all).slice(0, 2).map(x => x.key));
+    if (!f.open) f.open = new Set();
     if (f.open.has(key)) f.open.delete(key); else f.open.add(key);
     refresh();
   },

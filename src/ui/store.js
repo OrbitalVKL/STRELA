@@ -39,7 +39,7 @@ export const store = {
   setupDraft: null,  // écran « Nouvelle partie » en cours
   crop: null,        // photo en cours de recadrage (screens/photo.js)
   // autoUpdate (lot 6) : recherche automatique de mise à jour (APK « github » seulement), OUI par défaut
-  settings: { theme: 'auto', night: false, vibrate: true, anim: true, sound: true, voice: true, autoUpdate: true, autoBackup: true }, // autoBackup : lot 9
+  settings: { theme: 'auto', night: false, vibrate: true, anim: true, sound: true, voice: true, autoUpdate: true, autoBackup: true, heatScale: 'clair' }, // autoBackup : lot 9 ; heatScale : lot 8 du 23/11
   maquette: false,
   // Base du téléphone : version, erreur éventuelle, stockage persistant (affichés dans le diagnostic des Réglages)
   db: { version: null, error: null, persisted: null, unreadable: 0, openCode: null, writeFail: null },

@@ -5,6 +5,9 @@
 // Sert partout : petite cible du jeu (portrait), cible agrandie, saisie en paysage (et sa loupe), historique,
 // fins de manche, carte des segments des stats (mode « chaleur »).
 import { SECTORS, RINGS, OFF_R, polar, impactPoint, zoneTone } from '../engine/board.js';
+import { HEAT_SCALES, heatShare, heatColor, inkOn } from './theme.js';
+
+let hatchSeq = 0;
 
 // Le dessin est à l'échelle K (rayon du double = 100) : évite les polices de moins de 1 px dans le SVG.
 const K = 100;
@@ -88,7 +91,7 @@ function spread(marks, R) {
  *   aim      : lot 8 — cible visée { s, z } (engine/training.js), entourée ; extra : SVG ajouté par-dessus (échelle K)
  *   heat     : reçoit aussi l'anneau ('i' / 'o' pour les simples) en second argument (lot 8)
  */
-export function boardSvg({ size = 300, labels = size >= 150, impacts = [], heat = null, act = null, cls = '', id = '', label = 'Cible', selected = null, counts = null, aim = null, extra = '', margin = null } = {}) {
+export function boardSvg({ size = 300, labels = size >= 150, impacts = [], heat = null, heatScale = 'clair', act = null, cls = '', id = '', label = 'Cible', selected = null, counts = null, aim = null, extra = '', margin = null } = {}) {
   // Lot 8 du 23/11 (1.2) : `margin` (saisie au doigt de l'entraînement) montre la zone autour de la cible où l'on pose un
   // hors cible (jusqu'à OFF_R) ; d'office quand un impact est posé au-delà du dessin.
   const wide = margin ?? (labels && impacts.some(i => { const p = impactPoint(i.dart); return p && Math.hypot(p[0], p[1]) > RINGS.edge; }));
@@ -97,12 +100,17 @@ export function boardSvg({ size = 300, labels = size >= 150, impacts = [], heat 
   const unit = (2 * edge) / size; // unités du repère par px affiché
   const parts = wide ? [`<circle class="offz" r="${f(OFF_R)}"/>`, `<circle class="ring" r="${f(RINGS.edge)}"/>`] : [`<circle class="ring" r="${f(edge)}"/>`];
   for (const z of ZONES) parts.push(shape(z, `class="z z-${z.tone}"`));
+  const scale = HEAT_SCALES.includes(heatScale) ? heatScale : 'clair';
   if (heat) {
-    // Carte des segments : la cible est assombrie, chaque zone s'éclaire d'autant plus qu'elle a été touchée.
-    parts.push(`<circle class="veil" r="${f(RINGS.doubleOut)}"/>`);
+    // Carte des segments (lot 8 du 23/11, 3.5) : chaque zone prend la couleur de l'échelle choisie selon le nombre
+    // d'impacts (heat : 0 à 1) ; une zone jamais touchée garde un fond neutre tramé, distinct de toute l'échelle.
+    const hid = `hatch${++hatchSeq}`;
+    parts.push(`<defs><pattern id="${hid}" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect class="hn-bg" width="7" height="7"/><path class="hn-ln" d="M0 0V7"/></pattern></defs>`);
     for (const z of ZONES) {
       const arg = act ? ` data-act="${act}" data-arg="${z.key}"` : '';
-      parts.push(shape(z, `class="heat" style="fill-opacity:${(0.92 * heat(z.key, z.ring)).toFixed(3)}"${arg}`));
+      const v = heat(z.key, z.ring);
+      const fill = v > 0 ? `color-mix(in srgb, var(--heat-${scale}-hi) ${(heatShare(v) * 100).toFixed(1)}%, var(--heat-${scale}-lo))` : `url(#${hid})`;
+      parts.push(shape(z, `class="heat${v > 0 ? '' : ' none'}" style="fill:${fill}"${arg}`));
     }
     for (const z of ZONES) if (z.key === selected) parts.push(shape(z, 'class="sel"'));
   }
@@ -115,13 +123,16 @@ export function boardSvg({ size = 300, labels = size >= 150, impacts = [], heat 
   if (counts) {
     // Nombre d'impacts de chaque secteur sur une plaquette sombre, au milieu du simple extérieur ; bull au centre.
     const r = (RINGS.tripleOut + RINGS.doubleIn) / 2;
-    const plate = (x, y, n) => {
+    // Sur une carte de chaleur (lot 8 du 23/11, 3.5), le chiffre s'écrit à même la zone, dans l'encre qui se lit sur sa
+    // couleur ; sinon sur une plaquette sombre.
+    const plate = (x, y, n, key, ring) => {
+      if (heat) return `<text class="bare ${inkOn(heatColor(scale, heat(key, ring))) === '#0E1012' ? 'cd' : 'cl'}" x="${f(x)}" y="${f(y)}" dy="0.36em" text-anchor="middle">${n}</text>`;
       const w = 0.05 + 0.047 * String(n).length;
       return `<rect x="${f(x - w / 2)}" y="${f(y - 0.055)}" width="${f(w)}" height="${f(0.11)}"/><text x="${f(x)}" y="${f(y)}" dy="0.36em" text-anchor="middle">${n}</text>`;
     };
-    const cells = SECTORS.map((sct, i) => { const n = counts(sct); if (!n) return ''; const [x, y] = polar(i * 18, r); return plate(x, y, n); });
+    const cells = SECTORS.map((sct, i) => { const n = counts(sct); if (!n) return ''; const [x, y] = polar(i * 18, r); return plate(x, y, n, `${sct}`, 'o'); });
     const nb = counts(25);
-    parts.push(`<g class="cnt" style="font-size:${f(0.082)}px" aria-hidden="true">${cells.join('')}${nb ? plate(0, 0, nb) : ''}</g>`);
+    parts.push(`<g class="cnt" style="font-size:${f(0.082)}px" aria-hidden="true">${cells.join('')}${nb ? plate(0, 0, nb, '25', '') : ''}</g>`);
   }
   // Impacts : d'abord les anciens (discrets), puis la volée en cours, numérotée.
   const old = impacts.filter(i => i.old), cur = impacts.filter(i => !i.old);

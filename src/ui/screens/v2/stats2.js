@@ -4,6 +4,7 @@
 //   défilement horizontal), meilleures volées et pire volée de chaque partie repliées.
 // - Classement (#/classement) : palmarès (le meilleur et le pire de chaque chiffre) et classement complet par chiffre.
 // Tout est recalculé depuis les fléchettes (engine/stats.js), comme les Stats actuelles.
+import { modeBand } from '../../modeband.js';
 import { store, playerById } from '../../store.js';
 import { esc, ico, topBar, avg, pct, int, plural, when, OUT_SHORT } from '../../dom.js';
 import { avatarHtml } from '../../avatars.js';
@@ -318,7 +319,7 @@ export function stats2Screen(id) {
   const games = inPeriod(store.games, currentPeriod());
   const st = playerStats(games, pid);
   const chips = `<div class="chips">${players.map(q => `<a class="btn chip" href="#/stats/${esc(q.id)}" aria-pressed="${q.id === pid}">${avatarHtml(q, 38)}<span class="nm">${esc(q.name.split(' ')[0])}</span></a>`).join('')}</div>`;
-  const head = `${topBar('Stats', backFrom('#/'))}${tabs('joueur')}${chips}<div class="pad" style="margin-top:10px">${periodSeg()}</div>`;
+  const head = `${topBar('Stats', backFrom('#/'))}${modeBand('soiree')}${tabs('joueur')}${chips}<div class="pad" style="margin-top:10px">${periodSeg()}</div>`;
   if (!st.played) {
     const ck = cricketBlock(pid);
     if (ck) return `<div class="screen stats2">${head}<div class="pad"><p class="note">Aucune partie de 301 · 501 · 701 sur cette période.</p>${ck}</div></div>`;
@@ -437,7 +438,7 @@ function ranked(rows, m) {
 export function rankingScreen() {
   const games = inPeriod(store.games, currentPeriod());
   const rows = rankingData(games);
-  const head = `${topBar('Classement', backFrom('#/'))}${tabs('classement')}<div class="pad" style="margin-top:10px">${periodSeg()}</div>`;
+  const head = `${topBar('Classement', backFrom('#/'))}${modeBand('soiree')}${tabs('classement')}<div class="pad" style="margin-top:10px">${periodSeg()}</div>`;
   if (rows.length < 2) {
     return `<div class="screen">${head}<div class="empty"><div class="big">PAS ASSEZ DE JOUEURS</div><p>Il faut au moins deux joueurs avec une partie sur la période.</p>
       <button type="button" class="btn primary" data-act="period" data-arg="tout">VOIR DEPUIS TOUJOURS</button></div></div>`;

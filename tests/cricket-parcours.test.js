@@ -68,6 +68,7 @@ test('Cricket de bout en bout : saisie, rechargement, VALIDER, fin, historique',
     assert.deepEqual(g.config, { game: 'cricket', players: g.config.players, mode: 'sans', legsToWin: 1 });
     assert.equal(g.darts.length, 15);
     await page.evaluate(() => { location.hash = '#/historique'; });
+    await page.click('[data-act="h2-all"][data-arg="1"]'); // lot 8 du 23/11 : parties repliées par défaut
     await page.waitForSelector('a.hrow[href^="#/cricket/partie/"]');
     await page.click('a.hrow[href^="#/cricket/partie/"]');
     await page.waitForSelector('.ckvis');

@@ -24,7 +24,7 @@ de Guillaume, copié dans la conversation de la session). Ce fichier dit où en 
 
 | Publication | Contenu | État |
 |---|---|---|
-| 0.15.0 | 1 (saisie, précision, marqueur, règle de passage), 2 (règles et aide), 3 (stats : tendances, graphes, période, 0 %, chaleur, bandeau), 4 (listes en cartes) | en cours |
+| 0.15.0 | 1 (saisie, précision, marqueur, règle de passage), 2 (règles et aide), 3 (stats : tendances, graphes, période, 0 %, chaleur, bandeau), 4 (listes en cartes) | fait (publication en cours) |
 | 0.16.0 | 5 (exercices ludiques, défis en X01 solo, badges d'entraînement, petits défis en séance) | à faire |
 | 0.17.0 | 6 (modes, accueil, tutoriel), 7 (réglages, mise à jour), 8 (sauvegarde, export IA, feuille KPI entraînement), 9 (lien d'installation, page et guide) | à faire |
 
@@ -43,4 +43,13 @@ Voir la première ligne « en cours » du tableau ; le détail des sous-tâches 
 
 ## Fait
 
-(rien encore)
+- 0.15.0 : sections 1 à 4 entières (détail : docs/entrainement.md « Lot 8 du 23/11 » ; tests : tests/lot8-stats.test.js).
+
+## Pour 0.16.0 (section 5), idées retenues à ce stade
+
+- Exercices ludiques (5.1, à valider par Guillaume) : Killer solo, Serpent (parcours de secteurs dans l'ordre de la
+  cible), Shanghai, Moitié (halve-it), Plus haut, Roulette, Golf 9 trous, Mur de 60, plus Tour de l'horloge et Cricket
+  solo déjà là. Règles écrites dans `RULES` comme les autres ; `advance` à fixer pour chacun.
+- Défis en X01 solo (5.2) : réutiliser engine/defis.js (même tirage et même validation qu'en soirée), réglage « Défis »
+  et fréquence au lancement d'un jeu solo.
+- Badges d'entraînement (5.3) et petits défis en séance (5.4) : sur le modèle de engine/badges.js, calcul rétroactif.

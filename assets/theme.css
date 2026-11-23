@@ -71,6 +71,19 @@
   --board-wire: #A2A7AC;
   --board-mark: #FAF8F2;
   --board-mark-ink: #0E1012;
+  /* Cartes de chaleur (lot 8 du 23/11, 3.5) : trois échelles au choix (Réglages › Affichage), mêmes dans les deux thèmes
+     (la carte est dessinée sur la cible) ; zone jamais touchée : fond neutre tramé. Voir HEAT_COLORS de theme.js */
+  --heat-clair-lo: #151719;
+  --heat-clair-hi: #FAF8F2;
+  --heat-fonce-lo: #ECE6D6;
+  --heat-fonce-hi: #151719;
+  --heat-couleur-lo: #F2E6A6;
+  --heat-couleur-hi: #9E4A4A;
+  --heat-none: #6A6F74;
+  --heat-none-line: #8C9196;
+  /* Bandeau des pages de stats (lot 8 du 23/11, 3.6) : une teinte par mode, mêlée au fond du thème */
+  --mode-train: color-mix(in srgb, var(--board-green) 24%, var(--bg));
+  --mode-soiree: color-mix(in srgb, var(--dart-or) 26%, var(--bg));
   /* Fléchettes (armurerie, 0.13.0) : mêmes couleurs dans les deux thèmes ; voir DART_COLORS de theme.js */
   --dart-noir: #1B1D1F;
   --dart-argent: #B9BEC3;

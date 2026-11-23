@@ -2,6 +2,17 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.15.0', date: '2026-11-23', title: 'Entraînement : saisie précise, règles, stats revues', items: [
+    'Saisie au pavé en deux temps : le nombre, puis sa zone (simple intérieur ou extérieur, double, triple). La zone visée est soulignée ; AUTRE NOMBRE ou ANNULER revient en arrière. 25, 50 et HORS CIBLE en un appui.',
+    'Cible au doigt (paysage) : une zone d\'une dizaine de centimètres autour de la cible permet de poser un hors cible à sa vraie place ; il garde sa position et sa distance (il ne compte que zéro point).',
+    'Les points sur la cible sont de petites marques rouges, plus franches pour la volée en cours ; les numéros des secteurs restent toujours lisibles par-dessus.',
+    'Chaque exercice a ses règles écrites (objectif, déroulé, ce qui compte, moment de la saisie) : (i) sur la liste des exercices et pendant la saisie. Sous le titre, la règle du moment ; en haut à droite, « volée 2 / 5 ». Par défaut, la cible change à la fin de la volée et on saisit après les 3 fléchettes ; au tour de l\'horloge, la cible avance dès qu\'elle est touchée (chaque case montre sa cible). 20-19-18 : 21 fléchettes par numéro ; libre : par volées de 3.',
+    'Précision : c\'est maintenant l\'écart moyen à la cible visée, en centimètres (hors cible posés compris). « Dans la cible » reste à côté. Le dernier point à 0 % disparaît (les séances sans fléchette sont ignorées). Saisie au pavé : distance comptée depuis le centre de la case, et c\'est signalé.',
+    'Stats d\'entraînement : bandeau « Stats entraînement », période 7 jours / 30 jours / tout ou plage au calendrier, courbes espacées selon les vraies dates (une date sur deux ou trois), tendances sur les 10 dernières séances avec une flèche (mieux / moins bien) par exercice.',
+    'Cartes de chaleur : Réglages › Affichage, trois échelles (clair = touché, foncé = touché, du jaune au rouge) avec l\'aperçu ; une zone jamais touchée est grise et tramée.',
+    'Stats des soirées, classement, tableau d\'honneur, face-à-face : bandeau « Stats soirée ».',
+    'Historique : une carte par soirée (date, parties, gagnant), parties repliées, AFFICHER LES RÉSULTATS en bas de la carte. Séances d\'entraînement en cartes aussi : le détail volée par volée se déplie au toucher.',
+  ] },
   { v: '0.14.0', date: '2026-11-23', title: 'Entraînement : X01 et Cricket en solo', items: [
     'Nouveau mode JEUX à l\'entraînement, à côté de COACHÉ et LIBRE : une vraie partie, seul, pour essayer un jeu de fléchettes en conditions réelles.',
     'X01 : 301, 501 ou 701, sortie simple ou double, 1, 3 ou 5 manches. En haut de l\'écran, le reste et la finition proposée (selon ta fiche joueur) ; BUST et manches gagnées comme en partie.',

@@ -63,6 +63,28 @@ export const BOARD_COLORS = Object.freeze({
   'mark-ink': '#0E1012',
 });
 
+// Cartes de chaleur (lot 8 du 23/11, 3.5) : échelles au choix (jetons --heat-* de theme.css). « clair » : plus c'est
+// clair, plus la zone est touchée (comportement d'avant) ; « fonce » : l'inverse ; « couleur » : du jaune pâle au rouge
+// Strela. Zone jamais touchée : gris neutre tramé (none, none-line), distinct des trois échelles.
+export const HEAT_COLORS = Object.freeze({
+  'clair-lo': '#151719', 'clair-hi': '#FAF8F2',
+  'fonce-lo': '#ECE6D6', 'fonce-hi': '#151719',
+  'couleur-lo': '#F2E6A6', 'couleur-hi': '#9E4A4A',
+  none: '#6A6F74', 'none-line': '#8C9196',
+});
+export const HEAT_SCALES = Object.freeze(['clair', 'fonce', 'couleur']);
+export const HEAT_LABELS = Object.freeze({ clair: 'CLAIR = TOUCHÉ', fonce: 'FONCÉ = TOUCHÉ', couleur: 'JAUNE → ROUGE' });
+/** Part de la couleur forte (0 à 1) pour une intensité v (0 < v ≤ 1) : jamais moins de 12 % (une zone touchée se voit). */
+export const heatShare = v => 0.12 + 0.88 * Math.max(0, Math.min(1, v));
+/** Couleur '#RRGGBB' d'une zone d'intensité v (0 : jamais touchée) pour l'échelle `scale`. */
+export function heatColor(scale, v) {
+  const s = HEAT_SCALES.includes(scale) ? scale : 'clair';
+  if (!(v > 0)) return HEAT_COLORS.none;
+  return mix(HEAT_COLORS[`${s}-hi`], heatShare(v), HEAT_COLORS[`${s}-lo`]);
+}
+/** Encre lisible ('#RRGGBB') sur un fond : sombre sur fond clair, claire sur fond sombre (chiffres sur la carte). */
+export const inkOn = bg => (contrast('#0E1012', bg) >= contrast('#FAF8F2', bg) ? '#0E1012' : '#FAF8F2');
+
 // Fléchettes (armurerie, 0.13.0) : couleurs des pièces d'un jeu (pointe, fût, tige, empennage). Objets physiques :
 // mêmes couleurs dans les deux thèmes (jetons --dart-* de theme.css) ; le dessin garde son trait (couleur du texte),
 // lisible sur le fond quelle que soit la couleur de la pièce.

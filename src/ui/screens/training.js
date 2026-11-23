@@ -30,6 +30,7 @@ import { sound, dartSound } from '../feedback.js';
 import { bindBoardInput, boardHint, frozenLoupe } from '../boardinput.js';
 import { isLandscape } from './game.js';
 import { infoBtn, infoBox } from '../info.js';
+import { heatScale } from '../heat.js';
 
 const dec1 = v => (v === null || v === undefined ? '—' : (Math.round(v * 10) / 10).toFixed(1).replace('.', ','));
 const pctOf = v => (v === null || v === undefined ? '—' : `${Math.round(v * 100)} %`);
@@ -148,13 +149,34 @@ function exerciseRows(pid, proposed, keys, level) {
 
 let othersOpen = false; // exercices des autres niveaux, repliés
 
-function sessionRow(r) {
+// Lot 8 du 23/11 (4.3) : chaque séance est une carte — en-tête : date, exercice, jeu de fléchettes, résultat clé ; le
+// détail fléchette par fléchette (volée par volée, avec la cible visée) se déplie au toucher ; VOIR LA SÉANCE ouvre
+// l'analyse. Cartes dépliées : gardées le temps de la session.
+const openCards = new Set();
+export function presetCards(ids = []) { openCards.clear(); for (const id of ids) openCards.add(id); }
+/** Volées d'une séance pour le détail d'une carte : [{ n, darts: [{ label, hit, target }] }]. */
+function volleysOf(r) {
+  const st = trainingState(r, r.darts);
+  const out = [];
+  r.darts.forEach((d, i) => {
+    const t = st.game ? null : targetAt(st, i);
+    if (i % 3 === 0) out.push({ n: out.length + 1, darts: [] });
+    out[out.length - 1].darts.push({ label: trainingDartLabel(d), hit: t ? isHit(t, d) : null, target: t ? targetLabel(t) : '' });
+  });
+  return out;
+}
+export function sessionCard(r) {
   const ex = EXERCISES[r.exercise] || EXERCISES.libre;
   const sv = sessionValue(r);
   const what = r.exercise === 'libre' ? libreLabel(r) : isGameSession(r) ? sessionTitle(r) : ex.name;
-  return `<li><a class="trow${r.excluded ? ' excl' : ''}" href="#/entrainement/seance/${esc(r.id)}"><span class="l1"><b class="ell">${esc(what)}</b><span>${when(r.startedAt)}</span></span>
-    <span class="l2"><span class="ell">${esc(sessionFlags(r))}</span><b>${fmtValue(sv)}</b></span></a></li>`;
+  const open = openCards.has(r.id);
+  const body = open ? `<ol class="tvol">${volleysOf(r).map(v => `<li><small>V${v.n}</small>${v.darts.map(d => `<span class="${d.hit === null ? '' : d.hit ? 'hit' : 'miss'}"${d.target ? ` title="cible ${esc(d.target)}"` : ''}>${d.target && d.hit !== null ? `<i>${esc(d.target)}</i>` : ''}${esc(d.label)}</span>`).join('')}</li>`).join('')}</ol>
+    <a class="btn ghost tcfoot" href="#/entrainement/seance/${esc(r.id)}">${ico('stats')} VOIR LA SÉANCE</a>` : '';
+  return `<li class="tcard${open ? ' open' : ''}${r.excluded ? ' excl' : ''}"><button type="button" class="trow" data-act="tr-card" data-arg="${esc(r.id)}" aria-expanded="${open}">
+    <span class="l1"><b class="ell">${esc(what)}</b><span>${when(r.startedAt)}</span></span>
+    <span class="l2"><span class="ell">${esc(sessionFlags(r))}</span><b>${sv ? `<small>${esc(sv.label)}</small> ` : ''}${fmtValue(sv)}</b>${ico(open ? 'up' : 'down')}</span></button>${body}</li>`;
 }
+const sessionRow = sessionCard;
 /** Deuxième ligne d'une séance dans une liste : jeux, arrêtée, mise de côté, note. */
 export const sessionFlags = r => [setsText(r), r.stopped ? 'arrêtée' : '', r.excluded ? 'mise de côté' : '', r.note ? '✎ note' : ''].filter(Boolean).join(' · ');
 /** Libre : « T20 ×9 · 19 ×9 ». */
@@ -554,7 +576,7 @@ export function heatBoard(darts, size = 380) {
   keys.push(['25', ''], ['50', '']);
   for (const [k, r] of keys) max = Math.max(max, h.get(k, r));
   const op = c => (max ? Math.pow(c / max, 0.6) : 0);
-  return { svg: boardSvg({ size, heat: (k, r) => op(h.get(k, r)), cls: 'board', label: 'Carte de chaleur des impacts' }), off: h.off, total: h.total };
+  return { svg: boardSvg({ size, heat: (k, r) => op(h.get(k, r)), heatScale: heatScale(), cls: 'board', label: 'Carte de chaleur des impacts' }), off: h.off, total: h.total };
 }
 
 /** Fléchette saisie (pavé ou cible). */
@@ -831,6 +853,7 @@ export const inputs = {
 // ------------------------------------------------------------------ actions
 export const actions = {
   'tr-player'(id) { saveTrSetup({ player: id }); refresh(); },
+  'tr-card'(id) { if (openCards.has(id)) openCards.delete(id); else openCards.add(id); refresh(); },
   'tr-set'(id) { saveTrSetup({ setId: id || null }); refresh(); },
   'tr-fold'() { othersOpen = !othersOpen; refresh(); },
   'tr-change-set'() { const r = tr(); if (r) { r.ui.confirm = 'set'; refresh(); } },

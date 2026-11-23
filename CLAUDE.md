@@ -98,6 +98,8 @@ src/engine/training.js    entraînement solo (lot 8, docs/entrainement.md) : exe
 src/ui/screens/training.js entraînement : choix, saisie (pavé S INT./S EXT., cible au doigt), fin, détail ;
                           trainstats.js (stats), arsenal.js (armurerie), advice.js (conseils illustrés) ;
                           src/ui/boardinput.js : saisie au doigt sur la cible (loupe), commune au jeu et à l'entraînement
+src/engine/trends.js      tendances (10 dernières séances), période des stats, axe du temps des courbes (lot 8 du 23/11) ;
+                          src/ui/heat.js : échelle des cartes de chaleur ; src/ui/modeband.js : bandeau des pages de stats
 src/engine/shuffle.js     tirage au sort de l'ordre (Fisher-Yates sans biais, 0.11.0 ; tests/tirage.test.js)
 src/engine/alcohol.js     verres : comptes (verre 25 cl, pinte 50 cl = 2 verres, 0.8.2), place dans la partie, alcoolémie estimée (lot 7) ;
                           src/ui/drinks.js : choix verre / pinte et affichage du compte (0.8.2)
@@ -190,7 +192,19 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 8 | Entraînement solo : coaché (7 exercices débutant, analyse, conseils, niveau) et libre, saisie S INT. / S EXT., armurerie, stats entraînement / parties / les deux, conseils illustrés, base v3 (v0.12.0) — **fait, en attente de validation sur le Pixel** |
 | 8.1 | Entraînement : couleurs des pièces, dessin au choix du jeu, changer de jeu en pleine séance, niveau intermédiaire (5 exercices) et objectifs par niveau, gestion des séances (note, jeu, joueur, mise de côté, reprise) (v0.13.0) — **fait, en attente de validation sur le Pixel** |
 | 8.2 | Entraînement : mode JEUX, X01 et Cricket en solo aux vraies règles ; triples, doubles et carte de chaleur des stats réservés aux jeux et parties (v0.14.0) — **fait, en attente de validation sur le Pixel** |
+| 8 (23/11) | Entraînement, stats et distribution (docs/lot-8-avancement.md) : 0.15.0 = saisie précise, règles, stats, listes en cartes — **fait** ; 0.16.0 (exercices ludiques, défis, badges) et 0.17.0 (modes, accueil, réglages, exports, installation) à faire |
 | 11 | Recette |
+
+## État (version 0.15.0 : lot 8 du 23/11, première partie)
+
+- **Reprise** : lire docs/lot-8-avancement.md (découpage, décisions, prochain geste) et le cahier des charges du 23/11.
+- **0.15.0** (23/11) : sections 1 à 4 du cahier (détail : docs/entrainement.md « Lot 8 du 23/11 »). **Aucune migration** :
+  champ facultatif `rules` des séances, réglage `heatScale`. Nouveaux fichiers : src/engine/trends.js (tendances,
+  période, axe du temps), src/ui/heat.js, src/ui/modeband.js, tests/lot8-stats.test.js.
+- Choix faits sans Guillaume (à lui dire) : précision = écart moyen à la cible visée en cm (« dans la cible » à côté) ;
+  pavé : nombre puis un seul choix de zone (multiplicateur et couronne ensemble, deux appuis au lieu de trois) ;
+  20-19-18 à 21 fléchettes ; marques rouges partout (aussi en partie) ; échelle de chaleur par défaut = celle d'avant ;
+  historique : gagnant d'une soirée = le plus de victoires.
 
 ## État (version 0.14.0 : X01 et Cricket en solo)
 

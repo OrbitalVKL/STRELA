@@ -1,6 +1,8 @@
 // Réglages : thème Auto / Sombre / Clair (« strela.theme »), mode nuit (option du sombre : console en rouge
 // atténué, comme Grafit), sons et annonces vocales (lot 3), vibrations, animations (chiffres en rouleau, glissement du bandeau ; coupées d'office si le
 // téléphone demande moins d'animations). Les mêmes commandes servent au menu pause du jeu.
+import { heatScale, heatLegend, heatPreview } from '../heat.js';
+import { HEAT_SCALES, HEAT_LABELS } from '../theme.js';
 import { store, saveSetting, reducedMotion, exportBackup, applyImport, importCounts, storageIssue, resaveAll } from '../store.js';
 import { backupFileName, parseBackup, BackupError } from '../../data/backup.js';
 import { esc, ico, topBar, plural } from '../dom.js';
@@ -283,6 +285,14 @@ function autoLine() {
   return `Dernière : ${p2(d.getDate())}/${p2(d.getMonth() + 1)} à ${p2(d.getHours())}:${p2(d.getMinutes())}`;
 }
 
+/** Échelle des cartes de chaleur (lot 8 du 23/11, 3.5), avec l'aperçu en direct. */
+function heatSetting() {
+  const cur = heatScale();
+  return `<div class="heatset"><span class="small dim caps">Cartes de chaleur</span>
+    <div class="seg" role="group" aria-label="Échelle des cartes de chaleur">${HEAT_SCALES.map(k => `<button type="button" data-act="heat-scale" data-arg="${k}" aria-pressed="${cur === k}">${esc(HEAT_LABELS[k])}</button>`).join('')}</div>
+    <div class="heatprev">${heatPreview(cur)}<p class="small dim">${esc(heatLegend(cur))}. Pour les cartes de l'entraînement et des soirées.</p></div></div>`;
+}
+
 export function settings2Screen() {
   const t = store.settings.theme;
   const dark = isDark();
@@ -300,7 +310,8 @@ export function settings2Screen() {
         <div class="rows">
           ${srow('night', 'Mode nuit', dark ? 'Rouge atténué' : 'En thème sombre seulement', store.settings.night && dark, !dark)}
           ${srow('anim', 'Animations', reduced ? 'Coupées par le téléphone' : null, store.settings.anim && !reduced, reduced)}
-        </div>`)}
+        </div>
+        ${heatSetting()}`)}
       ${card('sound', 'Son et voix', 'son', `
         ${s2box('son', 'Sons : clic à chaque fléchette, bust, validation et finition. Annonces vocales : total de la volée, bust, finition jouable, manche et partie, moqueries des nuls et répliques des personnages.')}
         <div class="rows">
@@ -332,6 +343,7 @@ export const actions = {
   's2-info'(k) { if (s2.info.has(k)) s2.info.delete(k); else s2.info.add(k); refresh(); },
   's2-diag'() { s2.diag = !s2.diag; refresh(); },
   theme(v) { saveSetting('theme', v); applyTheme(); refresh(); },
+  'heat-scale'(v) { if (HEAT_SCALES.includes(v)) saveSetting('heatScale', v); refresh(); },
   night(v) { saveSetting('night', v === '1'); applyTheme(); refresh(); },
   anim(v) { saveSetting('anim', v === '1'); applyTheme(); refresh(); },
   vibrate(v) { saveSetting('vibrate', v === '1'); if (v === '1') buzz(BUZZ.dart); refresh(); },
