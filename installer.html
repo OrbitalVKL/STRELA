@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="fr" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Installer Strela</title>
+<meta name="description" content="Installer Strela, compteur de fléchettes, sur un téléphone Android : lien de la dernière version et mode d'emploi.">
+<meta name="theme-color" content="#0A0C0E">
+<link rel="icon" type="image/svg+xml" href="assets/icon.svg">
+<link rel="stylesheet" href="assets/theme.css">
+<link rel="stylesheet" href="assets/app.css">
+<!-- Strela (lot 8 du 23/11, 9.1 et 9.2) : page d'installation publiée sur GitHub Pages
+     (https://orbitalvkl.github.io/STRELA/installer.html). Lien stable vers la dernière release (strela.apk), version
+     remplie par tools/build-site.mjs, mode d'emploi en images : le même que dans l'appli (src/ui/installguide.js). -->
+<style>
+  main { max-width: 680px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { font-size: 22px; letter-spacing: 0.1em; margin: 0 0 4px; }
+  .band { background: var(--red); color: var(--red-ink); padding: 12px 16px; font-weight: 800; letter-spacing: 0.2em; }
+  p { font-size: 14px; line-height: 1.6; }
+  small { color: var(--dim); }
+  a { color: inherit; }
+</style>
+</head>
+<body>
+<div class="band">STRELA</div>
+<main>
+  <h1>Installer Strela</h1>
+  <small>Compteur de fléchettes et entraînement · Android 11 ou plus · version <b id="ver"><!--@version-->dev<!--/@--></b></small>
+  <p>Strela s'installe à la main, une fois, depuis ce lien (pas de Play Store pour l'instant). Ensuite, les nouvelles versions s'installent depuis l'appli, par-dessus : les données restent sur le téléphone.</p>
+  <div id="guide"><p><a class="btn accent big" href="https://github.com/OrbitalVKL/STRELA/releases/latest/download/strela.apk">TÉLÉCHARGER STRELA</a></p></div>
+  <p><small>Strela ne collecte aucune donnée : <a href="confidentialite.html">politique de confidentialité</a>.</small></p>
+</main>
+<script type="module">
+  import { installGuideHtml } from './src/ui/installguide.js';
+  document.getElementById('guide').innerHTML = installGuideHtml({ version: document.getElementById('ver').textContent.trim() });
+</script>
+</body>
+</html>

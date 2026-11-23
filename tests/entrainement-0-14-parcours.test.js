@@ -30,6 +30,9 @@ test('jeux en solo : X01 et Cricket, stats réservées aux jeux', { skip, timeou
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
     await openApp(page, srv.url);
+    // Réglage « Simple intérieur / extérieur » activé (désactivé par défaut) : ces parcours vérifient l'anneau du simple.
+    await page.evaluate(() => { location.hash = '#/reglages'; });
+    await page.click('[data-act="pad-ring"][data-arg="1"]');
     await createPlayer(page, 'Alpha', { color: 0 });
 
     // Un exercice lancé tout en triples : ne doit pas compter dans la part de triples des stats.

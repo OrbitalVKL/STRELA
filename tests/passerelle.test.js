@@ -75,9 +75,10 @@ test('APK (passerelle simulée) : vibreur, voix, export, écran, gestes, retour,
     assert.ok((await calls(page, 'setDark')).length, 'thème transmis à la coquille');
 
     // Premier lancement : importer la sauvegarde de la version web, ou commencer à zéro
-    assert.match(await page.textContent('.welcome'), /BIENVENUE DANS L'APPLI/);
-    assert.match(await page.textContent('.welcome'), /IMPORTER UNE SAUVEGARDE DE LA VERSION WEB/);
-    assert.ok(await page.$('.welcome a[href="#/joueur/nouveau"]'), 'COMMENCER À ZÉRO');
+    // Lot 8 du 23/11 : bienvenue avec le choix des modes ; IMPORTER UNE SAUVEGARDE (version web ou autre téléphone).
+    assert.match(await page.textContent('.welcome'), /BIENVENUE DANS STRELA/);
+    assert.match(await page.textContent('.welcome'), /IMPORTER UNE SAUVEGARDE/);
+    assert.ok(await page.$('.welcome a[href="#/bienvenue/nom"]'), 'COMMENCER LA MISE EN PLACE');
     const web = makeBackup({
       players: [{ id: 'pa', name: 'Alpha', avatar: { kind: 'initials', color: 1 }, archived: false }, { id: 'pb', name: 'Bravo', avatar: { kind: 'initials', color: 4 }, archived: false }],
       games: [{ id: 'gw', startedAt: Date.now() - 86400e3, endedAt: Date.now() - 86000e3, config: { startScore: 301, outMode: 'double', legsToWin: 1, players: ['pa', 'pb'] }, darts: ds('T20 T20 T20 20 20 20 T20 T11 D14'), validated: 9, abandoned: false }],
@@ -105,6 +106,7 @@ test('APK (passerelle simulée) : vibreur, voix, export, écran, gestes, retour,
 
     // Réglages : vibreur natif, voix d'Android, diagnostic, avertissement, mise à jour
     await clear(page);
+    await page.click('[data-act="s2-diag"]'); // lot 8 du 23/11 : essais (vibreur, voix, sons) et diagnostic dans « Développement », replié
     await page.click('[data-act="test-vibrate"]');
     assert.deepEqual(await calls(page, 'vibrate'), [['[40,120,40,120,300]']]);
     assert.match(await page.textContent('.vibe'), /VIBREUR D'ANDROID/);
@@ -112,7 +114,6 @@ test('APK (passerelle simulée) : vibreur, voix, export, écran, gestes, retour,
     await page.click('[data-act="test-voice"]');
     assert.equal((await calls(page, 'speak')).length, 1);
     assert.deepEqual(await page.evaluate(() => window.__spoken), [], 'speechSynthesis jamais utilisé');
-    await page.click('[data-act="s2-diag"]'); // diagnostic replié (Réglages de la 0.8.0)
     assert.match(await page.textContent('#diag'), /données dans l'appli \(\/data\/user\/0\/fr\.orbitalvkl\.strela\/app_webview, 1,2 Mo\)/);
     assert.match(await page.textContent('#diag'), /appli Android 0\.5\.0/);
     assert.match(await page.textContent('#app'), /DÉSINSTALLER EFFACE LES DONNÉES/);
@@ -260,20 +261,31 @@ test('APK github : recherche automatique au lancement, repère, réglage ; retou
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
     await openApp(page, srv.url);
-    // Accueil : une recherche automatique (la coquille limite GitHub à une fois par 24 h), retour laissé à Android
+    // Accueil : une recherche automatique (la coquille limite GitHub à une fois par 10 min), retour laissé à Android
     assert.equal((await calls(page, 'autoCheckUpdate')).length, 1, 'recherche automatique au lancement');
     assert.deepEqual((await calls(page, 'setBackHandled')).at(-1), [false], 'accueil : retour prédictif vers le téléphone');
-    assert.equal(await page.$('.upd-badge'), null, 'pas de repère sans mise à jour');
-    // La coquille trouve une version plus récente : repère discret à l'accueil, qui mène aux Réglages
+    assert.equal(await page.$('.updcard'), null, 'pas de carte sans mise à jour');
+    // La coquille trouve une version plus récente : carte à l'accueil (lot 8 du 23/11), qui mène aux Réglages
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('strela-native', { detail: { update: { current: '0.5.0', latest: '0.6.0', available: true, state: 'idle', progress: 0, auto: true } } })));
     await page.evaluate(() => { location.hash = '#/joueurs'; });
     await page.waitForSelector('.empty');
     assert.deepEqual((await calls(page, 'setBackHandled')).at(-1), [true], 'ailleurs, la page traite le retour');
     await page.evaluate(() => { location.hash = '#/'; });
-    await page.waitForSelector('.t-main .upd-badge');
-    assert.match(await page.textContent('.upd-badge'), /MISE À JOUR v0\.6\.0 DISPONIBLE/);
+    await page.waitForSelector('.t-main .updcard');
+    assert.match(await page.textContent('.updcard'), /MISE À JOUR v0\.6\.0/);
     assert.equal((await calls(page, 'installUpdate')).length, 0, 'rien n’est téléchargé sans appui');
-    await page.click('.upd-badge');
+    // PLUS TARD : la carte disparaît (masquée 3 jours) ; elle reste dans les Réglages.
+    await page.click('[data-act="update-snooze"]');
+    assert.equal(await page.$('.updcard'), null, 'masquée');
+    await page.evaluate(() => { location.hash = '#/reglages'; });
+    await page.waitForSelector('[data-act="update-install"].upd-go');
+    // Version importante : jamais masquée.
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('strela-native', { detail: { update: { current: '0.5.0', latest: '0.6.0', available: true, important: true, state: 'idle', progress: 0 } } })));
+    await page.evaluate(() => { location.hash = '#/'; });
+    await page.waitForSelector('.t-main .updcard');
+    assert.match(await page.textContent('.updcard'), /IMPORTANTE/);
+    assert.equal(await page.$('[data-act="update-snooze"]'), null, 'pas de PLUS TARD pour une version importante');
+    await page.click('.updcard [data-act="show-update"]');
     await page.waitForSelector('[data-act="update-install"]');
     assert.equal(await hash(page), '#/reglages');
     assert.match(await page.textContent('#app'), /INSTALLER LA VERSION 0\.6\.0/);

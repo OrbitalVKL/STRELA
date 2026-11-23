@@ -115,14 +115,22 @@ public class Bridge {
      * Fiche de score (lot 7.1) : image PNG ou PDF reçue en base64, écrite dans Téléchargements/Strela/<name> puis proposée
      * au menu de partage (Imprimer, Drive…). Nom strela-fiche-AAAAMMJJ-HHMM.png|pdf ; le type suit l'extension.
      * Version 0.8.1 : aussi le rapport de soirée, strela-soiree-AAAAMMJJ-HHMM.png|pdf (refusé jusque-là).
+     * Lot 8 du 23/11 : feuille d'entraînement (strela-entrainement-…png|pdf) et export pour une IA (strela-analyse-….md).
      */
     @JavascriptInterface
     public String saveFile(String name, String base64, String mime, boolean share) {
         try {
-            if (!name.matches("strela-(fiche|soiree|resume)-[0-9]{8}-[0-9]{4}\\.(png|pdf)")) throw new IllegalArgumentException("nom de fichier refusé");
-            String type = name.endsWith(".pdf") ? "application/pdf" : "image/png";
+            // Lot 8 du 23/11 (8.2, 8.3) : feuille KPI de l'entraînement (strela-entrainement-…png|pdf) et fichier pour une IA
+            // (strela-analyse-AAAAMMJJ-HHMM.md, texte).
+            boolean ok = name.matches("strela-(fiche|soiree|resume|entrainement)-[0-9]{8}-[0-9]{4}\\.(png|pdf)")
+                || name.matches("strela-analyse-[0-9]{8}-[0-9]{4}\\.md");
+            if (!ok) throw new IllegalArgumentException("nom de fichier refusé");
+            String type = name.endsWith(".pdf") ? "application/pdf" : name.endsWith(".md") ? "text/plain" : "image/png";
             byte[] data = android.util.Base64.decode(base64, android.util.Base64.DEFAULT);
-            return save(name, data, type, share, name.startsWith("strela-soiree-") ? "Partager le rapport de soirée" : "Partager la fiche de score");
+            String title = name.startsWith("strela-soiree-") ? "Partager le rapport de soirée"
+                : name.startsWith("strela-entrainement-") ? "Partager la feuille d'entraînement"
+                : name.startsWith("strela-analyse-") ? "Partager le fichier pour l'analyse" : "Partager la fiche de score";
+            return save(name, data, type, share, title);
         } catch (Exception e) {
             return json("ok", false, "error", String.valueOf(e.getMessage()));
         }

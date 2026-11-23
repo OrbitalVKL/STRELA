@@ -21,7 +21,19 @@ import { fmtValue, sessionCard, heatBoard } from './training.js';
 import { trend, periodBounds, inPeriod, timeAxis, labelIndexes, isoDay } from '../../engine/trends.js';
 import { heatLegend } from '../heat.js';
 import { modeBand } from '../modeband.js';
-import { trainBadgesGrid } from '../trainhonours.js';
+import { trainBadgesGrid, honoursOf } from '../trainhonours.js';
+import { buildAiExport, aiFileName } from '../../engine/aiexport.js';
+import { drawTrainReport, trainReportBase } from '../trainreport.js';
+import { heatScale } from '../heat.js';
+import { heatCounts, levelOf, LEVELS, goalOf } from '../../engine/training.js';
+import { TRAIN_BADGES, TIER_NAMES } from '../../engine/trainbadges.js';
+import { dartSetSummary } from '../../engine/dartsets.js';
+import { playerStats } from '../../engine/stats.js';
+import { trainingDartLabel } from '../../engine/training.js';
+import { deliverFile } from './printsheet.js';
+import { pdfFromJpegs, sheetFonts } from '../sheet.js';
+import { goalText } from './training.js';
+import { HEAT_LABELS } from '../theme.js';
 
 const dec1 = v => (v === null || v === undefined || Number.isNaN(v) ? '—' : (Math.round(v * 10) / 10).toFixed(1).replace('.', ','));
 const dec2 = v => (v === null || v === undefined || Number.isNaN(v) ? '—' : (Math.round(v * 100) / 100).toFixed(2).replace('.', ','));
@@ -343,6 +355,7 @@ export function trainStatsScreen() {
   return `<div class="screen trstats">${head}
     <div class="pad">
       <div class="kpis">${kpis.join('')}</div>${approxNote}${freeNote}
+      ${exportBlock()}
       <div class="sec">Progression${infoBtn('ts-curve')}</div>
       ${infoBox('ts-curve', esc(m.info) + ' Chaque point est une séance (ou une partie), dans l\'ordre ; la valeur est écrite au-dessus. Touchez la liste des séances plus bas pour en ouvrir une.')}
       <div class="chips2">${allowed.map(x => `<button type="button" class="chip2" data-act="ts-metric" data-arg="${x}" aria-pressed="${x === mk}">${esc(x === 'exercise' ? exerciseLabel() : METRICS[x].label)}</button>`).join('')}</div>
@@ -381,3 +394,97 @@ export const inputs = {
   'ts-from'(v) { ui.range = { ...ui.range, from: v || '' }; refresh(); },
   'ts-to'(v) { ui.range = { ...ui.range, to: v || '' }; refresh(); },
 };
+
+// ------------------------------------------------------------------ exports (lot 8 du 23/11, 8.2 et 8.3)
+// Deux boutons côte à côte, aux noms bien différents : FEUILLE À PARTAGER (feuille KPI, image ou PDF) et EXPORT POUR UNE
+// IA (fichier texte avec un prompt de coaching). Les deux suivent les filtres de l'écran (période, source, jeu, exercice).
+const ex = { open: null, busy: false, msg: '' };
+export function presetExports(state = {}) { Object.assign(ex, { open: null, busy: false, msg: '' }, state); }
+function exportBlock() {
+  const panel = ex.open === 'sheet'
+    ? `<div class="btns two"><button type="button" class="btn" data-act="ts-sheet" data-arg="png" ${ex.busy ? 'disabled' : ''}>${ico('image')} IMAGE</button><button type="button" class="btn" data-act="ts-sheet" data-arg="pdf" ${ex.busy ? 'disabled' : ''}>${ico('download')} PDF</button></div>`
+    : ex.open === 'ai'
+      ? `<p class="note">Un fichier texte : en tête, la consigne pour l'IA (coach de fléchettes), puis tes chiffres sur la période choisie. Partage-le ou colle-le dans ChatGPT, Claude, Gemini…</p>
+        <div class="btns two"><button type="button" class="btn" data-act="ts-ai" data-arg="share" ${ex.busy ? 'disabled' : ''}>${ico('download')} PARTAGER LE FICHIER</button><button type="button" class="btn ghost" data-act="ts-ai" data-arg="copy" ${ex.busy ? 'disabled' : ''}>COPIER LE TEXTE</button></div>` : '';
+  return `<div class="sec">Exporter${infoBtn('ts-export')}</div>
+    ${infoBox('ts-export', '<b>Feuille à partager</b> : une page A4 (image ou PDF) avec la précision, le groupement, la courbe, les tendances, les badges et la carte de chaleur. <b>Export pour une IA</b> : un fichier texte à donner à une IA pour qu\'elle t\'analyse et te propose un plan d\'entraînement. Les deux suivent les filtres choisis (période, entraînement ou parties, jeu, exercice).')}
+    <div class="btns two xbtns"><button type="button" class="btn" data-act="ts-export" data-arg="sheet" aria-pressed="${ex.open === 'sheet'}">${ico('image')} FEUILLE À PARTAGER</button><button type="button" class="btn" data-act="ts-export" data-arg="ai" aria-pressed="${ex.open === 'ai'}">${ico('data')} EXPORT POUR UNE IA</button></div>
+    ${panel}${ex.msg ? `<p class="note" role="status">${esc(ex.msg)}</p>` : ''}`;
+}
+
+/** Données des deux exports, sur les filtres de l'écran. */
+export function exportData(pid = ui.player) {
+  const p = playerById(pid);
+  const b = bounds();
+  const sessions = ui.source === 'parties' ? [] : sessionsOf(pid);
+  const aimed = sessions.filter(r => !isGameSession(r));
+  const parts = aimed.map(r => setPart(r));
+  const hits = parts.reduce((n, a) => n + a.hits, 0), tN = parts.reduce((n, a) => n + a.darts, 0);
+  const spreads = parts.filter(a => a.points >= 3 && a.spread !== null).map(a => a.spread);
+  const spread = spreads.length ? spreads.reduce((a, c) => a + c, 0) / spreads.length : null;
+  const games = ui.source === 'entrainements' ? [] : gamesOf(pid);
+  const lv = levelOf(store.trainings, pid).level;
+  const h = honoursOf(pid);
+  const free = [...sessions.filter(isGameSession).flatMap(dartsOfSet), ...games.flatMap(g => gameDarts(g, pid))];
+  const approx = parts.reduce((n, x) => n + (x.approx || 0), 0), noPos = parts.reduce((n, x) => n + (x.offNoPos || 0), 0);
+  const entryOf = r => { const withPos = r.darts.filter(d => Array.isArray(d.pos)).length; return withPos === r.darts.length ? 'cible' : withPos ? 'mixte' : 'pavé'; };
+  const setsIds = [...new Set(sessions.flatMap(r => setsUsed(r)))].filter(Boolean);
+  const ps = games.length ? playerStats(games, pid) : null;
+  return {
+    now: Date.now(), player: p.name, level: LEVELS[lv], period: b.label === 'tout' ? 'toute la période' : b.label, source: ui.source,
+    sourceLabel: ui.source === 'parties' ? 'parties de soirée' : ui.source === 'deux' ? 'entraînement et soirée' : 'entraînement',
+    sets: setsIds.map(id => dartSetById(id)).filter(Boolean).map(x => ({ name: x.name, summary: dartSetSummary(x) })),
+    summary: { sessions: sessions.length, darts: sessions.reduce((n, r) => n + dartsOfSet(r).length, 0), dist: distOf(parts), spread, rate: tN ? hits / tN : null, approx, noPos },
+    trends: trendRows(sessions),
+    exercises: ALL_EXERCISES.map(k => { const list = sessions.filter(r => r.exercise === k); if (!list.length) return null; const vals = list.map(r => sessionValue(r, an(r))).filter(Boolean); const best = vals.length ? vals.reduce((m, v) => ((v.dir > 0 ? v.v > m.v : v.v < m.v) ? v : m)) : null; return { name: EXERCISES[k].name, n: list.length, last: fmtValue(vals[vals.length - 1]), best: fmtValue(best), goal: goalOf(k, lv) ? goalText(k, lv) : '' }; }).filter(Boolean),
+    sessions: sessions.map(r => { const a = an(r), x = setPart(r, a), bias = a.messages.find(m => m.kind === 'bias'); const sv = sessionValue(r, a);
+      return { at: r.startedAt, title: (EXERCISES[r.exercise] || EXERCISES.libre).name, sets: setsUsed(r).map(id => (id ? (dartSetById(id) || { name: '?' }).name : 'sans jeu noté')).join(' puis '), darts: r.darts.length,
+        result: sv ? `${fmtValue(sv)} (${sv.label.toLowerCase()})` : '—', dist: x.dist, spread: x.points >= 3 ? x.spread : null, rate: x.rate, bias: bias ? bias.text.replace(/^Tes fléchettes partent /, '').replace(/\.$/, '') : '', entry: entryOf(r), notes: r.note || '',
+        dartsText: r.darts.map(trainingDartLabel).join(' ') }; }),
+    games: ps ? { n: games.length, average: ps.average, tripleRate: ps.tripleRate ?? null, doubleRate: (ds => (ds.length ? ds.filter(x => x.multiplier === 2).length / ds.length : null))(games.flatMap(g => gameDarts(g, pid))), finishRate: ps.doubleRate ?? null,
+      list: games.map(g => { const s1 = playerStats([g], pid); return { at: g.startedAt, label: `${g.config.startScore} ${g.config.outMode === 'single' ? 'simple' : 'double'} · ${g.config.players.length} joueurs`, average: s1.average, result: s1.won ? 'gagnée' : g.abandoned ? 'abandonnée' : 'perdue' }; }) } : null,
+    badges: h.badges.map(x => ({ name: TRAIN_BADGES[x.key].name, tier: x.tier, tierName: TIER_NAMES[x.tier], value: x.value === null ? '—' : String(Math.round(x.value * 100) / 100) })),
+    kpis: [{ label: 'Précision', value: cm(distOf(parts)) }, { label: 'Groupement', value: cm(spread) }, { label: 'Dans la cible', value: pctOf(tN ? hits / tN : null) }, { label: 'Séances', value: String(sessions.length) }, { label: 'Fléchettes', value: String(sessions.reduce((n, r) => n + r.darts.length, 0)) }],
+    curve: points(pid, 'prec').map(x => ({ at: x.at, v: x.v })),
+    heatFree: free,
+    approx: approx || noPos ? `≈ ${approx} fléchette(s) au pavé placée(s) au centre de leur case ; ${noPos} hors cible sans position.` : '',
+  };
+}
+const cm = mm => (mm === null || mm === undefined ? '—' : `${dec1(mm / 10)} cm`);
+
+const bytesOf = url => { const s = atob(url.slice(url.indexOf(',') + 1)); const u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; };
+async function exportSheet(kind) {
+  const d = exportData();
+  const hc = heatCounts(d.heatFree);
+  let max = 0;
+  for (let s2 = 1; s2 <= 20; s2++) for (const [k, r] of [[`${s2}`, 'i'], [`${s2}`, 'o'], [`T${s2}`, ''], [`D${s2}`, '']]) max = Math.max(max, hc.get(k, r));
+  max = Math.max(max, hc.get('25'), hc.get('50'));
+  const scale = heatScale();
+  await sheetFonts();
+  const pages = drawTrainReport({ ...d, heat: (k, r) => { const c = hc.get(k, r); return max && c ? Math.pow(c / max, 0.6) : 0; }, heatTotal: hc.total - hc.off, scale,
+    heatLegend: `Échelle : ${HEAT_LABELS[scale].toLowerCase()} ; gris tramé : jamais touché.`, badges: d.badges, trends: d.trends });
+  const base = trainReportBase(d.now);
+  const f = kind === 'pdf'
+    ? { name: `${base}.pdf`, mime: 'application/pdf', bytes: pdfFromJpegs(pages.map(c => ({ jpeg: bytesOf(c.toDataURL('image/jpeg', 0.9)), w: c.width, h: c.height })), { title: 'Entraînement Strela' }) }
+    : { name: `${base}.png`, mime: 'image/png', bytes: bytesOf(pages[0].toDataURL('image/png')) };
+  return deliverFile(f);
+}
+
+Object.assign(actions, {
+  'ts-export'(k) { ex.open = ex.open === k ? null : k; ex.msg = ''; refresh(); },
+  async 'ts-sheet'(kind) {
+    ex.busy = true; ex.msg = ''; refresh();
+    try { const m = await exportSheet(kind === 'pdf' ? 'pdf' : 'png'); ex.msg = m || ''; } catch (e) { ex.msg = `Export impossible : ${(e && e.message) || e}.`; }
+    ex.busy = false; refresh();
+  },
+  async 'ts-ai'(how) {
+    const d = exportData();
+    const text = buildAiExport({ ...d, player: { name: d.player, level: d.level } });
+    ex.busy = true; ex.msg = ''; refresh();
+    try {
+      if (how === 'copy') { await navigator.clipboard.writeText(text); ex.msg = 'Texte copié : colle-le dans une IA.'; }
+      else { const m = await deliverFile({ name: aiFileName(Date.now()), mime: 'text/plain', bytes: new TextEncoder().encode(text) }); ex.msg = m ? m.replace(/^Image enregistrée/, 'Fichier enregistré').replace(/^Image partagée/, 'Fichier partagé').replace(/^Image/, 'Fichier') : ''; }
+    } catch (e) { ex.msg = `Export impossible : ${(e && e.message) || e}.`; }
+    ex.busy = false; refresh();
+  },
+});

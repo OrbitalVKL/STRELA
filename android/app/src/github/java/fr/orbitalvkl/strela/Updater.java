@@ -26,7 +26,9 @@ import java.net.URL;
  * téléchargement de strela.apk dans le cache, installation par PackageInstaller. Android refuse toute mise à jour qui
  * ne porte pas la même signature que l'appli installée ; les données (base de la page) sont gardées.
  * Recherche : sur appui (RECHERCHER UNE MISE À JOUR), ou automatique (lot 6) au lancement, hors partie, si le réglage
- * le permet, au plus une fois par 24 h (heure de la dernière recherche gardée) ; le résultat est gardé (version,
+ * le permet ; lot 8 du 23/11 (7.2) : à chaque ouverture de l'appli (au plus une fois par MIN_GAP, pour ne pas épuiser la
+ * limite de l'API de GitHub quand on rouvre l'appli plusieurs fois de suite) ; une release dont les notes contiennent
+ * « [important] » est marquée importante (le repère ne se masque pas) ; le résultat est gardé (version,
  * adresse) pour que le repère « mise à jour disponible » reste d'un lancement à l'autre. Rien n'est téléchargé sans
  * appui sur INSTALLER. Variante « github » seulement (src/github).
  * Envoie à la page : { update: { current, latest, available, state: idle|checking|downloading|installing|error,
@@ -37,13 +39,13 @@ class Updater {
     static final String DOWNLOADS = "https://github.com/OrbitalVKL/STRELA/releases/download/";
     static final String LATEST_PAGE = "https://github.com/OrbitalVKL/STRELA/releases/latest";
     static final String ACTION = "fr.orbitalvkl.strela.INSTALL_STATUS";
-    static final long DAY = 24L * 3600 * 1000;
+    static final long MIN_GAP = 10L * 60 * 1000;
     final MainActivity act;
     final SharedPreferences prefs;
     String latest = null, url = null, state = "idle", msg = "";
     long size = 0, checkedAt = 0;
     int progress = 0;
-    boolean busy = false, auto = false;
+    boolean busy = false, auto = false, important = false;
 
     Updater(MainActivity a) {
         act = a;
@@ -52,12 +54,13 @@ class Updater {
         url = prefs.getString("url", null);
         size = prefs.getLong("size", 0);
         checkedAt = prefs.getLong("checkedAt", 0);
+        important = prefs.getBoolean("important", false);
     }
 
-    /** Recherche automatique : GitHub au plus une fois par 24 h ; sinon l'état gardé est renvoyé tel quel. */
+    /** Recherche automatique : à chaque ouverture, au plus une fois par MIN_GAP ; sinon l'état gardé est renvoyé tel quel. */
     void autoCheck() {
         long now = System.currentTimeMillis();
-        if (busy || (checkedAt > 0 && now - checkedAt < DAY && now >= checkedAt)) { report(); return; }
+        if (busy || (checkedAt > 0 && now - checkedAt < MIN_GAP && now >= checkedAt)) { report(); return; }
         auto = true;
         check();
     }
@@ -91,6 +94,7 @@ class Updater {
             if (!msg.isEmpty()) u.put("msg", msg);
             if (checkedAt > 0) u.put("checkedAt", checkedAt);
             u.put("auto", auto);
+            u.put("important", important && available());
         } catch (Exception e) { /* */ }
         return u;
     }
@@ -134,13 +138,14 @@ class Updater {
                     }
                 }
                 String tag = found[0], u = found[1];
+                important = found.length > 3 && "1".equals(found[3]);
                 long sz = found[2] == null ? 0 : Long.parseLong(found[2]);
                 // seule source admise : les releases du dépôt Strela
                 if (u != null && !u.startsWith(DOWNLOADS)) u = null;
                 latest = tag.startsWith("apk-v") ? tag.substring(5) : tag;
                 url = u; size = sz; state = "idle";
                 checkedAt = System.currentTimeMillis();
-                prefs.edit().putString("latest", latest).putString("url", url).putLong("size", size).putLong("checkedAt", checkedAt).apply();
+                prefs.edit().putString("latest", latest).putString("url", url).putLong("size", size).putLong("checkedAt", checkedAt).putBoolean("important", important).apply();
                 msg = available() ? "Version " + latest + " disponible." : "Strela est à jour.";
             } catch (Exception e) {
                 // Recherche automatique sans réseau : rien à dire (pas d'alerte au lancement) ; on réessaiera au suivant.
@@ -178,7 +183,7 @@ class Updater {
         JSONArray as = r.optJSONArray("assets");
         if (as != null) for (int i = 0; i < as.length(); i++) {
             JSONObject a = as.getJSONObject(i);
-            if ("strela.apk".equals(a.optString("name"))) return new String[]{tag, a.optString("browser_download_url"), String.valueOf(a.optLong("size"))};
+            if ("strela.apk".equals(a.optString("name"))) return new String[]{tag, a.optString("browser_download_url"), String.valueOf(a.optLong("size")), r.optString("body", "").contains("[important]") ? "1" : "0"};
         }
         return null;
     }

@@ -3,7 +3,8 @@
 // téléphone demande moins d'animations). Les mêmes commandes servent au menu pause du jeu.
 import { heatScale, heatLegend, heatPreview } from '../heat.js';
 import { HEAT_SCALES, HEAT_LABELS } from '../theme.js';
-import { store, saveSetting, reducedMotion, exportBackup, applyImport, importCounts, storageIssue, resaveAll } from '../store.js';
+import { store, saveSetting, reducedMotion, exportBackup, applyImport, importCounts, storageIssue, resaveAll, appModes, setMode, setupDone, profilePlayer, activePlayers } from '../store.js';
+import { avatarHtml } from '../avatars.js';
 import { backupFileName, parseBackup, BackupError } from '../../data/backup.js';
 import { esc, ico, topBar, plural } from '../dom.js';
 import { lastAutoBackup } from '../autobackup.js';
@@ -134,47 +135,57 @@ export function updateInfo() {
 const updateBusy = u => u.state === 'checking' || u.state === 'downloading' || u.state === 'installing';
 let revealUpdate = false; // repère de l'accueil touché : les Réglages s'ouvrent sur la mise à jour
 
+
 /**
- * Repère discret « MISE À JOUR vX.Y.Z DISPONIBLE » (lot 6) : accueil et haut des Réglages ; mène à la section Appli
- * Android. Rien n'est téléchargé sans appui sur INSTALLER.
+ * Mise à jour (lot 8 du 23/11, 7.2) : recherche à chaque ouverture (coquille Android, au plus une fois par 10 min), sans
+ * erreur ni blocage hors connexion. Une version disponible : carte bien visible à l'accueil et en tête des Réglages,
+ * bouton en rouge Strela (léger battement si les animations sont permises) ; PLUS TARD la masque 3 jours, sauf si la
+ * version est marquée importante. Rien n'est téléchargé sans appui.
  */
+const SNOOZE_DAYS = 3;
+const snoozed = u => { const z = store.settings.updSnooze; return !u.important && z && z.v === u.latest && Date.now() < z.until; };
+/** Carte de l'accueil quand une version est disponible (et pas masquée), sinon ''. */
 export function updateBadge() {
   const u = updateInfo();
-  if (!u.available || updateBusy(u)) return '';
-  return `<button type="button" class="upd-badge" data-act="show-update"><span data-shrink>MISE À JOUR v${esc(u.latest || '')} DISPONIBLE</span><span aria-hidden="true">›</span></button>`;
+  if (!u.available || updateBusy(u) || snoozed(u)) return '';
+  return `<section class="updcard" role="status"><div><b>MISE À JOUR v${esc(u.latest || '')}${u.important ? ' · IMPORTANTE' : ''}</b><span>Nouvelle version de Strela ; tes données sont gardées.</span></div>
+    <div class="btns two"><button type="button" class="btn upd-go" data-act="show-update">${ico('download')} METTRE À JOUR</button>${u.important ? '' : '<button type="button" class="btn ghost" data-act="update-snooze">PLUS TARD</button>'}</div></section>`;
 }
 
-/** Données de l'APK (désinstallation) et mise à jour depuis l'appli ; rien dans le navigateur. */
-function apkBlock() {
-  if (!isApk() && !store.mockApk) return ''; // mockApk : sommaire de maquette (scènes reglages-apk, reglages-play…)
-  let update;
-  if (updatable()) {
-    const u = updateInfo();
-    const busy = updateBusy(u);
-    const status = u.state === 'checking' ? 'Recherche en cours…'
-      : u.state === 'downloading' ? `Téléchargement : ${u.progress || 0} %`
-      : u.state === 'installing' ? 'Installation : confirme dans la fenêtre d\'Android.'
-      : u.msg || '';
-    const btn = u.available && !busy
-      ? `<button type="button" class="btn primary" data-act="update-install">INSTALLER LA VERSION ${esc(u.latest || '')}</button>`
-      : `<button type="button" class="btn" data-act="update-check" ${busy ? 'disabled' : ''}>RECHERCHER UNE MISE À JOUR</button>`;
-    const reveal = revealUpdate ? ' data-reveal' : '';
-    revealUpdate = false;
-    update = `<div class="kv"><span>Version installée</span><b>${esc(u.current || BUILD.version)}</b></div>
-    ${u.available && !busy ? `<p class="upd-line" role="status"${reveal}>MISE À JOUR v${esc(u.latest || '')} DISPONIBLE</p>` : ''}
+/** Carte « Mises à jour » en tête des Réglages. */
+function updateCardHtml() {
+  if (!isApk() && !store.mockApk) {
+    return card('download', 'Mises à jour', null, `<div class="kv"><span>Version</span><b>${esc(BUILD.version)}</b></div>
+      <p class="note">Version web : elle se met à jour toute seule. Pour l'appli Android, voir « Installer Strela » plus bas.</p>`);
+  }
+  if (!updatable()) {
+    return card('download', 'Mises à jour', null, `<div class="kv"><span>Version installée</span><b>${esc((nativeInfo() || {}).version || BUILD.version)}</b></div>
+      <p class="note">Version Google Play : les mises à jour arrivent par le Play Store.</p>`);
+  }
+  const u = updateInfo();
+  const busy = updateBusy(u);
+  const status = u.state === 'checking' ? 'Recherche en cours…'
+    : u.state === 'downloading' ? `Téléchargement : ${u.progress || 0} %`
+    : u.state === 'installing' ? 'Installation : confirme dans la fenêtre d\'Android.'
+    : u.msg || '';
+  const btn = u.available && !busy
+    ? `<button type="button" class="btn upd-go big" data-act="update-install">${ico('download')} INSTALLER LA VERSION ${esc(u.latest || '')}</button>`
+    : `<button type="button" class="btn" data-act="update-check" ${busy ? 'disabled' : ''}>RECHERCHER UNE MISE À JOUR</button>`;
+  const reveal = revealUpdate ? ' data-reveal' : '';
+  revealUpdate = false;
+  return `<section class="card2 updc${u.available ? ' on' : ''}" id="maj"${reveal}><h2>${ico('download')}<span>Mises à jour</span></h2>
+    <div class="kv"><span>Version installée</span><b>${esc(u.current || BUILD.version)}</b></div>
+    ${u.available && !busy ? `<p class="upd-line" role="status">MISE À JOUR v${esc(u.latest || '')} DISPONIBLE${u.important ? ' · IMPORTANTE' : ''}</p>` : ''}
     ${btn}
     ${status && !(u.available && /disponible/.test(status)) ? `<p class="note${u.state === 'error' ? ' red' : ''}" role="status">${esc(status)}</p>` : ''}
-    <div class="row"><div class="lbl"><b>Recherche automatique</b><small>Au lancement, une fois par jour au plus, jamais pendant une partie. Rien n'est téléchargé sans ton appui.</small></div>${toggle('auto-update', store.settings.autoUpdate)}</div>
-    <p class="note">Dernière version publiée sur GitHub (OrbitalVKL/STRELA), installée par-dessus : joueurs, parties et réglages sont gardés.</p>`;
-  } else {
-    // Variante Google Play (lot 6) : pas de mise à jour intégrée, c'est le Play Store qui s'en charge.
-    update = `<div class="kv"><span>Version installée</span><b>${esc((nativeInfo() || {}).version || BUILD.version)}</b></div>
-    <p class="note">Version Google Play : les mises à jour arrivent par le Play Store.</p>`;
-  }
-  return `<div class="sec" id="maj">Appli Android</div>
-    ${update}
-    <div class="issue warn"><b>DÉSINSTALLER EFFACE LES DONNÉES</b><span>Joueurs, parties et réglages sont dans l'appli : désinstaller Strela les efface. Exporte une sauvegarde avant (elle va dans Téléchargements/Strela).</span>
-      <div class="btns"><button type="button" class="btn ghost" data-act="backup-export">EXPORTER LA SAUVEGARDE</button></div></div>`;
+    <div class="rows">${srow('auto-update', 'Recherche automatique', 'À chaque ouverture, jamais pendant une partie. Sans connexion : rien ne s\'affiche.', store.settings.autoUpdate)}</div>
+    <p class="note">Dernière version publiée sur GitHub (OrbitalVKL/STRELA), installée par-dessus : joueurs, parties, séances et réglages sont gardés.</p></section>`;
+}
+
+/** Données de l'appli Android (désinstallation) ; rien dans le navigateur. */
+function apkDataBlock() {
+  if (!isApk() && !store.mockApk) return '';
+  return `<div class="issue warn"><b>DÉSINSTALLER EFFACE LES DONNÉES</b><span>Joueurs, parties, séances et réglages sont dans l'appli : désinstaller Strela les efface. Exporte une sauvegarde avant (elle va dans Téléchargements/Strela).</span></div>`;
 }
 
 // ------------------------------------------------------------------ problème d'enregistrement (lot 4)
@@ -293,6 +304,12 @@ function heatSetting() {
     <div class="heatprev">${heatPreview(cur)}<p class="small dim">${esc(heatLegend(cur))}. Pour les cartes de l'entraînement et des soirées.</p></div></div>`;
 }
 
+/**
+ * Réglages (lot 8 du 23/11, 7.1 : refonte pour la prod) : Mises à jour en tête, puis Profil, Modes de l'application,
+ * Matériel, Affichage, Son et animations, Données et sauvegarde, À propos ; tout ce qui sert au développement et aux
+ * essais (tests du son, de la voix, des vibrations, sommaire de maquette, diagnostic) dans « Développement », replié en
+ * bas, sans rien supprimer. Les données (sauvegarde, restauration, export) ne sont jamais rangées là.
+ */
 export function settings2Screen() {
   const t = store.settings.theme;
   const dark = isDark();
@@ -301,40 +318,62 @@ export function settings2Screen() {
   const b = (v, l) => `<button type="button" data-act="theme" data-arg="${v}" aria-pressed="${t === v}">${l}</button>`;
   const v = voiceInfo();
   const voice = v.state === 'ok' ? `<div class="kv"><span>Voix du téléphone</span><b class="small ell">${esc(v.name)}</b></div>` : voiceBlock();
+  const modes = appModes();
+  const me = profilePlayer();
+  const sets = store.dartSets.filter(x => !x.archived).length;
   return `<div class="screen settings2">${topBar('Réglages', '#/')}
     <div class="pad">
-      ${storageBanner()}${updateBadge()}
-      ${card('theme', 'Affichage', 'aff', `
-        ${s2box('aff', 'Auto suit le réglage du téléphone (sombre ou clair). Le mode nuit passe la console en rouge atténué, pour la pénombre ; il ne s\'applique qu\'en sombre. Animations : chiffres qui roulent et bandeau du joueur qui glisse ; coupées d\'office si le téléphone demande moins d\'animations.')}
-        <div class="seg" role="group" aria-label="Thème">${b('auto', 'Auto')}${b('dark', 'Sombre')}${b('light', 'Clair')}</div>
+      ${storageBanner()}
+      ${updateCardHtml()}
+      ${card('players', 'Profil', 'prof', `
+        ${s2box('prof', 'Ton nom et ton avatar : les séances d\'entraînement sont notées à ce nom. En mode soirée, les autres joueurs se gèrent dans Joueurs.')}
+        ${me ? `<a class="lrow" href="#/joueur/${esc(me.id)}">${avatarHtml(me, 36)}<span><b class="nm">${esc(me.name)}</b><small>Nom, avatar, finition préférée</small></span>${ico('chev')}</a>`
+    : `<a class="lrow" href="#/bienvenue/nom">${ico('plus')}<span><b>Créer mon profil</b><small>Un nom et un avatar</small></span>${ico('chev')}</a>`}
+        ${modes.soiree ? `<a class="lrow" href="#/joueurs">${ico('players')}<span><b>Joueurs</b><small>${plural(activePlayers().length, 'joueur', 'joueurs')}</small></span>${ico('chev')}</a>` : ''}
+        ${setupDone() ? '' : `<a class="lrow" href="#/bienvenue">${ico('flag')}<span><b>Terminer la mise en place</b><small>Modes, nom, avatar, jeu de fléchettes</small></span>${ico('chev')}</a>`}`)}
+      ${card('target', 'Modes de l\'application', 'modes', `
+        ${s2box('modes', '<b>Entraînement</b> : exercices, jeux de cible, stats et badges d\'entraînement. <b>Soirée</b> : parties à plusieurs (X01, Cricket), joueurs, verres, moqueries, classement. Éteindre un mode le retire de l\'écran, sans rien effacer : ses données restent et reviennent dès qu\'on le rallume. Un mode au moins reste allumé.')}
         <div class="rows">
-          ${srow('night', 'Mode nuit', dark ? 'Rouge atténué' : 'En thème sombre seulement', store.settings.night && dark, !dark)}
-          ${srow('anim', 'Animations', reduced ? 'Coupées par le téléphone' : null, store.settings.anim && !reduced, reduced)}
-        </div>
+          ${srow('mode-train', 'Entraînement', 'Seul, pour progresser', modes.train)}
+          ${srow('mode-soiree', 'Soirée', 'À plusieurs : joueurs, verres, classement', modes.soiree)}
+        </div>`)}
+      ${card('wrench', 'Matériel', null, `
+        <a class="lrow" href="#/armurerie">${ico('wrench')}<span><b>Armurerie</b><small>${plural(sets, 'jeu de fléchettes', 'jeux de fléchettes')}</small></span>${ico('chev')}</a>
+        <a class="lrow" href="#/conseils">${ico('info')}<span><b>Conseils</b><small>Prise en main, posture, lancer, types de fléchettes</small></span>${ico('chev')}</a>`)}
+      ${card('target', 'Saisie', 'saisie', `
+        ${s2box('saisie', 'Au pavé (téléphone debout), on choisit le nombre, puis sa zone : simple, double ou triple. Activé, le simple se précise en intérieur (entre le centre et le triple) ou extérieur (entre le triple et le double) : la distance à la cible et le groupement sont alors plus justes. Couché, sur la cible au doigt, la zone exacte est toujours gardée.')}
+        <div class="rows">${srow('pad-ring', 'Simple intérieur / extérieur', 'Au pavé, préciser la couronne du simple', store.settings.padRing === true)}</div>`)}
+      ${card('theme', 'Affichage', 'aff', `
+        ${s2box('aff', 'Auto suit le réglage du téléphone (sombre ou clair). Le mode nuit passe la console en rouge atténué, pour la pénombre ; il ne s\'applique qu\'en sombre.')}
+        <div class="seg" role="group" aria-label="Thème">${b('auto', 'Auto')}${b('dark', 'Sombre')}${b('light', 'Clair')}</div>
+        <div class="rows">${srow('night', 'Mode nuit', dark ? 'Rouge atténué' : 'En thème sombre seulement', store.settings.night && dark, !dark)}</div>
         ${heatSetting()}`)}
-      ${card('sound', 'Son et voix', 'son', `
-        ${s2box('son', 'Sons : clic à chaque fléchette, bust, validation et finition. Annonces vocales : total de la volée, bust, finition jouable, manche et partie, moqueries des nuls et répliques des personnages.')}
+      ${card('sound', 'Son et animations', 'son', `
+        ${s2box('son', 'Sons : clic à chaque fléchette, bust, validation et finition. Annonces vocales : total de la volée, bust, finition jouable, manche et partie, moqueries et répliques des personnages. Vibrations : courte à chaque fléchette, longue sur un bust. Animations : chiffres qui roulent, bandeau du joueur qui glisse, animations de tour ; coupées d\'office si le téléphone demande moins d\'animations.')}
         <div class="rows">
           ${srow('sound', 'Sons', null, store.settings.sound)}
           ${srow('voice', 'Annonces vocales', null, store.settings.voice)}
-        </div>
-        ${voice}
-        <div class="btns two"><button type="button" class="btn ghost" data-act="test-voice">TESTER LA VOIX</button><button type="button" class="btn ghost" data-act="test-sound">TESTER LES SONS</button></div>`)}
-      ${card('phone', 'Vibrations', 'vib', `
-        ${s2box('vib', 'Courte à chaque fléchette, longue sur un bust. TESTER envoie trois impulsions : rien senti ? Réglages Android › Son et vibreur › Vibreur et retour haptique.')}
-        <div class="rows">${srow('vibrate', 'Vibrations', null, store.settings.vibrate)}</div>
-        <button type="button" class="btn ghost" data-act="test-vibrate">TESTER LA VIBRATION</button>
-        ${vr ? `<div class="vibe ${vibeResult === 'sent' ? '' : 'bad'}" role="status"><b>${vr[0]}</b><span>${vr[1]}</span>${store.settings.vibrate ? '' : '<span>Le réglage « Vibrations » est sur NON : en partie, rien ne vibrera.</span>'}</div>` : ''}`)}
-      ${card('data', 'Sauvegarde', 'auto', `${s2box('auto', 'Appli Android : à la fin de chaque soirée, et au lancement si la dernière a plus d\'une semaine (seulement si des parties ont changé), une sauvegarde est écrite dans Téléchargements/Strela, sans rien demander. Gardez ce dossier (ou copiez-le ailleurs) : il suffit d\'IMPORTER le dernier fichier pour tout retrouver.')}
+          ${srow('vibrate', 'Vibrations', null, store.settings.vibrate)}
+          ${srow('anim', 'Animations', reduced ? 'Coupées par le téléphone' : null, store.settings.anim && !reduced, reduced)}
+        </div>`)}
+      ${card('data', 'Données et sauvegarde', 'auto', `${s2box('auto', 'Tout est sur ce téléphone : joueurs, parties, soirées, séances d\'entraînement, jeux de fléchettes, réglages. EXPORTER écrit une sauvegarde complète (un fichier) ; IMPORTER la relit sur un autre téléphone. Appli Android : une sauvegarde automatique va dans Téléchargements/Strela à la fin de chaque soirée, et au lancement si la dernière a plus d\'une semaine.')}
         ${(isApk() || store.mockApk) ? `<div class="rows">${srow('autoBackup', 'Sauvegarde automatique', autoLine(), store.settings.autoBackup)}</div>` : ''}
-        ${backupBlock()}`)}
-      ${(isApk() || store.mockApk) ? `<section class="card2 apk2">${apkBlock()}</section>` : ''}
+        ${backupBlock()}
+        ${apkDataBlock()}`)}
       ${card('info', 'À propos', null, `
         <a class="lrow" href="#/nouveautes">${ico('news')}<span><b>Nouveautés</b><small>Ce qui change à chaque version</small></span><b class="v">v${esc(BUILD.version)}</b>${ico('chev')}</a>
-        <a class="lrow" href="#/apropos">${ico('info')}<span><b>À propos de Strela</b><small>Licences, confidentialité, contact</small></span>${ico('chev')}</a>
-        <a class="lrow" href="${store.maquette ? '#/sommaire' : '?maquette#/sommaire'}">${ico('menu')}<span><b>Sommaire de maquette</b><small>Données fictives, sans toucher aux tiennes</small></span>${ico('chev')}</a>`)}
-      <button type="button" class="fold" data-act="s2-diag" aria-expanded="${s2.diag}">${ico('wrench')}<span>Diagnostic</span>${ico(s2.diag ? 'up' : 'down')}</button>
-      ${s2.diag ? `<div class="fold-body"><p class="diag" id="diag">${esc(diagnostic())}</p><button type="button" class="btn ghost" data-act="copy-diag">COPIER LE DIAGNOSTIC</button></div>` : ''}
+        <a class="lrow" href="#/tutoriel">${ico('play')}<span><b>Tutoriel</b><small>Les grands écrans en quelques pages</small></span>${ico('chev')}</a>
+        <a class="lrow" href="#/installer">${ico('phone')}<span><b>Installer Strela</b><small>Sur un autre téléphone : lien et mode d'emploi</small></span>${ico('chev')}</a>
+        <a class="lrow" href="#/apropos">${ico('info')}<span><b>À propos de Strela</b><small>Licences, confidentialité, contact</small></span>${ico('chev')}</a>`)}
+      <button type="button" class="fold" data-act="s2-diag" aria-expanded="${s2.diag}">${ico('wrench')}<span>Développement</span>${ico(s2.diag ? 'up' : 'down')}</button>
+      ${s2.diag ? `<div class="fold-body dev">
+        <p class="note">Essais et outils : rien ici ne touche aux données.</p>
+        ${voice}
+        <div class="btns two"><button type="button" class="btn ghost" data-act="test-voice">TESTER LA VOIX</button><button type="button" class="btn ghost" data-act="test-sound">TESTER LES SONS</button></div>
+        <button type="button" class="btn ghost" data-act="test-vibrate">TESTER LA VIBRATION</button>
+        ${vr ? `<div class="vibe ${vibeResult === 'sent' ? '' : 'bad'}" role="status"><b>${vr[0]}</b><span>${vr[1]}</span>${store.settings.vibrate ? '' : '<span>Le réglage « Vibrations » est sur NON : en partie, rien ne vibrera.</span>'}</div>` : ''}
+        <a class="lrow" href="${store.maquette ? '#/sommaire' : '?maquette#/sommaire'}">${ico('menu')}<span><b>Sommaire de maquette</b><small>Données fictives, sans toucher aux tiennes</small></span>${ico('chev')}</a>
+        <div class="sec">Diagnostic</div><p class="diag" id="diag">${esc(diagnostic())}</p><button type="button" class="btn ghost" data-act="copy-diag">COPIER LE DIAGNOSTIC</button></div>` : ''}
       <p class="note">${store.maquette ? 'Maquette : rien n\'est enregistré.' : 'Tout est enregistré sur ce téléphone, à chaque fléchette.'}</p>
     </div></div>`;
 }
@@ -390,6 +429,10 @@ export const actions = {
   'update-check'() { call('checkUpdate'); upd = { ...(upd || {}), state: 'checking', msg: '' }; refresh(); },
   'update-install'() { call('installUpdate'); },
   'auto-update'(v) { saveSetting('autoUpdate', v === '1'); refresh(); },
+  'update-snooze'() { const u = updateInfo(); saveSetting('updSnooze', { v: u.latest || '', until: Date.now() + SNOOZE_DAYS * 86400000 }); refresh(); },
+  'pad-ring'(v) { saveSetting('padRing', v === '1'); refresh(); },
+  'mode-train'(v) { setMode('train', v === '1'); refresh(); },
+  'mode-soiree'(v) { setMode('soiree', v === '1'); refresh(); },
   autoBackup(v) { saveSetting('autoBackup', v === '1'); refresh(); }, // lot 9
   'show-update'() {
     revealUpdate = true;

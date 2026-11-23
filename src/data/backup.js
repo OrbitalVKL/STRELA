@@ -20,7 +20,7 @@
 
 import { computeState } from '../engine/x01.js';
 import { computeCricket } from '../engine/cricket.js';
-import { playerRecord, withDrinks, trainingRecord } from './db.js';
+import { playerRecord, withDrinks, trainingRecord, soireeRecord } from './db.js';
 import { trainingState } from '../engine/training.js';
 import { dartSetRecord } from '../engine/dartsets.js';
 
@@ -41,7 +41,7 @@ const gameOut = g => withDrinks(g, {
 });
 
 /** Sauvegarde complète : { players, games (closes), current (ou null), settings: { display, lastSetup } }. */
-export function makeBackup({ players, games, current, display, lastSetup, trainings = null, training = null, dartSets = null }, { app = 'dev', dbVersion = null, now = new Date() } = {}) {
+export function makeBackup({ players, games, current, display, lastSetup, trainings = null, training = null, dartSets = null, soiree = null, trSetup = null }, { app = 'dev', dbVersion = null, now = new Date() } = {}) {
   const tr = trainings || training ? { trainings: [...(trainings || []).map(r => trainingRecord({ ...r, endedAt: r.endedAt ?? r.startedAt })), ...(training ? [trainingRecord({ ...training, endedAt: null })] : [])].filter(Boolean) } : {};
   const sets = dartSets ? { dartSets: dartSets.map(dartSetRecord).filter(Boolean) } : {};
   return {
@@ -52,7 +52,9 @@ export function makeBackup({ players, games, current, display, lastSetup, traini
     dbVersion,
     players: players.map(playerRecord),
     games: [...games.map(g => gameOut({ ...g, endedAt: g.endedAt ?? g.startedAt })), ...(current ? [gameOut({ ...current, endedAt: null })] : [])],
-    settings: { display: display ? { ...display } : null, lastSetup: lastSetup ? { ...lastSetup } : null },
+    // Lot 8 du 23/11 (8.1) : aussi la soirée en cours et les derniers choix de l'entraînement (facultatifs).
+    settings: { display: display ? { ...display } : null, lastSetup: lastSetup ? { ...lastSetup } : null,
+      ...(soiree ? { soiree: { ...soiree } } : {}), ...(trSetup ? { training: { ...trSetup } } : {}) },
     ...tr,
     ...sets,
   };
@@ -106,7 +108,8 @@ export function parseBackup(text) {
     players,
     games: all.filter(g => g.endedAt !== null),
     current: open[0] || null,
-    settings: { display: isObj(settings.display) ? settings.display : null, lastSetup: isObj(settings.lastSetup) ? settings.lastSetup : null },
+    settings: { display: isObj(settings.display) ? settings.display : null, lastSetup: isObj(settings.lastSetup) ? settings.lastSetup : null,
+      soiree: isObj(settings.soiree) ? soireeRecord(settings.soiree) : null, training: isObj(settings.training) ? settings.training : null },
   };
   // Lot 8 : séances d'entraînement et jeux de fléchettes (absents d'une sauvegarde plus ancienne : null).
   out.trainings = null;
@@ -212,9 +215,12 @@ function gamesPlan(local, backup, mode) {
     ops.push({ store: 'settings', key: 'display', put: display });
     if (backup.settings.lastSetup) ops.push({ store: 'settings', key: 'lastSetup', put: backup.settings.lastSetup });
     else ops.push({ store: 'settings', del: 'lastSetup' });
+    // Lot 8 du 23/11 : soirée en cours et derniers choix de l'entraînement, s'ils sont dans la sauvegarde.
+    if (backup.settings.soiree) ops.push({ store: 'settings', key: 'soiree', put: backup.settings.soiree });
+    if (backup.settings.training) ops.push({ store: 'settings', key: 'training', put: backup.settings.training });
     return {
       ops,
-      state: { players: backup.players, games: backup.games, current: backup.current, display, lastSetup: backup.settings.lastSetup },
+      state: { players: backup.players, games: backup.games, current: backup.current, display, lastSetup: backup.settings.lastSetup, soiree: backup.settings.soiree || undefined, trSetup: backup.settings.training || undefined },
       counts: { playersAdded: backup.players.length, gamesAdded: backup.games.length + (backup.current ? 1 : 0), currentSkipped: false },
     };
   }

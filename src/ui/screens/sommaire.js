@@ -250,6 +250,7 @@ export const SCENES = {
   'tr-jeu': () => setTr('groupement', 4),
   'tr-jeu-debut': () => setTr('groupement', 0),
   'tr-jeu-ext': () => setTr('groupement', 2, { ui: { pick: 20 } }),
+  'tr-jeu-couronne': () => { store.settings.padRing = true; return setTr('groupement', 2, { ui: { pick: 20 } }); },
   'tr-jeu-triple': () => setTr('triple20', 3, { ui: { pick: 20 } }),
   'tr-jeu-double': () => setTr('libre', 1, { blocks: [{ s: 16, z: 'd', n: 9 }], ui: { pick: 16 } }),
   'tr-jeu-regles': () => setTr('horloge', 5, { ui: { rules: true } }),
@@ -556,6 +557,21 @@ export const SCENES = {
   'reglages-apk': () => { store.mockApk = true; store.mockUpdate = { current: '0.6.0', latest: '0.6.0', available: false, state: 'idle', msg: 'Strela est à jour.' }; return '#/reglages'; },
   // Lot 6 : mise à jour trouvée par la recherche automatique (repère à l'accueil et dans les Réglages), variante Play,
   // écran À propos (web, APK GitHub, Google Play)
+  // Lot 8 du 23/11 : modes, première ouverture, tutoriel, installer, réglages refondus, mise à jour.
+  'accueil-entrainement': () => { store.settings.modes = { train: true, soiree: false }; return '#/'; },
+  'accueil-deux-modes': () => { store.settings.modes = { train: true, soiree: true }; return '#/'; },
+  'premiere-ouverture': () => { store.players = []; store.games = []; store.ckGames = []; store.trainings = []; store.current = null; store.lastSetup = null; return '#/'; },
+  'mise-en-place-a-finir': () => { store.settings.setup = { started: true, step: 'avatar' }; store.settings.modes = { train: true, soiree: false }; return '#/'; },
+  'bienvenue-modes': () => { store.players = []; store.games = []; store.trainings = []; return '#/bienvenue/modes'; },
+  'bienvenue-nom': () => '#/bienvenue/nom',
+  'bienvenue-avatar': () => { store.settings.profile = 'p1'; return '#/bienvenue/avatar'; },
+  'bienvenue-jeu': () => '#/bienvenue/jeu',
+  'bienvenue-fin': () => '#/bienvenue/fin',
+  tutoriel: () => '#/tutoriel',
+  installer: () => '#/installer',
+  'reglages-refonte': () => { store.mockApk = true; store.mockUpdate = { current: '0.16.0', latest: '0.17.0', available: true, state: 'idle', msg: 'Version 0.17.0 disponible.' }; return '#/reglages'; },
+  'reglages-developpement': () => '#/reglages',
+  'maj-importante': () => { store.mockApk = true; store.mockUpdate = { current: '0.16.0', latest: '0.17.0', available: true, important: true, state: 'idle' }; return '#/'; },
   'maj-disponible': () => { store.mockApk = true; store.mockUpdate = { current: '0.6.0', latest: '0.6.1', available: true, state: 'idle', msg: 'Version 0.6.1 disponible.', auto: true }; return '#/'; },
   'reglages-maj': () => { store.mockApk = true; store.mockUpdate = { current: '0.6.0', latest: '0.6.1', available: true, state: 'idle', msg: 'Version 0.6.1 disponible.' }; return '#/reglages'; },
   'reglages-maj-telechargement': () => { store.mockApk = true; store.mockUpdate = { current: '0.6.0', latest: '0.6.1', available: true, state: 'downloading', progress: 42 }; return '#/reglages'; },
@@ -622,6 +638,7 @@ export function sommaire() {
       ${L('tr-jeu-debut', '◆ Saisie : début', 'groupement')}
       ${L('tr-jeu', '◆ Saisie : en cours', 'pavé en portrait, cible en paysage')}
       ${L('tr-jeu-ext', '◆ Saisie : zone du 20 à choisir', 'nombre puis zone (23/11)')}
+      ${L('tr-jeu-couronne', '◆ Saisie : simple intérieur / extérieur', 'réglage activé')}
       ${L('tr-jeu-triple', '◆ Saisie : triple 20, zone du 20')}
       ${L('tr-jeu-double', '◆ Saisie : libre, D16, zone du 16')}
       ${L('tr-jeu-regles', '◆ Saisie : règles de l\'exercice', 'horloge')}
@@ -818,6 +835,19 @@ export function sommaire() {
       ${H('#/reglages', '10 · Réglages')}
       ${L('reglages-apk', '10 · Réglages de l\'appli Android', 'mise à jour, désinstallation')}
       ${L('maj-disponible', '1 · Accueil : mise à jour disponible', 'repère discret')}
+      ${L('accueil-entrainement', '◆ Accueil : mode entraînement seul', 'lot 8 du 23/11')}
+      ${L('accueil-deux-modes', '◆ Accueil : les deux modes')}
+      ${L('premiere-ouverture', '◆ Première ouverture', 'bienvenue, choix des modes')}
+      ${L('mise-en-place-a-finir', '◆ Accueil : terminer la mise en place')}
+      ${L('bienvenue-modes', '◆ Mise en place : modes')}
+      ${L('bienvenue-nom', '◆ Mise en place : nom')}
+      ${L('bienvenue-avatar', '◆ Mise en place : avatar')}
+      ${L('bienvenue-jeu', '◆ Mise en place : fléchettes')}
+      ${L('bienvenue-fin', '◆ Mise en place : fin')}
+      ${L('tutoriel', '◆ Tutoriel')}
+      ${L('installer', '◆ Installer Strela', 'lien et mode d\'emploi')}
+      ${L('reglages-refonte', '◆ Réglages refondus', 'mise à jour en tête')}
+      ${L('maj-importante', '◆ Accueil : mise à jour importante')}
       ${L('reglages-maj', '10 · Réglages : mise à jour disponible', 'INSTALLER')}
       ${L('reglages-maj-telechargement', '10 · Réglages : téléchargement', '42 %')}
       ${L('reglages-play', '10 · Réglages de la version Google Play', 'sans mise à jour intégrée')}

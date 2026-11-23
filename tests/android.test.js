@@ -46,7 +46,7 @@ test('mise à jour intégrée : code dans la variante github seulement', () => {
   }
   assert.ok(existsSync(join(ROOT, `${APP}/src/github/java/fr/orbitalvkl/strela/Updater.java`)));
   assert.match(read(`${APP}/src/github/java/fr/orbitalvkl/strela/UpdateBridge.java`), /autoCheckUpdate/);
-  assert.match(read(`${APP}/src/github/java/fr/orbitalvkl/strela/Updater.java`), /24L \* 3600 \* 1000/, 'au plus une recherche automatique par 24 h');
+  assert.match(read(`${APP}/src/github/java/fr/orbitalvkl/strela/Updater.java`), /MIN_GAP = 10L \* 60 \* 1000/, 'lot 8 du 23/11 : recherche à chaque ouverture, au plus une fois par 10 min');
 });
 
 test('mise à jour : API de GitHub limitée (403) → page web de la dernière release (v0.6.1)', () => {

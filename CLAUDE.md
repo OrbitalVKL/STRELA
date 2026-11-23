@@ -100,6 +100,9 @@ src/ui/screens/training.js entraînement : choix, saisie (pavé S INT./S EXT., c
                           src/ui/boardinput.js : saisie au doigt sur la cible (loupe), commune au jeu et à l'entraînement
 src/engine/trends.js      tendances (10 dernières séances), période des stats, axe du temps des courbes (lot 8 du 23/11) ;
                           src/ui/heat.js : échelle des cartes de chaleur ; src/ui/modeband.js : bandeau des pages de stats
+installer.html            page d'installation (lot 8 du 23/11), publiée sur Pages ; guide : src/ui/installguide.js
+src/ui/screens/welcome.js bienvenue et mise en place guidée, tutoriel, installer ; src/ui/trainreport.js : feuille KPI ;
+                          src/engine/aiexport.js : export pour une IA
 src/engine/fun.js         jeux de cible solo (lot 8 du 23/11) ; src/engine/trainbadges.js : badges d'entraînement et petits
                           défis en séance ; src/ui/trainhonours.js : leur vitrine et leur fenêtre
 src/engine/shuffle.js     tirage au sort de l'ordre (Fisher-Yates sans biais, 0.11.0 ; tests/tirage.test.js)
@@ -194,8 +197,20 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 8 | Entraînement solo : coaché (7 exercices débutant, analyse, conseils, niveau) et libre, saisie S INT. / S EXT., armurerie, stats entraînement / parties / les deux, conseils illustrés, base v3 (v0.12.0) — **fait, en attente de validation sur le Pixel** |
 | 8.1 | Entraînement : couleurs des pièces, dessin au choix du jeu, changer de jeu en pleine séance, niveau intermédiaire (5 exercices) et objectifs par niveau, gestion des séances (note, jeu, joueur, mise de côté, reprise) (v0.13.0) — **fait, en attente de validation sur le Pixel** |
 | 8.2 | Entraînement : mode JEUX, X01 et Cricket en solo aux vraies règles ; triples, doubles et carte de chaleur des stats réservés aux jeux et parties (v0.14.0) — **fait, en attente de validation sur le Pixel** |
-| 8 (23/11) | Entraînement, stats et distribution (docs/lot-8-avancement.md) : 0.15.0 = saisie précise, règles, stats, listes en cartes — **fait** ; 0.16.0 = jeux de cible, défis en X01 solo, badges d'entraînement — **fait** ; 0.17.0 (modes, accueil, réglages, exports, installation) à faire |
+| 8 (23/11) | Entraînement, stats et distribution (docs/lot-8-avancement.md) : 0.15.0 = saisie précise, règles, stats, listes en cartes — **fait** ; 0.16.0 = jeux de cible, défis en X01 solo, badges d'entraînement — **fait** ; 0.17.0 = modes, accueil, réglages, exports, installation — **fait** |
 | 11 | Recette |
+
+## État (version 0.17.0 : lot 8 du 23/11, fin)
+
+- **0.17.0** (23/11) : sections 6 à 9 du cahier (docs/interface.md « Version 0.17.0 »). Aucune migration. Nouveaux
+  fichiers : src/ui/screens/welcome.js (bienvenue, tutoriel, installer), src/ui/installguide.js (guide partagé avec
+  installer.html), src/ui/trainreport.js (feuille KPI), src/engine/aiexport.js (export pour une IA),
+  tests/lot8-appli*.test.js. Coquille Android : Updater (recherche à chaque ouverture, version importante), Bridge
+  (noms de fichiers des deux exports).
+- Choix faits sans Guillaume (à lui dire) : sans réglage, une installation qui a déjà des parties garde le mode soirée ;
+  réglage « Simple intérieur / extérieur » du pavé désactivé par défaut (demande du 23/11 : « option activable ») ;
+  essais du son, de la voix et des vibrations rangés dans « Développement » ; PLUS TARD masque 3 jours ; « [important] »
+  dans les notes de la release marque une mise à jour importante.
 
 ## État (version 0.16.0 : lot 8 du 23/11, deuxième partie)
 

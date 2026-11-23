@@ -189,9 +189,11 @@ await step('passerelle strelaNative présente, version lue dans package.json', a
   return `${info.model} · SDK ${info.sdk} · v${info.version}`;
 });
 
-await step('accueil du premier lancement : IMPORTER UNE SAUVEGARDE DE LA VERSION WEB', async () => {
+// Lot 8 du 23/11 : bienvenue avec le choix des modes, mise en place guidée, IMPORTER UNE SAUVEGARDE (version web ou
+// autre téléphone).
+await step('accueil du premier lancement : bienvenue, mise en place, IMPORTER UNE SAUVEGARDE', async () => {
   const t = await page.textContent('.welcome');
-  if (!/IMPORTER UNE SAUVEGARDE DE LA VERSION WEB/.test(t) || !/COMMENCER À ZÉRO/.test(t)) throw new Error(t);
+  if (!/BIENVENUE DANS STRELA/.test(t) || !/IMPORTER UNE SAUVEGARDE/.test(t) || !/COMMENCER LA MISE EN PLACE/.test(t)) throw new Error(t);
 });
 
 await step('voix et vibreur natifs (état rapporté par Android)', async () => {
