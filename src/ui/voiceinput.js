@@ -73,6 +73,7 @@ function setLine(msg, { alert = false, heard = vs.heard, labels = [] } = {}) {
 function startListening() {
   if (vs.listening) return;
   Object.assign(vs, { partial: '', heard: '', labels: [], msg: '', alert: false });
+  vs.gen = (vs.gen || 0) + 1; // écoute n° gen : un « start » d'Android arrivé après sa phrase ne la rouvre pas
   if (isApk()) {
     call('stopSpeaking');
     const r = call('listenStart');
@@ -125,6 +126,7 @@ const ERR = {
 };
 function failed(kind) {
   vs.listening = false;
+  vs.doneGen = vs.gen;
   setLine(ERR[kind] || ERR.other, { alert: true, heard: '' });
   refresh();
 }
@@ -134,7 +136,7 @@ const ANDROID_ERR = { 1: 'network', 2: 'network', 3: 'other', 4: 'network', 5: '
 onNative(d => {
   const l = d.listen;
   if (!l) return;
-  if (l.type === 'start') { vs.listening = true; refresh(); }
+  if (l.type === 'start') { if (vs.doneGen !== vs.gen) { vs.listening = true; refresh(); } }
   else if (l.type === 'partial') { vs.partial = (l.texts && l.texts[0]) || vs.partial; if (vs.listening) refresh(); }
   else if (l.type === 'result') heard(l.texts || []);
   else if (l.type === 'error') failed(ANDROID_ERR[l.code] || 'other');
@@ -146,6 +148,7 @@ onNative(d => {
 /** Propositions du moteur (la plus sûre d'abord) → fléchettes posées à l'écran affiché. Exporté pour les tests. */
 export function heard(texts) {
   vs.listening = false;
+  vs.doneGen = vs.gen;
   vs.partial = '';
   const route = location.hash;
   const a = adapters.get(route);
