@@ -215,11 +215,14 @@ export async function guestLink(code, on, { onStep = () => {}, ctl = {}, service
         } catch (e) { /* candidat refusé : les autres suffisent */ }
       };
     });
+    // Coupée en attendant l'hôte : service suivant tout de suite. Pendant la négociation, les candidats déjà passés
+    // peuvent suffire : on laisse finir.
+    sig.onclose = () => { log('enligne', `invité : signalisation coupée par ${service.name} (étape ${step})`); if (wake && step === 'host') wake('coupé'); };
     sig.send(dst, 'OFFER', { sdp: offer });
     for (const c of local) sig.send(dst, 'CANDIDATE', { candidate: c });
     const r = await wait(answerMs, answered);
     if (r === 'cancelled') fail('cancelled', step);
-    if (r !== 'open') { log('enligne', `invité : pas de réponse de l'hôte par ${service.name} (${r})`); sig.close(); sig = null; continue; }
+    if (r !== 'open') { log('enligne', `invité : pas de réponse de l'hôte par ${service.name} (${r})`); sig.onclose = null; sig.close(); sig = null; continue; }
     log('enligne', `invité : réponse de l'hôte par ${service.name} (${Date.now() - t0} ms)`);
     step = 'ice';
     onStep({ step, service: service.name });
@@ -230,6 +233,7 @@ export async function guestLink(code, on, { onStep = () => {}, ctl = {}, service
     step = 'channel';
     onStep({ step, service: service.name, done: true });
     done = true;
+    sig.onclose = null;
     sig.close(); sig = null; // plus besoin de la signalisation : tout passe par le canal
     log('enligne', `invité : canal ouvert (${Date.now() - t0} ms ; candidats locaux ${typesText(lt)}, distants ${typesText(rt)})`);
     link = wire(ch, msg => on.message && on.message(msg), () => { try { pc.close(); } catch (e) { /* */ } on.close && on.close(); });

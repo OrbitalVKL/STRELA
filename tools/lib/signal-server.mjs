@@ -1,13 +1,16 @@
 // Serveur de signalisation local pour les tests de la partie en ligne (lot 9.2) : le protocole du serveur public de
 // PeerJS (0.peerjs.com), réduit à ce dont Strela se sert (src/net/signal.js), sur un WebSocket écrit à la main (le
 // projet n'a aucune dépendance). OPEN à la connexion, ID-TAKEN si l'identifiant est pris, relais des messages à `dst`
-// (avec `src`), mise en attente 5 s puis EXPIRE si le destinataire n'est pas là, HEARTBEAT ignoré.
+// (avec `src`), mise en attente 5 s puis EXPIRE si le destinataire n'est pas là, HEARTBEAT ignoré. Comme le vrai
+// serveur (relevé le 24/11) : un message à la forme refusée (src/net/signal.js › peerjsValid) coupe la liaison de
+// l'expéditeur (code 1000) sans être relayé ; `s.cut` compte ces coupures.
 //   const s = await signalServer(); s.url → 'ws://127.0.0.1:PORT/peerjs' ; s.close() ; s.kick(id) coupe un client.
 // Lot 9.5 : aussi un petit courtier MQTT 3.1.1 sur WebSocket (sous-protocole « mqtt », trames binaires) sur /mqtt :
 // CONNECT → CONNACK, SUBSCRIBE → SUBACK, PUBLISH (QoS 0) relayé aux abonnés du sujet exact, PINGREQ → PINGRESP.
 //   s.mqttUrl → 'ws://127.0.0.1:PORT/mqtt' ; s.peerjsDown = true : /peerjs refuse tout (serveur PeerJS en panne).
 import { createServer } from 'node:http';
 import { createHash } from 'node:crypto';
+import { peerjsValid } from '../../src/net/signal.js';
 
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 
@@ -64,7 +67,7 @@ export async function signalServer() {
   const subs = new Map();    // sujet MQTT → Set(socket)
   const server = createServer((req, res) => { res.writeHead(404); res.end(); });
   const sendTo = (sock, obj) => { try { sock.write(frame(JSON.stringify(obj))); } catch (e) { /* */ } };
-  const api = { peerjsDown: false };
+  const api = { peerjsDown: false, cut: 0 };
   function mqttClient(req, sock, key) {
     const accept = createHash('sha1').update(key + GUID).digest('base64');
     sock.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\nSec-WebSocket-Protocol: mqtt\r\n\r\n`);
@@ -122,7 +125,8 @@ export async function signalServer() {
       for (const text of msgs) {
         let m;
         try { m = JSON.parse(text); } catch (e) { continue; }
-        if (m.type === 'HEARTBEAT' || !m.dst) continue;
+        if (m.type === 'HEARTBEAT') continue;
+        if (!peerjsValid(m)) { api.cut++; sock.end(frame(Buffer.from([0x03, 0xE8]), 0x88)); return; }
         m.src = id;
         const to = clients.get(m.dst);
         if (to) sendTo(to, m);

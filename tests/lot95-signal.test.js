@@ -3,12 +3,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { signalServer } from '../tools/lib/signal-server.mjs';
-import { openSignal, openSignals, parseServices, mqtt, SERVICES, SignalError } from '../src/net/signal.js';
+import { openSignal, openSignals, parseServices, mqtt, SERVICES, SignalError, peerjsPayload, peerjsValid } from '../src/net/signal.js';
 import { candidateType } from '../src/net/link.js';
 import { log, trim, journalLines, journalText, journalFileName, clearJournal, setJournal, resetJournalForTests, brief, KEEP_MS } from '../src/ui/journal.js';
 
 const hasWS = typeof globalThis.WebSocket === 'function';
 const next = (sig, type) => new Promise(res => { sig.onmessage = m => { if (m.type === type) res(m); }; });
+const OFFER = { sdp: { type: 'offer', sdp: 'v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\n' } };
+const ANSWER = { sdp: { type: 'answer', sdp: 'v=0\r\no=- 3 4 IN IP4 127.0.0.1\r\n' } };
 
 test('services : PeerJS d\'abord, puis deux courtiers MQTT ; liste donnée par la page', () => {
   assert.deepEqual(SERVICES.map(s => s.kind), ['peerjs', 'mqtt', 'mqtt']);
@@ -31,6 +33,26 @@ test('MQTT : paquets CONNECT, SUBSCRIBE, PUBLISH relus', () => {
   // Longueur sur deux octets (plus de 127).
   const long = mqtt.publish('t', 'x'.repeat(300));
   assert.equal(mqtt.message(mqtt.read(long).packets[0]).text.length, 300);
+});
+
+test('PeerJS : forme des messages exigée par le serveur public (relevée le 24/11 sur 0.peerjs.com)', () => {
+  const m = (type, payload) => ({ type, dst: 'strela-x', payload });
+  // Ce qu'envoyait la 0.20.0 : refusé (le serveur coupait la liaison de l'invité, l'hôte ne recevait rien).
+  assert.equal(peerjsValid(m('OFFER', OFFER)), false);
+  assert.equal(peerjsValid(m('ANSWER', ANSWER)), false);
+  assert.equal(peerjsValid(m('CANDIDATE', { candidate: { candidate: 'candidate:1 1 udp 1 1.2.3.4 5 typ host' } })), false);
+  // Avec les champs de la bibliothèque officielle : accepté.
+  assert.equal(peerjsValid(m('OFFER', peerjsPayload(OFFER, 'dc_a'))), true);
+  assert.equal(peerjsValid(m('ANSWER', peerjsPayload(ANSWER, 'dc_a'))), true);
+  assert.equal(peerjsValid(m('CANDIDATE', peerjsPayload({ candidate: { candidate: '' } }, 'dc_a'))), true);
+  // Règles relevées : offre sans libellé, SDP mal formée, type de réponse inversé, autre type de message → refusé.
+  assert.equal(peerjsValid(m('OFFER', { ...OFFER, type: 'data', connectionId: 'dc_a' })), false);
+  assert.equal(peerjsValid(m('OFFER', peerjsPayload({ sdp: { type: 'offer', sdp: 'v=0' } }, 'dc_a'))), false);
+  assert.equal(peerjsValid(m('OFFER', peerjsPayload(ANSWER, 'dc_a'))), false);
+  assert.equal(peerjsValid(m('EXPIRE', peerjsPayload({}, 'dc_a'))), false);
+  assert.equal(peerjsValid(m('PROBE', peerjsPayload({}, 'dc_a'))), false);
+  // Les champs de Strela restent lisibles à l'arrivée.
+  assert.deepEqual(peerjsPayload(OFFER, 'dc_a').sdp, OFFER.sdp);
 });
 
 test('candidats : seul le type est gardé (jamais l\'adresse)', () => {
@@ -72,14 +94,23 @@ test('hôte sur tous les services ; PeerJS en panne : l\'invité passe par MQTT'
     for (const service of services) {
       const g = await openSignal(`strela-g-${service.kind}`, { service });
       const got = next(host, 'OFFER');
-      g.send('strela-hjkmn', 'OFFER', { n: 1 });
+      assert.equal(g.send('strela-hjkmn', 'OFFER', OFFER), true);
       const m = await got;
       assert.equal(m.service, service.name);
+      assert.deepEqual(m.payload.sdp, OFFER.sdp);
       const back = next(g, 'ANSWER');
-      host.send(m.src, 'ANSWER', { ok: true });
-      assert.equal((await back).payload.ok, true);
+      host.send(m.src, 'ANSWER', ANSWER);
+      assert.deepEqual((await back).payload.sdp, ANSWER.sdp);
       g.close();
     }
+    assert.equal(srv.cut, 0, 'aucun message refusé par le serveur');
+    // Un message à l'ancienne forme, envoyé à la main : le serveur coupe la liaison de l'expéditeur, rien n'arrive.
+    const raw = new WebSocket(`${srv.url}?key=peerjs&id=strela-g-brut&token=t`);
+    await new Promise(r => { raw.onmessage = r; });
+    const cut = new Promise(r => { raw.onclose = ev => r(ev.code); });
+    raw.send(JSON.stringify({ type: 'OFFER', dst: 'strela-hjkmn', payload: OFFER }));
+    assert.equal(await cut, 1000);
+    assert.equal(srv.cut, 1);
     host.close();
     // Aucun service : 'network'.
     srv.peerjsDown = true;
