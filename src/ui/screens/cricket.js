@@ -3,7 +3,7 @@
 // Saisie : SIMPLE / DOUBLE / TRIPLE armé puis 20 à 15, BULL ou RATÉ (le multiplicateur revient à simple après chaque
 // fléchette, comme en X01) ; après 3 fléchettes, la volée attend VALIDER ; ANNULER retire la dernière fléchette.
 // Marques : / (1), ✕ (2), ✕ cerclé (3 : fermé). Règles : engine/cricket.js.
-import { store, playerById, ckState, saveCk, archiveCk, deleteCk, startCricket, deleteGames } from '../store.js';
+import { store, playerById, ckState, saveCk, archiveCk, deleteCk, startCricket, deleteGames, receivedNote } from '../store.js';
 import { esc, ico, topBar, plural, when, maquetteButtons } from '../dom.js';
 import { avatarHtml, colorIndex } from '../avatars.js';
 import { CRICKET_TARGETS, cricketStandings, cricketSummary, computeCricket } from '../../engine/cricket.js';
@@ -242,7 +242,7 @@ export function cricketEnd() {
 
 /** Détail d'une partie de Cricket close (historique) : classement, tableau final, volées. */
 export function cricketDetail(id) {
-  const g = store.ckGames.find(x => x.id === id);
+  const g = store.ckGames.find(x => x.id === id) || store.friendGames.find(x => x.id === id);
   if (!g) return `<div class="screen">${topBar('Cricket', backFrom('#/historique'))}<div class="empty"><div class="big">PARTIE INTROUVABLE</div></div></div>`;
   const s = computeCricket(g.config, g.darts);
   const ui = detailUi;
@@ -250,7 +250,7 @@ export function cricketDetail(id) {
     const pl = playerById(g.config.players[x.player]);
     return `<li><span class="nm ell">${esc(pl.name)}</span><span class="ds">${x.darts.map(dartText).join(' · ')}</span><b>${x.marks}</b></li>`;
   }).join('');
-  const confirm = ui.del === id
+  const confirm = g.owner ? `<p class="note">${esc(receivedNote(g))}</p>` : ui.del === id
     ? `<div class="confirm" role="alert" data-reveal><p class="alert-h">SUPPRIMER LA PARTIE ?</p><p class="small">Elle disparaît de l'historique et des stats. Les joueurs restent.</p>
         <div class="btns two"><button type="button" class="btn" data-act="ckd-del-no">NON</button><button type="button" class="btn alert" data-act="ckd-del-yes" data-arg="${esc(id)}">SUPPRIMER</button></div></div>`
     : `<button type="button" class="btn danger" data-act="ckd-del" data-arg="${esc(id)}">${ico('trash')} SUPPRIMER LA PARTIE</button>`;

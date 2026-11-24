@@ -140,7 +140,7 @@ test('badges à rangs : cumulés sur toutes les parties, rang gagné à la volé
   assert.ok(playerBadges(h, 'A').find(b => b.key === 'notaire').total === 20, 'gagné sur D12 à chaque partie');
   const uns = playerBadges(h, 'B').find(b => b.key === 'uns');
   assert.equal(uns.total, 120); assert.equal(uns.tier, 1);
-  assert.equal(BADGES.filter(b => b.tiers).length, 7);
+  assert.equal(BADGES.filter(b => b.tiers && !b.online).length, 7); // lot 10 : + Fidèle au poste (en ligne)
   // Badges simples : la volée qui les fait gagner.
   assert.equal(h.byPlayer.A.max.visit, 0, 'premier 180 à la 1re volée');
   assert.equal(h.byPlayer.A.win1.visit, 4, 'première victoire : la volée de la finition');

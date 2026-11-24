@@ -5,7 +5,7 @@
 // fenêtre : ce qu'il veut dire, la partie et la volée où il a été gagné (VOIR LA PARTIE ouvre le détail sur cette
 // volée) ; badges à rangs (bronze, argent, or) ; badges gagnés pendant une soirée (tableau de bord).
 import { modeBand } from './modeband.js';
-import { store, playerById } from './store.js';
+import { store, playerById, allGames, profilePlayer } from './store.js';
 import { esc, ico, topBar, plural, shortDate, when, OUT_SHORT } from './dom.js';
 import { avatarHtml } from './avatars.js';
 import { honours, playerBadges, badgesOfGame, badgeWhere, badgeByKey, badgeLabel, BADGES, TIER_NAMES } from '../engine/badges.js';
@@ -21,10 +21,14 @@ const fmt1 = x => (x === null || x === undefined ? '—' : (Math.round(x * 10) /
 let cache = null;
 /** Badges et événements de toutes les parties closes (et de `extra`, la partie qui vient de finir, si elle n'y est pas). */
 export function allHonours(extra = null) {
-  const games = extra && !store.games.some(g => g.id === extra.id) ? [...store.games, extra] : store.games;
-  const key = `${games.length}:${games.reduce((n, g) => n + g.darts.length, 0)}:${extra ? extra.id : ''}:${new Date().getMonth()}`;
+  const base = allGames(); // lot 10 : aussi les parties des amis entre eux (leurs badges s'affichent comme chez eux)
+  const games = extra && !base.some(g => g.id === extra.id) ? [...base, extra] : base;
+  // Lot 10 : joueurs qui ont un compte (mon profil, mes amis), pour les badges en ligne « contre un ami ».
+  const me = profilePlayer();
+  const accounts = new Set([...(me ? [me.id] : []), ...store.players.filter(p => p.friend).map(p => p.id)]);
+  const key = `${games.length}:${games.reduce((n, g) => n + g.darts.length, 0)}:${extra ? extra.id : ''}:${new Date().getMonth()}:${[...accounts].join(',')}`;
   if (cache && cache.key === key) return cache.h;
-  const h = honours(games);
+  const h = honours(games, Date.now(), { accounts });
   cache = { key, h };
   return h;
 }
@@ -48,7 +52,7 @@ export function vitrineHtml(pid, sec, infoBox, fold = null) {
   const h = allHonours();
   const badges = playerBadges(h, pid);
   const got = badges.filter(b => b.earned).length;
-  const rec = playerRecords(store.games, pid);
+  const rec = playerRecords(allGames(), pid);
   const dateOf = key => { const at = h.recordsAt[pid] && h.recordsAt[pid][key]; return at ? shortDate(at) : ''; };
   const row = (label, value, key) => (value === null || value === undefined || value === 0 ? ''
     : `<li><span class="rl">${label}</span><b>${value}</b><small>${dateOf(key)}</small></li>`);
@@ -140,7 +144,7 @@ export function presetBadgeSheet(x = null) { sheet = x ? { ...x, path: undefined
 /** En changeant d'écran, la fenêtre se ferme (app.js, `path` : le nouvel écran). */
 export function closeBadgeSheet(path) { if (sheet && sheet.path !== undefined && sheet.path !== path) sheet = null; }
 
-const gameById = id => store.games.find(g => g.id === id) || (store.current && store.current.id === id ? store.current : null);
+const gameById = id => allGames().find(g => g.id === id) || (store.current && store.current.id === id ? store.current : null);
 const MONTHS2 = MONTHS.map(m => m.toUpperCase());
 
 /** Ce qu'un badge veut dire (une phrase). */
@@ -179,7 +183,7 @@ function whereHtml(where, b) {
       : `<li><span>Volée</span><b>${b.key === 'clean' || b.key === 'marathon' || b.key === 'games50' ? 'toute la partie' : '—'}</b></li>`,
   ];
   // La partie qui vient de finir n'est pas encore dans l'historique (elle y entre en quittant la fin de partie).
-  const listed = store.games.some(x => x.id === g.id);
+  const listed = allGames().some(x => x.id === g.id);
   return `<ul class="bkv">${rows.join('')}</ul>
     ${listed ? `<button type="button" class="btn" data-act="badge-game" data-arg="${esc(`${g.id}|${vi ? where.visit : ''}`)}">${ico('history')} VOIR LA PARTIE${vi ? ' À CETTE VOLÉE' : ''}</button>` : ''}`;
 }

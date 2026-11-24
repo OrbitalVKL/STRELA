@@ -2,7 +2,7 @@
 // des stats d'un joueur est celui de la version 0.8.0 (screens/v2/stats2.js), qui reprend ces morceaux.
 import { modeBand } from '../modeband.js';
 import { heatScale } from '../heat.js';
-import { store, playerById } from '../store.js';
+import { store, playerById, allGames } from '../store.js';
 import { esc, topBar, avg, when, OUT_SHORT } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
 import { inPeriod, faceToFace } from '../../engine/stats.js';
@@ -50,7 +50,7 @@ function faceRow(r, me, op) {
 
 /** Face-à-face sans partie commune (lot 4) : élargir la période, ou lancer une partie entre eux. */
 function faceEmpty(pid, oid, f) {
-  const ever = faceToFace(store.games, pid, oid).games.length;
+  const ever = faceToFace(allGames(), pid, oid).games.length;
   const can = !isDeletedId(oid) && !isDeletedId(pid) && [pid, oid].every(id => !playerById(id).archived);
   const action = ever && period !== 'tout'
     ? '<button type="button" class="btn primary" data-act="period" data-arg="tout">VOIR DEPUIS TOUJOURS</button>'
@@ -64,7 +64,7 @@ export function faceScreen(pid, oid) {
   const known = id => isDeletedId(id) || store.players.some(p => p.id === id);
   if (!known(pid) || !known(oid)) { go(known(pid) ? `#/stats/${pid}` : '#/stats', { replace: true }); return ''; }
   const me = playerById(pid), op = playerById(oid);
-  const f = faceToFace(inPeriod(store.games, period), pid, oid);
+  const f = faceToFace(inPeriod(allGames(), period), pid, oid);
   const seg = (v, l) => `<button type="button" data-act="period" data-arg="${v}" aria-pressed="${period === v}">${l}</button>`;
   const side = (p, cls) => `<div class="fside ${cls}">${avatarHtml(p, 64)}<span class="nm" data-shrink>${esc(p.name)}</span></div>`;
   const played = f.games.length;

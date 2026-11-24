@@ -2318,3 +2318,23 @@ pre.journal { margin: 10px 0 0; padding: 8px 10px; max-height: 360px; overflow: 
 .reccode { font-family: inherit; font-size: 0.95em; letter-spacing: 0.06em; line-height: 1.7; word-break: break-all;
   border: var(--rule); padding: 10px 12px; margin: 6px 0 10px; -webkit-user-select: all; user-select: all; }
 .settings2 #compte .kv b.ell { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* Lot 10 : amis (#/amis, fiche d'un ami, liste de joueurs) */
+.frlist { list-style: none; margin: 0 0 8px; padding: 0; border-top: var(--rule); }
+.frow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 8px 0; border-bottom: var(--rule); }
+.frmain { display: flex; align-items: center; gap: 10px; flex: 1 1 180px; min-width: 0; color: inherit; text-decoration: none; }
+.frow .main { display: flex; flex-direction: column; min-width: 0; }
+.frow .main small { color: var(--dim); font-size: 12px; }
+.frow .frbtn { flex: 0 0 auto; width: auto; min-height: 40px; padding: 0 12px; }
+.frow .btns, .frow .frconfirm { flex: 1 1 100%; }
+.frreq { border-left: 3px solid var(--fg); padding-left: 10px; }
+.frcode { letter-spacing: 0.18em; text-transform: uppercase; }
+.frscan { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.frscan video { width: 100%; max-height: 50vh; object-fit: cover; border: var(--rule); background: var(--bg); }
+/* Lot 10, étape 3 : rattachement d'un joueur local à un ami */
+.frmerge { border: var(--rule); border-left: 3px solid var(--fg); padding: 0 10px; margin: 12px 0; }
+.frmerge .lrow:last-child { border-bottom: 0; }
+.frwho { display: flex; align-items: center; gap: 12px; margin: 14px 0 8px; }
+.frwho > div { display: flex; flex-direction: column; min-width: 0; }
+.frwho small { color: var(--dim); font-size: 13px; }
+button.frpick { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; width: 100%; }
+button.frpick[aria-pressed="true"] { outline: 2px solid var(--fg); outline-offset: 4px; }

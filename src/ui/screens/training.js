@@ -10,7 +10,7 @@
 // 0.14.0 : mode JEUX — X01 et Cricket en solo, aux vraies règles (même saisie ; en tête, le reste et la finition
 // proposée, ou les cibles du Cricket ; analyse du jeu et carte de chaleur à la fin).
 // Moteur : engine/training.js (exercices, analyse, coach) ; données : store.js (section « entraînement solo »).
-import { store, activePlayers, playerById, trState, startTraining, trThrow, trUndo, trAddBlock, closeTraining, deleteTrainings, trainingById, dartSetById, saveTrSetup,
+import { store, receivedNote, activePlayers, playerById, trState, startTraining, trThrow, trUndo, trAddBlock, closeTraining, deleteTrainings, trainingById, dartSetById, saveTrSetup,
   trChangeSet, updateTraining, resumeTraining, saveTr, appModes, profilePlayer, saveSetting } from '../store.js';
 import { esc, ico, topBar, plural, when } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
@@ -1000,6 +1000,7 @@ let detPanel = null;
 export function presetDetail(panel = null) { detPanel = panel; }
 
 function managePanel(r) {
+  if (r.owner) return `<p class="note">${esc(receivedNote(r, 'séance'))}</p>`; // lot 10 : séance reçue, en lecture seule
   const p = detPanel && detPanel.id === r.id ? detPanel : null;
   const close = '<button type="button" class="btn" data-act="tr-del-no">ANNULER</button>';
   const runs = setRuns(r).filter((x, i) => i === 0 || x.from < r.darts.length);

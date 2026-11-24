@@ -97,6 +97,13 @@ function setRoom(room) {
   if (on.role === 'host' && g) { g.online = { ...g.online, room: { ...room, game: null } }; save(g); }
 }
 const save = g => (g === store.ck ? saveCk() : saveCurrent());
+/** Lot 10 : la partie en cours a connu une coupure réseau (badge « Reconnexion héroïque »). */
+function markCut() {
+  const g = onlineGame();
+  if (!g || g.online.cut) return;
+  g.online.cut = true;
+  save(g);
+}
 
 function gameCtx() {
   const api = games.get(kindOf(on.room));
@@ -107,7 +114,7 @@ async function openHost(code, room) {
   on.link = await hostLink(code, {
     open: () => {},
     message: (peer, msg) => hostMessage(peer, msg),
-    close: peer => { const r = E.hostMemberStatus(on.room, peer, 'lost'); setRoom(r.room); deliver(r.out); afterChange(); refresh(); },
+    close: peer => { const r = E.hostMemberStatus(on.room, peer, 'lost'); setRoom(r.room); deliver(r.out); afterChange(); markCut(); refresh(); },
     signal: (st, list) => { on.signal = st; if (list) on.services = list; refresh(); },
   });
   on.services = on.link.services();
@@ -264,7 +271,7 @@ export async function joinRoom(code, me, { quiet = false } = {}) {
   const ctl = {};
   joinCtl = ctl;
   try {
-    on.link = await guestLink(code, { message: guestMessage, close: () => { if (on.role === 'guest') { log('enligne', 'invité : liaison perdue'); on.state = 'lost'; on.link = null; refresh(); scheduleRetry(); } } },
+    on.link = await guestLink(code, { message: guestMessage, close: () => { if (on.role === 'guest') { log('enligne', 'invité : liaison perdue'); markCut(); on.state = 'lost'; on.link = null; refresh(); scheduleRetry(); } } },
       { ctl, onStep: ({ step, service }) => { if (joinCtl !== ctl) return; on.step = step; on.stepService = service || ''; refresh(); } });
   } catch (e) {
     if (joinCtl === ctl) joinCtl = null;
@@ -380,6 +387,7 @@ export async function resumeOnline() {
   if (!g || on.role) return;
   const o = g.online;
   if (o.role === 'host' && o.room) {
+    markCut(); // l'hôte reprend après une coupure (appli fermée, réseau perdu)
     const room = { ...o.room, phase: 'playing', game: wireGame(g), members: o.room.members.map(m => (m.host ? m : { ...m, status: 'waiting' })) };
     room.paused = null;
     on.me = o.me;

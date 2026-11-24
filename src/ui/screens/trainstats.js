@@ -10,7 +10,7 @@
 // lancées « comme en partie » : jeux X01 et Cricket en solo, et parties. Sur un exercice (un secteur visé, l'horloge qui
 // vise tout), la cible est imposée : ces chiffres n'y diraient rien. La précision et le groupement, à l'inverse, ne
 // comptent que les exercices (un jeu n'a pas de cible imposée).
-import { store, activePlayers, playerById, dartSetById, saveSetting } from '../store.js';
+import { store, activePlayers, playerById, dartSetById, saveSetting, allGames, allTrainings, profilePlayer } from '../store.js';
 import { esc, ico, topBar, plural, when } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
 import { EXERCISES, ALL_EXERCISES, GAME_EXERCISES, analyze, sessionValue, zoneOf, pointsOf, setsUsed, setAt, isGameSession, gamePart } from '../../engine/training.js';
@@ -55,7 +55,7 @@ const an = r => { const k = `${r.id}:${r.darts.length}:${(r.blocks || []).length
 
 /** Séances du joueur sur les filtres (lot 8 du 23/11, 3.4 : jamais une séance sans fléchette saisie). */
 export function sessionsOf(pid, f = { set: ui.set, exercise: ui.exercise, bounds: bounds() }) {
-  return store.trainings.filter(r => r.player === pid && !r.excluded && r.darts.length > 0 && inPeriod(r.startedAt, f.bounds) && (!f.set || setsUsed(r).includes(f.set)) && (!f.exercise || r.exercise === f.exercise))
+  return allTrainings().filter(r => r.player === pid && !r.excluded && r.darts.length > 0 && inPeriod(r.startedAt, f.bounds) && (!f.set || setsUsed(r).includes(f.set)) && (!f.exercise || r.exercise === f.exercise))
     .sort((a, b) => a.startedAt - b.startedAt);
 }
 /** Rangs des fléchettes d'une séance lancées avec le jeu `setId` (toutes sans filtre, ou sans changement de jeu). */
@@ -91,7 +91,7 @@ const distOf = parts => { const n = parts.reduce((k, x) => k + (x.distN || 0), 0
 function gamesOf(pid) {
   if (ui.set || ui.exercise) return []; // une partie n'a ni jeu de fléchettes noté ni exercice
   const b = bounds();
-  return store.games.filter(g => g.config.players.includes(pid) && inPeriod(g.startedAt, b)).sort((a, b2) => a.startedAt - b2.startedAt);
+  return allGames().filter(g => g.config.players.includes(pid) && inPeriod(g.startedAt, b)).sort((a, b2) => a.startedAt - b2.startedAt);
 }
 function gameDarts(g, pid) {
   const i = g.config.players.indexOf(pid);
@@ -269,9 +269,12 @@ function byExercise(sessions) {
 }
 
 export function trainStatsScreen() {
+  // Lot 10 : moi, mes amis, puis les joueurs du téléphone (sélecteur commun aux stats multijoueur).
   const players = activePlayers();
-  const withTr = new Set(store.trainings.map(r => r.player));
-  const list = [...players, ...store.players.filter(p => p.archived && withTr.has(p.id))];
+  const withTr = new Set(allTrainings().map(r => r.player));
+  const me = profilePlayer();
+  const rank = p => (me && p.id === me.id ? 0 : p.friend ? 1 : 2);
+  const list = [...players, ...store.players.filter(p => p.archived && withTr.has(p.id))].map((p, i) => ({ p, i })).sort((a, b) => rank(a.p) - rank(b.p) || a.i - b.i).map(x => x.p);
   if (!list.length) return `<div class="screen">${topBar('Stats d\'entraînement', backFrom('#/entrainement'))}<div class="empty"><div class="big">AUCUN JOUEUR</div></div></div>`;
   const pid = list.some(p => p.id === ui.player) ? ui.player : (store.trSetup && list.some(p => p.id === store.trSetup.player) ? store.trSetup.player : list[0].id);
   ui.player = pid;
@@ -431,7 +434,7 @@ export function exportData(pid = ui.player) {
   const spreads = parts.filter(a => a.points >= 3 && a.spread !== null).map(a => a.spread);
   const spread = spreads.length ? spreads.reduce((a, c) => a + c, 0) / spreads.length : null;
   const games = ui.source === 'entrainements' ? [] : gamesOf(pid);
-  const lv = levelOf(store.trainings, pid).level;
+  const lv = levelOf(allTrainings(), pid).level;
   const h = honoursOf(pid);
   const free = [...sessions.filter(isGameSession).flatMap(dartsOfSet), ...games.flatMap(g => gameDarts(g, pid))];
   const approx = parts.reduce((n, x) => n + (x.approx || 0), 0), noPos = parts.reduce((n, x) => n + (x.offNoPos || 0), 0);

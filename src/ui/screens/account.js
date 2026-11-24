@@ -1,7 +1,9 @@
 // Strela — Réglages › Compte et amis (lot 10, docs/cloud.md) : état de la synchronisation, code d'ami, présence,
 // et l'écran #/compte (code de récupération, retrouver un compte, supprimer ses données en ligne).
 
-import { store, saveSetting } from '../store.js';
+import { store, saveSetting, friendPlayers } from '../store.js';
+import { receivedRequests } from '../friends.js';
+import { pendingCount } from '../gamesync.js';
 import { esc, ico, topBar } from '../dom.js';
 import { refresh } from '../nav.js';
 import { cloud, cloudSupport, syncNow, recoverAccount, deleteOnlineData, setCloudOn } from '../cloud.js';
@@ -31,6 +33,21 @@ export function syncLine() {
 
 const CARD_TEXT = 'Strela te donne un compte sans e-mail ni mot de passe : un identifiant tiré sur ce téléphone, rangé avec tes réglages (il suit donc la sauvegarde). Avec tes amis, tout est partagé d\'office : parties de soirée et en ligne, séances d\'entraînement, stats et badges. Ce téléphone reste maître : tout marche sans réseau, et ce qui doit partir part dès que le réseau revient (à l\'ouverture, à la fin d\'une partie ou d\'une séance). <b>Présence</b> : tes amis voient si l\'appli est ouverte et si tu joues.';
 
+function friendLine() {
+  const n = friendPlayers().length, r = receivedRequests().length;
+  const a = n ? `${n} ami${n > 1 ? 's' : ''}` : 'Aucun ami pour l\'instant';
+  return r ? `${a} · ${r} demande${r > 1 ? 's' : ''} reçue${r > 1 ? 's' : ''}` : a;
+}
+
+/** Lot 10, étape 4 : version trop ancienne pour lire certaines parties des amis. */
+export const TOO_NEW = 'Mets à jour Strela pour voir les parties de tes amis : certaines viennent d\'une version plus récente.';
+
+function pendingLine() {
+  let n = 0;
+  try { n = pendingCount(); } catch (e) { n = 0; }
+  return n ? `<div class="kv"><span>Parties à envoyer</span><b class="small">${n}</b></div>` : '';
+}
+
 /** Carte des Réglages. */
 export function accountCard() {
   const sup = cloudSupport();
@@ -44,7 +61,10 @@ export function accountCard() {
     <div class="kv"><span>Identifiant</span><b class="small">${esc(a ? a.profileId.slice(0, 8).toUpperCase() : '—')}</b></div>
     <div class="kv"><span>Synchronisation</span><b class="small ell">${esc(syncLine())}</b></div>
     <div class="kv"><span>Dernière</span><b class="small">${esc(agoText(s.lastSync))}</b></div>
+    ${pendingLine()}
+    ${s.tooNewCount ? `<p class="note red">${TOO_NEW}</p>` : ''}
     <button type="button" class="btn ghost" data-act="acc-sync" ${cloud.busy ? 'disabled' : ''}>${ico('sync')} ${cloud.busy ? 'SYNCHRONISATION…' : 'SYNCHRONISER MAINTENANT'}</button>` : `<p class="note">${esc(sup.why)}</p>`}
+    ${on ? `<a class="lrow" href="#/amis">${ico('players')}<span><b>Amis</b><small>${friendLine()}</small></span>${ico('chev')}</a>` : ''}
     <div class="rows">
       ${srow('acc-cloud', 'Synchronisation', on ? 'Partage avec tes amis' : 'Rallumer crée un nouveau compte si l\'ancien a été supprimé', on)}
       ${srow('acc-presence', 'Présence visible', 'Tes amis voient quand l\'appli est ouverte', store.settings.presence !== false, !on)}

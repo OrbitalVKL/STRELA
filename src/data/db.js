@@ -215,6 +215,14 @@ export function withDrinks(g, rec) {
   // Lot 9.2 : partie en ligne { code, role: 'host' | 'guest', me, host } (facultatif ; aucune migration).
   const on = cleanOnline(g.online);
   if (on) rec.online = on;
+  return withOwner(g, rec);
+}
+
+/** Lot 10 : partie ou séance reçue d'un ami (créateur = `owner`, UUID ; lecture seule) et sa version en ligne
+ *  (`cloudMaj`, µs). Champs facultatifs : aucune migration. */
+export function withOwner(g, rec) {
+  if (typeof g.owner === 'string' && /^[0-9a-f-]{36}$/.test(g.owner)) rec.owner = g.owner;
+  if (Number.isFinite(g.cloudMaj)) rec.cloudMaj = g.cloudMaj;
   return rec;
 }
 
@@ -225,6 +233,7 @@ export function cleanOnline(x) {
   if (typeof x.me === 'string') out.me = x.me;
   if (typeof x.host === 'string') out.host = x.host;
   if (x.room && typeof x.room === 'object') out.room = x.room;
+  if (x.cut === true) out.cut = true; // lot 10 : coupure réseau pendant la partie
   return out;
 }
 
@@ -273,6 +282,13 @@ export function playerRecord(p) {
   if (TURN_ANIM_VALUES.includes(p.turnAnim)) rec.turnAnim = p.turnAnim;
   // Lot 9.2 : adversaire d'une partie en ligne, rangé à part des joueurs du téléphone (facultatif).
   if (p.remote === true) rec.remote = true;
+  // Lot 10 : ami (profil en ligne, lecture seule ; identifiant « u:<uuid> ») — champs facultatifs, aucune migration :
+  // friend (UUID du profil), seen (dernière activité, ms), sets (ses jeux de fléchettes, tels que reçus).
+  if (typeof p.friend === 'string' && /^[0-9a-f-]{36}$/.test(p.friend)) {
+    rec.friend = p.friend;
+    if (Number.isFinite(p.seen)) rec.seen = p.seen;
+    if (Array.isArray(p.sets)) rec.sets = p.sets.slice(0, 30);
+  }
   return rec;
 }
 
@@ -324,7 +340,7 @@ export function trainingRecord(r) {
   // Lot 8 du 23/11 (5.2) : déclarations des défis à déclarer (« main gauche ») d'un X01 solo, comme une partie.
   const decl = cleanDecl(r.defiDecl);
   if (decl) rec.defiDecl = decl;
-  return rec;
+  return withOwner(r, rec);
 }
 
 /** Opérations de la suppression de parties (lot 3) : une seule transaction ; joueurs (et leurs photos) jamais touchés. */

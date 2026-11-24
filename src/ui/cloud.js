@@ -5,7 +5,7 @@
 // envoyé s'il a changé, puis (étapes suivantes du lot) amis, parties à envoyer, parties reçues. Une erreur ne bloque
 // rien : elle est notée (Réglages › Compte et amis, journal) et la synchronisation suivante reprend où on en était.
 
-import { store, saveSetting, saveCloudKey, profilePlayer } from './store.js';
+import { store, saveSetting, saveCloudKey, profilePlayer, setClosedListener } from './store.js';
 import { refresh } from './nav.js';
 import { variant, isApk } from './native.js';
 import { log } from './journal.js';
@@ -14,7 +14,7 @@ import { supabaseClient, cloudErrorText } from '../net/supabase.js';
 import { cloudAccountRecord, newCloudAccount, cleanCloudConfig, parseRecoveryCode, CLOUD_FORMAT } from '../engine/cloud.js';
 
 /** État affiché (non enregistré) : status 'off' | 'idle' | 'sync' | 'ok' | 'offline' | 'error'. */
-export const cloud = { status: 'off', error: '', busy: false, again: false, lastTry: 0, msg: '' };
+export const cloud = { status: 'off', error: '', busy: false, lastTry: 0, msg: '' };
 
 /** Adresse et clé : celles de la page (tests : ?cloud=URL|CLÉ, gardées pour la session), sinon cloudconfig.js. */
 export function cloudConfig() {
@@ -80,6 +80,8 @@ async function attach(c) {
   const r = await c.rpc('strela_compte', { p_profil: acct.profileId, p_secret: acct.secret });
   saveCloudKey('cloudAuth', { ...(store.cloudAuth || {}), attached: acct.profileId });
   if (r && r.code_ami) saveSync({ friendCode: r.code_ami });
+  // Profil tout juste créé en ligne (premier passage, ou base reconstruite après une perte) : tout renvoyer.
+  if (r && r.nouveau) saveSync({ sent: {}, profileSent: '' });
   log('cloud', `compte rattaché (${acct.profileId.slice(0, 8)}…)`);
   return r;
 }
@@ -110,13 +112,24 @@ export function profilePayload() {
 const steps = [];
 export const addSyncStep = (name, fn) => { if (!steps.some(s => s.name === name)) steps.push({ name, fn }); };
 
-/** Synchronisation complète, en arrière-plan. Une demande pendant qu'une autre tourne la relance à la fin. */
-export async function syncNow(reason = '') {
-  const sup = cloudSupport();
-  if (store.maquette) return false;
-  if (!sup.ok) { cloud.status = 'off'; return false; }
-  if (cloud.busy) { cloud.again = true; return false; }
-  cloud.busy = true; cloud.again = false; cloud.lastTry = Date.now();
+let current = null; // passe en cours (promesse de son résultat)
+let queued = null;  // passe suivante, demandée pendant la passe en cours (une seule)
+
+/**
+ * Synchronisation complète, en arrière-plan ; renvoie vrai si elle a abouti. Une demande pendant qu'une passe tourne
+ * en programme une seule autre, juste après (ce qui a changé entre-temps part aussi), et en attend le résultat.
+ */
+export function syncNow(reason = '') {
+  if (store.maquette) return Promise.resolve(false);
+  if (!cloudSupport().ok) { cloud.status = 'off'; return Promise.resolve(false); }
+  const start = () => { current = pass(reason).finally(() => { current = null; }); return current; };
+  if (!current) return start();
+  if (!queued) queued = current.then(() => { queued = null; return start(); });
+  return queued;
+}
+
+async function pass(reason) {
+  cloud.busy = true; cloud.lastTry = Date.now();
   const was = cloud.status;
   cloud.status = 'sync';
   if (was !== 'sync') redraw();
@@ -141,7 +154,6 @@ export async function syncNow(reason = '') {
     cloud.busy = false;
     redraw();
   }
-  if (cloud.again) { cloud.again = false; return syncNow('relance'); }
   return ok;
 }
 
@@ -155,7 +167,7 @@ export function syncSoon(reason = '', delay = 800) {
 
 /** Redessine seulement les écrans qui montrent l'état (jamais une partie en cours). */
 function redraw() {
-  try { if (/^#\/(reglages|amis)/.test(location.hash)) refresh(); } catch (e) { /* */ }
+  try { if (/^#\/(reglages|amis|compte|joueurs|joueur\/u:)/.test(location.hash)) refresh(); } catch (e) { /* */ }
 }
 
 let started = false;
@@ -165,6 +177,7 @@ export function startCloud() {
   started = true;
   if (!cloudSupport().ok) { cloud.status = 'off'; return; }
   cloudAccount();
+  setClosedListener(() => syncSoon('fin de partie', 2000)); // partie ou séance rangée : elle part chez les amis
   try {
     addEventListener('online', () => syncSoon('retour du réseau', 1500));
     document.addEventListener('visibilitychange', () => {

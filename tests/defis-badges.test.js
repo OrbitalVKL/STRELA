@@ -51,7 +51,7 @@ test('badges : gagnés une fois à la bonne partie ; records au tableau d’honn
   const g2 = { id: 'g2', startedAt: day + 3600e3, config: cfg(['A', 'B']), darts: ds('T20 T20 T20  T20 S20 S1  T20 T20 T20  S1 S1 S1  T20 T19 D12') };
   const h = honours([g2, g1], Date.UTC(2026, 9, 20));
   const a = playerBadges(h, 'A');
-  assert.equal(a.length, BADGES.length);
+  assert.equal(a.length, BADGES.filter(b => !b.online).length); // lot 10 : badges en ligne cachés avant une partie en ligne
   const has = (list, k) => list.find(b => b.key === k).earned;
   assert.ok(has(a, 'win1') && has(a, 'max') && has(a, 'ton40') && has(a, 'fin100') && has(a, 'leg15'));
   assert.ok(!has(a, 'win10') && !has(a, 'streak3'));

@@ -25,20 +25,28 @@
 <body>
 <div class="band">STRELA</div>
 <main>
-  <h1>Rejoindre un salon</h1>
-  <div><small>Code du salon</small><div class="code" id="code">—</div></div>
+  <h1 id="title">Rejoindre un salon</h1>
+  <div><small id="what">Code du salon</small><div class="code" id="code">—</div></div>
   <a class="btn accent big" id="app" href="#">OUVRIR DANS L'APPLI STRELA</a>
   <a class="btn big" id="web" href="index.html#/enligne">CONTINUER DANS LE NAVIGATEUR</a>
-  <p><small>Sans l'appli : <a href="installer.html">installer Strela</a>. Dans l'appli, on peut aussi taper le code : accueil › EN LIGNE › REJOINDRE.</small></p>
+  <p><small>Sans l'appli : <a href="installer.html">installer Strela</a>. Dans l'appli, on peut aussi taper le code : <span id="where">accueil › EN LIGNE › REJOINDRE</span>.</small></p>
 </main>
 <script>
-  // Code lu après le # (5 caractères), puis liens vers l'appli et la version web.
+  // Code lu après le # : 5 caractères = salon en ligne ; 6 = code d'ami (lot 10). Puis liens vers l'appli et la version web.
   var c = (location.hash || '').slice(1).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+  var friend = c.length === 6;
+  var route = friend ? '#/amis/ajouter/' : '#/enligne/rejoindre/';
+  if (friend) {
+    document.title = 'Strela — ajouter un ami';
+    document.getElementById('title').textContent = 'Ajouter un ami';
+    document.getElementById('what').textContent = 'Code d\'ami';
+    document.getElementById('where').textContent = 'Joueurs › AJOUTER UN AMI';
+  }
   if (c) {
     document.getElementById('code').textContent = c;
-    document.getElementById('web').href = 'index.html#/enligne/rejoindre/' + c;
+    document.getElementById('web').href = 'index.html' + route + c;
     document.getElementById('app').href = 'intent://rejoindre/' + c + '#Intent;scheme=strela;package=fr.orbitalvkl.strela;S.browser_fallback_url=' +
-      encodeURIComponent(location.href.replace(/rejoindre\.html.*$/, 'index.html#/enligne/rejoindre/' + c)) + ';end';
+      encodeURIComponent(location.href.replace(/rejoindre\.html.*$/, 'index.html' + route + c)) + ';end';
     if (!/Android/i.test(navigator.userAgent)) document.getElementById('app').hidden = true;
   } else document.getElementById('app').hidden = true;
 </script>

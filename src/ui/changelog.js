@@ -2,6 +2,22 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.22.0', date: '2026-11-24', title: 'Amis : parties et stats partagées', items: [
+    'Nouvel écran Amis (Joueurs › AJOUTER UN AMI, ou Réglages › Compte et amis) : ton code d\'ami en grand et en QR code, PARTAGER ; tape le code d\'un ami pour lui envoyer une demande.',
+    'Ton ami accepte (ou refuse) ta demande ; les demandes reçues s\'affichent en tête de l\'écran Amis et dans Joueurs.',
+    'Scanner : l\'appareil photo du téléphone ouvre le lien du QR code, puis OUVRIR DANS L\'APPLI : Strela s\'ouvre sur la demande, code rempli. Dans le navigateur, un bouton SCANNER quand il sait lire les QR codes.',
+    'Joueurs en trois parties : Mon profil (le tien, partagé avec tes amis), Joueurs locaux (ceux de ce téléphone), Amis (en lecture seule : leur pseudo, avatar, animation et jeux de fléchettes viennent de leur téléphone, avec leur dernière activité).',
+    'Un ami se choisit au lancement d\'une partie comme n\'importe quel joueur.',
+    'Retirer un ami coupe le lien ; il redevient un joueur de ce téléphone et vos parties communes restent.',
+    'Rattachement : quand un ami arrive, Strela demande « Ce joueur de ta liste locale, c\'est lui ? » (pseudo identique ou proche en tête, choix libre, ou AUCUN). Confirmé, ton joueur local devient cet ami avec tout son historique d\'ici, qui part chez lui à la synchronisation.',
+    'Une fusion s\'annule depuis la fiche de l\'ami (ANNULER LA FUSION) tant que rien n\'est parti en ligne ; elle est notée dans le journal de débogage.',
+    'Parties partagées : une partie de soirée jouée sur ton téléphone avec un ami apparaît dans son historique et ses stats, à son nom (et inversement), sans rien faire : elle part à la fin de la partie, à l\'ouverture de l\'appli et au retour du réseau. Séances d\'entraînement et parties en ligne aussi.',
+    'Seul le téléphone qui a lancé une partie peut la corriger ou la supprimer ; chez les autres, elle est en lecture seule. Supprimée par son créateur, elle disparaît chez tout le monde.',
+    'Sans réseau, tout marche comme avant : ce qui doit partir attend (Réglages › Compte et amis : « Parties à envoyer »).',
+    'Stats partagées : en haut des stats, toi d\'abord puis tes amis ; toutes les stats d\'un ami se consultent (courbes, cible, records, badges et rangs, face-à-face, entraînement et exercices), calculées sur toutes ses parties connues, comme chez lui. Classements et tableau d\'honneur comptent les parties partagées.',
+    'Le bandeau des stats devient « Multijoueur » (soirée et en ligne) / « Entraînement ».',
+    'Six badges en ligne, visibles dès ta première partie en ligne : Premier contact, Longue distance (gagner contre un ami), Revanche, Sang-froid (gagner après avoir été dernier à mi-partie), Reconnexion héroïque (gagner après une coupure réseau) et Fidèle au poste (10 / 50 / 150 parties en ligne).',
+  ] },
   { v: '0.21.0', date: '2026-11-24', title: 'Compte et amis : les fondations', items: [
     'Première étape du partage entre amis (lot 10). Strela se prépare un compte en ligne, sans e-mail ni mot de passe : rien à faire, rien à remplir.',
     'Réglages › Compte et amis : ton code d\'ami (6 caractères, pour l\'étape suivante), l\'état de la synchronisation et SYNCHRONISER MAINTENANT, la présence visible ou non, et l\'interrupteur pour tout couper.',

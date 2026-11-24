@@ -1,7 +1,7 @@
 // Historique : la liste est celle de la version 0.8.0 (screens/v2/history2.js) ; ici, l'écran vide et le détail.
 // Détail : manche par manche, un tableau tour par tour (une colonne par joueur), fléchettes et impacts de chaque volée
 // sur la cible (gameLog, partagé avec le panneau « Partie en cours » du jeu).
-import { store, playerById, deleteGames, editGameDrinks, beforeTallies } from '../store.js';
+import { store, playerById, deleteGames, editGameDrinks, beforeTallies, receivedNote } from '../store.js';
 import { infoSec, infoBox } from '../info.js';
 import { esc, ico, topBar, when, avg, plural, OUT_LABEL } from '../dom.js';
 import { avatarHtml, iconSvg } from '../avatars.js';
@@ -40,7 +40,7 @@ export function historyEmpty() {
 }
 
 export function historyDetail(id) {
-  const g = store.games.find(x => x.id === id);
+  const g = store.games.find(x => x.id === id) || store.friendGames.find(x => x.id === id); // lot 10 : partie d'amis (badges, stats)
   if (!g) { go('#/historique', { replace: true }); return ''; }
   const s = gameState(g);
   const w = gameWinner(g);
@@ -56,7 +56,7 @@ export function historyDetail(id) {
     ${players.map((p, i) => { const sum = playerSummary(s, i); return `<tr${w === p.id ? ' class="win"' : ''}><td><div class="pl">${avatarHtml(p, 28)}<span class="nm">${esc(p.name)}</span></div></td>
       <td>${s.legsWon[i]}</td><td>${avg(sum.average)}</td><td>${sum.darts}</td><td>${sum.best}</td></tr>`; }).join('')}
     </tbody></table></div>`;
-  const del = askDetail === id
+  const del = g.owner ? `<p class="note">${esc(receivedNote(g))}</p>` : askDetail === id
     ? `<div class="confirm" role="alert" data-reveal><p class="alert-h">SUPPRIMER CETTE PARTIE ?</p>
         <p class="small">Elle disparaît de l'historique et des stats de chacun. Les joueurs et leurs photos restent.</p>
         <div class="btns two"><button type="button" class="btn" data-act="del-game-no">NON</button><button type="button" class="btn alert" data-act="del-game-yes" data-arg="${esc(id)}">SUPPRIMER</button></div></div>`

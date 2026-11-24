@@ -3,7 +3,7 @@
 // - petits défis réussis d'une séance (fin, détail) : une pastille par défi ;
 // - fenêtre (par-dessus l'écran, comme celle des badges de soirée) : ce que veut dire le badge ou le défi, la séance et la
 //   volée concernées, VOIR LA SÉANCE. Calculs : engine/trainbadges.js.
-import { store, playerById, trainingById } from './store.js';
+import { store, playerById, trainingById, allTrainings } from './store.js';
 import { esc, ico, when } from './dom.js';
 import { refresh, go } from './nav.js';
 import { FEATS, TRAIN_BADGES, TRAIN_BADGE_KEYS, TIER_NAMES, trainingHonours, sessionFeats, badgeValueText, tierText } from '../engine/trainbadges.js';
@@ -20,7 +20,7 @@ export function presetTrainSheet(w = null) { win = w ? { ...w, path: undefined }
 const cache = new Map();
 const an = r => { const k = `${r.id}:${r.darts.length}`; if (!cache.has(k)) cache.set(k, analyze(r)); return cache.get(k); };
 /** Badges et petits défis d'un joueur (toutes ses séances). */
-export const honoursOf = pid => trainingHonours(store.trainings, pid, an);
+export const honoursOf = pid => trainingHonours(allTrainings(), pid, an); // lot 10 : séances des amis comprises
 
 /** Vitrine des badges d'entraînement d'un joueur. */
 export function trainBadgesGrid(pid) {

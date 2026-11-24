@@ -6,7 +6,8 @@
 import { ico, esc } from './dom.js';
 import { appModes } from './store.js';
 
-const MODES = { soiree: ['pint', 'Soirée', 'Stats soirée'], train: ['target', 'Entraînement', 'Stats entraînement'] };
+// Lot 10 : « Stats multijoueur » (soirée et en ligne) remplace « Stats soirée ».
+const MODES = { soiree: ['pint', 'Multijoueur', 'Stats multijoueur'], train: ['target', 'Entraînement', 'Stats entraînement'] };
 /**
  * Bandeau du mode `kind` ('train' ou 'soiree') ; `tabs` : sélecteur des deux modes (pages principales des stats) ;
  * `pid` : joueur affiché, gardé en changeant de mode.
