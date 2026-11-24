@@ -12,9 +12,9 @@ import { createServer } from 'node:http';
 import { createHash } from 'node:crypto';
 import { peerjsValid } from '../../src/net/signal.js';
 
-const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
+export const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 
-function frame(text, op = 0x81) {
+export function frame(text, op = 0x81) {
   const data = Buffer.isBuffer(text) ? text : Buffer.from(text);
   const len = data.length;
   const head = len < 126 ? Buffer.from([op, len]) : len < 65536 ? Buffer.from([op, 126, len >> 8, len & 255]) : (() => {
@@ -24,7 +24,7 @@ function frame(text, op = 0x81) {
 }
 
 /** Lit les trames complètes du tampon ; renvoie [messages texte, reste, fermé ?]. */
-function parse(buf) {
+export function parse(buf) {
   const out = [];
   let closed = false;
   while (buf.length >= 2) {

@@ -2,6 +2,10 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.23.0', date: '2026-11-24', title: 'Présence des amis', items: [
+    'Sur la liste d\'amis, dans Joueurs et sur la fiche d\'un ami : une petite pastille sur son avatar quand il a Strela ouvert (carré vide, « en ligne ») ou qu\'il joue une partie ou une séance (carré plein, « en partie »). Sinon, sa dernière activité (« vu il y a 2 h »).',
+    'Réglages › Compte et amis › Présence visible : NON pour ne plus montrer la tienne (tu vois toujours celle de tes amis).',
+  ] },
   { v: '0.22.0', date: '2026-11-24', title: 'Amis : parties et stats partagées', items: [
     'Nouvel écran Amis (Joueurs › AJOUTER UN AMI, ou Réglages › Compte et amis) : ton code d\'ami en grand et en QR code, PARTAGER ; tape le code d\'un ami pour lui envoyer une demande.',
     'Ton ami accepte (ou refuse) ta demande ; les demandes reçues s\'affichent en tête de l\'écran Amis et dans Joueurs.',

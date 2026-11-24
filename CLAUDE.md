@@ -220,8 +220,15 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 0.19.1 | Saisie verticale : secteur entier (rapide, d'un appui) / secteur touché (précis), réglage sur le pavé, traits S / D / T — **fait** |
 | 0.20.1 | En ligne : messages à la forme exigée par le serveur PeerJS public (il coupait l'invité, l'hôte ne recevait rien) — **fait** |
 | 9.5 | Retours du 24/11 (docs/lot-9-5.md) : en ligne par étapes avec repli MQTT, clavier, historique X01 solo juste, journal de débogage, sélecteur Soirée / Entraînement en haut des stats, résumé X01 (volées), impacts par secteur visé (v0.20.0) — **fait** |
-| 10 (24/11) | Amis, synchronisation, stats partagées (docs/lot-10.md, docs/lot-10-avancement.md) : 0.21.0 = étape 1, infra Supabase et compte invisible — **fait** ; 0.22.0 = étapes 2 à 5, amis, rattachement, parties et stats partagées — **fait** ; étape 6 (présence) à suivre |
+| 10 (24/11) | Amis, synchronisation, stats partagées (docs/lot-10.md, docs/lot-10-avancement.md) : 0.21.0 = étape 1, infra Supabase et compte invisible — **fait** ; 0.22.0 = étapes 2 à 5, amis, rattachement, parties et stats partagées — **fait** ; 0.23.0 = étape 6, présence — **fait** ; reste : adresse et clé du projet Supabase, essai à deux téléphones |
 | 11 | Recette |
+
+## État (version 0.23.0 : lot 10, étape 6 — présence ; lot 10 fini côté code)
+
+- **0.23.0** (24/11) : présence par Supabase Realtime (src/net/presence.js, src/ui/presence.js), pastille sur les
+  avatars d'amis, réglage Présence visible. Faux Realtime dans tools/lib/fake-supabase.mjs ; tests/presence-parcours.
+- **Attendu de Guillaume** (toujours) : adresse du projet et clé publique (→ src/net/cloudconfig.js, puis publier),
+  secret `SUPABASE_SECRET_KEY`. Puis essai à deux téléphones.
 
 ## État (version 0.22.0 : lot 10, étapes 2 à 5 — amis, rattachement, parties et stats partagées)
 

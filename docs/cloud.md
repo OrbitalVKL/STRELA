@@ -52,6 +52,14 @@ version plus récente se colle par-dessus.
 Présence : canal Realtime privé `strela-presence`, politiques sur `realtime.messages` (posées seulement si Realtime est
 là).
 
+## Amis, parties, stats, présence (étapes 2 à 6)
+
+Décisions détaillées par étape : docs/lot-10-avancement.md. Fichiers : src/ui/friends.js et screens/friends.js (amis,
+rattachement), src/engine/merge.js (fusion), src/engine/sync.js et src/ui/gamesync.js (parties), store.js
+(`applyFriends`, `mergeFriend`, `applyReceived`, `allGames`…), src/engine/badges.js (badges en ligne),
+src/net/presence.js et src/ui/presence.js (présence). Ordre des étapes d'une synchronisation : compte, profil, amis,
+parties (envoi, suppressions, réception), présence.
+
 ## Robustesse
 
 - **Format** : colonne `fmt` (profil, partie) = `CLOUD_FORMAT` (1). Une appli plus ancienne ignore les champs qu'elle ne

@@ -1,6 +1,7 @@
 // Strela — données fictives du sommaire de maquette (?maquette) et des tests : chargé seulement dans ce cas
 // (import dynamique dans app.js). Tout reste en mémoire : la vraie base du téléphone n'est jamais ouverte.
 import { store } from './store.js';
+import { pres } from './presence.js';
 import { MOCK_PLAYERS, EXTRA_PLAYERS, mockGames, mockSeason, mockCricket, mockTrainings } from './mock.js';
 import { SEED_SETS } from '../engine/dartsets.js';
 import { presetVoice } from './voiceinput.js';
@@ -45,6 +46,7 @@ export function resetMock() {
   store.mockCloud = false; // lot 10 : compte en ligne fictif (scènes l10-…)
   for (const k of ['cloud', 'cloudAccount', 'presence']) delete store.settings[k];
   store.cloudSync = {};
+  pres.map = {}; // lot 10 : présence fictive des scènes l10-…
   // Lot 8 du 23/11 : modes, mise en place, profil, mise à jour masquée, échelle de chaleur remis à leur défaut.
   for (const k of ['modes', 'setup', 'profile', 'updSnooze']) delete store.settings[k];
   store.settings.heatScale = 'clair';

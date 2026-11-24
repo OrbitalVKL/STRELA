@@ -2338,3 +2338,7 @@ pre.journal { margin: 10px 0 0; padding: 8px 10px; max-height: 360px; overflow: 
 .frwho small { color: var(--dim); font-size: 13px; }
 button.frpick { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; width: 100%; }
 button.frpick[aria-pressed="true"] { outline: 2px solid var(--fg); outline-offset: 4px; }
+/* Lot 10, étape 6 : pastille de présence sur l'avatar d'un ami (carré plein : en partie ; carré vide : en ligne) */
+.pav { position: relative; display: inline-flex; flex: 0 0 auto; }
+.pdot { position: absolute; right: -3px; bottom: -3px; width: 12px; height: 12px; border: 2px solid var(--bg); background: var(--bg); box-shadow: inset 0 0 0 2px var(--fg); }
+.pdot.jeu { background: var(--fg); box-shadow: none; }

@@ -47,6 +47,7 @@ import { accountScreen, actions as accountActions, inputs as accountInputs } fro
 import { startCloud, cloud, syncNow } from './cloud.js';
 import './friends.js'; // lot 10 : étape « amis » de la synchronisation, liens d'ami ouverts dans l'APK
 import './gamesync.js'; // lot 10 : étape « parties » (après les amis)
+import { startPresence, presenceTick, pres } from './presence.js'; // lot 10 : présence des amis (après les parties)
 import { friendsScreen, actions as friendsActions, inputs as friendsInputs } from './screens/friends.js';
 
 // Version 0.8.0 : la refonte (lot 7.8, écrans de screens/v2/) remplace l'accueil, l'historique, les stats et les
@@ -212,6 +213,7 @@ function draw() {
   document.title = path === '/jeu' ? 'STRELA · partie' : path === '/entrainement/jeu' ? 'STRELA · entraînement' : 'STRELA';
   nativeBackHandled(backHandled(app)); // APK : retour prédictif (lot 6)
   autoUpdateCheck(path);
+  presenceTick(); // lot 10 : « en partie » / « en ligne » suit l'écran
 }
 
 // Recherche automatique de mise à jour (lot 6, APK « github ») : une fois par lancement, au premier écran hors partie,
@@ -387,10 +389,11 @@ if (new URLSearchParams(location.search).has('maquette')) {
 started = true;
 render();
 if (!store.maquette && onlineGame()) resumeOnline(); // lot 9.2 : une partie en ligne en cours reprend sa liaison
-if (!store.maquette && !store.db.openCode) startCloud(); // lot 10 : compte invisible, synchronisation en arrière-plan
+if (!store.maquette && !store.db.openCode) { startCloud(); startPresence(); } // lot 10 : compte invisible, synchronisation, présence
 // Lot 10 : état de la synchronisation (lu par les tests) et synchronisation à la demande.
 window.__strelaCloud = () => ({ status: cloud.status, error: cloud.error, busy: cloud.busy, sync: { ...store.cloudSync }, account: store.settings.cloudAccount || null });
 window.__strelaSyncNow = reason => syncNow(reason || 'test');
+window.__strelaPresence = () => ({ ...pres });
 window.__strelaPlayers = () => store.players.map(p => ({ id: p.id, name: p.name, friend: p.friend || null, archived: !!p.archived, remote: !!p.remote }));
 window.__strelaGames = () => {
   const g = x => ({ id: x.id, owner: x.owner || null, players: x.config.players, darts: x.darts.length });
