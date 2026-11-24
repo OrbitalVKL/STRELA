@@ -1,0 +1,62 @@
+# Strela (lot 10) : la base en ligne gratuite (Supabase), sans carte bancaire.
+# - Réveil tous les 3 jours : un projet gratuit sans activité pendant une semaine est mis en veille ; strela_ping fait une
+#   vraie requête sur la base (et purge les parties supprimées depuis 60 jours). Clé publique seulement.
+# - Copie chaque lundi : l'offre gratuite ne garde pas de sauvegarde. Toutes les tables, chiffrées (le dépôt est public :
+#   l'artefact l'est aussi), gardées 90 jours dans les artefacts de l'action. Clé secrète dans le secret
+#   SUPABASE_SECRET_KEY ; phrase de chiffrement : STRELA_BACKUP_PASSPHRASE, sinon STRELA_SIGNING_PASSPHRASE.
+#   Restauration : docs/cloud.md « Sauvegarde de la base ».
+# Tant que src/net/cloudconfig.js est vide, les deux tâches ne font rien (vertes).
+name: supabase
+on:
+  schedule:
+    - cron: '17 4 */3 * *'
+    - cron: '41 5 * * 1'
+  workflow_dispatch:
+    inputs:
+      copie:
+        description: 'Faire aussi la copie de la base'
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  reveil:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Réveil de la base
+        run: node tools/supabase.mjs ping
+
+  copie:
+    if: github.event.schedule == '41 5 * * 1' || inputs.copie
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Copie des tables
+        env:
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: node tools/supabase.mjs export base.json
+      - name: Chiffrement
+        id: chiffre
+        env:
+          PASS: ${{ secrets.STRELA_BACKUP_PASSPHRASE || secrets.STRELA_SIGNING_PASSPHRASE }}
+        run: |
+          if [ ! -s base.json ]; then echo "Rien à chiffrer."; exit 0; fi
+          if [ -z "$PASS" ]; then echo "::error::Aucune phrase de chiffrement (STRELA_BACKUP_PASSPHRASE) : copie non gardée."; rm -f base.json; exit 1; fi
+          name="strela-base-$(date -u +%Y%m%d).json.gz.enc"
+          gzip -9 base.json
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -in base.json.gz -out "$name" -pass env:PASS
+          rm -f base.json.gz
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        if: steps.chiffre.outputs.name
+        with:
+          name: ${{ steps.chiffre.outputs.name }}
+          path: ${{ steps.chiffre.outputs.name }}
+          retention-days: 90

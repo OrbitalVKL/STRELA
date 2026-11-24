@@ -42,6 +42,10 @@ export const store = {
   // autoUpdate (lot 6) : recherche automatique de mise à jour (APK « github » seulement), OUI par défaut
   settings: { theme: 'auto', night: false, vibrate: true, anim: true, sound: true, voice: true, autoUpdate: true, autoBackup: true, heatScale: 'clair', padRing: false, zonePad: 'rangees', voiceInput: true, voiceAsked: false, journal: true, journalInBackup: true }, // journal, journalInBackup : lot 9.5 (journal de débogage) ; autoBackup : lot 9 ; heatScale, padRing, zonePad : lot 8 du 23/11 ; voiceInput, voiceAsked : lot 9.3 (saisie à la voix)
   maquette: false,
+  // Lot 10 : compte en ligne. Le compte lui-même (identifiant, secret) est dans settings.cloudAccount (donc dans la
+  // sauvegarde) ; la connexion (jetons) et l'état de la synchronisation sont propres au téléphone, jamais exportés.
+  cloudAuth: null,   // réglage « cloudAuth » : { profileId, userId, access, refresh, expiresAt, attached }
+  cloudSync: {},     // réglage « cloudSync » : { lastSync, friendCode, profileSent, … }
   // Base du téléphone : version, erreur éventuelle, stockage persistant (affichés dans le diagnostic des Réglages)
   db: { version: null, error: null, persisted: null, unreadable: 0, openCode: null, writeFail: null },
 };
@@ -143,6 +147,8 @@ export async function openStorage({ onVersionChange } = {}) {
     write([{ store: 'settings', key: 'display', put: { ...store.settings } }]);
   }
   store.db.storage = data.settings.storage || null;
+  store.cloudAuth = data.settings.cloudAuth && typeof data.settings.cloudAuth === 'object' ? data.settings.cloudAuth : null;
+  store.cloudSync = data.settings.cloudSync && typeof data.settings.cloudSync === 'object' ? data.settings.cloudSync : {};
   return data;
 }
 
@@ -820,6 +826,14 @@ export function saveSetting(key, value) {
   if (store.maquette) return;
   mirrorSettings();
   write([{ store: 'settings', key: 'display', put: { ...store.settings } }]);
+}
+
+/** Lot 10 : connexion et état de la synchronisation (réglages « cloudAuth », « cloudSync », jamais exportés). */
+export function saveCloudKey(key, value) {
+  if (key !== 'cloudAuth' && key !== 'cloudSync') return Promise.resolve();
+  store[key] = value;
+  if (store.maquette) return Promise.resolve();
+  return write([value === null ? { store: 'settings', del: key } : { store: 'settings', key, put: value }]);
 }
 
 /** Le téléphone demande moins d'animations (réglage d'accessibilité) : les animations sont coupées d'office. */

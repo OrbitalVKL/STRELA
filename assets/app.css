@@ -2312,3 +2312,9 @@ pre.journal { margin: 10px 0 0; padding: 8px 10px; max-height: 360px; overflow: 
 .clockg button.on { background: var(--inv-bg); color: var(--inv-fg); }
 .clockg button.on small, .clockg button.on b { color: inherit; }
 .tfall { margin: 8px auto 0; display: flex; }
+
+/* Lot 10 : compte en ligne (Réglages › Compte et amis, #/compte) */
+.kv b.code { letter-spacing: 0.18em; font-size: 1.1em; }
+.reccode { font-family: inherit; font-size: 0.95em; letter-spacing: 0.06em; line-height: 1.7; word-break: break-all;
+  border: var(--rule); padding: 10px 12px; margin: 6px 0 10px; -webkit-user-select: all; user-select: all; }
+.settings2 #compte .kv b.ell { min-width: 0; overflow: hidden; text-overflow: ellipsis; }

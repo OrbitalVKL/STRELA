@@ -42,6 +42,9 @@ export function resetMock() {
   store.mockIssue = false;
   store.mockApk = false; // true : APK « github » simulé ; 'play' : variante Google Play (lot 6)
   store.mockUpdate = null; // état de mise à jour simulé (lot 6)
+  store.mockCloud = false; // lot 10 : compte en ligne fictif (scènes l10-…)
+  for (const k of ['cloud', 'cloudAccount', 'presence']) delete store.settings[k];
+  store.cloudSync = {};
   // Lot 8 du 23/11 : modes, mise en place, profil, mise à jour masquée, échelle de chaleur remis à leur défaut.
   for (const k of ['modes', 'setup', 'profile', 'updSnooze']) delete store.settings[k];
   store.settings.heatScale = 'clair';

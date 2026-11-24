@@ -43,6 +43,7 @@ test('politique de confidentialité : en français, rien de collecté, réseau d
   const html = read('confidentialite.html');
   assert.match(html, /<html lang="fr"/);
   assert.match(html, /ne collecte, ne transmet ni ne partage aucune donnée/);
+  assert.match(html, /SUPPRIMER MES DONNÉES EN LIGNE/); // lot 10 : comment tout supprimer en ligne
   assert.match(html, /Version Google Play<\/b> : aucun accès à Internet/);
   assert.match(html, /API de GitHub/);
   assert.match(html, /<!--@contact-->\[E-MAIL DE CONTACT\]<!--\/@-->/);

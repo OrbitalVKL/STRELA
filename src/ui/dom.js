@@ -84,6 +84,8 @@ const I = {
   plusplus: '<path d="M8 4V14M3 9H13"/><path d="M16 11V21M11 16H21"/>',
   kombucha: '<path d="M10 2H14V5L16.5 8V22H7.5V8L10 5Z"/><path d="M7.5 11H16.5V18H7.5Z"/><path d="M9.5 15.5L11 13.5L12.5 15L14.5 13.5"/>',
   flag: '<path d="M5 22V3"/><path d="M5 4H19L16 8.5L19 13H5"/>',
+  // Lot 10 : synchronisation (deux flèches en équerre), amis (deux silhouettes liées)
+  sync: '<path d="M4 11V6H18"/><path d="M15 3L18 6L15 9"/><path d="M20 13V18H6"/><path d="M9 15L6 18L9 21"/>',
 };
 export const ico = (name, cls = 'ico') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${I[name] || ''}</svg>`;
 

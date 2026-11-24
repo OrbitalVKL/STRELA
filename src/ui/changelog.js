@@ -2,6 +2,13 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.21.0', date: '2026-11-24', title: 'Compte et amis : les fondations', items: [
+    'Première étape du partage entre amis (lot 10). Strela se prépare un compte en ligne, sans e-mail ni mot de passe : rien à faire, rien à remplir.',
+    'Réglages › Compte et amis : ton code d\'ami (6 caractères, pour l\'étape suivante), l\'état de la synchronisation et SYNCHRONISER MAINTENANT, la présence visible ou non, et l\'interrupteur pour tout couper.',
+    'Mon compte : le code de récupération (il ramène ton compte sur un autre téléphone ; il est aussi dans chaque sauvegarde), RETROUVER UN COMPTE, et SUPPRIMER MES DONNÉES EN LIGNE.',
+    'Tout continue de marcher sans réseau : ce téléphone reste maître de ses données.',
+    'Version Google Play : rien ne change (pas d\'accès à Internet).',
+  ] },
   { v: '0.20.1', date: '2026-11-24', title: 'En ligne : la connexion passe enfin', items: [
     'Partie en ligne : les téléphones se trouvent de nouveau. Le serveur de mise en relation PeerJS refusait les messages de Strela (il attend la forme exacte de sa propre bibliothèque) et coupait la liaison du téléphone qui rejoint : l\'hôte ne recevait jamais rien, d\'où « pas de réponse de l\'hôte ». Les messages ont maintenant la forme attendue ; essayé sur le vrai serveur entre deux navigateurs.',
     'Si la mise en relation est coupée pendant l\'attente de l\'hôte, le téléphone passe tout de suite au serveur suivant (au lieu d\'attendre 8 secondes) ; le journal de débogage le note.',
