@@ -45,6 +45,9 @@ import { watchKeyboard } from './keyboard.js';
 import { welcomeScreen, tutorialScreen, installerScreen, actions as welcomeActions, inputs as welcomeInputs } from './screens/welcome.js';
 import { accountScreen, actions as accountActions, inputs as accountInputs } from './screens/account.js';
 import { startCloud, cloud, syncNow } from './cloud.js';
+import './friends.js'; // lot 10 : étape « amis » de la synchronisation, liens d'ami ouverts dans l'APK
+import './gamesync.js'; // lot 10 : étape « parties » (après les amis)
+import { friendsScreen, actions as friendsActions, inputs as friendsInputs } from './screens/friends.js';
 
 // Version 0.8.0 : la refonte (lot 7.8, écrans de screens/v2/) remplace l'accueil, l'historique, les stats et les
 // réglages ; accueil A « tableau de bord » (choix de Guillaume, 13/11/2026).
@@ -91,6 +94,7 @@ const ROUTES = [
   [/^\/installer$/, installerScreen],
   // Lot 10 : compte en ligne
   [/^\/compte$/, accountScreen],
+  [/^\/amis(?:\/(.+))?$/, friendsScreen],
 ];
 
 const ACTIONS = {
@@ -98,9 +102,9 @@ const ACTIONS = {
   ...statsActions, ...settingsActions, ...historyActions, ...photoActions, ...aboutActions, ...sheetActions, ...soireeActions,
   ...stats2Actions, ...history2Actions, ...dashActions, ...infoActions, ...drinkActions, ...honourActions, ...cricketActions,
   ...trainingActions, ...trainStatsActions, ...arsenalActions, ...trainHonourActions, ...welcomeActions, ...voiceActions, ...onlineActions,
-  ...accountActions,
+  ...accountActions, ...friendsActions,
 };
-const INPUTS = { ...playerInputs, ...arsenalInputs, ...trainingInputs, ...trainStatsInputs, ...welcomeInputs, ...onlineInputs, ...accountInputs };
+const INPUTS = { ...playerInputs, ...arsenalInputs, ...trainingInputs, ...trainStatsInputs, ...welcomeInputs, ...onlineInputs, ...accountInputs, ...friendsInputs };
 
 const app = document.getElementById('app');
 let lastPath = null;
@@ -387,6 +391,12 @@ if (!store.maquette && !store.db.openCode) startCloud(); // lot 10 : compte invi
 // Lot 10 : état de la synchronisation (lu par les tests) et synchronisation à la demande.
 window.__strelaCloud = () => ({ status: cloud.status, error: cloud.error, busy: cloud.busy, sync: { ...store.cloudSync }, account: store.settings.cloudAccount || null });
 window.__strelaSyncNow = reason => syncNow(reason || 'test');
+window.__strelaPlayers = () => store.players.map(p => ({ id: p.id, name: p.name, friend: p.friend || null, archived: !!p.archived, remote: !!p.remote }));
+window.__strelaGames = () => {
+  const g = x => ({ id: x.id, owner: x.owner || null, players: x.config.players, darts: x.darts.length });
+  return { games: [...store.games, ...store.ckGames].map(g), friendGames: store.friendGames.map(g),
+    trainings: store.trainings.map(r => ({ id: r.id, owner: r.owner || null, player: r.player })), friendTrainings: store.friendTrainings.map(r => ({ id: r.id, owner: r.owner || null, player: r.player })) };
+};
 document.body.dataset.ready = '1';
 
 // Service worker « réseau d'abord » : appli installable, toujours la dernière version quand le réseau répond.

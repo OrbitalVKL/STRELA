@@ -18,6 +18,7 @@ import { dartSetRecord } from '../engine/dartsets.js';
 import { makeBackup, importPlan } from '../data/backup.js';
 import { bac, drinkTimes, drinkTime, drinkAt, isPint, unitsOf, drinkTally, PINT_L } from '../engine/alcohol.js';
 import { computeCricket, isCricket } from '../engine/cricket.js';
+import { rewireGame, rewireTraining } from '../engine/merge.js';
 
 export const store = {
   players: [],
@@ -46,6 +47,10 @@ export const store = {
   // sauvegarde) ; la connexion (jetons) et l'état de la synchronisation sont propres au téléphone, jamais exportés.
   cloudAuth: null,   // réglage « cloudAuth » : { profileId, userId, access, refresh, expiresAt, attached }
   cloudSync: {},     // réglage « cloudSync » : { lastSync, friendCode, profileSent, … }
+  // Étape 4 : parties et séances reçues où mon profil n'a pas joué (celles de mes amis entre eux, leurs séances) :
+  // gardées à part (stats des amis, étape 5), jamais mêlées à mon historique ni à mes stats.
+  friendGames: [],
+  friendTrainings: [],
   // Base du téléphone : version, erreur éventuelle, stockage persistant (affichés dans le diagnostic des Réglages)
   db: { version: null, error: null, persisted: null, unreadable: 0, openCode: null, writeFail: null },
 };
@@ -55,6 +60,11 @@ let db = null; // null : rien n'est écrit (maquette, ou base indisponible)
 
 /** Écritures en cours (les tests attendent qu'elles soient finies). */
 export const saving = { pending: 0, done: 0 };
+
+/** Lot 10 : une partie ou une séance vient d'être rangée (la synchronisation part en arrière-plan). */
+let onClosed = () => {};
+export const setClosedListener = fn => { onClosed = fn; };
+const closed = () => { try { onClosed(); } catch (e) { /* */ } };
 
 /** Appelé quand une écriture échoue ou réussit de nouveau (l'appli redessine l'écran : alerte d'enregistrement). */
 let onStorageChange = () => {};
@@ -99,6 +109,8 @@ export function resaveAll() {
     ...(store.lastSetup ? [{ store: 'settings', key: 'lastSetup', put: store.lastSetup }] : []),
     ...(store.soiree ? [{ store: 'settings', key: 'soiree', put: store.soiree }] : []),
     ...store.trainings.map(r => ({ store: 'trainings', put: trainingRecord(r) })),
+    ...store.friendGames.map(g => ({ store: 'games', put: g })),
+    ...store.friendTrainings.map(r => ({ store: 'trainings', put: trainingRecord(r) })),
     ...(store.tr ? [{ store: 'trainings', put: trainingRecord(store.tr) }] : []),
     ...store.dartSets.map(x => ({ store: 'dartsets', put: dartSetRecord(x) })),
     ...(store.trSetup ? [{ store: 'settings', key: 'training', put: store.trSetup }] : []),
@@ -147,6 +159,7 @@ export async function openStorage({ onVersionChange } = {}) {
     write([{ store: 'settings', key: 'display', put: { ...store.settings } }]);
   }
   store.db.storage = data.settings.storage || null;
+  partitionReceived();
   store.cloudAuth = data.settings.cloudAuth && typeof data.settings.cloudAuth === 'object' ? data.settings.cloudAuth : null;
   store.cloudSync = data.settings.cloudSync && typeof data.settings.cloudSync === 'object' ? data.settings.cloudSync : {};
   return data;
@@ -245,6 +258,217 @@ export function adoptOnlineGame(rec, online) {
 }
 
 /** AJOUTER : un adversaire en ligne devient un joueur de ce téléphone. */
+// ------------------------------------------------------------------ amis (lot 10, étape 2)
+/** Amis : joueurs liés à un profil en ligne (lecture seule : pseudo, avatar, animation viennent de leur téléphone). */
+export const friendPlayers = () => store.players.filter(p => p.friend);
+
+/**
+ * Applique la liste des amis acceptés (friendFromServer) : ami nouveau → joueur « u:<uuid> » ; ami connu → pseudo,
+ * avatar, animation, jeux et dernière activité mis à jour ; ami qui n'est plus dans la liste (retiré) → redevient un
+ * joueur local ordinaire (ses parties restent). Une seule transaction. Renvoie { added, updated, removed }.
+ */
+export function applyFriends(list) {
+  const ops = [];
+  const keep = new Set();
+  const counts = { added: 0, updated: 0, removed: 0 };
+  const put = (p, i) => { if (i < 0) store.players.push(p); else store.players[i] = p; ops.push({ store: 'players', put: playerRecord(p) }); };
+  for (const f of list) {
+    if (!f || f.state !== 'acceptee') continue;
+    keep.add(f.id);
+    const i = store.players.findIndex(p => p.friend === f.id);
+    const cur = i >= 0 ? store.players[i] : null;
+    const next = { ...(cur || { id: `u:${f.id}`, archived: false }), name: f.name, avatar: f.avatar, friend: f.id, seen: f.seen, sets: f.sets };
+    if (f.anim) next.turnAnim = f.anim; else delete next.turnAnim;
+    const rec = playerRecord(next);
+    if (cur && JSON.stringify(playerRecord(cur)) === JSON.stringify(rec)) continue;
+    put({ ...next, ...rec }, i);
+    counts[cur ? 'updated' : 'added']++;
+  }
+  store.players.forEach((p, i) => {
+    if (!p.friend || keep.has(p.friend)) return;
+    const { friend, seen, sets, ...rest } = p;
+    put(rest, i);
+    counts.removed++;
+  });
+  write(ops);
+  return counts;
+}
+
+// ------------------------------------------------------------------ parties partagées (lot 10, étape 4)
+/** Suppressions à faire suivre en ligne : seulement ce qui y est déjà parti (`cloudSync.sent`). */
+function noteDeleted(ids) {
+  const sent = (store.cloudSync && store.cloudSync.sent) || {};
+  const todo = ids.filter(id => sent[id]);
+  if (!todo.length) return;
+  const deleted = [...new Set([...((store.cloudSync && store.cloudSync.deleted) || []), ...todo])];
+  saveCloudKey('cloudSync', { ...(store.cloudSync || {}), deleted });
+}
+
+/** Une partie ou séance reçue concerne-t-elle mon profil ? (sinon elle est rangée à part : celles de mes amis) */
+const withMe = (rec, kind) => {
+  const me = profilePlayer();
+  if (!me) return false;
+  return kind === 'training' ? rec.player === me.id : rec.config.players.includes(me.id);
+};
+
+/** Au chargement : les parties et séances reçues où je n'ai pas joué vont à part (store.friendGames, friendTrainings). */
+function partitionReceived() {
+  const isFriendOnly = (r, kind) => r.owner && !withMe(r, kind);
+  store.friendGames = [...store.games, ...store.ckGames].filter(g => isFriendOnly(g, 'game'));
+  store.games = store.games.filter(g => !isFriendOnly(g, 'game'));
+  store.ckGames = store.ckGames.filter(g => !isFriendOnly(g, 'game'));
+  store.friendTrainings = store.trainings.filter(r => isFriendOnly(r, 'training'));
+  store.trainings = store.trainings.filter(r => !isFriendOnly(r, 'training'));
+}
+
+/** Est-ce une partie (ou séance) reçue d'un ami, en lecture seule ? */
+export const isReceived = rec => !!(rec && rec.owner);
+
+/** Qui a créé une partie reçue (pseudo de l'ami), pour le dire à l'écran. */
+export function ownerName(rec) {
+  if (!rec || !rec.owner) return '';
+  const p = store.players.find(q => q.friend === rec.owner) || store.players.find(q => q.id === `u:${rec.owner}`);
+  return p ? p.name : 'un ami';
+}
+
+/** Mention « lecture seule » d'une partie ou séance reçue (détail). */
+export const receivedNote = (rec, what = 'partie') => `Cette ${what} vient du téléphone de ${ownerName(rec)} : lui seul peut la corriger ou la supprimer.`;
+
+/**
+ * Range ce que la synchronisation a reçu, en une transaction : items = résultats de fromCloud (engine/sync.js).
+ * put : la partie ou séance (remplace la copie d'ici si elle vient d'un ami ou si elle est à moi mais absente) ;
+ * delete : retirée d'ici si c'est une partie reçue (ou à moi, supprimée depuis mon autre téléphone) ; joueurs distants
+ * créés ou renommés (jamais un joueur du téléphone). Renvoie { put, deleted }.
+ */
+export function applyReceived(items) {
+  const ops = [];
+  const counts = { put: 0, deleted: 0 };
+  const byId = new Map(store.players.map(p => [p.id, p]));
+  for (const it of items) {
+    if (it.action === 'delete') {
+      const g = [...store.games, ...store.ckGames, ...store.friendGames].find(x => x.id === it.id);
+      const r = [...store.trainings, ...store.friendTrainings].find(x => x.id === it.id);
+      const rec = g || r;
+      if (!rec || (!rec.owner && !it.mine)) continue; // une partie d'ici ne disparaît que si c'est moi qui l'ai supprimée
+      if (g) { for (const k of ['games', 'ckGames', 'friendGames']) store[k] = store[k].filter(x => x.id !== it.id); ops.push({ store: 'games', del: it.id }); }
+      if (r) { for (const k of ['trainings', 'friendTrainings']) store[k] = store[k].filter(x => x.id !== it.id); ops.push({ store: 'trainings', del: it.id }); }
+      counts.deleted++;
+      continue;
+    }
+    if (it.action !== 'put') continue;
+    for (const rp of it.remotes || []) {
+      const cur = byId.get(rp.id);
+      if (cur && !cur.remote) continue;
+      const next = playerRecord({ ...(cur || { archived: false }), id: rp.id, name: String(rp.name || 'Joueur').slice(0, 40), avatar: rp.avatar && typeof rp.avatar === 'object' ? rp.avatar : { kind: 'initials', color: 7 }, remote: true });
+      if (cur && JSON.stringify(playerRecord(cur)) === JSON.stringify(next)) continue;
+      byId.set(rp.id, next);
+      if (cur) store.players = store.players.map(p => (p.id === rp.id ? next : p)); else store.players.push(next);
+      ops.push({ store: 'players', put: next });
+    }
+    if (it.kind === 'training') {
+      const rec = trainingRecord(it.rec);
+      if (!rec || rec.endedAt === null) continue;
+      const local = store.trainings.find(x => x.id === rec.id);
+      if (local && !local.owner && it.mine) continue; // la mienne, déjà ici : ce téléphone fait foi
+      try { trainingState(rec, rec.darts); } catch (e) { continue; }
+      store.trainings = store.trainings.filter(x => x.id !== rec.id);
+      store.friendTrainings = store.friendTrainings.filter(x => x.id !== rec.id);
+      if (!rec.owner || withMe(rec, 'training')) store.trainings.push(rec); else store.friendTrainings.push(rec);
+      ops.push({ store: 'trainings', put: rec });
+    } else {
+      const rec = closedRecord(it.rec, it.rec.abandoned, it.rec.endedAt ?? it.rec.startedAt);
+      if (!readable(rec)) continue;
+      const list = isCricket(rec) ? 'ckGames' : 'games';
+      const local = [...store.games, ...store.ckGames, ...store.friendGames].find(x => x.id === rec.id);
+      if (local && !local.owner && it.mine) continue;
+      if ((store.current && store.current.id === rec.id) || (store.ck && store.ck.id === rec.id)) continue; // partie en ligne encore en cours ici
+      store.games = store.games.filter(x => x.id !== rec.id);
+      store.ckGames = store.ckGames.filter(x => x.id !== rec.id);
+      store.friendGames = store.friendGames.filter(x => x.id !== rec.id);
+      if (!rec.owner || withMe(rec, 'game')) store[list].unshift(rec); else store.friendGames.unshift(rec);
+      ops.push({ store: 'games', put: rec });
+    }
+    counts.put++;
+  }
+  if (counts.put) {
+    store.trainings.sort((a, b) => b.startedAt - a.startedAt);
+    store.friendTrainings.sort((a, b) => b.startedAt - a.startedAt);
+  }
+  write(ops);
+  return counts;
+}
+
+// ------------------------------------------------------------------ rattachement d'un joueur local à un ami (lot 10, étape 3)
+/** Remplace `from` par `to` partout où un joueur est noté : parties (closes, en cours), séances, soirée, derniers réglages.
+ *  Renvoie { ops, games: [ids], trainings: [ids] } ; l'état en mémoire suit. */
+function rewirePlayer(from, to) {
+  const ops = [];
+  const out = { games: [], trainings: [] };
+  const fixList = list => list.map(g => { const n = rewireGame(g, from, to); if (n && n !== g) { out.games.push(g.id); ops.push({ store: 'games', put: n.ui ? currentRecord(n) : n }); return n; } return g; });
+  store.games = fixList(store.games);
+  store.ckGames = fixList(store.ckGames);
+  for (const k of ['current', 'ck']) {
+    const g = store[k];
+    const n = g && rewireGame(g, from, to);
+    if (n && n !== g) { store[k] = n; out.games.push(g.id); ops.push({ store: 'games', put: currentRecord(n) }); }
+  }
+  store.trainings = store.trainings.map(r => { const n = rewireTraining(r, from, to); if (n !== r) { out.trainings.push(r.id); ops.push({ store: 'trainings', put: trainingRecord(n) }); } return n; });
+  if (store.tr && store.tr.player === from) { store.tr = { ...store.tr, player: to }; out.trainings.push(store.tr.id); ops.push({ store: 'trainings', put: trainingRecord(store.tr) }); }
+  if (store.soiree && store.soiree.players.includes(from)) {
+    const d = { ...store.soiree.drinks };
+    if (d[from]) { d[to] = [...(d[to] || []), ...d[from]]; delete d[from]; }
+    store.soiree = { ...store.soiree, players: [...new Set(store.soiree.players.map(id => (id === from ? to : id)))], drinks: d };
+    ops.push({ store: 'settings', key: 'soiree', put: store.soiree });
+  }
+  if (store.lastSetup && Array.isArray(store.lastSetup.players) && store.lastSetup.players.includes(from)) {
+    store.lastSetup = { ...store.lastSetup, players: [...new Set(store.lastSetup.players.map(id => (id === from ? to : id)))] };
+    ops.push({ store: 'settings', key: 'lastSetup', put: store.lastSetup });
+  }
+  if (store.settings.profile === from) { store.settings.profile = to; ops.push({ store: 'settings', key: 'display', put: { ...store.settings } }); }
+  return { ops, ...out };
+}
+
+/**
+ * Fusionne le joueur local `localId` dans l'ami `uuid` : le joueur local garde son identifiant (et son historique),
+ * prend pseudo, avatar, animation et jeux de l'ami ; la fiche « u:<uuid> » disparaît, ses parties passent au joueur
+ * local. Une seule transaction. Renvoie l'entrée du journal des fusions (pour annuler), ou null.
+ */
+export function mergeFriend(localId, uuid) {
+  const L = store.players.find(p => p.id === localId);
+  const F = store.players.find(p => p.friend === uuid);
+  if (!L || !F || L.friend || L.remote || L.id === F.id) return null;
+  const rw = rewirePlayer(F.id, L.id);
+  const prev = { name: L.name, avatar: { ...L.avatar }, turnAnim: L.turnAnim ?? null, archived: !!L.archived };
+  const merged = { ...L, name: F.name, avatar: { ...F.avatar }, friend: uuid, seen: F.seen, sets: F.sets, archived: false };
+  if (F.turnAnim) merged.turnAnim = F.turnAnim; else delete merged.turnAnim;
+  store.players = store.players.filter(p => p.id !== F.id).map(p => (p.id === L.id ? merged : p));
+  rw.ops.push({ store: 'players', del: F.id }, { store: 'players', put: playerRecord(merged) });
+  write(rw.ops);
+  return { uuid, localId, friendId: F.id, prev, games: rw.games, trainings: rw.trainings, at: Date.now() };
+}
+
+/** Annule une fusion (entrée rendue par mergeFriend) : le joueur local redevient lui-même, la fiche de l'ami revient. */
+export function undoMergeFriend(m) {
+  const L = store.players.find(p => p.id === m.localId && p.friend === m.uuid);
+  if (!L) return false;
+  const friend = { id: m.friendId, name: L.name, avatar: { ...L.avatar }, archived: false, friend: m.uuid, seen: L.seen, sets: L.sets };
+  if (L.turnAnim) friend.turnAnim = L.turnAnim;
+  const back = { ...L, name: m.prev.name, avatar: { ...m.prev.avatar }, archived: !!m.prev.archived };
+  delete back.friend; delete back.seen; delete back.sets;
+  if (m.prev.turnAnim) back.turnAnim = m.prev.turnAnim; else delete back.turnAnim;
+  store.players = store.players.map(p => (p.id === L.id ? back : p));
+  store.players.push(friend);
+  // Parties de la fiche de l'ami remises à son identifiant (seulement celles qui étaient à lui avant la fusion).
+  const ops = [{ store: 'players', put: playerRecord(back) }, { store: 'players', put: playerRecord(friend) }];
+  const games = new Set(m.games || []), trs = new Set(m.trainings || []);
+  const fix = list => list.map(g => { if (!games.has(g.id)) return g; const n = rewireGame(g, L.id, friend.id); if (n && n !== g) { ops.push({ store: 'games', put: n }); return n; } return g; });
+  store.games = fix(store.games);
+  store.ckGames = fix(store.ckGames);
+  store.trainings = store.trainings.map(r => { if (!trs.has(r.id)) return r; const n = rewireTraining(r, L.id, friend.id); ops.push({ store: 'trainings', put: trainingRecord(n) }); return n; });
+  write(ops);
+  return true;
+}
+
 export function adoptRemote(id) {
   const p = store.players.find(q => q.id === id && q.remote);
   if (!p) return;
@@ -339,7 +563,7 @@ const soireeGames = () => {
  * Renvoie l'identifiant de la soirée.
  */
 export function setGamesSoiree(ids, soireeId) {
-  const set = new Set(ids);
+  const set = new Set(ids.filter(id => !store.games.some(g => g.id === id && g.owner))); // lot 10 : parties reçues en lecture seule
   const touched = new Set(soireeId ? [soireeId] : []);
   for (const g of store.games) if (set.has(g.id)) { if (g.soiree) touched.add(g.soiree); if (soireeId) g.soiree = soireeId; else delete g.soiree; }
   const changed = new Set(ids);
@@ -372,7 +596,7 @@ const putGames = games => write(games.map(g => ({ store: 'games', put: closedRec
  */
 export function editGameDrinks(gameId, id, delta, pint = false) {
   const g = store.games.find(x => x.id === gameId);
-  if (!g || !g.config.players.includes(id)) return;
+  if (!g || g.owner || !g.config.players.includes(id)) return; // lot 10 : partie reçue, en lecture seule
   const list = (g.drinks && g.drinks[id]) || [];
   if (delta < 0 && !list.length) return;
   const t = list.length ? drinkTime(list[list.length - 1]) : (g.endedAt || g.startedAt);
@@ -691,6 +915,7 @@ export function archiveCurrent(abandoned) {
     const rec = closedRecord(g, abandoned && s.status !== STATUS.FINISHED, Date.now());
     store.games.unshift(rec);
     write([{ store: 'games', put: rec }]);
+    closed();
   } else {
     // Lot 7.6 : partie sans fléchette effacée ; ses verres restent à la soirée (hors partie).
     const sv = store.soiree;
@@ -710,7 +935,11 @@ export function archiveCurrent(abandoned) {
  * sont jamais stockées) ; les joueurs, et leurs photos d'avatar, ne sont jamais touchés. Renvoie le nombre supprimé.
  */
 export function deleteGames(ids) {
-  const gone = new Set(ids);
+  // Lot 10 : une partie reçue d'un ami (owner) ne se supprime pas ici ; les miennes, déjà parties en ligne, sont
+  // notées pour disparaître aussi chez les amis (étape 4).
+  const owned = new Set([...store.games, ...store.ckGames].filter(g => g.owner).map(g => g.id));
+  const gone = new Set(ids.filter(id => !owned.has(id)));
+  noteDeleted([...gone]);
   const before = store.games.length;
   const ckBefore = store.ckGames.length;
   store.games = store.games.filter(g => !gone.has(g.id));
@@ -773,6 +1002,10 @@ export function applyImport(backup, mode) {
   Object.assign(store.settings, plan.state.display);
   if (!store.maquette) mirrorSettings();
   write(plan.ops);
+  // Lot 10 : parties reçues de la sauvegarde rangées comme au chargement ; celles des amis seront reçues de nouveau
+  // (REMPLACER TOUT a vidé la base : tout est redemandé à la synchronisation suivante).
+  if (mode === 'replace') { store.friendGames = []; store.friendTrainings = []; saveCloudKey('cloudSync', { ...(store.cloudSync || {}), friendsKey: '' }); }
+  partitionReceived();
   return plan.counts;
 }
 
@@ -876,6 +1109,7 @@ export function archiveCk(abandoned) {
     const rec = closedRecord(g, abandoned && s.status !== 'finished', Date.now());
     store.ckGames.unshift(rec);
     write([{ store: 'games', put: rec }]);
+    closed();
   } else {
     write([{ store: 'games', del: g.id }]);
   }
@@ -977,12 +1211,15 @@ export function closeTraining({ stopped = false } = {}, now = Date.now()) {
   const rec = trainingRecord({ ...r, ...cleanSetChanges(r, r.darts.length), endedAt: now, stopped: stopped || !done });
   store.trainings.unshift(rec);
   write([{ store: 'trainings', put: rec }]);
+  closed();
   return rec;
 }
 
 /** Supprime des séances (closes ou en cours). */
 export function deleteTrainings(ids) {
-  const gone = new Set(ids);
+  const owned = new Set(store.trainings.filter(r => r.owner).map(r => r.id));
+  const gone = new Set(ids.filter(id => !owned.has(id)));
+  noteDeleted([...gone]);
   const before = store.trainings.length + (store.tr ? 1 : 0);
   store.trainings = store.trainings.filter(r => !gone.has(r.id));
   if (store.tr && gone.has(store.tr.id)) store.tr = null;
@@ -1017,7 +1254,7 @@ export function trChangeSet(setId) {
  */
 export function updateTraining(id, patch) {
   const i = store.trainings.findIndex(r => r.id === id);
-  if (i < 0) return null;
+  if (i < 0 || store.trainings[i].owner) return null; // lot 10 : séance reçue, en lecture seule
   let r = { ...store.trainings[i] };
   if ('note' in patch) r.note = String(patch.note || '');
   if ('excluded' in patch) { if (patch.excluded) r.excluded = true; else delete r.excluded; }

@@ -2,7 +2,10 @@
 // Archiver : le joueur n'est plus proposé, ses stats restent ; RÉACTIVER (liste ou fiche) le remet. Supprimer : il
 // disparaît avec ses stats ; ses parties avec d'autres restent, où il devient « Joueur supprimé » (src/engine/players.js).
 // Photo : appareil photo ou galerie (sélecteur d'images d'Android), puis recadrage carré (screens/photo.js).
-import { store, newId, inCurrentGame, deletionPreview, deletePlayer, savePlayer, setArchived, animationsOn, adoptRemote } from '../store.js';
+import { store, newId, inCurrentGame, deletionPreview, deletePlayer, savePlayer, setArchived, animationsOn, adoptRemote, profilePlayer, friendPlayers } from '../store.js';
+import { friendSheet, seenText, mergeBanner } from './friends.js';
+import { cloudSupport, syncSoon } from '../cloud.js';
+import { receivedRequests } from '../friends.js';
 import { esc, ico, topBar, avg, plural } from '../dom.js';
 import { avatarHtml, iconSvg, ICONS, ICON_KEYS, ICON_GROUPS, AVATAR_COLOR_NAMES, colorIndex } from '../avatars.js';
 import { playerStats } from '../../engine/stats.js';
@@ -25,20 +28,44 @@ function row(p) {
     <span class="chev">${ico('chev')}</span></a>`;
 }
 
+/** Lot 10 : ligne d'un ami (lecture seule, dernière activité). */
+function friendRowHtml(p) {
+  const st = playerStats(store.games, p.id);
+  return `<a class="item" href="#/joueur/${esc(p.id)}">${avatarHtml(p, 52)}
+    <span class="main"><span class="name nm ell">${esc(p.name)}</span><span class="sub">${esc(seenText(p))}${st.played ? `<br>${plural(st.played, 'partie', 'parties')} ensemble` : ''}</span></span>
+    <span class="chev">${ico('chev')}</span></a>`;
+}
+
+/**
+ * Joueurs (lot 10) : trois sections — Mon profil (le mien, modifiable, synchronisé), Joueurs locaux (créés sur ce
+ * téléphone), Amis (lecture seule) ; puis archivés et adversaires en ligne, comme avant.
+ */
 export function playersList() {
-  const active = store.players.filter(p => !p.archived && !p.remote);
-  const archived = store.players.filter(p => p.archived && !p.remote);
+  const me = profilePlayer();
+  const isMe = p => me && p.id === me.id;
+  const active = store.players.filter(p => !p.archived && !p.remote && !p.friend && !isMe(p));
+  const archived = store.players.filter(p => p.archived && !p.remote && !p.friend);
   const remote = store.players.filter(p => p.remote); // lot 9.2 : adversaires des parties en ligne, à part
+  const friends = friendPlayers().sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  const cloudOk = cloudSupport().ok;
+  const asks = cloudOk ? receivedRequests().length : 0;
   const add = `<a class="act" href="#/joueur/nouveau" aria-label="Nouveau joueur">${ico('plus')}</a>`;
-  if (!store.players.length) {
+  if (!store.players.length && !cloudOk) {
     return `<div class="screen">${topBar('Joueurs', '#/', add)}
       <div class="empty"><div class="glyph">${iconSvg('cible')}</div><div class="big">AUCUN JOUEUR</div>
       <p>Crée les joueurs une fois : pseudo et avatar sont gardés d'une partie à l'autre.</p>
       <a class="btn primary" href="#/joueur/nouveau">${ico('plus')} NOUVEAU JOUEUR</a></div></div>`;
   }
-  return `<div class="screen">${topBar('Joueurs', '#/', add)}
-    <ul class="list">${active.map(p => `<li>${row(p)}</li>`).join('')}</ul>
-    <div class="pad" style="margin-top:16px"><a class="btn" href="#/joueur/nouveau">${ico('plus')} NOUVEAU JOUEUR</a></div>
+  return `<div class="screen players3">${topBar('Joueurs', '#/', add)}
+    ${cloudOk ? `<div class="pad">${mergeBanner()}</div>` : ''}
+    <div class="pad"><div class="sec">Mon profil</div></div>
+    ${me ? `<ul class="list"><li>${row(me)}</li></ul>` : `<div class="pad"><a class="btn" href="#/bienvenue/nom">${ico('plus')} CRÉER MON PROFIL</a></div>`}
+    <div class="pad"><div class="sec">Joueurs locaux <span class="n">${active.length}</span></div></div>
+    ${active.length ? `<ul class="list">${active.map(p => `<li>${row(p)}</li>`).join('')}</ul>` : '<p class="note pad">Les joueurs sans téléphone (ou sans Strela) : créés et gérés ici.</p>'}
+    <div class="pad" style="margin-top:12px"><a class="btn" href="#/joueur/nouveau">${ico('plus')} NOUVEAU JOUEUR</a></div>
+    ${cloudOk || friends.length ? `<div class="pad"><div class="sec">Amis <span class="n">${friends.length}</span></div></div>
+      ${friends.length ? `<ul class="list">${friends.map(p => `<li>${friendRowHtml(p)}</li>`).join('')}</ul>` : ''}
+      <div class="pad"><a class="btn${asks ? ' primary' : ' ghost'}" href="#/amis">${ico('players')} ${asks ? `${plural(asks, 'DEMANDE D\'AMI', 'DEMANDES D\'AMI')}` : (friends.length ? 'GÉRER MES AMIS' : 'AJOUTER UN AMI')}</a></div>` : ''}
     ${archived.length ? `<div class="pad"><div class="sec">Archivés <span class="n">${archived.length}</span></div></div>
       <ul class="list">${archived.map(p => `<li class="arow">${row(p)}<button type="button" class="btn ghost react" data-act="unarchive-row" data-arg="${esc(p.id)}">RÉACTIVER</button></li>`).join('')}</ul>
       <p class="note pad">Un joueur archivé n'apparaît plus au lancement d'une partie ; ses parties et ses stats restent. RÉACTIVER le remet dans la liste.</p>` : ''}
@@ -79,6 +106,8 @@ const previewHtml = d => {
 
 export function playerForm(id) {
   if (id !== 'nouveau' && !store.players.some(p => p.id === id)) { go('#/joueurs', { replace: true }); return ''; }
+  const friend = store.players.find(p => p.id === id && p.friend);
+  if (friend) return friendSheet(friend); // lot 10 : un ami est en lecture seule
   const d = openDraft(id);
   if (d.del === 'refused' && !inCurrentGame(d.id)) d.del = null; // la partie est finie depuis le refus
   const kind = d.avatar.kind === 'icon' && !d.avatar.icon ? 'initials' : d.avatar.kind;
@@ -277,6 +306,8 @@ export const actions = {
     if (turnAnim) rec.turnAnim = turnAnim; else delete rec.turnAnim;
     savePlayer(rec);
     store.draft = null;
+    const me = profilePlayer();
+    if (me && me.id === rec.id) syncSoon('profil'); // lot 10 : mon profil part chez mes amis
     go('#/joueurs');
   },
 };

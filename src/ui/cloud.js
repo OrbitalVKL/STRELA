@@ -5,7 +5,7 @@
 // envoyé s'il a changé, puis (étapes suivantes du lot) amis, parties à envoyer, parties reçues. Une erreur ne bloque
 // rien : elle est notée (Réglages › Compte et amis, journal) et la synchronisation suivante reprend où on en était.
 
-import { store, saveSetting, saveCloudKey, profilePlayer } from './store.js';
+import { store, saveSetting, saveCloudKey, profilePlayer, setClosedListener } from './store.js';
 import { refresh } from './nav.js';
 import { variant, isApk } from './native.js';
 import { log } from './journal.js';
@@ -80,6 +80,8 @@ async function attach(c) {
   const r = await c.rpc('strela_compte', { p_profil: acct.profileId, p_secret: acct.secret });
   saveCloudKey('cloudAuth', { ...(store.cloudAuth || {}), attached: acct.profileId });
   if (r && r.code_ami) saveSync({ friendCode: r.code_ami });
+  // Profil tout juste créé en ligne (premier passage, ou base reconstruite après une perte) : tout renvoyer.
+  if (r && r.nouveau) saveSync({ sent: {}, profileSent: '' });
   log('cloud', `compte rattaché (${acct.profileId.slice(0, 8)}…)`);
   return r;
 }
@@ -155,7 +157,7 @@ export function syncSoon(reason = '', delay = 800) {
 
 /** Redessine seulement les écrans qui montrent l'état (jamais une partie en cours). */
 function redraw() {
-  try { if (/^#\/(reglages|amis)/.test(location.hash)) refresh(); } catch (e) { /* */ }
+  try { if (/^#\/(reglages|amis|compte|joueurs|joueur\/u:)/.test(location.hash)) refresh(); } catch (e) { /* */ }
 }
 
 let started = false;
@@ -165,6 +167,7 @@ export function startCloud() {
   started = true;
   if (!cloudSupport().ok) { cloud.status = 'off'; return; }
   cloudAccount();
+  setClosedListener(() => syncSoon('fin de partie', 2000)); // partie ou séance rangée : elle part chez les amis
   try {
     addEventListener('online', () => syncSoon('retour du réseau', 1500));
     document.addEventListener('visibilitychange', () => {

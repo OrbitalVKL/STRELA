@@ -135,3 +135,43 @@ export function agoText(t, now = Date.now()) {
   const mo = Math.round(d / 30);
   return mo < 12 ? `il y a ${mo} mois` : 'il y a plus d\'un an';
 }
+
+// ------------------------------------------------------------------ amis (étape 2)
+/** Avatar reçu d'un ami, nettoyé (rien d'autre que ce que l'appli sait dessiner). */
+export function cleanAvatar(a) {
+  const out = { kind: 'initials', color: 0 };
+  if (!a || typeof a !== 'object') return out;
+  if (Number.isInteger(a.color) && a.color >= 0 && a.color < 64) out.color = a.color;
+  if (a.kind === 'icon' && typeof a.icon === 'string' && /^[a-z0-9-]{1,30}$/.test(a.icon)) { out.kind = 'icon'; out.icon = a.icon; }
+  if (a.kind === 'photo' && typeof a.photo === 'string' && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(a.photo) && a.photo.length <= 400000) { out.kind = 'photo'; out.photo = a.photo; }
+  return out;
+}
+
+const ms = t => { const x = typeof t === 'number' ? t : Date.parse(t); return Number.isFinite(x) ? x : 0; };
+
+/**
+ * Ligne de strela_amis (ou de strela_demander_ami) → { id, name, avatar, anim, sets, seen, state, dir, since, fmt },
+ * ou null si elle est illisible. state : 'attente' | 'acceptee' | 'refusee' ; dir : 'recue' | 'envoyee'.
+ */
+export function friendFromServer(x) {
+  if (!x || typeof x !== 'object' || !isUuid(x.id)) return null;
+  const state = ['attente', 'acceptee', 'refusee'].includes(x.etat) ? x.etat : 'attente';
+  return {
+    id: x.id,
+    name: (typeof x.pseudo === 'string' && x.pseudo.trim() ? x.pseudo.trim() : 'Joueur sans nom').slice(0, 40),
+    avatar: cleanAvatar(x.avatar),
+    anim: typeof x.anim === 'string' ? x.anim.slice(0, 40) : null,
+    sets: Array.isArray(x.jeux) ? x.jeux.filter(s => s && typeof s === 'object').slice(0, 30) : [],
+    seen: ms(x.vu_le),
+    state,
+    dir: x.sens === 'envoyee' ? 'envoyee' : 'recue',
+    since: ms(x.depuis),
+    fmt: Number.isInteger(x.fmt) ? x.fmt : 1,
+  };
+}
+
+/** Identifiant local d'un ami (joueur rangé dans « players ») : « u:<uuid> ». */
+export const friendPlayerId = uuid => `u:${uuid}`;
+
+/** Lien vers un code d'ami (QR code, partage) : page rejoindre.html, qui ouvre l'appli sur la demande. */
+export const friendUrl = (code, base = 'https://orbitalvkl.github.io/STRELA/') => `${base}rejoindre.html#${code}`;

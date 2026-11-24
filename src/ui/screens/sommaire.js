@@ -2,7 +2,7 @@
 // difficiles à provoquer. Les états de jeu sont fabriqués avec le vrai moteur ; l'annonce « À TOI » et la loupe,
 // qui ne durent qu'un instant, restent figées jusqu'à la prochaine touche. Tout est en mémoire (données fictives de
 // maquette.js) : la base du téléphone n'est jamais ouverte. Chargé seulement avec ?maquette (import dynamique).
-import { store, startGame, freshUi, currentState, deletePlayer, startCricket, freshCkUi } from '../store.js';
+import { store, startGame, freshUi, currentState, deletePlayer, startCricket, freshCkUi, mergeFriend } from '../store.js';
 import { resetMock, ensureExtraPlayers, givePhoto, SAMPLE_PHOTO, SAMPLE_SIZE } from '../maquette.js';
 import { openCrop, PHOTO_ERRORS } from './photo.js';
 import { polar, sectorAngle, RINGS } from '../../engine/board.js';
@@ -36,6 +36,7 @@ import { presetInfo } from '../info.js';
 import { presetVoice } from '../voiceinput.js';
 import { presetOnline } from '../online.js';
 import { presetAccount } from './account.js';
+import { presetFriends } from './friends.js';
 import { cloud as cloudState } from '../cloud.js';
 import { createRoom as roomOf, hostStart as roomStart, hostReceive as roomHello, hostMemberStatus as roomStatus, hostSetup as roomSetup, helloMsg, createGuest, playerCard } from '../../engine/online.js';
 import { aimedDart, rng, simulateSoloX01, simulateSoloCricket } from '../mock.js';
@@ -236,6 +237,22 @@ function mockCloud(status) {
   store.settings.cloudAccount = { profileId: '3f2a9c1e-7b4d-4e8a-9c21-5d6e7f8a9b0c', secret: '03NMMDDTH1AC1GCANYH0', createdAt: Date.UTC(2026, 10, 24) };
   store.cloudSync = { friendCode: 'GWB8VS', lastSync: Date.now() - 12 * 60000 };
   cloudState.status = status; cloudState.error = status === 'offline' ? 'pas de réseau, ou serveur injoignable' : '';
+}
+
+/** Lot 10 : deux amis (dont un ancien joueur du téléphone), une demande reçue, une envoyée, une refusée. */
+function mockFriends() {
+  mockCloud('ok');
+  const now = Date.now();
+  const f = (id, name, avatar, seen) => ({ id: `u:${id}`, name, avatar, archived: false, friend: id, seen, checkout: { double: 20, avoidBull: false },
+    sets: [{ id: 'ds-x', name: '22 g torpedo', weight: 22 }] });
+  store.players = store.players.filter(p => !p.friend);
+  store.players.push(f('b2c3d4e5-0000-4000-8000-00000000000a', 'Mathilde', { kind: 'icon', icon: 'planete', color: 9 }, now - 2 * 3600e3));
+  store.players.push(f('b2c3d4e5-0000-4000-8000-00000000000b', 'HPV', { kind: 'icon', icon: 'cravate', color: 4 }, now - 3 * 86400e3));
+  store.cloudSync.requests = [
+    { id: 'c3d4e5f6-0000-4000-8000-00000000000c', name: 'Angelina', avatar: { kind: 'initials', color: 12 }, state: 'attente', dir: 'recue', since: now - 20 * 60e3 },
+    { id: 'c3d4e5f6-0000-4000-8000-00000000000d', name: 'Atila', avatar: { kind: 'initials', color: 2 }, state: 'attente', dir: 'envoyee', since: now - 5 * 60e3 },
+    { id: 'c3d4e5f6-0000-4000-8000-00000000000e', name: 'Gilles', avatar: { kind: 'icon', icon: 'ours', color: 6 }, state: 'refusee', dir: 'envoyee', since: now - 86400e3 },
+  ];
 }
 
 export const SCENES = {
@@ -636,6 +653,19 @@ export const SCENES = {
   'l10-compte-hors-ligne': () => { mockCloud('offline'); return '#/reglages'; },
   'l10-compte-coupe': () => { mockCloud('off'); store.settings.cloud = false; return '#/reglages'; },
   'l10-mon-compte': () => { mockCloud('ok'); presetAccount({ showCode: true, info: new Set(['recup']) }); return '#/compte'; },
+  'l10-amis': () => { mockFriends(); presetFriends({ msg: 'Demande envoyée à Atila : elle attend son accord.' }); return '#/amis'; },
+  'l10-amis-vide': () => { mockCloud('offline'); store.cloudSync = {}; presetFriends({ draft: 'GWB8' }); return '#/amis'; },
+  'l10-amis-retirer': () => { mockFriends(); presetFriends({ confirm: 'b2c3d4e5-0000-4000-8000-00000000000a' }); return '#/amis'; },
+  'l10-ami-fiche': () => { mockFriends(); presetFriends(); return '#/joueur/u:b2c3d4e5-0000-4000-8000-00000000000a'; },
+  'l10-joueurs': () => { mockFriends(); return '#/joueurs'; },
+  'l10-rattacher': () => { mockFriends(); presetFriends({ pick: 'p2' }); return '#/amis/rattacher/b2c3d4e5-0000-4000-8000-00000000000a'; },
+  'l10-fusionne': () => {
+    mockFriends();
+    const m = mergeFriend('p2', 'b2c3d4e5-0000-4000-8000-00000000000a');
+    store.cloudSync.merges = m ? [m] : [];
+    presetFriends({ msg: 'Ton joueur « Mathilde » est maintenant ton ami Mathilde : son historique d\'ici est à son nom.' });
+    return '#/joueur/p2';
+  },
   'l10-mon-compte-suppression': () => { mockCloud('ok'); presetAccount({ confirm: true, draft: 'ABCDE-FGHJK', msg: 'Code de récupération illisible : vérifie chaque groupe de 5 caractères.' }); return '#/compte'; },
   // Lot 9.5 : historique d'un X01 solo (partie de Guillaume du 23/11), étapes de la connexion, journal, stats, impacts.
   'l95-carte': () => { const r = a3Session(); presetCards([r.id]); return '#/entrainement'; },
@@ -964,6 +994,13 @@ export function sommaire() {
       ${L('l10-compte-hors-ligne', '▲ Lot 10 : compte, hors ligne')}
       ${L('l10-compte-coupe', '▲ Lot 10 : synchronisation coupée')}
       ${L('l10-mon-compte', '▲ Lot 10 : Mon compte', 'code de récupération affiché')}
+      ${L('l10-amis', '▲ Lot 10 : Amis', 'code, QR code, demandes, amis')}
+      ${L('l10-amis-vide', '▲ Lot 10 : Amis, hors ligne, sans ami')}
+      ${L('l10-amis-retirer', '▲ Lot 10 : Amis, retirer à confirmer')}
+      ${L('l10-ami-fiche', '▲ Lot 10 : fiche d\'un ami', 'lecture seule')}
+      ${L('l10-joueurs', '▲ Lot 10 : Joueurs en trois sections', 'avec un ami à rattacher')}
+      ${L('l10-rattacher', '▲ Lot 10 : rattacher un joueur local', 'pseudo proche, fusion à confirmer')}
+      ${L('l10-fusionne', '▲ Lot 10 : ami fusionné', 'ANNULER LA FUSION')}
       ${L('l10-mon-compte-suppression', '▲ Lot 10 : Mon compte, suppression à confirmer')}
       ${L('l95-carte', '◆ Lot 9.5 : séance X01, grille des volées', 'bust, victoire en 2 fléchettes')}
       ${L('l95-resume', '◆ Lot 9.5 : résumé X01 solo', 'volées en tête, grille sous la cible')}
