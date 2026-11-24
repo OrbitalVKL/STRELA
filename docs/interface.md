@@ -952,6 +952,45 @@ bouton ENTRAÎNEMENT SOLO sous la soirée (ENTRAÎNEMENT EN COURS en vidéo inve
 joueur : bouton STATS D'ENTRAÎNEMENT s'il a des séances. La saisie au doigt sur la cible est passée dans
 `src/ui/boardinput.js` (même comportement en partie).
 
+## Version 0.20.0 (24/11 : lot 9.5, retours du 24/11)
+
+Cahier : docs/lot-9-5.md ; avancement : docs/lot-9-5-avancement.md.
+
+- **A3, historique d'un X01 solo** : la carte d'une séance (liste) et le résumé tirent leur grille de
+  `sessionVolleys(rec)` (engine/training.js), les volées du moteur. Cause du bug (séance du 23/11, 21:57) : `volleysOf`
+  regroupait les fléchettes 3 par 3 (`i % 3`), alors qu'un bust à la 1re fléchette ferme la volée (T20 depuis 40) et
+  que la victoire peut venir à la 2e (20, 20). Les 36 fléchettes enregistrées étaient justes (501 points, 41,8 de
+  moyenne = 501 / 36 × 3) : il y avait 13 volées, pas 12. Aucune migration (tout se recalcule) ; une séance qui ne se
+  rejoue plus est déjà gardée dans la base sans être affichée (journal : « séance(s) illisible(s) ») ; `sessionVolleysSafe`
+  marque « Historique incomplet » au lieu de planter. Grille : `volleyGrid(r)` (screens/training.js), colonnes V, 3
+  fléchettes, total (reste après la volée en X01, marques au Cricket) ; bust barré, BUST, 0 ; GAGNÉ en vidéo inverse ;
+  volée en cours en pointillés ; MANCHE n entre les manches. Tests : tests/lot95-historique.test.js.
+- **C2** : résumé X01 / Cricket solo : « 13 VOLÉES · 36 fléchettes · 2 bust » en tête (`.trsum`), grille sous la
+  carte de chaleur (section Volées, (i)).
+- **C3** : exercices et jeux à cibles successives (horloge, serpent, rebours, golf, Shanghai, moitié, roulette, killer) :
+  les cases du tableau qui correspondent à un secteur visé sont des boutons (`tr-focus`) ; la cible n'affiche que les
+  fléchettes des séries visant ce secteur (`dartsAimedAt`), secteur surligné (`aim`) ; TOUS LES SECTEURS. Choix gardé
+  par séance le temps de la session (`focusOf`). Haut-bas, gauche-droite… avaient déjà une cible par cible visée.
+- **C1** : `modeBand(kind, { tabs, pid })` (modeband.js) : sur Stats (joueur, classement) et Stats d'entraînement, deux
+  moitiés Soirée / Entraînement collées sous la barre du haut, la choisie à la teinte de son mode ; `stats-mode`
+  (trainstats.js) remplace l'adresse (le retour ramène à l'écran d'origine), garde le joueur, note `statsMode`. Un seul
+  mode allumé : le bandeau d'avant. Le bouton STATS D'ENTRAÎNEMENT du milieu de la page n'apparaît plus que dans ce cas.
+- **A1, en ligne** : étapes (`STEPS` de net/link.js : signal, host, ice, channel) à l'écran pendant la connexion
+  (`.onsteps`, ✓ … ✗), erreur propre à l'étape (`signalError`), RÉESSAYER (`on-retry`, refait la dernière action),
+  ANNULER (`cancelJoin`). Hôte : services de mise en relation et leur état (`.onsvc`). Détail : docs/enligne.md.
+- **A2, clavier** : coquille (MainActivity) : la place du clavier (`WindowInsets.Type.ime()`) est laissée en bas, car en
+  bord à bord `adjustResize` n'agit plus ; page : src/ui/keyboard.js ramène le champ actif dans la zone visible
+  (focus, `visualViewport` resize). Champ du code : `autocorrect="off"`, majuscules à la frappe, lien collé → code,
+  Entrée = REJOINDRE.
+- **B, journal** : src/ui/journal.js (`log(cat, msg, data)`), localStorage `strela.journal`, 7 jours et 1 Mo au plus,
+  écrit au plus une fois par seconde (tout de suite pour une erreur). Notés : erreurs JS et promesses rejetées, étapes en
+  ligne (types de candidats seulement, jamais d'adresse), saisie (X01, Cricket, entraînement : fléchette, ANNULER,
+  VALIDER, volée close avec bust et reste), mises à jour (état envoyé par Updater), migrations et données illisibles,
+  démarrage. Réglages › Développement › Journal de débogage : OUI / NON (`journal`, OUI par défaut), joindre à la
+  sauvegarde (`journalInBackup`, OUI par défaut : champ texte `journal` du fichier, ignoré à l'import), VOIR (300
+  dernières lignes), EXPORTER (`strela-journal-AAAAMMJJ-HHMM.txt`, Bridge.saveFile), VIDER.
+- Sommaire : scènes `l95-…` (section « Lot 9.5 »).
+
 ## Version 0.19.1 (23/11 : saisie verticale, secteur entier / secteur touché)
 
 Demande de Guillaume : le réglage de la saisie au pavé « ne change rien », retrouver la saisie ultra rapide d'avant.

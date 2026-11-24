@@ -10,7 +10,7 @@
 // lancées « comme en partie » : jeux X01 et Cricket en solo, et parties. Sur un exercice (un secteur visé, l'horloge qui
 // vise tout), la cible est imposée : ces chiffres n'y diraient rien. La précision et le groupement, à l'inverse, ne
 // comptent que les exercices (un jeu n'a pas de cible imposée).
-import { store, activePlayers, playerById, dartSetById } from '../store.js';
+import { store, activePlayers, playerById, dartSetById, saveSetting } from '../store.js';
 import { esc, ico, topBar, plural, when } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
 import { EXERCISES, ALL_EXERCISES, GAME_EXERCISES, analyze, sessionValue, zoneOf, pointsOf, setsUsed, setAt, isGameSession, gamePart } from '../../engine/training.js';
@@ -337,7 +337,7 @@ export function trainStatsScreen() {
   const per = `<div class="seg tper">${segBtn('ts-period', '7j', ui.period, '7 jours')}${segBtn('ts-period', '30j', ui.period, '30 jours')}${segBtn('ts-period', 'tout', ui.period, 'Tout')}<button type="button" data-act="ts-period" data-arg="plage" aria-pressed="${ui.period === 'plage'}" aria-label="Plage de dates">${ico('calendar')}</button></div>
     ${ui.period === 'plage' ? `<div class="trange"><label><small>DU</small><input type="date" class="input" data-input="ts-from" value="${esc(ui.range.from)}" max="${isoDay(Date.now())}"></label><label><small>AU</small><input type="date" class="input" data-input="ts-to" value="${esc(ui.range.to)}" max="${isoDay(Date.now())}"></label></div>` : ''}
     <p class="small dim tperl">Période : ${esc(bounds().label)}</p>`;
-  const head = `${topBar('Stats d\'entraînement', backFrom('#/entrainement'))}${modeBand('train')}<div class="pad">${per}${chips}
+  const head = `${topBar('Stats d\'entraînement', backFrom('#/entrainement'))}${modeBand('train', { tabs: true, pid })}<div class="pad">${per}${chips}
     <div class="sec">Filtres${infoBtn('ts-filters')}</div>
     ${infoBox('ts-filters', '<b>Entraînements</b> : les séances seules. <b>Parties</b> : les fléchettes du joueur dans ses parties X01 (sans cible visée : ni précision, ni groupement). <b>Les deux</b> : séances et parties, pour les chiffres qui se comparent (triples, doubles, hors cible, carte). Le jeu de fléchettes et l\'exercice ne concernent que l\'entraînement. Triples, doubles et carte de chaleur ne comptent que les jeux X01 et Cricket (mode Jeux) et les parties ; précision et groupement, que les exercices.')}
     ${filters}</div>`;
@@ -388,6 +388,14 @@ export const actions = {
   'ts-all'() { ui.folds.add('all'); refresh(); },
   // Depuis les Stats d'un joueur : ses stats d'entraînement.
   'ts-open'(pid) { ui.player = pid; go('#/entrainement/stats'); },
+  // Lot 9.5 (C1) : sélecteur Soirée / Entraînement du haut des stats (modeband.js) ; même joueur ; l'adresse est
+  // remplacée (pas empilée) : le retour ramène à l'écran d'où l'on est venu aux stats.
+  'stats-mode'(arg) {
+    const [mode, pid] = String(arg).split(':');
+    saveSetting('statsMode', mode === 'train' ? 'train' : 'soiree');
+    if (mode === 'train') { if (pid) ui.player = pid; go('#/entrainement/stats', { replace: true }); }
+    else go(pid && playerById(pid) && !playerById(pid).remote ? `#/stats/${pid}` : '#/stats', { replace: true });
+  },
 };
 
 export const inputs = {

@@ -2,6 +2,17 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.20.0', date: '2026-11-24', title: 'Corrections du 24/11 : en ligne, historique, stats', items: [
+    'Historique d\'un X01 solo : la grille fléchette par fléchette suit enfin les volées réellement jouées. Un bust à la 1re fléchette est une volée d\'une fléchette ; la volée gagnante s\'arrête à la fléchette qui finit. Avant, les fléchettes étaient regroupées 3 par 3, d\'où des volées impossibles (T20 + 20 + 20 depuis 40). Le score, la moyenne et la meilleure volée étaient déjà justes ; les séances enregistrées s\'affichent juste d\'elles-mêmes.',
+    'Chaque volée de la grille montre son total et le reste après elle ; un bust est barré, marqué BUST, total 0 ; la volée gagnante est marquée GAGNÉ.',
+    'Résumé d\'un X01 ou d\'un Cricket solo : le nombre de volées et de fléchettes en tête, et la grille des volées sous la carte de chaleur.',
+    'Partie en ligne : les étapes de la connexion s\'affichent (serveur de mise en relation, réponse de l\'hôte, négociation entre les téléphones, canal de données) ; en cas d\'échec, l\'étape en cause et un message clair, avec RÉESSAYER ; ANNULER pendant l\'attente. Si le serveur PeerJS ne répond pas, deux autres serveurs gratuits prennent le relais ; l\'hôte écoute sur les trois.',
+    'Code du salon : en majuscules d\'office, sans correction automatique ; un lien de salon collé dans le champ donne le code ; la touche OK du clavier rejoint.',
+    'Le clavier ne cache plus le champ où l\'on tape (code du salon, pseudo, nom d\'un jeu de fléchettes, note) : la page remonte au-dessus du clavier.',
+    'Stats : le choix Soirée / Entraînement est tout en haut de l\'écran, en deux moitiés (pinte et cible), toujours visible ; le même joueur reste affiché d\'une moitié à l\'autre.',
+    'Exercices et jeux à cibles successives (serpent, tour de l\'horloge, golf, Shanghai…) : dans le résumé, toucher un secteur du tableau ne montre sur la cible que les fléchettes lancées en le visant ; le toucher à nouveau (ou TOUS LES SECTEURS) revient à l\'ensemble.',
+    'Réglages › Développement › Journal de débogage : ce qui se passe sur le téléphone (erreurs, étapes du mode en ligne, saisie, mises à jour), gardé 7 jours ; VOIR, EXPORTER (à m\'envoyer en cas de souci), VIDER ; joint à la sauvegarde si la case est cochée. Rien ne part du téléphone sans toi.',
+  ] },
   { v: '0.19.1', date: '2026-11-23', title: 'Entraînement : la saisie rapide revient', items: [
     'Le réglage de la saisie au pavé marche vraiment : deux modes, SECTEUR ENTIER (par défaut) et SECTEUR TOUCHÉ.',
     'SECTEUR ENTIER, la saisie rapide d\'avant : S, D ou T dans la barre du haut, puis le nombre, et la fléchette est notée d\'un appui. La zone visée par l\'exercice est armée d\'office (T pour le triple 20…). Le simple n\'a pas de couronne : précision et groupement sont alors approchés (mention ≈ dans les stats).',

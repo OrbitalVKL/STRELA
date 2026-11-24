@@ -5,7 +5,7 @@
 // - Classement (#/classement) : palmarès (le meilleur et le pire de chaque chiffre) et classement complet par chiffre.
 // Tout est recalculé depuis les fléchettes (engine/stats.js), comme les Stats actuelles.
 import { modeBand } from '../../modeband.js';
-import { store, playerById } from '../../store.js';
+import { store, playerById, appModes } from '../../store.js';
 import { esc, ico, topBar, avg, pct, int, plural, when, OUT_SHORT } from '../../dom.js';
 import { avatarHtml } from '../../avatars.js';
 import { playerStats, inPeriod, gameState } from '../../../engine/stats.js';
@@ -313,7 +313,9 @@ function cricketBlock(pid) {
 /** Lot 8 : lien vers les stats d'entraînement du joueur, s'il a des séances. */
 function trainingLink(pid) {
   const n = store.trainings.filter(r => r.player === pid).length;
-  if (!n) return '';
+  // Lot 9.5 (C1) : les deux modes allumés, le choix est en haut de l'écran (modeband.js) : plus de bouton ici.
+  const m = appModes();
+  if (!n || (m.train && m.soiree)) return '';
   return `${sec('Entraînement', null)}<button type="button" class="btn" data-act="ts-open" data-arg="${esc(pid)}">${ico('stats')} STATS D'ENTRAÎNEMENT <small>${plural(n, 'séance', 'séances')}</small></button>`;
 }
 
@@ -325,7 +327,7 @@ export function stats2Screen(id) {
   const games = bySource(inPeriod(store.games, currentPeriod()));
   const st = playerStats(games, pid);
   const chips = `<div class="chips">${players.map(q => `<a class="btn chip" href="#/stats/${esc(q.id)}" aria-pressed="${q.id === pid}">${avatarHtml(q, 38)}<span class="nm">${esc(q.name.split(' ')[0])}</span></a>`).join('')}</div>`;
-  const head = `${topBar('Stats', backFrom('#/'))}${modeBand('soiree')}${tabs('joueur')}${chips}<div class="pad" style="margin-top:10px">${periodSeg()}</div>`;
+  const head = `${topBar('Stats', backFrom('#/'))}${modeBand('soiree', { tabs: true, pid })}${tabs('joueur')}${chips}<div class="pad" style="margin-top:10px">${periodSeg()}</div>`;
   if (!st.played) {
     const ck = cricketBlock(pid);
     if (ck) return `<div class="screen stats2">${head}<div class="pad"><p class="note">Aucune partie de 301 · 501 · 701 sur cette période.</p>${ck}</div></div>`;
@@ -444,7 +446,7 @@ function ranked(rows, m) {
 export function rankingScreen() {
   const games = bySource(inPeriod(store.games, currentPeriod()));
   const rows = rankingData(games);
-  const head = `${topBar('Classement', backFrom('#/'))}${modeBand('soiree')}${tabs('classement')}<div class="pad" style="margin-top:10px">${periodSeg()}</div>`;
+  const head = `${topBar('Classement', backFrom('#/'))}${modeBand('soiree', { tabs: true })}${tabs('classement')}<div class="pad" style="margin-top:10px">${periodSeg()}</div>`;
   if (rows.length < 2) {
     return `<div class="screen">${head}<div class="empty"><div class="big">PAS ASSEZ DE JOUEURS</div><p>Il faut au moins deux joueurs avec une partie sur la période.</p>
       <button type="button" class="btn primary" data-act="period" data-arg="tout">VOIR DEPUIS TOUJOURS</button></div></div>`;

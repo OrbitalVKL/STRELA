@@ -9,10 +9,11 @@ Une seule branche et une seule demande de fusion (version 0.20.0).
 | A2 clavier | fait : place du clavier laissée par la coquille (bord à bord), champ ramené dans la partie visible, code en majuscules |
 | A3 historique X01 solo | fait : cause trouvée (voir docs/entrainement.md « Lot 9.5 »), grille depuis les volées du moteur |
 | B journal | fait : src/ui/journal.js, Réglages › Développement › Journal |
-| C1 sélecteur Soirée / Entraînement | à faire |
-| C2 résumé X01 (volées, grille) | à faire |
-| C3 impacts par secteur visé | à faire |
+| C1 sélecteur Soirée / Entraînement | fait : modeband.js (deux moitiés) |
+| C2 résumé X01 (volées, grille) | fait |
+| C3 impacts par secteur visé | fait (horloge et jeux de cible) |
 
 ## Prochain geste
 
-C1, C2, C3 ; puis version 0.20.0 (package.json, changelog), CLAUDE.md « État », demande de fusion.
+Version 0.20.0 publiée par demande de fusion ; ensuite, retours de Guillaume (à deux téléphones : étape qui échoue,
+journal exporté). Puis reprendre le lot 9 reporté (9.1 iPhone, 9.4 audio) s'il le demande.

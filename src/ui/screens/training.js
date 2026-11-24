@@ -187,7 +187,7 @@ export function volleyGrid(r) {
       : `<b class="tvt${v.finish ? ' fin' : ''}">${v.total}${x01 ? `<small>${v.finish ? 'GAGNÉ' : v.open ? `reste ${v.rest}…` : `reste ${v.rest}`}</small>` : `<small>${v.finish ? 'FERMÉ' : 'marq.'}</small>`}</b>`;
     return `${head}<li class="${game ? 'g' : ''}${v.bust ? ' bust' : ''}${v.open ? ' open' : ''}"><small>V${v.n}</small>${cells.join('')}${tot}</li>`;
   }).join('');
-  return `${broken ? '<p class="note tvbroken">Historique incomplet : ces fléchettes ne se rejouent plus (séance enregistrée par une ancienne version). Le score affiché ailleurs reste celui enregistré.</p>' : ''}<ol class="tvol${game ? ' game' : ''}">${rows}</ol>`;
+  return `${broken ? '<p class="note tvbroken">Historique incomplet : ces fléchettes ne se rejouent plus (séance enregistrée par une ancienne version). Le score affiché ailleurs reste celui enregistré.</p>' : ''}<ol class="tvol${game ? ' tvgame' : ''}">${rows}</ol>`;
 }
 export function sessionCard(r) {
   const ex = EXERCISES[r.exercise] || EXERCISES.libre;
@@ -839,7 +839,12 @@ function gameAnalysisHtml(r, a, key) {
        <div class="sec">Marques par cible</div><div class="clockg">${CRICKET_TARGETS.map(t => `<span><small>${t === 25 ? 'B' : t}</small><b>${x.marksByTarget[t]}</b></span>`).join('')}</div>`;
   const bySet = x.bySet ? `<div class="sec">Par jeu de fléchettes</div><table class="sectab trtab"><thead><tr><th>Jeu</th><th>Fl.</th><th>${x.game === 'x01' ? 'Moy.' : 'MPR'}</th><th>T %</th><th>D %</th></tr></thead><tbody>
     ${x.bySet.map(y => `<tr><th class="ell">${esc(y.setId ? (dartSetById(y.setId) || { name: '?' }).name : 'Sans jeu noté')}</th><td>${y.darts}</td><td>${x.game === 'x01' ? dec1(y.value) : dec2(y.value)}</td><td>${pctOf(y.triples / y.n)}</td><td>${pctOf(y.doubles / y.n)}</td></tr>`).join('')}</tbody></table>` : '';
-  return `<div class="kpis">${kpis.join('')}</div>${goalLine(r, a)}
+  // Lot 9.5 (C2) : en tête, le nombre de volées et de fléchettes (celles du moteur : un bust à la 1re fléchette est une
+  // volée d'une fléchette) ; sous la cible, la grille des volées (fléchettes, total, reste, bust).
+  const vols = sessionVolleysSafe(r).volleys;
+  const busts = vols.filter(v => v.bust).length;
+  const sum = `<p class="trsum"><b>${plural(vols.length, 'volée', 'volées')}</b><span>${plural(r.darts.length, 'fléchette', 'fléchettes')}${x.game === 'x01' && busts ? ` · ${plural(busts, 'bust', 'bust')}` : ''}</span></p>`;
+  return `${sum}<div class="kpis">${kpis.join('')}</div>${goalLine(r, a)}
     <div class="sec">Analyse du coach${infoBtn(`tr-an-${key}`)}</div>
     ${infoBox(`tr-an-${key}`, x.game === 'x01'
       ? '<b>Moyenne</b> : points marqués pour 3 fléchettes (un bust compte 0). <b>Finition</b> : fléchettes lancées quand une seule pouvait finir (un double en sortie double), et combien ont fini. <b>Triples</b>, <b>doubles</b> : part des fléchettes dans un triple, dans un double (le 50 compte comme double).'
@@ -847,6 +852,9 @@ function gameAnalysisHtml(r, a, key) {
     ${messagesHtml(a)}
     <div class="sec">Carte de chaleur <span class="n">${hb.total} fl.</span></div>
     <div class="heatbox">${hb.svg}</div>${hb.off ? `<p class="note center">${plural(hb.off, 'fléchette', 'fléchettes')} hors cible, non dessinée${hb.off > 1 ? 's' : ''}.</p>` : ''}
+    <div class="sec">Volées <span class="n">${vols.length}</span>${infoBtn(`tr-vol-${key}`)}</div>
+    ${infoBox(`tr-vol-${key}`, x.game === 'x01' ? 'Chaque volée telle que jouée : ses fléchettes, les points comptés et le reste après la volée. Un bust s\'arrête à la fléchette qui le fait, compte 0 et rend le reste du début de volée ; la volée gagnante s\'arrête à la fléchette qui finit.' : 'Chaque volée telle que jouée : ses fléchettes et les marques comptées ; la volée qui ferme tout s\'arrête à la fléchette gagnante.')}
+    <div class="trvols">${volleyGrid(r)}</div>
     <div class="sec">Manches</div>${legs}${bySet}`;
 }
 
@@ -873,15 +881,21 @@ function analysisHtml(r, a, key) {
   if (a.extra.average !== undefined && ex.metric !== 'average') kpis.push(k('avg', 'Moyenne / volée', dec1(a.extra.average)));
   if (kpis.length % 2 === 0) kpis.push(k('pts', 'Points marqués', String(r.darts.reduce((n, d) => n + pointsOf(d), 0))));
   // Cibles : une par cible visée (horloge : une seule, toutes les fléchettes).
-  const groups = ex.clock || ex.fun ? [{ s: 0, z: 'any', darts: r.darts, bias: null, label: 'Toutes les fléchettes' }]
+  // Lot 9.5 (C3) : un secteur choisi dans le tableau → seulement ses fléchettes, secteur visé surligné.
+  const foc = (ex.clock || ex.fun) && focusOf.get(r.id);
+  const focDarts = foc ? dartsAimedAt(r, foc) : null;
+  const groups = ex.clock || ex.fun
+    ? [foc && focDarts.length ? { s: foc, z: ex.clock && ex.clock.z ? ex.clock.z : 'any', darts: focDarts, bias: null, label: `En visant le ${foc === 25 ? 'bull' : foc} : ${plural(focDarts.length, 'fléchette', 'fléchettes')}` }
+      : { s: 0, z: 'any', darts: r.darts, bias: null, label: 'Toutes les fléchettes' }]
     : a.perTarget.map(t => ({ ...t, darts: dartsOfTarget(r, t), label: `${targetLabel(t)} : ${t.hits}/${t.darts}` }));
-  const boards = `<div class="tboards n${Math.min(groups.length, 3)}">${groups.map(g => `<figure>${analysisBoard(g, g.darts, g.bias, groups.length > 1 ? 160 : 260, g.label)}<figcaption>${esc(g.label)}</figcaption></figure>`).join('')}</div>`;
+  const allBtn = foc && focDarts.length ? `<button type="button" class="btn ghost tfall" data-act="tr-focus" data-arg="${esc(r.id)}|">${ico('target')} TOUS LES SECTEURS</button>` : '';
+  const boards = `<div class="tboards n${Math.min(groups.length, 3)}">${groups.map(g => `<figure>${analysisBoard(g, g.darts, g.bias, groups.length > 1 ? 160 : 260, g.label)}<figcaption>${esc(g.label)}</figcaption></figure>`).join('')}</div>${allBtn}`;
   let detail = '';
   if (ex.fun) detail = funDetail(r, a);
   else if (ex.clock) {
     detail = ex.clock.max
-      ? `<div class="sec">Doubles</div><div class="clockg">${a.extra.perNumber.map(x => `<span class="${x.hit ? '' : 'open'}"><small>D${x.s}</small><b>${x.hit ? `✓${x.darts}` : '—'}</b></span>`).join('')}</div>`
-      : `<div class="sec">Fléchettes par numéro</div><div class="clockg">${a.extra.perNumber.map(x => `<span class="${x.hit ? '' : 'open'}"><small>${x.s}</small><b>${x.darts}</b></span>`).join('')}</div>`;
+      ? `<div class="sec">Doubles</div><div class="clockg">${a.extra.perNumber.map(x => focusCell(r, `D${x.s}`, x.hit ? `✓${x.darts}` : '—', !x.hit, x.s)).join('')}</div>`
+      : `<div class="sec">Fléchettes par numéro</div><div class="clockg">${a.extra.perNumber.map(x => focusCell(r, x.s, x.darts, !x.hit, x.s)).join('')}</div>`;
   } else if (ex.metric === 'average') {
     detail = `<div class="sec">Volées</div><div class="clockg">${a.extra.visits.map((v, i) => `<span><small>${i + 1}</small><b>${v}</b></span>`).join('')}</div>`;
   }
@@ -893,22 +907,43 @@ function analysisHtml(r, a, key) {
     ${`<div class="sec">Analyse du coach${infoBtn(`tr-an-${key}`)}</div>`}
     ${infoBox(`tr-an-${key}`, 'Écarts mesurés sur une vraie cible (en centimètres) : chaque fléchette est placée au point touché (saisie sur la cible) ou au milieu de sa zone (saisie au pavé). <b>Croix</b> : point visé ; <b>carré</b> : centre des impacts ; le trait entre les deux est l\'écart moyen. <b>Groupement</b> : distance moyenne des fléchettes à leur centre (plus c\'est petit, plus elles sont groupées).')}
     ${messagesHtml(a)}
-    ${boards}${detail}${bySet}`;
+    ${boards}${detail}${/data-act="tr-focus"/.test(detail) ? '<p class="note small">Touche un secteur du tableau : la cible ne montre que les fléchettes lancées en le visant ; touche-le à nouveau pour tout revoir.</p>' : ''}${bySet}`;
 }
 
 /** Détail d'un jeu de cible : une case par secteur, trou, manche ou volée. */
+/**
+ * Lot 9.5 (C3) : exercices et jeux à cibles successives (serpent, horloge, golf, Shanghai…) : toucher une case du
+ * tableau (un secteur visé) ne montre sur la cible que les fléchettes lancées en le visant, secteur surligné ; la
+ * toucher à nouveau, ou TOUS, revient à l'ensemble. Gardé le temps de la session (par séance).
+ */
+const focusOf = new Map(); // id de séance → secteur visé affiché
+export function presetFocus(id, sector) { if (sector) focusOf.set(id, sector); else focusOf.delete(id); }
+/** Fléchettes lancées en visant le secteur `sec` (toutes zones), d'après les séries de la séance. */
+function dartsAimedAt(r, sec) {
+  const out = [];
+  try { for (const b of trainingStateOf(r).blocks) if (b.s === sec) out.push(...b.darts); } catch (e) { /* séance abîmée */ }
+  return out;
+}
+/** Case du tableau : un bouton si elle correspond à un secteur visé qui a des fléchettes. */
+function focusCell(r, k, v, open, sec) {
+  const cls = open ? 'open' : '';
+  if (!sec || !dartsAimedAt(r, sec).length) return `<span class="${cls}"><small>${k}</small><b>${v}</b></span>`;
+  const on = focusOf.get(r.id) === sec;
+  return `<button type="button" class="${cls}${on ? ' on' : ''}" data-act="tr-focus" data-arg="${esc(r.id)}|${sec}" aria-pressed="${on}" aria-label="Impacts en visant le ${sec === 25 ? 'bull' : sec}"><small>${k}</small><b>${v}</b></button>`;
+}
+
 function funDetail(r, a) {
   const x = a.extra.fun.extra;
-  const cell = (k, v, open = false) => `<span class="${open ? 'open' : ''}"><small>${k}</small><b>${v}</b></span>`;
+  const cell = (k, v, open = false, sec = null) => focusCell(r, k, v, open, sec);
   switch (r.exercise) {
-    case 'serpent': case 'rebours': return `<div class="sec">Fléchettes par secteur</div><div class="clockg">${x.per.filter(p => p.darts).map(p => cell(p.s, p.darts, !p.hit)).join('')}</div>`;
-    case 'golf': return `<div class="sec">Trous</div><div class="clockg">${x.holes.map(h => cell(`T${h.s}`, h.strokes, h.strokes === 5)).join('')}</div>`;
-    case 'shanghai': return `<div class="sec">Manches</div><div class="clockg">${x.rounds.map(m => cell(m.s, `${m.points}${m.shanghai ? '+100' : ''}`)).join('')}</div>`;
-    case 'moitie': return `<div class="sec">Volées (total après chacune)</div><div class="clockg">${x.rounds.map(m => cell(m.s === 25 ? 'B' : m.s, m.halved ? `÷2 ${m.total}` : m.total, m.halved)).join('')}</div>`;
-    case 'roulette': return `<div class="sec">Volées</div><div class="clockg">${x.rounds.map(m => cell(m.s, m.points, !m.points)).join('')}</div>`;
+    case 'serpent': case 'rebours': return `<div class="sec">Fléchettes par secteur</div><div class="clockg">${x.per.filter(p => p.darts).map(p => cell(p.s, p.darts, !p.hit, p.s)).join('')}</div>`;
+    case 'golf': return `<div class="sec">Trous</div><div class="clockg">${x.holes.map(h => cell(`T${h.s}`, h.strokes, h.strokes === 5, h.s)).join('')}</div>`;
+    case 'shanghai': return `<div class="sec">Manches</div><div class="clockg">${x.rounds.map(m => cell(m.s, `${m.points}${m.shanghai ? '+100' : ''}`, false, m.s)).join('')}</div>`;
+    case 'moitie': return `<div class="sec">Volées (total après chacune)</div><div class="clockg">${x.rounds.map(m => cell(m.s === 25 ? 'B' : m.s, m.halved ? `÷2 ${m.total}` : m.total, m.halved, m.s)).join('')}</div>`;
+    case 'roulette': return `<div class="sec">Volées</div><div class="clockg">${x.rounds.map(m => cell(m.s, m.points, !m.points, m.s)).join('')}</div>`;
     case 'mur60': return `<div class="sec">Volées</div><div class="clockg">${x.rounds.map((m, i) => cell(i + 1, m.points, !m.brick)).join('')}</div>`;
     case 'plushaut': return `<div class="sec">Volées</div><div class="clockg">${x.rounds.map((m, i) => cell(i + 1, m.points, m.ok === false)).join('')}</div>`;
-    case 'killer': return `<div class="sec">Numéros</div><div class="clockg">${cell(`TOI ${x.mine}`, `${x.marks}/3`)}${x.foes.map((f, i) => cell(f, x.lives[i] ? `${x.lives[i]} ♥` : '✕', !!x.lives[i])).join('')}</div>`;
+    case 'killer': return `<div class="sec">Numéros</div><div class="clockg">${cell(`TOI ${x.mine}`, `${x.marks}/3`, false, x.mine)}${x.foes.map((f, i) => cell(f, x.lives[i] ? `${x.lives[i]} ♥` : '✕', !!x.lives[i], f)).join('')}</div>`;
     default: return '';
   }
 }
@@ -1030,6 +1065,13 @@ export const inputs = {
 
 // ------------------------------------------------------------------ actions
 export const actions = {
+  // Lot 9.5 (C3) : secteur visé choisi dans le tableau du résumé (à nouveau, ou TOUS : toutes les fléchettes).
+  'tr-focus'(arg) {
+    const [id, sec] = String(arg).split('|');
+    const n = Number(sec) || null;
+    presetFocus(id, n && focusOf.get(id) !== n ? n : null);
+    refresh();
+  },
   'tr-player'(id) { saveTrSetup({ player: id }); refresh(); },
   'tr-card'(id) { if (openCards.has(id)) openCards.delete(id); else openCards.add(id); refresh(); },
   'tr-set'(id) { saveTrSetup({ setId: id || null }); refresh(); },
