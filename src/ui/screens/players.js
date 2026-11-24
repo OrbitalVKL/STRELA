@@ -3,7 +3,7 @@
 // disparaît avec ses stats ; ses parties avec d'autres restent, où il devient « Joueur supprimé » (src/engine/players.js).
 // Photo : appareil photo ou galerie (sélecteur d'images d'Android), puis recadrage carré (screens/photo.js).
 import { store, newId, inCurrentGame, deletionPreview, deletePlayer, savePlayer, setArchived, animationsOn, adoptRemote, profilePlayer, friendPlayers } from '../store.js';
-import { friendSheet, seenText, mergeBanner } from './friends.js';
+import { friendSheet, seenText, mergeBanner, presenceDot } from './friends.js';
 import { cloudSupport, syncSoon } from '../cloud.js';
 import { receivedRequests } from '../friends.js';
 import { esc, ico, topBar, avg, plural } from '../dom.js';
@@ -31,7 +31,7 @@ function row(p) {
 /** Lot 10 : ligne d'un ami (lecture seule, dernière activité). */
 function friendRowHtml(p) {
   const st = playerStats(store.games, p.id);
-  return `<a class="item" href="#/joueur/${esc(p.id)}">${avatarHtml(p, 52)}
+  return `<a class="item" href="#/joueur/${esc(p.id)}"><span class="pav">${avatarHtml(p, 52)}${presenceDot(p)}</span>
     <span class="main"><span class="name nm ell">${esc(p.name)}</span><span class="sub">${esc(seenText(p))}${st.played ? `<br>${plural(st.played, 'partie', 'parties')} ensemble` : ''}</span></span>
     <span class="chev">${ico('chev')}</span></a>`;
 }

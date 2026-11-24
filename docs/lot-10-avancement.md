@@ -10,7 +10,7 @@ publiés : rien à terminer avant.
 | 3 | 0.22.0 | rattachement des joueurs locaux aux amis (fusion annulable, journalisée) — regroupé avec l'étape 2 (une seule demande de fusion) | fait |
 | 4 | 0.22.0 | synchronisation des parties et séances (envoi par empreintes, réception, suppression propagée, format) — regroupée avec 2 et 3 | fait |
 | 5 | 0.22.0 | stats partagées (sélecteur de joueur, Stats multijoueur / entraînement, badges en ligne) — regroupée avec 2 à 4 | fait |
-| 6 | 0.23.0 | présence (Realtime) | à faire |
+| 6 | 0.23.0 | présence (Realtime) | fait |
 
 ## Décisions (prises sans Guillaume, à lui dire)
 
@@ -89,10 +89,24 @@ publiés : rien à terminer avant.
 - Synchronisation : une demande pendant une passe en cours en programme une seule autre et en attend le résultat
   (cloud.js › syncNow).
 
-## Prochain geste
+## Étape 6 — décisions
 
-Étape 6 (présence) : Supabase Realtime, canal privé `strela-presence` (politiques déjà dans schema.sql) ; client
-WebSocket maison (protocole Phoenix : phx_join avec `config.presence.key` = mon UUID, `presence_state` /
-`presence_diff`, heartbeat 25 s, jeton d'accès en `access_token`) ; état « en ligne » / « en partie » (partie ou séance
-en cours) ; pastille sur la liste d'amis et les avatars d'amis ; réglage `presence` (Réglages › Compte et amis) ;
-dernière activité sinon (« vu il y a 2 h », déjà là). Faux serveur Realtime à ajouter à tools/lib/fake-supabase.mjs.
+- Client Realtime maison (src/net/presence.js, protocole Phoenix JSON vsn 1.0.0) : `phx_join` sur
+  `realtime:strela-presence` (privé, `presence.key` = mon UUID, `access_token`), `presence` track / untrack,
+  `presence_state` / `presence_diff`, heartbeat 25 s, `access_token` à chaque synchronisation (toutes les 25 min au
+  premier plan au moins). Contrôleur src/ui/presence.js : connexion au premier plan seulement (fermée en arrière-plan),
+  reconnexion avec attente croissante (5 s → 160 s) par une synchronisation (jeton frais).
+- Annonce : `{ s: 'jeu' }` à l'écran de jeu d'une partie ou séance en cours, sinon `{ s: 'app' }` ; rien si
+  Réglages › Compte et amis › Présence visible = NON (on voit quand même ses amis).
+- Affichage : pastille carrée sur l'avatar des amis (pleine : en partie ; vide : en ligne) dans Amis, Joueurs et la
+  fiche, texte « en partie » / « en ligne », sinon « vu il y a… » (dernière activité du profil, mise à jour à chaque
+  synchronisation).
+- Faux Realtime dans tools/lib/fake-supabase.mjs (canal réservé aux connexions rattachées, comme les politiques
+  `realtime.messages` de schema.sql).
+
+## Lot 10 : fini côté code
+
+Restent : l'adresse du projet Supabase et sa clé publique (src/net/cloudconfig.js), le secret `SUPABASE_SECRET_KEY`
+(copie hebdomadaire), le vrai essai à deux téléphones. Non vérifié d'ici : le vrai Supabase (connexion anonyme,
+PostgREST, Realtime privé — le nom exact des champs de `phx_join` suit la documentation de Realtime ; à confirmer en
+vrai), le réseau mobile.

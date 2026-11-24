@@ -4,6 +4,7 @@
 import { store, saveSetting, friendPlayers } from '../store.js';
 import { receivedRequests } from '../friends.js';
 import { pendingCount } from '../gamesync.js';
+import { presenceRefresh } from '../presence.js';
 import { esc, ico, topBar } from '../dom.js';
 import { refresh } from '../nav.js';
 import { cloud, cloudSupport, syncNow, recoverAccount, deleteOnlineData, setCloudOn } from '../cloud.js';
@@ -110,7 +111,7 @@ export const actions = {
   'acc-info'(k) { if (acc.info.has(k)) acc.info.delete(k); else acc.info.add(k); refresh(); },
   async 'acc-sync'() { const p = syncNow('à la main'); refresh(); await p; refresh(); },
   'acc-cloud'(v) { setCloudOn(v === '1'); refresh(); },
-  'acc-presence'(v) { saveSetting('presence', v === '1'); refresh(); },
+  'acc-presence'(v) { saveSetting('presence', v === '1'); presenceRefresh(); refresh(); },
   'acc-show'(v) { acc.showCode = v === '1'; acc.copied = false; refresh(); },
   async 'acc-copy'() {
     const a = cloudAccountRecord(store.settings.cloudAccount);

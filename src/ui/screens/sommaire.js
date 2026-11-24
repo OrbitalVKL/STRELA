@@ -37,6 +37,7 @@ import { presetVoice } from '../voiceinput.js';
 import { presetOnline } from '../online.js';
 import { presetAccount } from './account.js';
 import { presetFriends } from './friends.js';
+import { pres } from '../presence.js';
 import { cloud as cloudState } from '../cloud.js';
 import { createRoom as roomOf, hostStart as roomStart, hostReceive as roomHello, hostMemberStatus as roomStatus, hostSetup as roomSetup, helloMsg, createGuest, playerCard } from '../../engine/online.js';
 import { aimedDart, rng, simulateSoloX01, simulateSoloCricket } from '../mock.js';
@@ -248,6 +249,8 @@ function mockFriends() {
   store.players = store.players.filter(p => !p.friend);
   store.players.push(f('b2c3d4e5-0000-4000-8000-00000000000a', 'Mathilde', { kind: 'icon', icon: 'planete', color: 9 }, now - 2 * 3600e3));
   store.players.push(f('b2c3d4e5-0000-4000-8000-00000000000b', 'HPV', { kind: 'icon', icon: 'cravate', color: 4 }, now - 3 * 86400e3));
+  // Étape 6 : Mathilde en partie, HPV en ligne (présence fictive).
+  pres.map = { 'b2c3d4e5-0000-4000-8000-00000000000a': [{ s: 'jeu', phx_ref: '1' }], 'b2c3d4e5-0000-4000-8000-00000000000b': [{ s: 'app', phx_ref: '2' }] };
   store.cloudSync.requests = [
     { id: 'c3d4e5f6-0000-4000-8000-00000000000c', name: 'Angelina', avatar: { kind: 'initials', color: 12 }, state: 'attente', dir: 'recue', since: now - 20 * 60e3 },
     { id: 'c3d4e5f6-0000-4000-8000-00000000000d', name: 'Atila', avatar: { kind: 'initials', color: 2 }, state: 'attente', dir: 'envoyee', since: now - 5 * 60e3 },

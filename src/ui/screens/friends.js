@@ -10,6 +10,7 @@ import { avatarHtml } from '../avatars.js';
 import { isApk } from '../native.js';
 import { qrSvg } from '../qr.js';
 import { cloud, cloudSupport, syncNow } from '../cloud.js';
+import { presenceOf } from '../presence.js';
 import { fr, pendingRequests, requestFriend, answerRequest, removeFriend, mergeAsks, candidatesFor, decideMerge, undoMerge, undoableMerge } from '../friends.js';
 import { friendUrl, agoText, cleanFriendCode } from '../../engine/cloud.js';
 
@@ -19,12 +20,23 @@ const ibtn = key => `<button type="button" class="ibtn" data-act="fr-info" data-
 const ibox = (key, text) => (fr.info.has(key) ? `<p class="infobox" role="note">${text}</p>` : '');
 const canScan = () => !isApk() && typeof globalThis.BarcodeDetector === 'function' && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
 
-/** « vu il y a 2 h » (présence : étape 6). */
-export const seenText = p => (p && p.seen ? `vu ${agoText(p.seen)}` : 'jamais vu en ligne');
+/** « vu il y a 2 h », ou la présence en direct (étape 6) : « en partie », « en ligne ». */
+export const seenText = p => {
+  const now = p && presenceOf(p.friend);
+  if (now === 'jeu') return 'en partie';
+  if (now === 'app') return 'en ligne';
+  return p && p.seen ? `vu ${agoText(p.seen)}` : 'jamais vu en ligne';
+};
+
+/** Pastille de présence (carré plein : en partie ; carré vide : en ligne ; rien sinon). */
+export function presenceDot(p) {
+  const now = p && presenceOf(p.friend);
+  return now ? `<span class="pdot ${now}" data-layer role="img" aria-label="${now === 'jeu' ? 'en partie' : 'en ligne'}"></span>` : '';
+}
 
 function friendRow(p) {
   const ask = fr.confirm === p.friend;
-  return `<li class="frow"><a class="frmain" href="#/joueur/${esc(p.id)}">${avatarHtml(p, 44)}<span class="main"><b class="nm ell">${esc(p.name)}</b><small>${esc(seenText(p))}</small></span></a>
+  return `<li class="frow"><a class="frmain" href="#/joueur/${esc(p.id)}"><span class="pav">${avatarHtml(p, 44)}${presenceDot(p)}</span><span class="main"><b class="nm ell">${esc(p.name)}</b><small>${esc(seenText(p))}</small></span></a>
     ${ask ? `<div class="btns two frconfirm"><button type="button" class="btn danger" data-act="fr-remove" data-arg="${esc(p.friend)}" ${fr.busy ? 'disabled' : ''}>RETIRER</button><button type="button" class="btn ghost" data-act="fr-confirm" data-arg="">GARDER</button></div>`
     : `<button type="button" class="btn ghost frbtn" data-act="fr-confirm" data-arg="${esc(p.friend)}" aria-label="Retirer ${esc(p.name)} de mes amis">RETIRER</button>`}</li>`;
 }
@@ -41,7 +53,7 @@ function requestRow(r) {
 export function mergeBanner() {
   const asks = mergeAsks();
   if (!asks.length) return '';
-  return `<div class="frmerge" role="status">${asks.map(p => `<a class="lrow" href="#/amis/rattacher/${esc(p.friend)}">${avatarHtml(p, 36)}<span><b>${esc(p.name)} est dans ta liste ?</b><small>Rattacher un joueur local à cet ami</small></span>${ico('chev')}</a>`).join('')}</div>`;
+  return `<div class="frmerge" role="status">${asks.map(p => `<a class="lrow" href="#/amis/rattacher/${esc(p.friend)}">${avatarHtml(p, 36)}<span><b>Rattacher ${esc(p.name)}</b><small>Avait-il déjà un joueur sur ce téléphone ?</small></span>${ico('chev')}</a>`).join('')}</div>`;
 }
 
 const games = id => { const n = store.games.filter(g => g.config.players.includes(id)).length + store.ckGames.filter(g => g.config.players.includes(id)).length; return n; };
@@ -199,7 +211,7 @@ export function friendSheet(p) {
   const ask = fr.confirm === p.friend;
   const sets = Array.isArray(p.sets) ? p.sets.filter(s => s && !s.archived && typeof s.name === 'string') : [];
   return `<div class="screen friends">${topBar('Ami', backFrom('#/joueurs'))}
-    <div class="preview">${avatarHtml(p, 96)}<div class="who"><b class="nm">${esc(p.name)}</b><small>${esc(seenText(p))}</small></div></div>
+    <div class="preview"><span class="pav">${avatarHtml(p, 96)}${presenceDot(p)}</span><div class="who"><b class="nm">${esc(p.name)}</b><small>${esc(seenText(p))}</small></div></div>
     <div class="pad">
       <p class="note">Pseudo, avatar, animation de tour et jeux de fléchettes viennent de son téléphone : lui seul les change. Il s'ajoute à une partie comme n'importe quel joueur.</p>
       <a class="lrow" href="#/stats/${esc(p.id)}">${ico('stats')}<span><b>Ses stats</b><small>Parties partagées</small></span>${ico('chev')}</a>

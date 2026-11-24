@@ -70,7 +70,7 @@ test('rattachement : joueur local fusionné dans l\'ami, annulé, refait ; propo
     assert.ok(pa.some(p => p.id === `u:${uuidB}` && p.friend === uuidB));
     await A.page.evaluate(() => { location.hash = '#/joueurs'; });
     await A.page.waitForSelector('.frmerge');
-    assert.match(await A.page.textContent('.frmerge'), /Mathilde est dans ta liste/);
+    assert.match(await A.page.textContent('.frmerge'), /Rattacher Mathilde/);
     // Refaire la fusion depuis le bandeau.
     await A.page.click('.frmerge a');
     await A.page.click(`[data-act="fr-pick"][data-arg="${localM}"]`);
@@ -81,7 +81,7 @@ test('rattachement : joueur local fusionné dans l\'ami, annulé, refait ; propo
     await sync(B.page);
     await B.page.evaluate(() => { location.hash = '#/amis'; });
     await B.page.waitForSelector('.frmerge');
-    assert.match(await B.page.textContent('.frmerge'), /Guillaume est dans ta liste/);
+    assert.match(await B.page.textContent('.frmerge'), /Rattacher Guillaume/);
     await B.page.click('.frmerge a');
     await B.page.waitForSelector('[data-act="fr-nomerge"]');
     await B.page.click('[data-act="fr-nomerge"]');
