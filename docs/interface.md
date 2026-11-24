@@ -952,6 +952,12 @@ bouton ENTRAÎNEMENT SOLO sous la soirée (ENTRAÎNEMENT EN COURS en vidéo inve
 joueur : bouton STATS D'ENTRAÎNEMENT s'il a des séances. La saisie au doigt sur la cible est passée dans
 `src/ui/boardinput.js` (même comportement en partie).
 
+## Version 0.20.2 (24/11 : la partie en ligne dans l'appli et dans la soirée)
+
+rejoindre.html ouvre l'appli d'office sur Android (bouton à sa taille : il prenait tout l'écran) ; avertissement
+« navigateur » sur l'écran En ligne de la version web d'un téléphone Android ; partie en ligne dans la soirée de chaque
+téléphone. Détail : docs/enligne.md « 0.20.2 ».
+
 ## Version 0.20.1 (24/11 : la connexion en ligne)
 
 Aucun changement d'écran. Messages de signalisation PeerJS à la forme exigée par le serveur public (il coupait l'invité,

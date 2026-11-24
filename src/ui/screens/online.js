@@ -10,6 +10,7 @@ import { infoBtn, infoBox } from '../info.js';
 import { on, onlineSupport, createRoom, joinRoom, leave, hostLaunch, hostSetup, hostOrder, onlineGame, defaultMe, resumeOnline, cancelJoin, STEPS, STEP_LABEL } from '../online.js';
 import { cleanCode, codeFromUrl, joinUrl, roomPlayers, STATUS_LABEL, CODE_LENGTH, MAX_PHONES } from '../../engine/online.js';
 import { START_SCORES } from '../../engine/x01.js';
+import { isApk } from '../native.js';
 
 const info = { open: false };
 const sec = (t, n = '') => `<div class="sec">${t}${n !== '' ? ` <span class="n">${n}</span>` : ''}</div>`;
@@ -46,6 +47,21 @@ const explain = () => `<button type="button" class="fold" data-act="on-info" ari
     <p class="note">Coupure (veille, réseau) : la partie se met en pause pour tous et reprend d'elle-même au retour du joueur ; l'hôte peut passer ses volées ou l'exclure. Verres et animations de Tsia restent propres à chaque téléphone.</p></div>` : ''}`;
 
 /** Écran d'entrée : choisir son joueur, créer ou rejoindre. */
+/**
+ * 0.20.2 : version web ouverte sur un téléphone Android (QR code scanné, lien partagé) : elle a sa propre base, à part
+ * de l'appli. Le dire, avec un lien qui ouvre l'appli sur le même salon (strela://rejoindre/CODE, MainActivity).
+ */
+export function appIntentUrl(code = '', fallback = '') {
+  return `intent://rejoindre/${code}#Intent;scheme=strela;package=fr.orbitalvkl.strela;${fallback ? `S.browser_fallback_url=${encodeURIComponent(fallback)};` : ''}end`;
+}
+function webNotice(code) {
+  if (isApk() || !/Android/i.test(globalThis.navigator ? navigator.userAgent : '')) return '';
+  const inst = new URL('installer.html', location.href).href;
+  return `<div class="banner" role="note"><p>Tu es dans le <b>navigateur</b>, pas dans l'appli Strela : une partie jouée ici
+    reste dans le navigateur (historique, stats et badges à part de ceux de l'appli).</p>
+    <a class="btn" href="${esc(appIntentUrl(code || on.draftCode || '', inst))}">OUVRIR DANS L'APPLI</a></div>`;
+}
+
 function startScreen(code) {
   const sup = onlineSupport();
   const me = defaultMe();
@@ -56,6 +72,7 @@ function startScreen(code) {
   return `<div class="screen online">${topBar('En ligne', backFrom('#/'))}
     <div class="pad">
       ${!sup.ok ? `<div class="banner alert" role="alert">${esc(sup.why)}</div>` : `
+      ${webNotice(code)}
       ${g ? `<div class="banner" role="status">Partie en ligne en cours (salon ${esc(g.online.code)}). <button type="button" class="btn" data-act="on-resume">REPRENDRE</button></div>` : ''}
       ${sec('Ton joueur sur ce téléphone')}
       ${playerChips('on-me', on.me)}

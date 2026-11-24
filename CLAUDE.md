@@ -210,9 +210,17 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 8 (23/11) | Entraînement, stats et distribution (docs/lot-8-avancement.md) : 0.15.0 = saisie précise, règles, stats, listes en cartes — **fait** ; 0.16.0 = jeux de cible, défis en X01 solo, badges d'entraînement — **fait** ; 0.17.0 = modes, accueil, réglages, exports, installation — **fait** ; 0.17.1 = choix de la zone (rangées ou secteur) — **fait** |
 | 9 (23/11) | Lot 9 (docs/lot-9-avancement.md) : 0.18.0 = 9.3 saisie à la voix — **fait** ; 0.19.0 = 9.2 partie en ligne — **fait** ; 9.1 (iPhone) et 9.4 (audio en ligne) reportés |
 | 0.19.1 | Saisie verticale : secteur entier (rapide, d'un appui) / secteur touché (précis), réglage sur le pavé, traits S / D / T — **fait** |
+| 0.20.2 | En ligne : lien du salon qui ouvre l'appli, avertissement « navigateur », partie en ligne dans la soirée de chaque téléphone — **fait** |
 | 0.20.1 | En ligne : messages à la forme exigée par le serveur PeerJS public (il coupait l'invité, l'hôte ne recevait rien) — **fait** |
 | 9.5 | Retours du 24/11 (docs/lot-9-5.md) : en ligne par étapes avec repli MQTT, clavier, historique X01 solo juste, journal de débogage, sélecteur Soirée / Entraînement en haut des stats, résumé X01 (volées), impacts par secteur visé (v0.20.0) — **fait** |
 | 11 | Recette |
+
+## État (version 0.20.2 : en ligne, appli et soirée)
+
+- **0.20.1 validée par Guillaume** (24/11) : la partie en ligne se connecte à distance.
+- **0.20.2** (24/11) : réponses à « le salon s'ouvre sous Chrome, en parallèle de l'appli » et « le lien est-il bien fait
+  pour les stats, badges ? » (docs/enligne.md « 0.20.2 »). Aucune migration, rien de natif.
+- Non vérifié d'ici : que Chrome ouvre l'appli sans appui depuis rejoindre.html (sinon le bouton reste).
 
 ## État (version 0.20.1 : la connexion en ligne)
 

@@ -233,6 +233,8 @@ export function adoptOnlineGame(rec, online) {
     validated: rec.validated, online, ui: same ? old.ui : (ck ? freshCkUi() : freshUi()) };
   for (const k of ['shuffled', 'defis', 'defiSet']) if (rec[k] !== undefined) g[k] = rec[k];
   if (same && old.drinks) g.drinks = old.drinks;
+  // 0.20.2 : la partie reçue de l'hôte entre dans la soirée en cours de ce téléphone, comme une partie lancée ici.
+  if (same) { for (const k of ['soiree', 'drinksBefore']) if (old[k] !== undefined) g[k] = old[k]; } else attachSoiree(g);
   if (ck) { store.ck = g; store.current = null; } else { store.current = g; store.ck = null; }
   write([{ store: 'games', put: currentRecord(g) }]);
   return g;
@@ -507,6 +509,24 @@ export function startSoiree(players, now = Date.now()) {
   return store.soiree;
 }
 
+/**
+ * Lot 7.6 : soirée en cours → la partie X01 `g` en fait partie. Ses joueurs de ce téléphone rejoignent la soirée (0.20.2 :
+ * pas les adversaires en ligne, qui ont leurs verres et leur soirée sur leur propre téléphone) ; la partie garde leurs
+ * verres d'avant. Pour une partie lancée ici comme pour une partie en ligne reçue de l'hôte.
+ */
+function attachSoiree(g) {
+  if (!store.soiree || !g || isCricket(g)) return;
+  const local = g.config.players.filter(id => !playerById(id).remote);
+  joinSoiree(local);
+  g.soiree = store.soiree.id;
+  // 0.11.2 : les verres pris hors partie (écran Soirée) entrent dans cette partie, avant la première fléchette, pour
+  // être comptés partout (tableau de bord, rapport, stats) et ne plus se perdre à la fin de la soirée.
+  claimSoireeDrinks(g, local);
+  const before = {};
+  for (const id of local) { const n = soireeDrinks(id) - unitsOf(g.drinks && g.drinks[id]); if (n) before[id] = n; }
+  if (Object.keys(before).length) g.drinksBefore = before;
+}
+
 /** 0.11.2 : déplace les verres hors partie de ces joueurs (soirée en cours) dans la partie `g`, à la place `at`. */
 function claimSoireeDrinks(g, ids, at = 0) {
   const s = store.soiree;
@@ -621,6 +641,9 @@ export function startGame(setup) {
     const starts = players.map(id => setup.starts[id] || setup.startScore);
     if (starts.some(v => v !== setup.startScore)) config.starts = starts;
   }
+  // 0.20.2 : une partie en ligne (`setup.online`) ne touche pas aux derniers réglages (ses joueurs distants n'ont rien
+  // à faire dans « Nouvelle partie »).
+  const keep = store.lastSetup;
   store.lastSetup = { players: [...setup.players], startScore: setup.startScore, outMode: setup.outMode, legsToWin: setup.legsToWin,
     // REVANCHE (ni l'un ni l'autre donné) garde les préférences d'avant
     shuffle: setup.shuffle ?? store.lastSetup?.shuffle ?? true, playOn: setup.playOn ?? store.lastSetup?.playOn ?? false,
@@ -629,21 +652,12 @@ export function startGame(setup) {
   store.current = { id: newId('g'), config, darts: [], startedAt: Date.now(), validated: 0, ui: freshUi() };
   // Lot 7.6 : l'ordre tiré est noté dans la partie, pour que la REVANCHE tire de nouveau au sort.
   if (setup.shuffle && players.length > 1) store.current.shuffled = true;
-  // Lot 7.6 : soirée en cours. Les joueurs de la partie la rejoignent ; la partie garde leurs verres d'avant.
-  if (store.soiree) {
-    joinSoiree(players);
-    store.current.soiree = store.soiree.id;
-    // 0.11.2 : les verres pris hors partie (écran Soirée) entrent dans cette partie, avant la première fléchette, pour
-    // être comptés partout (tableau de bord, rapport, stats) et ne plus se perdre à la fin de la soirée.
-    claimSoireeDrinks(store.current, players);
-    const before = {};
-    for (const id of players) { const n = soireeDrinks(id) - unitsOf(store.current.drinks && store.current.drinks[id]); if (n) before[id] = n; }
-    if (Object.keys(before).length) store.current.drinksBefore = before;
-  }
+  attachSoiree(store.current);
   // Lot 9 : défis de soirée (tirés au sort pendant la partie, voir engine/defis.js).
   if (setup.defis === 'parfois' || setup.defis === 'souvent') { store.current.defis = setup.defis; store.current.defiSet = DEFI_SET; } // lot 7.8 : 14 défis
   // Ordre tiré : « À TOI, PSEUDO » annonce le premier à lancer.
   if (setup.shuffle && players.length > 1) store.current.ui.announce = 0;
+  if (setup.online) { store.lastSetup = keep; write([{ store: 'games', put: currentRecord(store.current) }]); return store.current; }
   write([{ store: 'games', put: currentRecord(store.current) }, { store: 'settings', key: 'lastSetup', put: store.lastSetup }]);
   return store.current;
 }
@@ -844,11 +858,11 @@ export function startCricket(setup) {
   const players = setup.shuffle ? shuffled(setup.players) : [...setup.players];
   const mode = ['points', 'sans', 'cutthroat'].includes(setup.ckMode) ? setup.ckMode : 'points';
   const config = { game: 'cricket', players, mode, legsToWin: setup.legsToWin || 1 };
-  store.lastSetup = { ...(store.lastSetup || { startScore: 501, outMode: 'double' }), players: [...setup.players], legsToWin: setup.legsToWin || 1,
+  if (!setup.online) store.lastSetup = { ...(store.lastSetup || { startScore: 501, outMode: 'double' }), players: [...setup.players], legsToWin: setup.legsToWin || 1,
     shuffle: setup.shuffle ?? store.lastSetup?.shuffle ?? true, game: 'cricket', ckMode: mode };
   store.ck = { id: newId('g'), config, darts: [], startedAt: Date.now(), validated: 0, ui: freshCkUi() };
   if (setup.shuffle && players.length > 1) store.ck.shuffled = true;
-  write([{ store: 'games', put: currentRecord(store.ck) }, { store: 'settings', key: 'lastSetup', put: store.lastSetup }]);
+  write([{ store: 'games', put: currentRecord(store.ck) }, ...(setup.online ? [] : [{ store: 'settings', key: 'lastSetup', put: store.lastSetup }])]);
   return store.ck;
 }
 

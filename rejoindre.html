@@ -11,7 +11,8 @@
 <link rel="stylesheet" href="assets/app.css">
 <!-- Strela (lot 9.2) : page ouverte par le QR code d'un salon en ligne (https://orbitalvkl.github.io/STRELA/
      rejoindre.html#CODE). Dans Chrome sur Android, OUVRIR DANS L'APPLI passe par le lien strela://rejoindre/CODE
-     (filtre d'intention de MainActivity) ; sinon, la version web rejoint le salon (index.html#/enligne/rejoindre/CODE).
+     (filtre d'intention de MainActivity), d'office depuis la 0.20.2 ; sinon, la version web rejoint le salon
+     (index.html#/enligne/rejoindre/CODE), avec sa propre base, à part de l'appli.
      Les liens https n'ouvrent plus une appli non vérifiée depuis Android 12 : d'où ce détour. -->
 <style>
   main { max-width: 560px; margin: 0 auto; padding: 20px 16px 48px; display: grid; gap: 14px; }
@@ -20,6 +21,7 @@
   .code { font-size: 44px; font-weight: 800; letter-spacing: 0.16em; }
   p { font-size: 14px; line-height: 1.6; margin: 0; }
   small { color: var(--dim); }
+  p a { color: var(--fg); }
 </style>
 </head>
 <body>
@@ -27,8 +29,10 @@
 <main>
   <h1>Rejoindre un salon</h1>
   <div><small>Code du salon</small><div class="code" id="code">—</div></div>
-  <a class="btn accent big" id="app" href="#">OUVRIR DANS L'APPLI STRELA</a>
+  <a class="btn accent big" id="ouvrir" href="#">OUVRIR DANS L'APPLI STRELA</a>
   <a class="btn big" id="web" href="index.html#/enligne">CONTINUER DANS LE NAVIGATEUR</a>
+  <p><small>Dans le navigateur, la partie reste dans le navigateur : elle n'apparaît ni dans l'historique, ni dans les
+    stats, ni dans les badges de l'appli.</small></p>
   <p><small>Sans l'appli : <a href="installer.html">installer Strela</a>. Dans l'appli, on peut aussi taper le code : accueil › EN LIGNE › REJOINDRE.</small></p>
 </main>
 <script>
@@ -37,10 +41,17 @@
   if (c) {
     document.getElementById('code').textContent = c;
     document.getElementById('web').href = 'index.html#/enligne/rejoindre/' + c;
-    document.getElementById('app').href = 'intent://rejoindre/' + c + '#Intent;scheme=strela;package=fr.orbitalvkl.strela;S.browser_fallback_url=' +
+    document.getElementById('ouvrir').href = 'intent://rejoindre/' + c + '#Intent;scheme=strela;package=fr.orbitalvkl.strela;S.browser_fallback_url=' +
       encodeURIComponent(location.href.replace(/rejoindre\.html.*$/, 'index.html#/enligne/rejoindre/' + c)) + ';end';
-    if (!/Android/i.test(navigator.userAgent)) document.getElementById('app').hidden = true;
-  } else document.getElementById('app').hidden = true;
+    if (!/Android/i.test(navigator.userAgent)) document.getElementById('ouvrir').hidden = true;
+    // 0.20.2 : sur Android, l'appli s'ouvre d'office (une fois par code), sans attendre l'appui ; si Chrome bloque
+    // l'ouverture sans appui, les boutons restent. Appli absente : Chrome suit le lien de repli (version web).
+    else {
+      var k = 'strela.ouvert.' + c, tried = false;
+      try { tried = !!sessionStorage.getItem(k); sessionStorage.setItem(k, '1'); } catch (e) { /* */ }
+      if (!tried) setTimeout(function () { location.href = document.getElementById('ouvrir').href; }, 150);
+    }
+  } else document.getElementById('ouvrir').hidden = true;
 </script>
 </body>
 </html>

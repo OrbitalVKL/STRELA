@@ -2,6 +2,12 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.20.2', date: '2026-11-24', title: 'En ligne : la partie va dans l\'appli et dans la soirée', items: [
+    'Lien ou QR code d\'un salon sur Android : l\'appli Strela s\'ouvre d\'elle-même sur le salon (avant, la page restait dans Chrome et le bouton OUVRIR DANS L\'APPLI prenait tout l\'écran).',
+    'Strela ouvert dans le navigateur d\'un téléphone Android : l\'écran En ligne prévient que la partie y restera, à part de l\'appli (historique, stats, badges), avec OUVRIR DANS L\'APPLI.',
+    'Partie en ligne pendant une soirée : elle entre dans la soirée de chaque téléphone, aussi chez celui qui a rejoint (avant : seulement chez l\'hôte). Les adversaires des autres téléphones ne sont pas ajoutés à ta soirée : leurs verres sont chez eux.',
+    'Après une partie en ligne, NOUVELLE PARTIE reprend tes réglages d\'avant (et pas les joueurs des autres téléphones).',
+  ] },
   { v: '0.20.1', date: '2026-11-24', title: 'En ligne : la connexion passe enfin', items: [
     'Partie en ligne : les téléphones se trouvent de nouveau. Le serveur de mise en relation PeerJS refusait les messages de Strela (il attend la forme exacte de sa propre bibliothèque) et coupait la liaison du téléphone qui rejoint : l\'hôte ne recevait jamais rien, d\'où « pas de réponse de l\'hôte ». Les messages ont maintenant la forme attendue ; essayé sur le vrai serveur entre deux navigateurs.',
     'Si la mise en relation est coupée pendant l\'attente de l\'hôte, le téléphone passe tout de suite au serveur suivant (au lieu d\'attendre 8 secondes) ; le journal de débogage le note.',

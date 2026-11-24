@@ -143,3 +143,21 @@ non).
 **Tester depuis une session** : le WebSocket sortant passe par le proxy (`HTTPS_PROXY`) — Chromium lancé avec
 `proxy: { server: HTTPS_PROXY, bypass: '127.0.0.1,localhost' }` et `ignoreHTTPSErrors` (tools/enligne-reel.mjs) ; dans
 node, undici (`ProxyAgent`, CA /root/.ccr/ca-bundle.crt) en `--no-save` hors du dépôt.
+
+## 0.20.2 : la partie dans l'appli et dans la soirée (premier essai réussi de Guillaume, 24/11)
+
+- **Appli ou navigateur.** Le QR code et PARTAGER LE LIEN mènent à rejoindre.html (Pages) : la version web y a sa
+  **propre base**, à part de l'appli (historique, stats, badges). Guillaume a vu « le salon s'ouvrir sous Chrome, comme
+  en parallèle de l'appli ». Désormais : sur Android, rejoindre.html ouvre l'appli d'office (intent
+  `strela://rejoindre/CODE`, une fois par code ; si Chrome bloque l'ouverture sans appui, les boutons restent) ; le
+  bouton CONTINUER DANS LE NAVIGATEUR dit que la partie restera dans le navigateur. L'écran En ligne de la version web
+  sur un téléphone Android le dit aussi, avec OUVRIR DANS L'APPLI (`appIntentUrl`, screens/online.js). Corrigé au
+  passage : le bouton OUVRIR DANS L'APPLI faisait toute la hauteur de l'écran (`id="app"` reprenait la règle `#app`
+  d'app.css).
+- **Stats, badges, records.** Une partie en ligne est une partie X01 / Cricket comme une autre (`store.games`,
+  champ `online`) : historique, stats et classement (filtre TOUTES / LOCALES / EN LIGNE), records, badges, défis,
+  pour le joueur de ce téléphone ; les adversaires en ligne restent hors des listes (`remote`).
+- **Soirée.** Avant : seule la partie de l'hôte entrait dans sa soirée en cours, et l'adversaire distant rejoignait
+  la soirée de l'hôte. Maintenant `attachSoiree` (store.js) sert aux deux : partie lancée ici et partie reçue de l'hôte
+  (`adoptOnlineGame`), joueurs de ce téléphone seulement. Une partie en ligne ne touche plus aux derniers réglages
+  (`setup.online`). Tests : tests/enligne-soiree.test.js.

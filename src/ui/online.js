@@ -199,8 +199,8 @@ export function hostLaunch() {
   const st = on.room.setup;
   const shuffle = st.order !== 'manual';
   const g = st.game === 'cricket'
-    ? startCricket({ players, ckMode: st.ckMode, legsToWin: st.legsToWin, shuffle })
-    : startGame({ players, startScore: st.startScore, outMode: st.outMode, legsToWin: st.legsToWin, shuffle, defis: st.defis });
+    ? startCricket({ players, ckMode: st.ckMode, legsToWin: st.legsToWin, shuffle, online: true })
+    : startGame({ players, startScore: st.startScore, outMode: st.outMode, legsToWin: st.legsToWin, shuffle, defis: st.defis, online: true });
   g.online = { code: on.code, role: 'host', me: on.me, host: on.me };
   const r = E.hostStart(on.room, wireGame(g));
   setRoom(r.room);
