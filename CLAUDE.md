@@ -1,6 +1,6 @@
 # Strela — règles du projet
 
-Appli Android de fléchettes (X01, Cricket depuis la 0.10.0, entraînement solo depuis la 0.12.0, niveau intermédiaire depuis la 0.13.0, X01 et Cricket en solo à l'entraînement depuis la 0.14.0, saisie à la voix depuis la 0.18.0, partie en ligne depuis la 0.19.0) pour Guillaume. Dépôt `OrbitalVKL/STRELA` (public, branche `main`).
+Appli Android de fléchettes (X01, Cricket depuis la 0.10.0, entraînement solo depuis la 0.12.0, niveau intermédiaire depuis la 0.13.0, X01 et Cricket en solo à l'entraînement depuis la 0.14.0, saisie à la voix depuis la 0.18.0, partie en ligne depuis la 0.19.0, compte en ligne et amis depuis la 0.21.0) pour Guillaume. Dépôt `OrbitalVKL/STRELA` (public, branche `main`).
 Cahier des charges : [docs/cahier-des-charges.md](docs/cahier-des-charges.md).
 
 ## Méthode de travail
@@ -112,6 +112,14 @@ src/engine/online.js      partie en ligne (lot 9.2, docs/enligne.md) : salon, au
                           src/ui/online.js (contrôleur), screens/online.js (#/enligne), qr.js (QR code) ; rejoindre.html
                           (page du QR code) ; tools/lib/signal-server.mjs (serveur local des tests) ;
                           tools/enligne-reel.mjs (essai sur les vrais serveurs, 0.20.1)
+supabase/schema.sql       base en ligne (lot 10, docs/cloud.md) : tables, RLS, fonctions strela_* ; à coller dans Supabase
+src/engine/cloud.js       compte en ligne, pur : identifiant, secret, code de récupération, code d'ami (tests/cloud.test.js)
+src/net/supabase.js       client Supabase maison (connexion anonyme, jeton, rpc) ; src/net/cloudconfig.js : adresse et clé
+                          publique (vides = synchronisation coupée) ; src/ui/cloud.js : compte invisible, syncNow, étapes ;
+                          src/ui/screens/account.js : Réglages › Compte et amis, #/compte
+tools/lib/pg.mjs          Postgres local jetable des tests (Supabase imité) ; tools/lib/fake-supabase.mjs : faux Supabase
+                          (mêmes adresses, fonctions jouées dans ce Postgres) ; tools/supabase.mjs : réveil, copie, remise ;
+                          .github/workflows/supabase.yml : réveil tous les 3 jours, copie chiffrée chaque lundi
 src/ui/journal.js         journal de débogage (lot 9.5) : log(cat, msg), 7 jours / 1 Mo, Réglages › Développement ;
                           src/ui/keyboard.js : champ actif gardé visible au-dessus du clavier
 src/engine/padinput.js    saisie au pavé debout (0.19.1) : secteur entier / secteur touché (pur, tests/saisie-pave.test.js)
@@ -212,7 +220,21 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 0.19.1 | Saisie verticale : secteur entier (rapide, d'un appui) / secteur touché (précis), réglage sur le pavé, traits S / D / T — **fait** |
 | 0.20.1 | En ligne : messages à la forme exigée par le serveur PeerJS public (il coupait l'invité, l'hôte ne recevait rien) — **fait** |
 | 9.5 | Retours du 24/11 (docs/lot-9-5.md) : en ligne par étapes avec repli MQTT, clavier, historique X01 solo juste, journal de débogage, sélecteur Soirée / Entraînement en haut des stats, résumé X01 (volées), impacts par secteur visé (v0.20.0) — **fait** |
+| 10 (24/11) | Amis, synchronisation, stats partagées (docs/lot-10.md, docs/lot-10-avancement.md) : 0.21.0 = étape 1, infra Supabase et compte invisible — **fait** ; étapes 2 à 6 à suivre |
 | 11 | Recette |
+
+## État (version 0.21.0 : lot 10, étape 1 — compte invisible)
+
+- **Reprise** : lire docs/lot-10-avancement.md (étapes, décisions, prochain geste) et docs/cloud.md (architecture).
+- **0.21.0** (24/11) : supabase/schema.sql complet (tables, RLS, fonctions des 6 étapes, présence), client maison,
+  compte invisible (`settings.cloudAccount` : UUID + secret, dans la sauvegarde ; réglages `cloudAuth`, `cloudSync`
+  non exportés), Réglages › Compte et amis, #/compte (code de récupération, retrouver, supprimer), action
+  `supabase.yml` (réveil, copie chiffrée), confidentialité. Aucune migration de la base du téléphone.
+- **Postgres** dans les sessions (`/usr/lib/postgresql/16`) et sur les machines de la CI : les tests jouent le vrai
+  schéma (tools/lib/pg.mjs, sous root via `runuser -u postgres`).
+- **Attendu de Guillaume** : adresse du projet et clé publique (→ src/net/cloudconfig.js) ; secret GitHub
+  `SUPABASE_SECRET_KEY` (+ `STRELA_BACKUP_PASSPHRASE` facultatif) pour la copie. Tant que cloudconfig.js est vide,
+  la synchronisation est coupée (« pas encore relié »).
 
 ## État (version 0.20.1 : la connexion en ligne)
 

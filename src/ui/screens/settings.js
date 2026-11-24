@@ -17,6 +17,7 @@ import { onlineSupport } from '../online.js';
 import { padModeOf } from '../../engine/padinput.js';
 import { log, setJournal, journalLines, journalText, journalFileName, clearJournal, journalSize, stamp, CATS } from '../journal.js';
 import { deliverFile } from './printsheet.js';
+import { accountCard } from './account.js';
 
 const prefersLight = () => { try { return matchMedia('(prefers-color-scheme: light)').matches; } catch (e) { return false; } };
 export const isDark = () => store.settings.theme === 'dark' || (store.settings.theme === 'auto' && !prefersLight());
@@ -375,6 +376,7 @@ export function settings2Screen() {
     : `<a class="lrow" href="#/bienvenue/nom">${ico('plus')}<span><b>Créer mon profil</b><small>Un nom et un avatar</small></span>${ico('chev')}</a>`}
         ${modes.soiree ? `<a class="lrow" href="#/joueurs">${ico('players')}<span><b>Joueurs</b><small>${plural(activePlayers().length, 'joueur', 'joueurs')}</small></span>${ico('chev')}</a>` : ''}
         ${setupDone() ? '' : `<a class="lrow" href="#/bienvenue">${ico('flag')}<span><b>Terminer la mise en place</b><small>Modes, nom, avatar, jeu de fléchettes</small></span>${ico('chev')}</a>`}`)}
+      ${accountCard()}
       ${card('target', 'Modes de l\'application', 'modes', `
         ${s2box('modes', '<b>Entraînement</b> : exercices, jeux de cible, stats et badges d\'entraînement. <b>Soirée</b> : parties à plusieurs (X01, Cricket), joueurs, verres, moqueries, classement. Éteindre un mode le retire de l\'écran, sans rien effacer : ses données restent et reviennent dès qu\'on le rallume. Un mode au moins reste allumé.')}
         <div class="rows">

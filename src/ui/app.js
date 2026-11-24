@@ -43,6 +43,8 @@ import { onlineToastHtml, resumeOnline, onlineGame } from './online.js';
 import { watchErrors, setJournal, log } from './journal.js';
 import { watchKeyboard } from './keyboard.js';
 import { welcomeScreen, tutorialScreen, installerScreen, actions as welcomeActions, inputs as welcomeInputs } from './screens/welcome.js';
+import { accountScreen, actions as accountActions, inputs as accountInputs } from './screens/account.js';
+import { startCloud, cloud, syncNow } from './cloud.js';
 
 // Version 0.8.0 : la refonte (lot 7.8, écrans de screens/v2/) remplace l'accueil, l'historique, les stats et les
 // réglages ; accueil A « tableau de bord » (choix de Guillaume, 13/11/2026).
@@ -87,6 +89,8 @@ const ROUTES = [
   [/^\/bienvenue(?:\/(.+))?$/, welcomeScreen],
   [/^\/tutoriel$/, tutorialScreen],
   [/^\/installer$/, installerScreen],
+  // Lot 10 : compte en ligne
+  [/^\/compte$/, accountScreen],
 ];
 
 const ACTIONS = {
@@ -94,8 +98,9 @@ const ACTIONS = {
   ...statsActions, ...settingsActions, ...historyActions, ...photoActions, ...aboutActions, ...sheetActions, ...soireeActions,
   ...stats2Actions, ...history2Actions, ...dashActions, ...infoActions, ...drinkActions, ...honourActions, ...cricketActions,
   ...trainingActions, ...trainStatsActions, ...arsenalActions, ...trainHonourActions, ...welcomeActions, ...voiceActions, ...onlineActions,
+  ...accountActions,
 };
-const INPUTS = { ...playerInputs, ...arsenalInputs, ...trainingInputs, ...trainStatsInputs, ...welcomeInputs, ...onlineInputs };
+const INPUTS = { ...playerInputs, ...arsenalInputs, ...trainingInputs, ...trainStatsInputs, ...welcomeInputs, ...onlineInputs, ...accountInputs };
 
 const app = document.getElementById('app');
 let lastPath = null;
@@ -378,6 +383,10 @@ if (new URLSearchParams(location.search).has('maquette')) {
 started = true;
 render();
 if (!store.maquette && onlineGame()) resumeOnline(); // lot 9.2 : une partie en ligne en cours reprend sa liaison
+if (!store.maquette && !store.db.openCode) startCloud(); // lot 10 : compte invisible, synchronisation en arrière-plan
+// Lot 10 : état de la synchronisation (lu par les tests) et synchronisation à la demande.
+window.__strelaCloud = () => ({ status: cloud.status, error: cloud.error, busy: cloud.busy, sync: { ...store.cloudSync }, account: store.settings.cloudAccount || null });
+window.__strelaSyncNow = reason => syncNow(reason || 'test');
 document.body.dataset.ready = '1';
 
 // Service worker « réseau d'abord » : appli installable, toujours la dernière version quand le réseau répond.

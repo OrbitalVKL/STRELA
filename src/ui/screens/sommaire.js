@@ -35,6 +35,8 @@ import { presetTrainSheet } from '../trainhonours.js';
 import { presetInfo } from '../info.js';
 import { presetVoice } from '../voiceinput.js';
 import { presetOnline } from '../online.js';
+import { presetAccount } from './account.js';
+import { cloud as cloudState } from '../cloud.js';
 import { createRoom as roomOf, hostStart as roomStart, hostReceive as roomHello, hostMemberStatus as roomStatus, hostSetup as roomSetup, helloMsg, createGuest, playerCard } from '../../engine/online.js';
 import { aimedDart, rng, simulateSoloX01, simulateSoloCricket } from '../mock.js';
 
@@ -227,6 +229,14 @@ function setSolo(exercise, game, { n = null, cut = 0, until = null, ui = {}, see
   return '#/entrainement/jeu';
 }
 const X501 = { startScore: 501, outMode: 'double', legs: 1 };
+
+/** Lot 10 : compte en ligne fictif (maquette : cloudSupport() le laisse s'afficher, rien n'est envoyé). */
+function mockCloud(status) {
+  store.mockCloud = true;
+  store.settings.cloudAccount = { profileId: '3f2a9c1e-7b4d-4e8a-9c21-5d6e7f8a9b0c', secret: '03NMMDDTH1AC1GCANYH0', createdAt: Date.UTC(2026, 10, 24) };
+  store.cloudSync = { friendCode: 'GWB8VS', lastSync: Date.now() - 12 * 60000 };
+  cloudState.status = status; cloudState.error = status === 'offline' ? 'pas de réseau, ou serveur injoignable' : '';
+}
 
 export const SCENES = {
   // 0.14.0 : jeux en solo.
@@ -621,6 +631,12 @@ export const SCENES = {
     presetOnline({ role: 'guest', code: 'BCD23', me: 'p1', state: 'open', room: { ...roomSetup(mockRoom(['p1'], { host: 'p2' }), { game: 'cricket' }).room, phase: 'playing' } });
     return h;
   },
+  // Lot 10 : compte et amis (synchronisation fictive : rien ne part).
+  'l10-compte': () => { mockCloud('ok'); presetSettings2({ info: [] }); return '#/reglages'; },
+  'l10-compte-hors-ligne': () => { mockCloud('offline'); return '#/reglages'; },
+  'l10-compte-coupe': () => { mockCloud('off'); store.settings.cloud = false; return '#/reglages'; },
+  'l10-mon-compte': () => { mockCloud('ok'); presetAccount({ showCode: true, info: new Set(['recup']) }); return '#/compte'; },
+  'l10-mon-compte-suppression': () => { mockCloud('ok'); presetAccount({ confirm: true, draft: 'ABCDE-FGHJK', msg: 'Code de récupération illisible : vérifie chaque groupe de 5 caractères.' }); return '#/compte'; },
   // Lot 9.5 : historique d'un X01 solo (partie de Guillaume du 23/11), étapes de la connexion, journal, stats, impacts.
   'l95-carte': () => { const r = a3Session(); presetCards([r.id]); return '#/entrainement'; },
   'l95-resume': () => { const r = a3Session(); presetInfo(); presetDetail(); return `#/entrainement/seance/${r.id}`; },
@@ -944,6 +960,11 @@ export function sommaire() {
       ${L('voix-explication', '◇ Voix : micro expliqué', 'avant la demande d\'Android')}
       ${L('voix-cricket', '◇ Voix : Cricket', 'micro dans le bandeau')}
       ${L('voix-entrainement', '◇ Voix : entraînement')}
+      ${L('l10-compte', '▲ Lot 10 : Réglages › Compte et amis', 'synchronisé')}
+      ${L('l10-compte-hors-ligne', '▲ Lot 10 : compte, hors ligne')}
+      ${L('l10-compte-coupe', '▲ Lot 10 : synchronisation coupée')}
+      ${L('l10-mon-compte', '▲ Lot 10 : Mon compte', 'code de récupération affiché')}
+      ${L('l10-mon-compte-suppression', '▲ Lot 10 : Mon compte, suppression à confirmer')}
       ${L('l95-carte', '◆ Lot 9.5 : séance X01, grille des volées', 'bust, victoire en 2 fléchettes')}
       ${L('l95-resume', '◆ Lot 9.5 : résumé X01 solo', 'volées en tête, grille sous la cible')}
       ${L('l95-etapes', '◆ Lot 9.5 : en ligne, étapes de connexion')}

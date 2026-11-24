@@ -1,7 +1,7 @@
 // Strela — journal de débogage (lot 9.5, B) : ce qui s'est passé sur ce téléphone, horodaté, pour comprendre un
 // problème signalé pendant la phase de lancement (mode en ligne qui ne se connecte pas, historique incohérent…).
 // Local seulement : rien ne part du téléphone sans EXPORTER (Réglages › Développement) ou la case de la sauvegarde.
-//   log(cat, msg, data?)  cat : 'erreur' | 'enligne' | 'saisie' | 'maj' | 'base' | 'appli'
+//   log(cat, msg, data?)  cat : 'erreur' | 'enligne' | 'saisie' | 'maj' | 'base' | 'appli' | 'cloud' (lot 10)
 // Borné : 7 jours, et au plus MAX_CHARS caractères (les plus anciennes lignes partent d'abord). Rien de personnel hors
 // pseudos : ni adresse réseau (les candidats WebRTC sont comptés par type), ni contenu de sauvegarde.
 // Stockage : localStorage (clé strela.journal), écrit au plus une fois par seconde (tout de suite pour une erreur) ;
@@ -10,7 +10,7 @@
 export const KEY = 'strela.journal';
 export const KEEP_MS = 7 * 86400000;
 export const MAX_CHARS = 1000000; // ~1 Mo
-export const CATS = Object.freeze({ erreur: 'ERREUR', enligne: 'EN LIGNE', saisie: 'SAISIE', maj: 'MISE À JOUR', base: 'BASE', appli: 'APPLI' });
+export const CATS = Object.freeze({ erreur: 'ERREUR', enligne: 'EN LIGNE', saisie: 'SAISIE', maj: 'MISE À JOUR', base: 'BASE', appli: 'APPLI', cloud: 'SYNCHRO' });
 
 let lines = null;      // [[t, cat, msg]]
 let enabled = true;

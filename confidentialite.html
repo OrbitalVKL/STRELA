@@ -27,9 +27,11 @@
 <div class="band">STRELA</div>
 <main>
   <h1>Politique de confidentialité</h1>
-  <small>Strela — compteur de fléchettes X01 · version <!--@version-->dev<!--/@--> · mise à jour le 23 novembre 2026</small>
+  <small>Strela — compteur de fléchettes X01 · version <!--@version-->dev<!--/@--> · mise à jour le 24 novembre 2026</small>
 
-  <p class="lead" style="margin-top:20px">Strela ne collecte, ne transmet ni ne partage aucune donnée personnelle.</p>
+  <p class="lead" style="margin-top:20px">Strela ne collecte, ne transmet ni ne partage aucune donnée personnelle à des fins
+    commerciales, publicitaires ou de mesure. Version Google Play : rien ne quitte le téléphone. Version GitHub et version
+    web : seulement ce que tu partages avec tes amis (synchronisation, plus bas), et que tu peux supprimer d'un appui.</p>
 
   <h2>Ce que Strela enregistre</h2>
   <p>Pour compter les parties, Strela garde sur le téléphone, et seulement là :</p>
@@ -75,9 +77,31 @@
       dans son propre historique, avec les joueurs des autres téléphones (rangés à part).</li>
   </ul>
 
+  <h2>Compte et amis (synchronisation)</h2>
+  <p>Version GitHub (APK) et version web seulement ; la version Google Play n'a pas d'accès à Internet. Pour partager
+    parties et stats avec tes amis, Strela crée un compte <b>sans e-mail ni mot de passe</b> : un identifiant tiré au
+    hasard sur le téléphone et une connexion anonyme. Ce qui est envoyé, et seulement cela :</p>
+  <ul>
+    <li>ton profil : pseudo, avatar (photo comprise si c'en est une), animation de tour, jeux de fléchettes, date de
+      dernière activité ; ton code d'ami ;</li>
+    <li>les parties et séances d'entraînement créées sur ton téléphone : chaque fléchette, les réglages de la partie, le
+      pseudo et l'avatar des joueurs du téléphone qui y ont joué (sans compte, ils ne sont pas partagés comme profils) ;</li>
+    <li>tes liens d'amitié (demandes, acceptées, refusées) ; la présence (appli ouverte, en partie), si tu la laisses
+      visible.</li>
+  </ul>
+  <p>Où : une base Supabase (offre gratuite), hébergée dans l'Union européenne, accessible au seul auteur de Strela
+    pour l'entretien. Qui le voit : toi et tes amis acceptés, personne d'autre (règles d'accès par ligne de la base).
+    Une copie chiffrée de la base est faite chaque semaine (gardée 90 jours) pour pouvoir la reconstruire. Le
+    téléphone garde tout de son côté et marche sans réseau.</p>
+  <p><b>Tout supprimer</b> : Réglages › Compte et amis › Mon compte › SUPPRIMER MES DONNÉES EN LIGNE. Ton profil, tes
+    amitiés et les parties envoyées par ton téléphone sont effacés du serveur (et disparaissent chez tes amis) ; les
+    copies hebdomadaires s'effacent d'elles-mêmes en 90 jours. Rien n'est effacé sur le téléphone. Couper la
+    synchronisation (même écran) arrête tout envoi.</p>
+
   <h2>Suppression</h2>
-  <p>Supprimer un joueur ou une partie l'efface du téléphone. Désinstaller l'appli efface toutes ses données
-    (exporte une sauvegarde avant si tu veux les garder).</p>
+  <p>Supprimer un joueur ou une partie l'efface du téléphone (une partie que tu as créée est aussi effacée chez tes
+    amis). Désinstaller l'appli efface toutes ses données du téléphone (exporte une sauvegarde avant si tu veux les
+    garder) ; tes données en ligne se suppriment depuis les Réglages, voir plus haut.</p>
 
   <h2>Enfants</h2>
   <p>Strela ne recueille aucune donnée, de personne, quel que soit son âge.</p>
