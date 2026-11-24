@@ -14,7 +14,7 @@ import { supabaseClient, cloudErrorText } from '../net/supabase.js';
 import { cloudAccountRecord, newCloudAccount, cleanCloudConfig, parseRecoveryCode, CLOUD_FORMAT } from '../engine/cloud.js';
 
 /** État affiché (non enregistré) : status 'off' | 'idle' | 'sync' | 'ok' | 'offline' | 'error'. */
-export const cloud = { status: 'off', error: '', busy: false, again: false, lastTry: 0, msg: '' };
+export const cloud = { status: 'off', error: '', busy: false, lastTry: 0, msg: '' };
 
 /** Adresse et clé : celles de la page (tests : ?cloud=URL|CLÉ, gardées pour la session), sinon cloudconfig.js. */
 export function cloudConfig() {
@@ -112,13 +112,24 @@ export function profilePayload() {
 const steps = [];
 export const addSyncStep = (name, fn) => { if (!steps.some(s => s.name === name)) steps.push({ name, fn }); };
 
-/** Synchronisation complète, en arrière-plan. Une demande pendant qu'une autre tourne la relance à la fin. */
-export async function syncNow(reason = '') {
-  const sup = cloudSupport();
-  if (store.maquette) return false;
-  if (!sup.ok) { cloud.status = 'off'; return false; }
-  if (cloud.busy) { cloud.again = true; return false; }
-  cloud.busy = true; cloud.again = false; cloud.lastTry = Date.now();
+let current = null; // passe en cours (promesse de son résultat)
+let queued = null;  // passe suivante, demandée pendant la passe en cours (une seule)
+
+/**
+ * Synchronisation complète, en arrière-plan ; renvoie vrai si elle a abouti. Une demande pendant qu'une passe tourne
+ * en programme une seule autre, juste après (ce qui a changé entre-temps part aussi), et en attend le résultat.
+ */
+export function syncNow(reason = '') {
+  if (store.maquette) return Promise.resolve(false);
+  if (!cloudSupport().ok) { cloud.status = 'off'; return Promise.resolve(false); }
+  const start = () => { current = pass(reason).finally(() => { current = null; }); return current; };
+  if (!current) return start();
+  if (!queued) queued = current.then(() => { queued = null; return start(); });
+  return queued;
+}
+
+async function pass(reason) {
+  cloud.busy = true; cloud.lastTry = Date.now();
   const was = cloud.status;
   cloud.status = 'sync';
   if (was !== 'sync') redraw();
@@ -143,7 +154,6 @@ export async function syncNow(reason = '') {
     cloud.busy = false;
     redraw();
   }
-  if (cloud.again) { cloud.again = false; return syncNow('relance'); }
   return ok;
 }
 

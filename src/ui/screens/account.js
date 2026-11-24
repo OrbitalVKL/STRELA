@@ -45,7 +45,7 @@ export const TOO_NEW = 'Mets à jour Strela pour voir les parties de tes amis : 
 function pendingLine() {
   let n = 0;
   try { n = pendingCount(); } catch (e) { n = 0; }
-  return n ? `<div class="kv"><span>À envoyer</span><b class="small">${n} partie${n > 1 ? 's' : ''} ou séance${n > 1 ? 's' : ''}</b></div>` : '';
+  return n ? `<div class="kv"><span>Parties à envoyer</span><b class="small">${n}</b></div>` : '';
 }
 
 /** Carte des Réglages. */

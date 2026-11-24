@@ -5,7 +5,7 @@
 // - Classement (#/classement) : palmarès (le meilleur et le pire de chaque chiffre) et classement complet par chiffre.
 // Tout est recalculé depuis les fléchettes (engine/stats.js), comme les Stats actuelles.
 import { modeBand } from '../../modeband.js';
-import { store, playerById, appModes } from '../../store.js';
+import { store, playerById, appModes, allGames, allCkGames, allTrainings, profilePlayer } from '../../store.js';
 import { esc, ico, topBar, avg, pct, int, plural, when, OUT_SHORT } from '../../dom.js';
 import { avatarHtml } from '../../avatars.js';
 import { playerStats, inPeriod, gameState } from '../../../engine/stats.js';
@@ -100,7 +100,7 @@ const bySource = games => (source === 'local' ? games.filter(g => !g.online) : s
 const periodSeg = () => {
   const p = currentPeriod();
   const b = (v, l) => `<button type="button" data-act="period" data-arg="${v}" aria-pressed="${p === v}">${l}</button>`;
-  const hasOnline = store.games.some(g => g.online) || store.ckGames.some(g => g.online);
+  const hasOnline = allGames().some(g => g.online) || allCkGames().some(g => g.online);
   const o = (v, l) => `<button type="button" data-act="stats-source" data-arg="${v}" aria-pressed="${source === v}">${l}</button>`;
   return `<div class="seg">${b('7j', '7 jours')}${b('30j', '30 jours')}${b('tout', 'Tout')}</div>${hasOnline ? `<div class="seg" style="margin-top:6px" role="group" aria-label="Parties">${o('tout', 'Toutes')}${o('local', 'Locales')}${o('ligne', 'En ligne')}</div>` : ''}`;
 };
@@ -301,7 +301,7 @@ function sectorTable(seg) {
 // ------------------------------------------------------------------ écran Stats (joueur)
 /** Lot 10 : chiffres du Cricket du joueur sur la période (à part des chiffres X01), ou '' s'il n'en a pas joué. */
 function cricketBlock(pid) {
-  const c = cricketPlayerStats(bySource(inPeriod(store.ckGames, currentPeriod())), pid);
+  const c = cricketPlayerStats(bySource(inPeriod(allCkGames(), currentPeriod())), pid);
   if (!c.played) return '';
   const mpr = c.mpr === null ? '—' : (Math.round(c.mpr * 100) / 100).toFixed(2).replace('.', ',');
   return `${sec('Cricket', 'cricket')}
@@ -312,19 +312,31 @@ function cricketBlock(pid) {
 
 /** Lot 8 : lien vers les stats d'entraînement du joueur, s'il a des séances. */
 function trainingLink(pid) {
-  const n = store.trainings.filter(r => r.player === pid).length;
+  const n = allTrainings().filter(r => r.player === pid).length;
   // Lot 9.5 (C1) : les deux modes allumés, le choix est en haut de l'écran (modeband.js) : plus de bouton ici.
   const m = appModes();
   if (!n || (m.train && m.soiree)) return '';
   return `${sec('Entraînement', null)}<button type="button" class="btn" data-act="ts-open" data-arg="${esc(pid)}">${ico('stats')} STATS D'ENTRAÎNEMENT <small>${plural(n, 'séance', 'séances')}</small></button>`;
 }
 
+/**
+ * Lot 10 (étape 5) : joueurs du sélecteur des stats — moi d'abord, puis mes amis, puis les joueurs du téléphone (les
+ * archivés seulement s'ils ont joué). Jamais les joueurs distants (adversaires en ligne, joueurs des téléphones d'amis).
+ */
+export function statsPlayers() {
+  const me = profilePlayer();
+  const played = id => allGames().some(g => g.config.players.includes(id)) || allCkGames().some(g => g.config.players.includes(id));
+  const pool = store.players.filter(p => !p.remote && (!p.archived || played(p.id)));
+  const rank = p => (me && p.id === me.id ? 0 : p.friend ? 1 : 2);
+  return pool.map((p, i) => ({ p, i })).sort((a, b) => rank(a.p) - rank(b.p) || a.i - b.i).map(x => x.p);
+}
+
 export function stats2Screen(id) {
-  const players = store.players.filter(p => !p.remote && (!p.archived || store.games.some(g => g.config.players.includes(p.id)))); // lot 9.2 : adversaires en ligne à part
+  const players = statsPlayers(); // lot 10 : moi, mes amis, puis les joueurs du téléphone (adversaires en ligne à part)
   if (!players.length) return `<div class="screen">${topBar('Stats', '#/')}<div class="empty"><div class="big">AUCUN JOUEUR</div></div></div>`;
   const pid = id && players.some(p => p.id === id) ? id : players[0].id;
   const p = playerById(pid);
-  const games = bySource(inPeriod(store.games, currentPeriod()));
+  const games = bySource(inPeriod(allGames(), currentPeriod()));
   const st = playerStats(games, pid);
   const chips = `<div class="chips">${players.map(q => `<a class="btn chip" href="#/stats/${esc(q.id)}" aria-pressed="${q.id === pid}">${avatarHtml(q, 38)}<span class="nm">${esc(q.name.split(' ')[0])}</span></a>`).join('')}</div>`;
   const head = `${topBar('Stats', backFrom('#/'))}${modeBand('soiree', { tabs: true, pid })}${tabs('joueur')}${chips}<div class="pad" style="margin-top:10px">${periodSeg()}</div>`;
@@ -424,7 +436,7 @@ function onesKpi(games, pid, st) {
 
 // ------------------------------------------------------------------ classement global
 function rankingData(games) {
-  const ids = [...new Set(games.flatMap(g => g.config.players))].filter(id => store.players.some(p => p.id === id));
+  const ids = [...new Set(games.flatMap(g => g.config.players))].filter(id => store.players.some(p => p.id === id && !p.remote));
   return ids.map(id => {
     const s = playerStats(games, id);
     const vals = {};
@@ -444,7 +456,7 @@ function ranked(rows, m) {
 }
 
 export function rankingScreen() {
-  const games = bySource(inPeriod(store.games, currentPeriod()));
+  const games = bySource(inPeriod(allGames(), currentPeriod()));
   const rows = rankingData(games);
   const head = `${topBar('Classement', backFrom('#/'))}${modeBand('soiree', { tabs: true })}${tabs('classement')}<div class="pad" style="margin-top:10px">${periodSeg()}</div>`;
   if (rows.length < 2) {

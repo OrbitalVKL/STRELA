@@ -220,19 +220,22 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 0.19.1 | Saisie verticale : secteur entier (rapide, d'un appui) / secteur touché (précis), réglage sur le pavé, traits S / D / T — **fait** |
 | 0.20.1 | En ligne : messages à la forme exigée par le serveur PeerJS public (il coupait l'invité, l'hôte ne recevait rien) — **fait** |
 | 9.5 | Retours du 24/11 (docs/lot-9-5.md) : en ligne par étapes avec repli MQTT, clavier, historique X01 solo juste, journal de débogage, sélecteur Soirée / Entraînement en haut des stats, résumé X01 (volées), impacts par secteur visé (v0.20.0) — **fait** |
-| 10 (24/11) | Amis, synchronisation, stats partagées (docs/lot-10.md, docs/lot-10-avancement.md) : 0.21.0 = étape 1, infra Supabase et compte invisible — **fait** ; 0.22.0 = étapes 2 à 4, amis, rattachement, parties partagées — **fait** ; étapes 5 (stats) et 6 (présence) à suivre |
+| 10 (24/11) | Amis, synchronisation, stats partagées (docs/lot-10.md, docs/lot-10-avancement.md) : 0.21.0 = étape 1, infra Supabase et compte invisible — **fait** ; 0.22.0 = étapes 2 à 5, amis, rattachement, parties et stats partagées — **fait** ; étape 6 (présence) à suivre |
 | 11 | Recette |
 
-## État (version 0.22.0 : lot 10, étapes 2 à 4 — amis, rattachement, parties partagées)
+## État (version 0.22.0 : lot 10, étapes 2 à 5 — amis, rattachement, parties et stats partagées)
 
-- **Reprise** : docs/lot-10-avancement.md (décisions de chaque étape, prochain geste : étape 5, stats partagées).
+- **Reprise** : docs/lot-10-avancement.md (décisions de chaque étape, prochain geste : étape 6, présence).
 - **0.22.0** (24/11) : écran Amis (#/amis : code + QR, demandes, retirer), joueurs en trois sections, ami = joueur
   `u:<uuid>` en lecture seule (`friend`, `seen`, `sets`) ; rattachement d'un joueur local (#/amis/rattacher/<uuid>,
   engine/merge.js, annulable) ; synchronisation des parties et séances (engine/sync.js, ui/gamesync.js : envoi par
   empreintes, réception traduite, suppression propagée) ; parties reçues `owner` en lecture seule, celles sans moi dans
   `store.friendGames` / `friendTrainings`. Aucune migration (champs facultatifs). Nouveaux fichiers : src/ui/friends.js,
   src/ui/screens/friends.js, src/ui/gamesync.js, src/engine/merge.js, src/engine/sync.js ; tests amis-parcours,
-  rattachement(-parcours), synchro(-parcours).
+  rattachement(-parcours), synchro(-parcours), badges-enligne.
+- Étape 5 : stats, badges, records, classement sur `allGames()` / `allCkGames()` / `allTrainings()` (store.js) ; sélecteur
+  moi → amis → joueurs du téléphone ; bandeau « Multijoueur » ; 6 badges en ligne (`online: true`, visibles après une
+  partie en ligne ; `online.cut` posé par ui/online.js).
 - Corrigé en passant (0.21.0) : course de la saisie vocale (un « start » d'Android après la phrase rouvrait l'écoute),
   cause du test APK instable de voix-parcours.
 

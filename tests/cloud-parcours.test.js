@@ -89,6 +89,9 @@ test('compte invisible : créé à l\'ouverture, profil envoyé, gardé, retrouv
     assert.equal((await state(B.page)).sync.friendCode, a0.sync.friendCode);
     assert.equal(await sb.sql(`select count(*) from appareil where profil = '${a0.account.profileId}'`), '2');
     await settle(B.page);
+    // B a fini de se synchroniser (sinon il recréerait le compte juste après : limite documentée, docs/lot-10-avancement.md).
+    await B.page.waitForFunction(() => !window.__strelaCloud().busy);
+    await B.page.close();
 
     // Supprimer mes données en ligne (depuis A) : plus rien sur le serveur pour ce compte ; synchronisation coupée.
     await A.page.click('[data-act="acc-confirm"][data-arg="1"]');

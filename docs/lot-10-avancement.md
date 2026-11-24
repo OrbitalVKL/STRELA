@@ -9,8 +9,8 @@ publiés : rien à terminer avant.
 | 2 | 0.22.0 | amis : écran Amis (QR + code, scanner / saisir), demandes, liste de joueurs en trois sections, amis en lecture seule | fait |
 | 3 | 0.22.0 | rattachement des joueurs locaux aux amis (fusion annulable, journalisée) — regroupé avec l'étape 2 (une seule demande de fusion) | fait |
 | 4 | 0.22.0 | synchronisation des parties et séances (envoi par empreintes, réception, suppression propagée, format) — regroupée avec 2 et 3 | fait |
-| 5 | 0.23.0 | stats partagées (sélecteur de joueur, Stats multijoueur / entraînement, badges en ligne) | à faire |
-| 6 | 0.24.0 | présence (Realtime) | à faire |
+| 5 | 0.22.0 | stats partagées (sélecteur de joueur, Stats multijoueur / entraînement, badges en ligne) — regroupée avec 2 à 4 | fait |
+| 6 | 0.23.0 | présence (Realtime) | à faire |
 
 ## Décisions (prises sans Guillaume, à lui dire)
 
@@ -73,10 +73,26 @@ publiés : rien à terminer avant.
 - Sync à la fin d'une partie ou séance : crochet `setClosedListener` (store.js) posé par cloud.js.
 - Format trop récent : compté (`tooNewCount`), message « Mets à jour Strela… » (Réglages, Amis).
 
+## Étape 5 — décisions
+
+- Sources des stats : `allGames()`, `allCkGames()`, `allTrainings()` (store.js) = les miennes + celles de mes amis entre
+  eux ; chaque calcul filtre par joueur, donc les stats, records, badges (même date, même partie, même volée) d'un ami
+  sont les mêmes que chez lui dès que toutes ses parties sont arrivées. Classement et tableau d'honneur aussi.
+- Sélecteur (stats multijoueur et entraînement) : moi, puis mes amis, puis les joueurs du téléphone ; jamais les
+  joueurs distants (classement compris : `!p.remote`).
+- Bandeau : « Multijoueur » / « Entraînement » (modeband.js). Filtre Toutes / Locales / En ligne gardé.
+- Badges en ligne (engine/badges.js, `online: true`) : n'apparaissent dans la vitrine qu'après une partie en ligne
+  (`h.onlineIds`), pour ne pas encombrer celle des joueurs qui n'y jouent pas. « Ami » = joueur qui a un compte
+  (`accounts` : mon profil et mes amis). Sang-froid : seul dernier (moins de manches, puis plus gros reste) après la
+  moitié des fléchettes. Reconnexion héroïque : `online.cut` posé par ui/online.js à chaque coupure (hôte qui perd un
+  invité, invité qui perd l'hôte, hôte qui reprend son salon). Fidèle au poste : badge à rangs 10 / 50 / 150.
+- Synchronisation : une demande pendant une passe en cours en programme une seule autre et en attend le résultat
+  (cloud.js › syncNow).
+
 ## Prochain geste
 
-Étape 5 (stats partagées) : sélecteur de joueur en haut des stats (moi ou un ami ; les stats d'un ami se calculent sur
-`store.games` + `store.friendGames` filtrés à son identifiant, de même pour l'entraînement avec `friendTrainings`),
-libellés « Stats multijoueur » / « Stats entraînement » dans le bandeau (modeband.js), filtre local / en ligne gardé,
-badges en ligne (Premier contact, Longue distance, Revanche, Sang-froid, Fidèle au poste, Reconnexion héroïque).
-Puis étape 6 : présence (Realtime, canal `strela-presence`).
+Étape 6 (présence) : Supabase Realtime, canal privé `strela-presence` (politiques déjà dans schema.sql) ; client
+WebSocket maison (protocole Phoenix : phx_join avec `config.presence.key` = mon UUID, `presence_state` /
+`presence_diff`, heartbeat 25 s, jeton d'accès en `access_token`) ; état « en ligne » / « en partie » (partie ou séance
+en cours) ; pastille sur la liste d'amis et les avatars d'amis ; réglage `presence` (Réglages › Compte et amis) ;
+dernière activité sinon (« vu il y a 2 h », déjà là). Faux serveur Realtime à ajouter à tools/lib/fake-supabase.mjs.

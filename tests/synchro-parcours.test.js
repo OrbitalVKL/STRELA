@@ -88,6 +88,13 @@ test('parties partagées : soirée visible chez l\'amie, à part sans elle, hors
     const gb2 = await games(B.page);
     assert.equal(gb2.games.length, 1);
     assert.equal(gb2.friendGames.length, 1);
+    // Étape 5 : stats de Guillaume chez B — ses deux parties (avec et sans Mathilde) ; sélecteur : moi, puis l'ami.
+    await B.page.evaluate(id => { location.hash = `#/stats/${id}`; }, friendA);
+    await B.page.waitForSelector('.who2');
+    assert.match(await B.page.textContent('.who2'), /Guillaume[\s\S]*2\sparties[\s\S]*2\svictoires/);
+    const chips = await B.page.$$eval('.stats2 .chips .nm', els => els.map(e => e.textContent));
+    assert.deepEqual(chips.slice(0, 2), ['Mathilde', 'Guillaume']);
+    assert.match(await B.page.textContent('.modeband'), /Multijoueur|Stats multijoueur/);
     // Rechargement de B : tout est gardé, au même endroit.
     await reload(B.page);
     const gb3 = await games(B.page);

@@ -40,7 +40,7 @@ export function historyEmpty() {
 }
 
 export function historyDetail(id) {
-  const g = store.games.find(x => x.id === id);
+  const g = store.games.find(x => x.id === id) || store.friendGames.find(x => x.id === id); // lot 10 : partie d'amis (badges, stats)
   if (!g) { go('#/historique', { replace: true }); return ''; }
   const s = gameState(g);
   const w = gameWinner(g);

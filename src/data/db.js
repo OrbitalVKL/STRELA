@@ -233,6 +233,7 @@ export function cleanOnline(x) {
   if (typeof x.me === 'string') out.me = x.me;
   if (typeof x.host === 'string') out.host = x.host;
   if (x.room && typeof x.room === 'object') out.room = x.room;
+  if (x.cut === true) out.cut = true; // lot 10 : coupure réseau pendant la partie
   return out;
 }
 

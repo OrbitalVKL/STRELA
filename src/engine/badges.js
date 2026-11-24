@@ -35,6 +35,13 @@ export const BADGES = Object.freeze([
   { key: 'feu', name: 'Le Feu d\'Artifice', desc: 'Volées à 180', what: ['volée à 180', 'volées à 180'], icon: 'burst', tiers: [1, 5, 20] },
   { key: 'deco', name: 'Décorateur de Murs', desc: 'Fléchettes hors cible', what: ['fléchette hors cible', 'fléchettes hors cible'], icon: 'wall', tiers: [20, 75, 200] },
   { key: 'plus', name: 'Monsieur Plus', desc: 'Bust', what: ['bust', 'bust'], icon: 'plusplus', tiers: [25, 100, 300] },
+  // Lot 10 (validés par Guillaume le 24/11) : parties en ligne. « Ami » = joueur qui a un compte (moi ou un ami lié).
+  { key: 'contact', name: 'Premier contact', desc: 'Finir une première partie en ligne', icon: 'phone', online: true },
+  { key: 'distance', name: 'Longue distance', desc: 'Gagner en ligne contre un ami', icon: 'trophy', online: true },
+  { key: 'revanche', name: 'Revanche', desc: 'Battre en ligne un ami qui t\'avait battu à la partie précédente', icon: 'up', online: true },
+  { key: 'sangfroid', name: 'Sang-froid', desc: 'Gagner en ligne après avoir été dernier à mi-partie', icon: 'check', online: true },
+  { key: 'reconnexion', name: 'Reconnexion héroïque', desc: 'Gagner une partie en ligne après une coupure réseau', icon: 'sync', online: true },
+  { key: 'fidele', name: 'Fidèle au poste', desc: 'Parties en ligne', what: ['partie en ligne', 'parties en ligne'], icon: 'phone', tiers: [10, 50, 150], online: true },
 ]);
 const BY_KEY = Object.fromEntries(BADGES.map(b => [b.key, b]));
 export const badgeByKey = key => BY_KEY[key] || null;
@@ -74,7 +81,20 @@ const eveningKey = ms => { const d = new Date(ms - 6 * 3600e3); return `${d.getF
  * badge, ou null (badge de toute la partie). Badges à rangs (lot 7.8) : { at, gameId, visit, count: rang atteint, tier,
  * total, tiers: [{ tier, at, gameId, visit }] }. `now` : les mois pas encore finis ne donnent pas de badge du mois.
  */
-export function honours(games, now = Date.now()) {
+/** Lot 10 : à mi-partie (la moitié des fléchettes jouées), le joueur `p` était-il seul dernier (moins de manches, puis
+ *  le plus gros reste) ? */
+export function lastAtHalf(g, p) {
+  if (g.config.players.length < 2 || g.darts.length < 6) return false;
+  let h;
+  try { h = computeState(g.config, g.darts.slice(0, Math.floor(g.darts.length / 2))); } catch (e) { return false; }
+  return g.config.players.every((_, q) => q === p || h.legsWon[p] < h.legsWon[q] || (h.legsWon[p] === h.legsWon[q] && h.remaining[p] > h.remaining[q]));
+}
+
+/**
+ * `opts.accounts` (lot 10) : identifiants des joueurs qui ont un compte (mon profil et mes amis) — pour les badges en
+ * ligne « contre un ami ».
+ */
+export function honours(games, now = Date.now(), { accounts = new Set() } = {}) {
   const gs = [...games].filter(g => g && g.config && Array.isArray(g.darts)).sort((a, b) => a.startedAt - b.startedAt);
   const byPlayer = {};
   const events = [];
@@ -109,6 +129,9 @@ export function honours(games, now = Date.now()) {
   const run = {}; // par joueur : parties, victoires, série, défis, meilleurs (records)
   const R = id => run[id] || (run[id] = { games: 0, wins: 0, streak: 0, defis: 0, best: { visit: 0, avg: null, leg: null, fin: 0 } });
   const months = {}; // mois → joueur → { wins, busts }
+  const onlineIds = new Set(); // lot 10 : joueurs qui ont joué en ligne (leurs badges en ligne apparaissent)
+  const lastWin = {}; // lot 10 : paire de joueurs → vainqueur de leur dernière partie commune (Revanche)
+  const pair = (a, b) => (a < b ? `${a}|${b}` : `${b}|${a}`);
   const evenings = {}; // soir → joueur → parties
   for (const g of gs) {
     let s;
@@ -120,6 +143,7 @@ export function honours(games, now = Date.now()) {
     // Lot 7.8 : rang de chaque volée dans la partie, et volée qui gagne la partie (la dernière finition du gagnant).
     const idx = new Map(s.visits.map((v, i) => [v, i]));
     const winVisit = winner === null ? null : s.visits.reduce((w, v, i) => (v.player === winner && v.finish ? i : w), null);
+    if (g.online) for (const id of g.config.players) onlineIds.add(id);
     g.config.players.forEach((id, p) => {
       const mine = s.visits.filter(v => v.player === p);
       if (!mine.length || String(id).startsWith('~')) return; // joueur supprimé (anonymisé)
@@ -169,6 +193,18 @@ export function honours(games, now = Date.now()) {
       r.defis += okDefis.length;
       if (r.defis >= 5) earn(id, 'defis5', at, g.id, before5 < 5 ? okDefis[4 - before5].index : null);
       if (r.games >= 50) earn(id, 'games50', at, g.id);
+      // Lot 10 : parties en ligne.
+      if (g.online && finished) {
+        earn(id, 'contact', at, g.id);
+        addTier(id, { fidele: 1 }, at, g.id, null);
+        const opps = g.config.players.filter((o, q) => q !== p && !String(o).startsWith('~'));
+        if (winner === p) {
+          if (opps.some(o => accounts.has(o))) earn(id, 'distance', at, g.id, winVisit);
+          if (opps.some(o => accounts.has(o) && lastWin[pair(id, o)] === o)) earn(id, 'revanche', at, g.id, winVisit);
+          if (lastAtHalf(g, p)) earn(id, 'sangfroid', at, g.id, winVisit);
+          if (g.online.cut) earn(id, 'reconnexion', at, g.id, winVisit);
+        }
+      }
       const ev = evenings[ek] || (evenings[ek] = {});
       ev[id] = (ev[id] || 0) + 1;
       if (ev[id] >= 8) earn(id, 'marathon', at, g.id);
@@ -179,6 +215,11 @@ export function honours(games, now = Date.now()) {
       if (winner === p) m.wins += 1;
       m.busts += mine.filter(v => v.bust).length;
     });
+    // Lot 10 : vainqueur de chaque paire (partie finie), pour la Revanche des parties suivantes.
+    if (finished) {
+      const ids = g.config.players;
+      for (let a = 0; a < ids.length; a++) for (let b = a + 1; b < ids.length; b++) lastWin[pair(ids[a], ids[b])] = winner === a ? ids[a] : winner === b ? ids[b] : null;
+    }
   }
   // Badges du mois (mois finis seulement) : le meilleur, 3 au moins ; à égalité, chacun.
   const current = monthKey(now);
@@ -192,7 +233,7 @@ export function honours(games, now = Date.now()) {
     }
   }
   events.sort((a, b) => b.at - a.at);
-  return { byPlayer, events, recordsAt, totals };
+  return { byPlayer, events, recordsAt, totals, onlineIds };
 }
 
 /**
@@ -201,7 +242,9 @@ export function honours(games, now = Date.now()) {
  */
 export function playerBadges(h, id) {
   const mine = h.byPlayer[id] || {};
-  return BADGES.map(b => {
+  // Lot 10 : les badges en ligne n'apparaissent qu'une fois une partie en ligne jouée.
+  const online = !!(h.onlineIds && h.onlineIds.has(id));
+  return BADGES.filter(b => !b.online || online).map(b => {
     const x = mine[b.key];
     const out = { ...b, earned: !!x, at: x ? x.at : null, count: x ? x.count : 0 };
     if (b.tiers) {

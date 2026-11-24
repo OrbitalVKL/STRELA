@@ -321,6 +321,12 @@ function partitionReceived() {
   store.trainings = store.trainings.filter(r => !isFriendOnly(r, 'training'));
 }
 
+/** Lot 10, étape 5 : toutes les parties connues (les miennes et celles de mes amis entre eux) pour les stats, badges,
+ *  records et classements — chaque calcul filtre par joueur. X01 seulement / Cricket seulement / séances. */
+export const allGames = () => (store.friendGames.length ? [...store.games, ...store.friendGames.filter(g => !isCricket(g))] : store.games);
+export const allCkGames = () => (store.friendGames.length ? [...store.ckGames, ...store.friendGames.filter(isCricket)] : store.ckGames);
+export const allTrainings = () => (store.friendTrainings.length ? [...store.trainings, ...store.friendTrainings] : store.trainings);
+
 /** Est-ce une partie (ou séance) reçue d'un ami, en lecture seule ? */
 export const isReceived = rec => !!(rec && rec.owner);
 

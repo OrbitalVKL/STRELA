@@ -242,7 +242,7 @@ export function cricketEnd() {
 
 /** Détail d'une partie de Cricket close (historique) : classement, tableau final, volées. */
 export function cricketDetail(id) {
-  const g = store.ckGames.find(x => x.id === id);
+  const g = store.ckGames.find(x => x.id === id) || store.friendGames.find(x => x.id === id);
   if (!g) return `<div class="screen">${topBar('Cricket', backFrom('#/historique'))}<div class="empty"><div class="big">PARTIE INTROUVABLE</div></div></div>`;
   const s = computeCricket(g.config, g.darts);
   const ui = detailUi;
