@@ -2,6 +2,11 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.20.1', date: '2026-11-24', title: 'En ligne : la connexion passe enfin', items: [
+    'Partie en ligne : les téléphones se trouvent de nouveau. Le serveur de mise en relation PeerJS refusait les messages de Strela (il attend la forme exacte de sa propre bibliothèque) et coupait la liaison du téléphone qui rejoint : l\'hôte ne recevait jamais rien, d\'où « pas de réponse de l\'hôte ». Les messages ont maintenant la forme attendue ; essayé sur le vrai serveur entre deux navigateurs.',
+    'Si la mise en relation est coupée pendant l\'attente de l\'hôte, le téléphone passe tout de suite au serveur suivant (au lieu d\'attendre 8 secondes) ; le journal de débogage le note.',
+    'Journal : quitter un salon n\'est plus noté comme une perte de liaison.',
+  ] },
   { v: '0.20.0', date: '2026-11-24', title: 'Corrections du 24/11 : en ligne, historique, stats', items: [
     'Historique d\'un X01 solo : la grille fléchette par fléchette suit enfin les volées réellement jouées. Un bust à la 1re fléchette est une volée d\'une fléchette ; la volée gagnante s\'arrête à la fléchette qui finit. Avant, les fléchettes étaient regroupées 3 par 3, d\'où des volées impossibles (T20 + 20 + 20 depuis 40). Le score, la moyenne et la meilleure volée étaient déjà justes ; les séances enregistrées s\'affichent juste d\'elles-mêmes.',
     'Chaque volée de la grille montre son total et le reste après elle ; un bust est barré, marqué BUST, total 0 ; la volée gagnante est marquée GAGNÉ.',

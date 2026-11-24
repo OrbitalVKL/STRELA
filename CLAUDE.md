@@ -110,7 +110,8 @@ src/engine/voice.js       saisie à la voix (lot 9.3) : phrase entendue → flé
 src/engine/online.js      partie en ligne (lot 9.2, docs/enligne.md) : salon, autorité de l'hôte, opérations numérotées (pur,
                           tests/enligne.test.js) ; src/net/ : signal.js (signalisation PeerJS), link.js (WebRTC) ;
                           src/ui/online.js (contrôleur), screens/online.js (#/enligne), qr.js (QR code) ; rejoindre.html
-                          (page du QR code) ; tools/lib/signal-server.mjs (serveur local des tests)
+                          (page du QR code) ; tools/lib/signal-server.mjs (serveur local des tests) ;
+                          tools/enligne-reel.mjs (essai sur les vrais serveurs, 0.20.1)
 src/ui/journal.js         journal de débogage (lot 9.5) : log(cat, msg), 7 jours / 1 Mo, Réglages › Développement ;
                           src/ui/keyboard.js : champ actif gardé visible au-dessus du clavier
 src/engine/padinput.js    saisie au pavé debout (0.19.1) : secteur entier / secteur touché (pur, tests/saisie-pave.test.js)
@@ -209,8 +210,19 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 8 (23/11) | Entraînement, stats et distribution (docs/lot-8-avancement.md) : 0.15.0 = saisie précise, règles, stats, listes en cartes — **fait** ; 0.16.0 = jeux de cible, défis en X01 solo, badges d'entraînement — **fait** ; 0.17.0 = modes, accueil, réglages, exports, installation — **fait** ; 0.17.1 = choix de la zone (rangées ou secteur) — **fait** |
 | 9 (23/11) | Lot 9 (docs/lot-9-avancement.md) : 0.18.0 = 9.3 saisie à la voix — **fait** ; 0.19.0 = 9.2 partie en ligne — **fait** ; 9.1 (iPhone) et 9.4 (audio en ligne) reportés |
 | 0.19.1 | Saisie verticale : secteur entier (rapide, d'un appui) / secteur touché (précis), réglage sur le pavé, traits S / D / T — **fait** |
+| 0.20.1 | En ligne : messages à la forme exigée par le serveur PeerJS public (il coupait l'invité, l'hôte ne recevait rien) — **fait** |
 | 9.5 | Retours du 24/11 (docs/lot-9-5.md) : en ligne par étapes avec repli MQTT, clavier, historique X01 solo juste, journal de débogage, sélecteur Soirée / Entraînement en haut des stats, résumé X01 (volées), impacts par secteur visé (v0.20.0) — **fait** |
 | 11 | Recette |
+
+## État (version 0.20.1 : la connexion en ligne)
+
+- **0.20.1** (24/11) : cause du « pas de réponse de l'hôte » trouvée grâce au journal de Guillaume et reproduite sur le
+  vrai serveur : 0.peerjs.com coupe la liaison de l'expéditeur si le message n'a pas la forme de sa bibliothèque
+  (règles et détail : docs/enligne.md « 0.20.1 »). Aucune migration, rien de natif.
+- **Les sessions peuvent joindre les vrais serveurs** (WebSocket par le proxy, port 443 seulement) :
+  `node tools/enligne-reel.mjs [peerjs|tous]` essaie salon + invité + canal entre deux Chromium. EMQX (8084) et HiveMQ
+  (8884) ne sortent pas d'ici : le repli MQTT reste non vérifié en vrai.
+- À faire confirmer par Guillaume : la connexion à distance ; sinon le journal **des deux** téléphones.
 
 ## État (version 0.20.0 : lot 9.5, retours du 24/11)
 

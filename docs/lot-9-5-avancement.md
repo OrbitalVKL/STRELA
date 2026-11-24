@@ -17,3 +17,10 @@ Une seule branche et une seule demande de fusion (version 0.20.0).
 
 Version 0.20.0 publiée par demande de fusion ; ensuite, retours de Guillaume (à deux téléphones : étape qui échoue,
 journal exporté). Puis reprendre le lot 9 reporté (9.1 iPhone, 9.4 audio) s'il le demande.
+
+## Retour du 24/11 après essai (0.20.1)
+
+Journal de Guillaume (deux téléphones à distance, chacun hôte à son tour) : rien ne passait, ni dans un sens ni dans
+l'autre. Cause trouvée et reproduite sur le vrai serveur PeerJS (il coupe l'expéditeur d'un message qui n'a pas la
+forme de sa bibliothèque) ; corrigée en 0.20.1 (docs/enligne.md « 0.20.1 »). Repli MQTT toujours non vérifié en vrai.
+Prochain geste : nouvel essai de Guillaume ; s'il échoue encore, les journaux des **deux** téléphones.

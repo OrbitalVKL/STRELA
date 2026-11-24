@@ -4,7 +4,9 @@
 //                                                    onmessage = ({ type, src, payload }) => …, onclose = () => …, close() }
 // Services (lot 9.5, A1 : le serveur public de PeerJS est souvent saturé ou en panne) :
 //   1. PeerJS (0.peerjs.com), son protocole sans sa bibliothèque : WebSocket, OPEN / OFFER / ANSWER / CANDIDATE /
-//      EXPIRE / ID-TAKEN / HEARTBEAT ;
+//      EXPIRE / ID-TAKEN / HEARTBEAT. Le serveur public vérifie la forme des messages (vu le 24/11 sur deux
+//      téléphones, puis reproduit sur le vrai serveur) : il coupe la liaison de l'expéditeur (code 1000), sans rien
+//      relayer, si le contenu n'a pas les champs de la bibliothèque officielle — voir peerjsPayload ;
 //   2. et 3. repli : courtiers MQTT publics et gratuits (EMQX, HiveMQ), MQTT 3.1.1 sur WebSocket écrit à la main
 //      (CONNECT, SUBSCRIBE, PUBLISH en QoS 0, PINGREQ). Chaque téléphone s'abonne à « strela/v1/<id> » ; un message à
 //      `dst` est publié sur le sujet de `dst`. « Identifiant pris » : à l'ouverture, PROBE sur son propre sujet, celui
@@ -65,12 +67,36 @@ export function openSignal(id, { service = signalServices()[0], timeout = 8000, 
 }
 
 // ------------------------------------------------------------------ PeerJS
+/** Types relayés par le serveur PeerJS (tout autre type fait couper la liaison). */
+export const PEERJS_TYPES = Object.freeze(['OFFER', 'ANSWER', 'CANDIDATE']);
+/**
+ * Contenu d'un message PeerJS tel que le serveur public l'accepte (règles relevées le 24/11 sur 0.peerjs.com) :
+ * `type` ('data') et `connectionId` toujours ; pour une offre, aussi `label`, `reliable`, `serialization` ; `sdp` un
+ * objet { type: 'offer' | 'answer', sdp: 'v=0\r\n…' } ; `candidate` un objet. Ces noms sont donc réservés : les
+ * messages de Strela ne portent que `sdp` ou `candidate`. Pur (testé).
+ */
+export function peerjsPayload(payload, connectionId) {
+  return { ...(payload || {}), type: 'data', connectionId, label: 'strela', reliable: true, serialization: 'json' };
+}
+/** Le message serait-il accepté par le serveur PeerJS public ? (mêmes règles ; serveur des tests, journal). Pur. */
+export function peerjsValid(m) {
+  if (!m || !PEERJS_TYPES.includes(m.type) || typeof m.dst !== 'string' || !m.dst) return false;
+  const p = m.payload;
+  if (!p || (p.type !== 'data' && p.type !== 'media') || typeof p.connectionId !== 'string' || !p.connectionId) return false;
+  const sdpOk = want => p.sdp && typeof p.sdp === 'object' && p.sdp.type === want && typeof p.sdp.sdp === 'string' && p.sdp.sdp.startsWith('v=0\r\n');
+  if (m.type === 'OFFER') return sdpOk('offer') && (p.type === 'media' || (typeof p.label === 'string' && typeof p.reliable === 'boolean' && typeof p.serialization === 'string'));
+  if (m.type === 'ANSWER') return sdpOk('answer');
+  return !!p.candidate && typeof p.candidate === 'object';
+}
+
 function openPeerjs(id, service, timeout, WS) {
   return new Promise((resolve, reject) => {
     let ws;
     try { ws = new WS(`${service.url}?key=${KEY}&id=${encodeURIComponent(id)}&token=${token()}&version=1.5.4`); } catch (e) { reject(new SignalError('network', e && e.message)); return; }
     let opened = false;
+    let closing = false;
     let beat = 0;
+    const cid = `dc_${token()}`;
     const api = {
       id,
       service,
@@ -78,10 +104,14 @@ function openPeerjs(id, service, timeout, WS) {
       onclose: null,
       send(dst, type, payload) {
         if (ws.readyState !== 1) return false;
-        ws.send(JSON.stringify({ type, dst, payload }));
+        const m = { type, dst, payload: peerjsPayload(payload, cid) };
+        // Un message que le serveur refuserait couperait la liaison : on ne l'envoie pas.
+        if (!peerjsValid(m)) { log('enligne', `PeerJS : message ${type} non envoyé (forme refusée par le serveur)`); return false; }
+        ws.send(JSON.stringify(m));
         return true;
       },
       close() {
+        closing = true;
         clearInterval(beat);
         try { ws.close(); } catch (e) { /* */ }
       },
@@ -103,7 +133,13 @@ function openPeerjs(id, service, timeout, WS) {
       if (api.onmessage) api.onmessage({ type: m.type, src: m.src, payload: m.payload });
     };
     ws.onerror = () => { if (!opened) { clearTimeout(timer); reject(new SignalError('network')); } };
-    ws.onclose = ev => { clearInterval(beat); if (!opened) { clearTimeout(timer); reject(new SignalError('network', ev && ev.code ? `fermé ${ev.code}` : '')); } else if (api.onclose) api.onclose(); };
+    ws.onclose = ev => {
+      clearInterval(beat);
+      if (!opened) { clearTimeout(timer); reject(new SignalError('network', ev && ev.code ? `fermé ${ev.code}` : '')); return; }
+      if (closing) return; // fermeture voulue (salon quitté) : ce n'est pas une perte
+      log('enligne', `PeerJS : liaison coupée par le serveur (code ${(ev && ev.code) || '?'})`);
+      if (api.onclose) api.onclose();
+    };
   });
 }
 

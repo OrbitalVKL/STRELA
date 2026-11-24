@@ -84,8 +84,8 @@ version web pour iPhone, lot 9.1 reporté).
 
 ## Lot 9.5 (0.20.0) : « le mode en ligne n'arrive pas à se connecter »
 
-Non reproduit d'ici (les sessions ne laissent pas sortir les WebSocket ; 0.peerjs.com répond en HTTPS le 24/11). Ce
-qui a été corrigé ou ajouté, pour que la prochaine panne dise où elle est :
+Non reproduit d'ici en 0.20.0 (à tort : le WebSocket sort bien par le proxy, voir 0.20.1). Ce qui a été corrigé ou
+ajouté, pour que la prochaine panne dise où elle est :
 
 - **Étapes** : 1 serveur de mise en relation, 2 réponse de l'hôte, 3 négociation entre les téléphones (ICE),
   4 canal de données. Chacune a son délai (8 s pour ouvrir un service, 8 s pour la réponse de l'hôte sur ce service,
@@ -106,3 +106,40 @@ qui a été corrigé ou ajouté, pour que la prochaine panne dise où elle est :
   courtier MQTT sur /mqtt) ; tests/enligne-parcours.test.js (2e test : PeerJS en panne, étapes, mauvais code, lien collé,
   RÉESSAYER, journal, deux navigateurs).
 - URL de test : `?signal=peerjs:ws://…/peerjs,mqtt:ws://…/mqtt`.
+
+## 0.20.1 : la vraie cause (journal de Guillaume du 24/11, deux téléphones à distance)
+
+Journal : comme hôte, aucune « offre reçue » en 5 minutes sur aucun des trois services ; comme invité, « pas de
+réponse de l'hôte » par PeerJS, puis EMQX, puis HiveMQ, échec « Réponse de l'hôte » (no-host). Pas d'EXPIRE de PeerJS :
+l'hôte était donc bien connecté au serveur.
+
+**Cause, reproduite sur le vrai serveur** (`node tools/enligne-reel.mjs` : deux Chromium, le vrai 0.peerjs.com, le
+code de src/net/link.js) : le serveur public de PeerJS vérifie maintenant la forme des messages et **coupe la liaison
+de l'expéditeur (code 1000) sans rien relayer** si elle ne ressemble pas à ce qu'envoie sa bibliothèque. Nos messages
+(`{ sdp }`, `{ candidate }`) étaient refusés : l'offre de l'invité n'arrivait jamais. Règles relevées à la main le 24/11
+(src/net/signal.js › `peerjsValid`, aussi appliquées par tools/lib/signal-server.mjs pour que les tests le voient) :
+
+- seuls OFFER, ANSWER, CANDIDATE (et HEARTBEAT) sont relayés ; tout autre type (EXPIRE, LEAVE envoyés par un client…)
+  fait couper ;
+- contenu : `type` ('data' ou 'media') et `connectionId` toujours ; une offre 'data' veut aussi `label`, `reliable`,
+  `serialization` ;
+- `sdp` : un objet `{ type: 'offer' | 'answer', sdp: 'v=0\r\n…' }` (« v=0 » sans retour à la ligne est refusé, une
+  réponse dans une OFFER aussi) ; `candidate` : un objet (candidat vide accepté).
+
+Correction : `peerjsPayload` ajoute ces champs à chaque message PeerJS (noms réservés : Strela ne transporte que `sdp`
+et `candidate`), et un message qui serait refusé n'est pas envoyé (noté au journal). Avant / après sur le vrai
+serveur : 0.20.0 « no-host » en 8,6 s (le même journal que Guillaume), 0.20.1 canal ouvert en 0,9 s.
+
+Aussi : l'invité passe au service suivant dès que la signalisation est coupée pendant l'attente (au lieu de 8 s) ;
+une fermeture voulue (quitter le salon) n'est plus notée « signalisation perdue » ; une coupure par le serveur PeerJS
+est notée avec son code.
+
+**MQTT (EMQX, HiveMQ) : non vérifié.** D'ici, seul le port 443 sort : 8084 et 8884 ne répondent pas. Chez Guillaume les
+deux s'ouvrent, mais rien n'est passé par eux non plus. Hypothèse : le réseau de l'autre téléphone bloque ces ports
+(courant en 4G et sur les Wi-Fi publics) ; à confirmer avec le journal de l'autre téléphone si PeerJS lâche encore. Pas
+de courtier MQTT public trouvé sur le port 443 qui réponde d'ici (mqtt.eclipseprojects.io, test.mosquitto.org, flespi :
+non).
+
+**Tester depuis une session** : le WebSocket sortant passe par le proxy (`HTTPS_PROXY`) — Chromium lancé avec
+`proxy: { server: HTTPS_PROXY, bypass: '127.0.0.1,localhost' }` et `ignoreHTTPSErrors` (tools/enligne-reel.mjs) ; dans
+node, undici (`ProxyAgent`, CA /root/.ccr/ca-bundle.crt) en `--no-save` hors du dépôt.

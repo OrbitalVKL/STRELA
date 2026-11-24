@@ -952,6 +952,11 @@ bouton ENTRAÎNEMENT SOLO sous la soirée (ENTRAÎNEMENT EN COURS en vidéo inve
 joueur : bouton STATS D'ENTRAÎNEMENT s'il a des séances. La saisie au doigt sur la cible est passée dans
 `src/ui/boardinput.js` (même comportement en partie).
 
+## Version 0.20.1 (24/11 : la connexion en ligne)
+
+Aucun changement d'écran. Messages de signalisation PeerJS à la forme exigée par le serveur public (il coupait l'invité,
+l'hôte ne recevait rien) ; invité qui passe au service suivant dès une coupure. Détail : docs/enligne.md « 0.20.1 ».
+
 ## Version 0.20.0 (24/11 : lot 9.5, retours du 24/11)
 
 Cahier : docs/lot-9-5.md ; avancement : docs/lot-9-5-avancement.md.
