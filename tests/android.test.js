@@ -34,6 +34,9 @@ test('manifestes : réseau et installation de paquets dans la variante github se
   assert.match(read(`${APP}/src/main/AndroidManifest.xml`), /android\.speech\.RecognitionService/);
   const github = perms(read(`${APP}/src/github/AndroidManifest.xml`));
   for (const p of NET) assert.ok(github.includes(p), `${p} dans la variante github`);
+  // Lot 9.5 (A1) : la WebView connaît les réseaux du téléphone pour WebRTC (partie en ligne).
+  assert.ok(github.includes('android.permission.ACCESS_NETWORK_STATE'));
+  assert.ok(!main.includes('android.permission.ACCESS_NETWORK_STATE'), 'pas dans la variante play (sans réseau)');
   assert.ok(!existsSync(join(ROOT, `${APP}/src/play/AndroidManifest.xml`)) || NET.every(p => !perms(read(`${APP}/src/play/AndroidManifest.xml`)).includes(p)));
   // Les deux variantes sur un même téléphone : pas d'autorité de FileProvider en dur
   assert.match(read(`${APP}/src/main/AndroidManifest.xml`), /android:authorities="\$\{applicationId\}\.files"/);

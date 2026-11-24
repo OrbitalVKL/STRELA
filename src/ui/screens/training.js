@@ -14,7 +14,7 @@ import { store, activePlayers, playerById, trState, startTraining, trThrow, trUn
   trChangeSet, updateTraining, resumeTraining, saveTr, appModes, profilePlayer, saveSetting } from '../store.js';
 import { esc, ico, topBar, plural, when } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
-import { EXERCISES, analyze, suggestNext, nextFor, levelOf, LEVELS, LEVEL_EXERCISES, ALL_EXERCISES, exerciseLevel, goalOf, goalMet, setRuns, setAt, setsUsed, trainingDartLabel, targetLabel, zoneLabelOf, ZONES_FOR, ZONE_LABEL, BULL_ZONE_LABEL,
+import { EXERCISES, analyze, suggestNext, nextFor, levelOf, LEVELS, LEVEL_EXERCISES, ALL_EXERCISES, exerciseLevel, goalOf, goalMet, setRuns, setAt, setsUsed, trainingDartLabel, targetLabel, sessionVolleysSafe, zoneLabelOf, ZONES_FOR, ZONE_LABEL, BULL_ZONE_LABEL,
   isHit, sessionValue, cleanTarget, aimPoint, appPoint, pointsOf, trainingState, GAME_EXERCISES, GAME_LEGS, isGameSession, cleanGame, gameLabel, heatCounts,
   rulesOf, volleyInfo, OFF_R, FUN_KEYS, isFunSession, soloDefiNow } from '../../engine/training.js';
 import { DEFIS } from '../../engine/defis.js';
@@ -164,23 +164,37 @@ let funOpen = false;    // jeux de cible (lot 8 du 23/11), repliés
 // l'analyse. Cartes dépliées : gardées le temps de la session.
 const openCards = new Set();
 export function presetCards(ids = []) { openCards.clear(); for (const id of ids) openCards.add(id); }
-/** Volées d'une séance pour le détail d'une carte : [{ n, darts: [{ label, hit, target }] }]. */
-function volleysOf(r) {
-  const st = trainingState(r, r.darts);
-  const out = [];
-  r.darts.forEach((d, i) => {
-    const t = st.game ? null : targetAt(st, i);
-    if (i % 3 === 0) out.push({ n: out.length + 1, darts: [] });
-    out[out.length - 1].darts.push({ label: trainingDartLabel(d), hit: t ? isHit(t, d) : null, target: t ? targetLabel(t) : '' });
-  });
-  return out;
+/**
+ * Grille des volées d'une séance (lot 9.5) : V1…Vn, les fléchettes, le total de la volée et, en X01, le reste après la
+ * volée ; bust marqué (fléchettes barrées, total 0) ; rien après la victoire. Seule source : sessionVolleys (le moteur).
+ * Aussi sous la cible du résumé d'un X01 / Cricket solo (C2).
+ */
+export function volleyGrid(r) {
+  const { volleys, broken } = sessionVolleysSafe(r);
+  if (!volleys.length) return '';
+  const game = isGameSession(r);
+  const x01 = r.exercise === 'x01';
+  const legs = new Set(volleys.map(v => v.leg)).size > 1;
+  const rows = volleys.map((v, i) => {
+    const head = legs && (i === 0 || volleys[i - 1].leg !== v.leg) ? `<li class="tvleg">MANCHE ${v.leg}</li>` : '';
+    const cells = v.darts.map((d, k) => {
+      const t = v.targets[k];
+      const hit = t ? isHit(t, d) : null;
+      return `<span class="${hit === null ? '' : hit ? 'hit' : 'miss'}"${t ? ` title="cible ${esc(targetLabel(t))}"` : ''}>${t ? `<i>${esc(targetLabel(t))}</i>` : ''}${esc(trainingDartLabel(d))}</span>`;
+    });
+    while (cells.length < 3) cells.push('<span class="none" aria-hidden="true"></span>');
+    const tot = !game ? '' : v.bust ? '<b class="tvt bust"><em>BUST</em><small>0</small></b>'
+      : `<b class="tvt${v.finish ? ' fin' : ''}">${v.total}${x01 ? `<small>${v.finish ? 'GAGNÉ' : v.open ? `reste ${v.rest}…` : `reste ${v.rest}`}</small>` : `<small>${v.finish ? 'FERMÉ' : 'marq.'}</small>`}</b>`;
+    return `${head}<li class="${game ? 'g' : ''}${v.bust ? ' bust' : ''}${v.open ? ' open' : ''}"><small>V${v.n}</small>${cells.join('')}${tot}</li>`;
+  }).join('');
+  return `${broken ? '<p class="note tvbroken">Historique incomplet : ces fléchettes ne se rejouent plus (séance enregistrée par une ancienne version). Le score affiché ailleurs reste celui enregistré.</p>' : ''}<ol class="tvol${game ? ' game' : ''}">${rows}</ol>`;
 }
 export function sessionCard(r) {
   const ex = EXERCISES[r.exercise] || EXERCISES.libre;
   const sv = sessionValue(r);
   const what = r.exercise === 'libre' ? libreLabel(r) : isGameSession(r) ? sessionTitle(r) : ex.name;
   const open = openCards.has(r.id);
-  const body = open ? `<ol class="tvol">${volleysOf(r).map(v => `<li><small>V${v.n}</small>${v.darts.map(d => `<span class="${d.hit === null ? '' : d.hit ? 'hit' : 'miss'}"${d.target ? ` title="cible ${esc(d.target)}"` : ''}>${d.target && d.hit !== null ? `<i>${esc(d.target)}</i>` : ''}${esc(d.label)}</span>`).join('')}</li>`).join('')}</ol>
+  const body = open ? `${volleyGrid(r)}
     <a class="btn ghost tcfoot" href="#/entrainement/seance/${esc(r.id)}">${ico('stats')} VOIR LA SÉANCE</a>` : '';
   return `<li class="tcard${open ? ' open' : ''}${r.excluded ? ' excl' : ''}"><button type="button" class="trow" data-act="tr-card" data-arg="${esc(r.id)}" aria-expanded="${open}">
     <span class="l1"><b class="ell">${esc(what)}</b><span>${when(r.startedAt)}</span></span>

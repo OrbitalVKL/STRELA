@@ -13,7 +13,8 @@ import { variant, onNative } from './native.js';
 import { say } from './feedback.js';
 import { blockVoice } from './voiceinput.js';
 import * as E from '../engine/online.js';
-import { hostLink, guestLink, webrtcAvailable } from '../net/link.js';
+import { hostLink, guestLink, webrtcAvailable, STEPS, STEP_LABEL } from '../net/link.js';
+import { log } from './journal.js';
 
 export const HOST_PEER = 'host';
 
@@ -33,11 +34,17 @@ export const on = {
   notice: '',           // message bref (demande refusée…)
   signal: 'online',     // hôte : signalisation joignable ou non
   draftCode: '',
+  step: null,           // lot 9.5 : étape de la connexion en cours (invité) : 'signal' | 'host' | 'ice' | 'channel'
+  stepService: '',      // service de signalisation de l'étape
+  failStep: null,       // étape qui a échoué (affichée avec l'erreur)
+  services: [],         // hôte : [{ name, state }] des services de signalisation
+  lastAction: null,     // RÉESSAYER : 'create' | 'join'
 };
+let joinCtl = null;     // ANNULER pendant la connexion d'un invité
 /** Sommaire de maquette et tests : état imposé (sans liaison) ; sans argument, remis à zéro. */
 export function presetOnline(st = {}) {
   clearTimeout(retryTimer);
-  Object.assign(on, { role: null, code: null, me: null, room: null, guest: E.createGuest(), link: null, state: 'idle', error: '', notice: '', signal: 'online', draftCode: '' }, st);
+  Object.assign(on, { role: null, code: null, me: null, room: null, guest: E.createGuest(), link: null, state: 'idle', error: '', notice: '', signal: 'online', draftCode: '', step: null, stepService: '', failStep: null, services: [], lastAction: null }, st);
 }
 let retryTimer = 0;
 let noticeTimer = 0;
@@ -101,8 +108,9 @@ async function openHost(code, room) {
     open: () => {},
     message: (peer, msg) => hostMessage(peer, msg),
     close: peer => { const r = E.hostMemberStatus(on.room, peer, 'lost'); setRoom(r.room); deliver(r.out); afterChange(); refresh(); },
-    signal: st => { on.signal = st; refresh(); },
+    signal: (st, list) => { on.signal = st; if (list) on.services = list; refresh(); },
   });
+  on.services = on.link.services();
   on.role = 'host';
   on.code = code;
   on.state = 'open';
@@ -117,6 +125,10 @@ export async function createRoom(me) {
   on.me = me;
   on.state = 'connecting';
   on.error = '';
+  on.lastAction = 'create';
+  on.step = 'signal';
+  on.failStep = null;
+  log('enligne', `créer un salon (${playerById(me) ? playerById(me).name : '?'})`);
   refresh();
   for (let k = 0; k < 4; k++) {
     const code = E.makeCode();
@@ -125,8 +137,9 @@ export async function createRoom(me) {
       refresh();
       return true;
     } catch (e) {
-      if (e && e.code === 'taken') continue;
+      if (e && e.code === 'taken') { log('enligne', `code ${code} déjà pris : nouveau tirage`); continue; }
       on.state = 'error';
+      on.failStep = 'signal';
       on.error = signalError(e);
       refresh();
       return false;
@@ -243,17 +256,29 @@ export async function joinRoom(code, me, { quiet = false } = {}) {
   on.me = me;
   on.state = quiet ? 'lost' : 'connecting';
   on.error = '';
+  on.failStep = null;
+  on.step = 'signal';
+  on.stepService = '';
+  if (!quiet) on.lastAction = 'join';
   refresh();
+  const ctl = {};
+  joinCtl = ctl;
   try {
-    on.link = await guestLink(code, { message: guestMessage, close: () => { if (on.role === 'guest') { on.state = 'lost'; on.link = null; refresh(); scheduleRetry(); } } });
+    on.link = await guestLink(code, { message: guestMessage, close: () => { if (on.role === 'guest') { log('enligne', 'invité : liaison perdue'); on.state = 'lost'; on.link = null; refresh(); scheduleRetry(); } } },
+      { ctl, onStep: ({ step, service }) => { if (joinCtl !== ctl) return; on.step = step; on.stepService = service || ''; refresh(); } });
   } catch (e) {
+    if (joinCtl === ctl) joinCtl = null;
+    if (e && e.code === 'cancelled') { if (on.role === 'guest' && on.state !== 'open') { on.role = null; on.state = 'idle'; on.step = null; refresh(); } return false; }
     if (quiet) { scheduleRetry(); return false; }
     on.state = 'error';
+    on.failStep = (e && e.step) || 'signal';
     on.error = signalError(e);
     on.role = null;
     refresh();
     return false;
   }
+  if (joinCtl === ctl) joinCtl = null;
+  on.step = null;
   on.state = 'open';
   const g = onlineGame();
   on.link.send(E.helloMsg(on.guest, playerById(me), g ? g.id : null));
@@ -402,15 +427,32 @@ export function leave(bye = true) {
   if (bye && on.role === 'guest' && on.link) on.link.send({ t: 'bye' });
   if (bye && on.role === 'host' && on.link) on.link.broadcast({ t: 'kick', seq: (on.room?.seq || 0) + 1, reason: 'closed' });
   closeLink();
-  Object.assign(on, { role: null, code: null, room: null, guest: E.createGuest(), state: 'idle', error: '', notice: '', signal: 'online' });
+  if (joinCtl && joinCtl.cancel) joinCtl.cancel();
+  joinCtl = null;
+  Object.assign(on, { role: null, code: null, room: null, guest: E.createGuest(), state: 'idle', error: '', notice: '', signal: 'online', step: null, failStep: null, services: [] });
 }
 
+/**
+ * Message d'erreur selon l'étape qui a échoué (lot 9.5, A1) : serveur de mise en relation, réponse de l'hôte,
+ * négociation entre les téléphones, canal de données.
+ */
 function signalError(e) {
   const c = e && e.code;
-  if (c === 'no-host') return 'Aucun salon à ce code (ou l\'hôte n\'est plus là). Vérifie le code.';
-  if (c === 'timeout' || c === 'unreachable') return 'Impossible de joindre l\'autre téléphone. Essayez sur le même Wi-Fi : certains réseaux (4G, Wi-Fi d\'entreprise) bloquent la connexion directe.';
-  return 'Pas de connexion au service de mise en relation. Vérifie Internet et réessaie.';
+  const st = (e && e.step) || 'signal';
+  if (c === 'no-host') return 'Les serveurs de mise en relation répondent, mais aucun salon n\'est ouvert à ce code. Vérifie le code, et que l\'hôte garde Strela ouvert sur l\'écran du salon.';
+  if (c === 'unreachable' || (c === 'timeout' && st === 'ice')) return 'L\'hôte a répondu, mais les deux téléphones n\'arrivent pas à se parler directement : le réseau bloque la connexion (4G d\'opérateur, Wi-Fi invité ou d\'entreprise). Essayez tous les deux sur le même Wi-Fi, ou le partage de connexion d\'un des téléphones.';
+  if (c === 'timeout' && st === 'channel') return 'Les téléphones se sont trouvés, mais le canal de données ne s\'est pas ouvert. Réessaie.';
+  return 'Aucun serveur de mise en relation joignable (PeerJS, EMQX, HiveMQ). Vérifie qu\'Internet marche sur ce téléphone (page web, données mobiles ou Wi-Fi), puis réessaie dans un moment.';
 }
+
+/** ANNULER pendant la connexion. */
+export function cancelJoin() {
+  log('enligne', 'connexion annulée');
+  if (joinCtl && joinCtl.cancel) joinCtl.cancel();
+  joinCtl = null;
+  if (on.state === 'connecting') { closeLink(); Object.assign(on, { role: null, state: 'idle', step: null, error: '', failStep: null }); refresh(); }
+}
+export { STEPS, STEP_LABEL };
 
 /** Message bref (demande refusée, « c'est à … ») sur les écrans de jeu. */
 export function onlineToastHtml() {

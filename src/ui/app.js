@@ -40,6 +40,8 @@ import { adviceList, adviceSheet } from './screens/advice.js';
 import { voiceOverlayHtml, voiceRoute, actions as voiceActions } from './voiceinput.js';
 import { onlineScreen, actions as onlineActions, inputs as onlineInputs } from './screens/online.js';
 import { onlineToastHtml, resumeOnline, onlineGame } from './online.js';
+import { watchErrors, setJournal, log } from './journal.js';
+import { watchKeyboard } from './keyboard.js';
 import { welcomeScreen, tutorialScreen, installerScreen, actions as welcomeActions, inputs as welcomeInputs } from './screens/welcome.js';
 
 // Version 0.8.0 : la refonte (lot 7.8, écrans de screens/v2/) remplace l'accueil, l'historique, les stats et les
@@ -303,6 +305,8 @@ app.addEventListener('input', ev => {
 });
 app.addEventListener('keydown', ev => {
   if (ev.key === 'Enter' && ev.target.dataset && ev.target.dataset.input === 'name') ev.target.blur();
+  // Lot 9.5 (A2) : Entrée (touche « OK » du clavier) dans le champ du code = REJOINDRE.
+  if (ev.key === 'Enter' && ev.target.dataset && ev.target.dataset.input === 'on-code') { ev.preventDefault(); ev.target.blur(); onlineActions['on-join'](); }
 });
 // Photo d'avatar choisie (appareil photo ou galerie) : chargée, puis écran de recadrage.
 app.addEventListener('change', ev => {
@@ -330,6 +334,9 @@ try { matchMedia('(prefers-color-scheme: light)').addEventListener('change', () 
 
 // ------------------------------------------------------------------ démarrage
 loadSettings();
+setJournal(store.settings.journal); // lot 9.5 : journal de débogage
+watchErrors(window);
+watchKeyboard(document); // lot 9.5 (A2) : le champ actif reste visible au-dessus du clavier
 applyTheme();
 if (new URLSearchParams(location.search).has('maquette')) {
   store.maquette = true;
@@ -359,6 +366,8 @@ if (new URLSearchParams(location.search).has('maquette')) {
       : `base indisponible (${(e && e.message) || e})`;
   }
   applyTheme();
+  setJournal(store.settings.journal);
+  log('appli', `démarrage v${BUILD.version} (${isApk() ? 'APK' : 'web'}, base v${store.db.version ?? '?'}${store.db.error ? `, ${store.db.error}` : ''})`);
   requestPersistence();
   // Écritures en cours (lu par les tests de parcours avant un rechargement : 0 = tout est sur le disque).
   window.__strelaSaving = () => saving.pending;

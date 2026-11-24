@@ -2117,6 +2117,17 @@ dl.rules dd { margin: 0; }
 .tvol span i { font-style: normal; font-size: 9px; font-weight: 600; color: var(--dim); letter-spacing: 0.04em; }
 .tvol span.hit { background: var(--inv-bg); color: var(--inv-fg); border-color: var(--inv-bg); }
 .tvol span.hit i { color: inherit; opacity: 0.7; }
+.tvol.game li { grid-template-columns: 34px repeat(3, minmax(0, 1fr)) minmax(58px, 0.9fr); }
+.tvol span.none { border-style: dashed; border-color: var(--faint); }
+.tvol .tvt { display: flex; flex-direction: column; justify-content: center; align-items: flex-end; padding: 3px 6px; font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.tvol .tvt small { align-self: flex-end; font-size: 9.5px; font-weight: 600; letter-spacing: 0.02em; white-space: nowrap; }
+.tvol .tvt.fin { background: var(--inv-bg); color: var(--inv-fg); }
+.tvol .tvt.fin small { color: inherit; }
+.tvol .tvt.bust em { font-style: normal; color: var(--red-text); letter-spacing: 0.06em; font-size: 12px; }
+.tvol li.bust span:not(.none) { text-decoration: line-through; text-decoration-color: var(--red-text); color: var(--dim); }
+.tvol li.open span:not(.none), .tvol li.open .tvt { border-style: dashed; }
+.tvol .tvleg { display: block; font-size: 10px; font-weight: 700; color: var(--dim); letter-spacing: 0.08em; padding-top: 4px; }
+.tvbroken { margin: 8px 12px 0; }
 .tcfoot { margin: 8px 12px 12px; width: calc(100% - 24px); }
 
 /* Lot 8 du 23/11 (9.2) : guide d'installation (appli et page installer.html) */
@@ -2261,3 +2272,20 @@ dl.rules dd { margin: 0; }
 .onpick .chip.pl { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 4px 10px 4px 4px; }
 .oncode .input { font-size: 26px; letter-spacing: 0.3em; text-transform: uppercase; text-align: center; }
 .online-btn.on { background: var(--inv-bg); color: var(--inv-fg); border-color: var(--inv-bg); }
+
+/* Lot 9.5 (A1) : étapes de la connexion en ligne, services de mise en relation de l'hôte */
+.onsteps { list-style: none; margin: 12px 0 0; padding: 0; border: var(--rule); }
+.onsteps li { display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: center; gap: 6px; padding: 7px 10px; border-top: var(--rule); font-size: 13px; }
+.onsteps li:first-child { border-top: 0; }
+.onsteps li b { text-align: center; font-weight: 800; }
+.onsteps li.todo { color: var(--dim); }
+.onsteps li.now { box-shadow: inset 4px 0 0 var(--fg); font-weight: 700; }
+.onsteps li.bad b, .onsteps li.bad span { color: var(--red-text); font-weight: 700; }
+.onsteps li small { color: var(--dim); font-weight: 600; }
+.banner .btn { margin-top: 8px; }
+.banner p { margin: 0; }
+.onsvc { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 10px 0 0; }
+
+/* Lot 9.5 (B) : journal de débogage (Réglages › Développement) */
+pre.journal { margin: 10px 0 0; padding: 8px 10px; max-height: 360px; overflow: auto; border: var(--rule); background: var(--bg); color: var(--fg);
+  font: 500 10.5px/1.45 var(--font, inherit); white-space: pre-wrap; word-break: break-word; }

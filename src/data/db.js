@@ -93,12 +93,12 @@ export class DbError extends Error {
  * Ouvre (et met à niveau) la base. `onVersionChange` : une autre page ouvre une version plus récente (mise à jour
  * de l'appli) ; la connexion est fermée pour ne pas la bloquer, à l'appelant de recharger.
  */
-export function openDb({ name = DB_NAME, migrations = MIGRATIONS, idb = globalThis.indexedDB, onVersionChange = null } = {}) {
+export function openDb({ name = DB_NAME, migrations = MIGRATIONS, idb = globalThis.indexedDB, onVersionChange = null, onUpgrade = null } = {}) {
   if (!idb) return Promise.reject(new DbError('ABSENT', 'IndexedDB indisponible dans ce navigateur'));
   return new Promise((resolve, reject) => {
     let r;
     try { r = idb.open(name, migrations.length); } catch (e) { reject(new DbError('OPEN', String(e.message || e), e)); return; }
-    r.onupgradeneeded = ev => runMigrations(r.result, r.transaction, ev.oldVersion, migrations);
+    r.onupgradeneeded = ev => { runMigrations(r.result, r.transaction, ev.oldVersion, migrations); if (onUpgrade) try { onUpgrade(ev.oldVersion, migrations.length); } catch (e) { /* */ } };
     r.onsuccess = () => {
       const db = r.result;
       db.onversionchange = () => { db.close(); if (onVersionChange) onVersionChange(); };

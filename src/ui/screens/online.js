@@ -6,8 +6,9 @@ import { esc, ico, topBar, plural } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
 import { refresh, go, backFrom } from '../nav.js';
 import { qrSvg } from '../qr.js';
-import { on, onlineSupport, createRoom, joinRoom, leave, hostLaunch, hostSetup, hostOrder, onlineGame, defaultMe, resumeOnline } from '../online.js';
-import { cleanCode, joinUrl, roomPlayers, STATUS_LABEL, CODE_LENGTH, MAX_PHONES } from '../../engine/online.js';
+import { infoBtn, infoBox } from '../info.js';
+import { on, onlineSupport, createRoom, joinRoom, leave, hostLaunch, hostSetup, hostOrder, onlineGame, defaultMe, resumeOnline, cancelJoin, STEPS, STEP_LABEL } from '../online.js';
+import { cleanCode, codeFromUrl, joinUrl, roomPlayers, STATUS_LABEL, CODE_LENGTH, MAX_PHONES } from '../../engine/online.js';
 import { START_SCORES } from '../../engine/x01.js';
 
 const info = { open: false };
@@ -18,6 +19,26 @@ function playerChips(act, cur) {
   if (!list.length) return `<p class="note">Crée d'abord ton joueur (pseudo, avatar) : <a href="#/joueur/nouveau">NOUVEAU JOUEUR</a>.</p>`;
   return `<div class="onpick">${list.map(p => `<button type="button" class="chip pl" data-act="${act}" data-arg="${esc(p.id)}" aria-pressed="${p.id === cur}">${avatarHtml(p, 28)}<span class="nm ell">${esc(p.name)}</span></button>`).join('')}</div>`;
 }
+
+/**
+ * Lot 9.5 (A1) : étapes de la connexion, à l'écran pendant l'attente et avec l'erreur (✓ faite, … en cours, ✗ en échec).
+ * L'hôte n'a que la première (serveurs de mise en relation).
+ */
+function stepsHtml() {
+  const list = on.lastAction === 'create' ? ['signal'] : STEPS;
+  const cur = on.state === 'error' ? on.failStep : on.step;
+  const k = list.indexOf(cur);
+  return `<ol class="onsteps" aria-label="Étapes de la connexion">${list.map((st, i) => {
+    const state = i < k ? 'ok' : i > k ? 'todo' : on.state === 'error' ? 'bad' : 'now';
+    const mark = { ok: '✓', bad: '✗', now: '…', todo: '·' }[state];
+    return `<li class="${state}"><b>${mark}</b><span>${i + 1}. ${esc(STEP_LABEL[st])}${state === 'now' && on.stepService ? ` <small>(${esc(on.stepService)})</small>` : ''}</span></li>`;
+  }).join('')}</ol>`;
+}
+
+/** Mise en relation de l'hôte : quels services l'entendent (lot 9.5). */
+const servicesHtml = () => (on.services && on.services.length
+  ? `<p class="small dim onsvc">Mise en relation : ${on.services.map(s => `${esc(s.name)} ${s.state === 'open' ? '✓' : s.state === 'opening' ? '…' : '✗'}`).join(' · ')}${infoBtn('on-svc')}</p>
+     ${infoBox('on-svc', 'Pour se trouver, les téléphones passent par un serveur de mise en relation public et gratuit (PeerJS, ou en repli les courtiers EMQX et HiveMQ). L\'hôte écoute sur tous ceux qui répondent ; un invité les essaie dans l\'ordre. Une fois reliés, tout passe directement d\'un téléphone à l\'autre, chiffré. ✓ : joignable ; ✗ : injoignable (réessayé toutes les 5 s).')}` : '');
 
 const explain = () => `<button type="button" class="fold" data-act="on-info" aria-expanded="${info.open}">${ico('info')}<span>Comment ça marche</span>${ico(info.open ? 'up' : 'down')}</button>
   ${info.open ? `<div class="fold-body"><p class="note">Un joueur par téléphone, de 2 à 4 téléphones. L'hôte crée le salon et choisit le jeu ; les autres tapent le code ou scannent le QR code. Pendant la partie, seul le téléphone du joueur dont c'est le tour peut saisir (pavé, cible ou voix) ; les autres voient les fléchettes arriver une par une. Chaque téléphone garde la partie dans son historique, marquée « en ligne ».</p>
@@ -42,11 +63,12 @@ function startScreen(code) {
       <p class="note" style="margin-top:0">Tu es l'hôte : tu choisis le jeu et tu lances la partie.</p>
       <button type="button" class="btn primary big" data-act="on-create" ${busy || !on.me ? 'disabled' : ''}>${ico('plus')} CRÉER UN SALON</button>
       ${sec('Rejoindre un salon')}
-      <label class="field oncode"><input class="input" data-input="on-code" id="oncode" value="${esc(on.draftCode)}" maxlength="${CODE_LENGTH + 2}" placeholder="CODE" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go" inputmode="text"></label>
+      <label class="field oncode"><input class="input" data-input="on-code" id="oncode" value="${esc(on.draftCode)}" maxlength="80" placeholder="CODE" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go" inputmode="text" aria-label="Code du salon (${CODE_LENGTH} caractères)"></label>
       <button type="button" class="btn big" data-act="on-join" ${busy || !on.me ? 'disabled' : ''}>REJOINDRE</button>
-      <p class="note">Ou scanne le QR code de l'hôte avec l'appareil photo du téléphone.</p>
-      ${busy ? '<p class="banner" role="status">CONNEXION…</p>' : ''}
-      ${on.state === 'error' && on.error ? `<p class="banner alert" role="alert">${esc(on.error)}</p>` : ''}`}
+      <p class="note">Ou scanne le QR code de l'hôte avec l'appareil photo du téléphone ; un lien de salon collé dans le champ marche aussi.</p>
+      ${busy || (on.state === 'error' && on.failStep) ? stepsHtml() : ''}
+      ${busy ? `<p class="banner" role="status">CONNEXION… <button type="button" class="btn ghost" data-act="on-cancel">ANNULER</button></p>` : ''}
+      ${on.state === 'error' && on.error ? `<div class="banner alert" role="alert"><p>${esc(on.error)}</p>${on.lastAction ? '<button type="button" class="btn" data-act="on-retry">RÉESSAYER</button>' : ''}</div>` : ''}`}
       ${explain()}
     </div></div>`;
 }
@@ -87,12 +109,13 @@ function lobby() {
   return `<div class="screen online has-dock">${topBar(host ? 'Salon · hôte' : 'Salon', backFrom('#/'))}
     <div class="pad">
       ${lost ? '<p class="banner alert" role="alert">CONNEXION PERDUE · reconnexion…</p>' : ''}
-      ${host && on.signal === 'offline' ? '<p class="banner" role="status">Service de mise en relation injoignable : les téléphones connectés continuent ; les nouveaux attendront.</p>' : ''}
+      ${host && on.signal === 'offline' ? '<p class="banner" role="status">Aucun serveur de mise en relation joignable : les téléphones connectés continuent ; les nouveaux attendront (nouvel essai toutes les 5 s).</p>' : ''}
       ${on.notice ? `<p class="banner" role="status">${esc(on.notice)}</p>` : ''}
       <div class="oncodebox"><div><small class="dim caps">Code du salon</small><b class="oncodebig" aria-label="Code ${esc(room.code.split('').join(' '))}">${esc(room.code)}</b>
         <button type="button" class="btn ghost" data-act="on-share">PARTAGER LE LIEN</button></div>
         <div class="onqr">${qrSvg(url, { label: `QR code du salon ${room.code}` })}</div></div>
       ${sec('Téléphones', `${room.members.length}/${MAX_PHONES}`)}
+      ${host ? servicesHtml() : ''}
       <ul class="onmembers">${members.map(m => member(m, host)).join('')}</ul>
       ${room.members.length < 2 ? '<p class="note">En attente d\'un autre téléphone : il tape le code ou scanne le QR code.</p>' : ''}
       ${!host && room.phase === 'lobby' ? `${sec('Ton joueur')}${playerChips('on-pick', on.me)}` : ''}
@@ -115,17 +138,28 @@ export function onlineScreen(arg) {
   return startScreen(code);
 }
 
+/**
+ * Code tapé (lot 9.5, A2) : majuscules d'office, lien de salon collé → son code. Le curseur reste en place.
+ */
 export const inputs = {
-  'on-code'(v) { on.draftCode = v; },
+  'on-code'(v, el) {
+    const fromLink = /rejoindre|salon=/.test(v) ? codeFromUrl(v) : null;
+    const up = fromLink || v.toUpperCase();
+    on.draftCode = up;
+    if (el && el.value !== up) { const p = el.selectionStart; el.value = up; try { el.setSelectionRange(fromLink ? up.length : p, fromLink ? up.length : p); } catch (e) { /* */ } }
+  },
 };
 
 export const actions = {
   'on-info'() { info.open = !info.open; refresh(); },
   'on-me'(id) { on.me = id; refresh(); },
   'on-create'() { if (on.me) createRoom(on.me); },
+  'on-cancel'() { cancelJoin(); },
+  'on-retry'() { if (on.lastAction === 'create') { if (on.me) createRoom(on.me); } else actions['on-join'](); },
   'on-join'() {
-    const c = cleanCode(on.draftCode || (document.getElementById('oncode') || {}).value);
-    if (!c) { on.state = 'error'; on.error = `Le code a ${CODE_LENGTH} caractères (lettres et chiffres, sans O ni 1).`; refresh(); return; }
+    const raw = on.draftCode || (document.getElementById('oncode') || {}).value || '';
+    const c = cleanCode(raw) || codeFromUrl(raw);
+    if (!c) { on.state = 'error'; on.failStep = null; on.lastAction = null; on.error = `Le code a ${CODE_LENGTH} caractères (lettres et chiffres, sans O ni 1).`; refresh(); return; }
     if (on.me) joinRoom(c, on.me);
   },
   'on-pick'(id) { on.me = id; if (on.link && on.role === 'guest') on.link.send({ t: 'pick', player: { ...playerById(id) } }); refresh(); },

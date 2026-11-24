@@ -447,6 +447,63 @@ export function volleyInfo(st) {
 }
 
 /**
+ * Volées d'une séance, telles que le moteur les a jouées (lot 9.5, A3) — seule source de la grille fléchette par
+ * fléchette (carte d'une séance, résumé) :
+ *   [{ n (rang dans la manche, 1…), leg (manche, 1…), start (rang de la 1re fléchette dans rec.darts), darts[],
+ *      total (points comptés ; 0 sur un bust ; marques au Cricket ; null pour un exercice), raw (points des fléchettes),
+ *      rest (reste après la volée, X01 seulement), bust, finish (volée qui gagne la manche), open (volée pas finie),
+ *      targets[] (cible visée de chaque fléchette, exercices seulement) }]
+ * X01 et Cricket : les volées du moteur (un bust à la 1re fléchette ferme la volée, une finition à la 2e aussi : on ne
+ * regroupe jamais les fléchettes 3 par 3). Exercices : 3 par 3 depuis le début de chaque série. Jeux de cible et
+ * horloge : 3 par 3 depuis la 1re fléchette.
+ * Lève, comme trainingState, si les fléchettes enregistrées ne tiennent pas (séance abîmée : voir sessionVolleysSafe).
+ */
+export function sessionVolleys(rec, darts = rec.darts) {
+  const st = trainingState(rec, darts);
+  const out = [];
+  const raw = ds => ds.reduce((k, d) => k + dartValue(d), 0);
+  if (st.game) {
+    const gs = st.gs;
+    const x01 = st.game === 'x01';
+    let start = 0;
+    const perLeg = {};
+    const push = (v, open) => {
+      const leg = v.leg || gs.legNumber;
+      perLeg[leg] = (perLeg[leg] || 0) + 1;
+      const r = raw(v.darts);
+      out.push({ n: perLeg[leg], leg, start, darts: [...v.darts], raw: r, total: x01 ? (open ? r : v.scored) : v.marks,
+        rest: x01 ? (open ? v.startRemaining - r : v.remainingAfter) : null, bust: !!(x01 && v.bust), finish: !!(x01 ? v.finish : false), open, targets: [] });
+      start += v.darts.length;
+    };
+    for (const v of gs.visits) push(v, false);
+    if (!st.done && gs.visit && gs.visit.darts.length) push(gs.visit, true);
+    // Cricket : la volée qui ferme la manche est celle qui la gagne.
+    if (!x01) for (const l of gs.legs) if (l.winner !== null && l.visits.length) { const last = out.filter(v => v.leg === l.number).pop(); if (last) last.finish = true; }
+    return out;
+  }
+  const target = i => { for (const b of st.blocks) if (i >= b.start && i < b.start + b.darts.length) return b.s ? { s: b.s, z: b.z } : null; return null; };
+  // Débuts de volée : tous les 3 depuis le début de chaque série (exercices), ou depuis la 1re fléchette (jeux de cible, horloge).
+  const bySeries = !st.fun && !st.clock;
+  darts.forEach((d, i) => {
+    const b = bySeries ? st.blocks.find(x => i >= x.start && i < x.start + x.darts.length) : null;
+    const k = b ? i - b.start : i;
+    if (k % 3 === 0 || !out.length) out.push({ n: out.length + 1, leg: 1, start: i, darts: [], raw: 0, total: null, rest: null, bust: false, finish: false, open: false, targets: [] });
+    const v = out[out.length - 1];
+    v.darts.push(d); v.raw += dartValue(d); v.targets.push(target(i));
+  });
+  if (out.length && !st.done && st.visitDarts) out[out.length - 1].open = true;
+  return out;
+}
+/** sessionVolleys sans exception : { volleys, broken } ; une séance abîmée garde ses fléchettes, 3 par 3, marquée « historique incomplet ». */
+export function sessionVolleysSafe(rec) {
+  try { return { volleys: sessionVolleys(rec), broken: false }; } catch (e) {
+    const volleys = [];
+    (rec.darts || []).forEach((d, i) => { if (i % 3 === 0) volleys.push({ n: volleys.length + 1, leg: 1, start: i, darts: [], raw: 0, total: null, rest: null, bust: false, finish: false, open: false, targets: [] }); const v = volleys[volleys.length - 1]; v.darts.push(d); v.raw += dartError(d) ? 0 : dartValue(d); v.targets.push(null); });
+    return { volleys, broken: true };
+  }
+}
+
+/**
  * État d'un jeu de cible (lot 8 du 23/11, 5.1) : celui de fun.js (`fun`), présenté en séries comme un exercice (les
  * fléchettes qui se suivent sur la même cible forment une série) pour que la saisie, l'analyse et les écarts servent tels
  * quels. Cible libre (Pile 100) : secteur 0, hors précision.

@@ -33,6 +33,7 @@ import { defiOf, defiResult, DEFIS } from '../../engine/defis.js';
 import { gameBadgesSay } from '../honours.js';
 import { bindBoardInput, boardHint, frozenLoupe } from '../boardinput.js';
 import { micKey, registerVoice } from '../voiceinput.js';
+import { log } from '../journal.js';
 import { registerOnlineGame, input as onlineInput, onlineGame, turnInfo, hostPass, onlineQuit, on as online } from '../online.js';
 
 export const ANNOUNCE_MS = 800;
@@ -733,6 +734,8 @@ function play(dart, key, pos = null) {
   // Retours (lot 3) : son, annonce vocale et célébration ; jamais d'attente (l'annonce part après le rendu).
   const st = r.state;
   const v = st.lastVisit;
+  // Journal (lot 9.5) : la fléchette, et la volée close (total, bust, reste).
+  log('saisie', `X01 : fléchette ${g.darts.length} ${formatDart(dart)}${st.lastEvent === 'dart' || !v ? '' : ` · volée ${v.bust ? 'BUST' : v.scored}${v.finish ? ' · manche gagnée' : ` · reste ${v.remainingAfter}`}`}`);
   const name = i => playerById(g.config.players[i]).name;
   // Lot 7 : célébration des nuls (volée à 0, sous 10, bust, série de mauvaises volées), ironique : bandeau, son de
   // trombone, annonce moqueuse à la place du total. Lot 7.8 : « Atila, le roi des uns » (ranking.js) ; Angelina, sous
@@ -917,6 +920,7 @@ export function undo() {
   const g = store.current;
   if (!g || !g.darts.length) return;
   stopAnnounce();
+  log('saisie', `X01 : ANNULER (fléchette ${g.darts.length} ${formatDart(g.darts[g.darts.length - 1])} retirée)`);
   g.darts = undoDart(g.config, g.darts).darts;
   g.validated = validatedAfterUndo(g.validated, g.darts.length);
   // Lot 7.8 : une volée rouverte perd sa déclaration (« main gauche »).
@@ -937,6 +941,7 @@ export function validate() {
   if (!g) return;
   const s = currentState();
   if (!pendingVisit(s, g.validated)) return;
+  log('saisie', `X01 : VALIDER (${s.dartCount} fléchettes)`);
   g.validated = s.dartCount;
   g.ui.mult = 1;
   saveCurrent();
