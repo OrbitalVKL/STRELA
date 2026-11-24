@@ -171,6 +171,14 @@ INSTALLER LA VERSION X.Y.Z, téléchargement (progression), PackageInstaller ; A
 des applis inconnues » pour Strela la première fois, puis confirme. Même signature exigée ; données gardées.
 Hors la recherche automatique (qui ne fait que lire la dernière release), rien ne part sur le réseau sans appui.
 
+## Clavier et réseau (lot 9.5)
+
+- Bord à bord (targetSdk 36) : `adjustResize` n'agit plus ; l'écouteur d'encarts de MainActivity laisse en bas
+  max(barres système, clavier `WindowInsets.Type.ime()`), la WebView rapetisse au-dessus du clavier ;
+  src/ui/keyboard.js ramène le champ actif dans la partie visible.
+- Variante github : `ACCESS_NETWORK_STATE` en plus d'INTERNET (WebRTC de la partie en ligne).
+- `Bridge.saveFile` accepte aussi `strela-journal-AAAAMMJJ-HHMM.txt` (journal de débogage, texte).
+
 ## Développement
 
 - Compiler sur un poste : Android SDK (platform 36, build-tools 35 et 36), Java 17+, Gradle 8.13+ (plugin Android

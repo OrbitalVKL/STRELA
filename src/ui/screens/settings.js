@@ -15,6 +15,8 @@ import { isApk, call, callJson, onNative, nativeTheme, hasUpdater, nativeInfo } 
 import { voiceEngine } from '../voiceinput.js';
 import { onlineSupport } from '../online.js';
 import { padModeOf } from '../../engine/padinput.js';
+import { log, setJournal, journalLines, journalText, journalFileName, clearJournal, journalSize, stamp, CATS } from '../journal.js';
+import { deliverFile } from './printsheet.js';
 
 const prefersLight = () => { try { return matchMedia('(prefers-color-scheme: light)').matches; } catch (e) { return false; } };
 export const isDark = () => store.settings.theme === 'dark' || (store.settings.theme === 'auto' && !prefersLight());
@@ -121,7 +123,11 @@ function voiceBlock() {
 // État de la mise à jour, envoyé par la coquille (Updater.java) : { current, latest, available, state, progress, msg }.
 let upd = null;
 onNative(d => {
-  if (d.update) { upd = d.update; if (location.hash === '#/reglages') refresh(); }
+  if (d.update) {
+    // Journal (lot 9.5) : chaque changement d'état de la mise à jour (recherche, téléchargement, erreur).
+    if (!upd || upd.state !== d.update.state || upd.latest !== d.update.latest) log('maj', `mise à jour : ${d.update.state || '?'}${d.update.latest ? ` (dernière ${d.update.latest}, ici ${d.update.current || '?'})` : ''}${d.update.msg ? ` — ${d.update.msg}` : ''}`);
+    upd = d.update; if (location.hash === '#/reglages') refresh();
+  }
   // Sauvegarde choisie pendant qu'Android avait fermé l'appli (sélecteur de fichiers) : relue par la coquille.
   if (d.importFile && typeof d.importFile.text === 'string') {
     onBackupFile(new File([d.importFile.text], String(d.importFile.name || 'sauvegarde.json'), { type: 'application/json' }));
@@ -289,6 +295,22 @@ export function presetSettings2(state = {}) { s2.info = new Set(state.info || []
 const s2info = key => `<button type="button" class="ibtn" data-act="s2-info" data-arg="${key}" aria-pressed="${s2.info.has(key)}" aria-label="Explication">${ico('info')}</button>`;
 const s2box = (key, text) => (s2.info.has(key) ? `<p class="infobox" role="note">${text}</p>` : '');
 const card = (icon, title, key, body) => `<section class="card2"><h2>${ico(icon)}<span>${title}</span>${key ? s2info(key) : ''}</h2>${body}</section>`;
+/** Lot 9.5 (B) : journal de débogage (Réglages › Développement) : allumé, joint à l'export, voir, exporter, vider. */
+const jr = { view: false, msg: '' };
+function journalBlock() {
+  const on = store.settings.journal !== false;
+  const lines = journalLines();
+  const ko = Math.max(1, Math.round(journalSize() / 1024));
+  const view = jr.view ? `<pre class="journal" aria-label="Journal, 300 dernières lignes">${esc(lines.slice(-300).reverse().map(([t, c, m]) => `${stamp(t).slice(5)} ${CATS[c] || c}  ${m}`).join('\n') || 'Journal vide.')}</pre>` : '';
+  return `<div class="sec">Journal de débogage${s2info('jr')}</div>
+    ${s2box('jr', 'Ce qui se passe sur ce téléphone, heure par heure : erreurs de l\'appli, étapes du mode en ligne, saisie (fléchette ajoutée, annulée, volée validée, bust), mises à jour, migrations de la base. Gardé 7 jours (1 Mo au plus) sur ce téléphone seulement ; rien de personnel hors les pseudos (pas d\'adresse réseau). Rien ne part sans EXPORTER, ou la case « joindre à la sauvegarde ».')}
+    <div class="rows">${srow('journal', 'Journal', on ? `${plural(lines.length, 'ligne', 'lignes')} · ${ko} Ko` : 'Coupé : rien n\'est noté', on)}
+      ${srow('journal-backup', 'Joindre à la sauvegarde', 'Le journal part avec EXPORTER (Données)', store.settings.journalInBackup !== false && on, !on)}</div>
+    <div class="btns two"><button type="button" class="btn ghost" data-act="journal-view" aria-pressed="${jr.view}">${jr.view ? 'MASQUER' : 'VOIR'}</button><button type="button" class="btn ghost" data-act="journal-export" ${lines.length ? '' : 'disabled'}>EXPORTER</button></div>
+    <button type="button" class="btn ghost" data-act="journal-clear" ${lines.length ? '' : 'disabled'}>VIDER LE JOURNAL</button>
+    ${jr.msg ? `<div class="vibe" role="status"><b>JOURNAL</b><span>${esc(jr.msg)}</span></div>` : ''}${view}`;
+}
+
 const srow = (act, title, desc, on, disabled = false) => `<div class="row"><div class="lbl"><b>${title}</b>${desc ? `<small>${desc}</small>` : ''}</div>${toggle(act, on, disabled)}</div>`;
 
 /** Lot 9 : dernière sauvegarde automatique, en clair. */
@@ -398,12 +420,23 @@ export function settings2Screen() {
         <button type="button" class="btn ghost" data-act="test-vibrate">TESTER LA VIBRATION</button>
         ${vr ? `<div class="vibe ${vibeResult === 'sent' ? '' : 'bad'}" role="status"><b>${vr[0]}</b><span>${vr[1]}</span>${store.settings.vibrate ? '' : '<span>Le réglage « Vibrations » est sur NON : en partie, rien ne vibrera.</span>'}</div>` : ''}
         <a class="lrow" href="${store.maquette ? '#/sommaire' : '?maquette#/sommaire'}">${ico('menu')}<span><b>Sommaire de maquette</b><small>Données fictives, sans toucher aux tiennes</small></span>${ico('chev')}</a>
+        ${journalBlock()}
         <div class="sec">Diagnostic</div><p class="diag" id="diag">${esc(diagnostic())}</p><button type="button" class="btn ghost" data-act="copy-diag">COPIER LE DIAGNOSTIC</button></div>` : ''}
       <p class="note">${store.maquette ? 'Maquette : rien n\'est enregistré.' : 'Tout est enregistré sur ce téléphone, à chaque fléchette.'}</p>
     </div></div>`;
 }
 
 export const actions = {
+  journal(v) { saveSetting('journal', v === '1'); setJournal(v === '1'); if (v === '1') log('appli', 'journal allumé'); refresh(); },
+  'journal-backup'(v) { saveSetting('journalInBackup', v === '1'); refresh(); },
+  'journal-view'() { jr.view = !jr.view; refresh(); },
+  'journal-clear'() { clearJournal(); jr.msg = 'Journal vidé.'; refresh(); },
+  async 'journal-export'() {
+    const text = journalText(`Strela v${BUILD.version} · ${diagnostic()}`);
+    const m = await deliverFile({ name: journalFileName(), mime: 'text/plain', bytes: new TextEncoder().encode(text) });
+    jr.msg = m ? m.replace(/^Image enregistrée/, 'Fichier enregistré').replace(/^Image partagée/, 'Fichier partagé').replace(/^Image/, 'Fichier') : '';
+    refresh();
+  },
   's2-info'(k) { if (s2.info.has(k)) s2.info.delete(k); else s2.info.add(k); refresh(); },
   's2-diag'() { s2.diag = !s2.diag; refresh(); },
   theme(v) { saveSetting('theme', v); applyTheme(); refresh(); },

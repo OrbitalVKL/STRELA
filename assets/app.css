@@ -2069,6 +2069,16 @@ dl.rules dd { margin: 0; }
 .modeband.train { background: var(--mode-train); }
 .modeband.soiree { background: var(--mode-soiree); }
 .modeband .ico { width: 20px; height: 20px; }
+/* Lot 9.5 (C1) : sélecteur Soirée / Entraînement en deux moitiés */
+.modeband.two { padding: 0; gap: 0; height: 48px; background: var(--bg); }
+.modeband.two .mb { flex: 1 1 50%; min-width: 0; height: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 8px; border: 0; border-right: var(--rule);
+  background: var(--bg); color: var(--dim); font: inherit; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; }
+.modeband.two .mb:last-child { border-right: 0; }
+.modeband.two .mb b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.modeband.two .mb[aria-selected="true"] { color: var(--fg); box-shadow: inset 0 -3px 0 var(--fg); }
+.modeband.two .mb[aria-selected="true"] b { font-weight: 800; }
+.modeband.two .mb.train[aria-selected="true"] { background: var(--mode-train); }
+.modeband.two .mb.soiree[aria-selected="true"] { background: var(--mode-soiree); }
 /* Stats d'entraînement : période (3.3), tendances (3.1), mention d'approximation (1.4) */
 .trstats .tper { margin-top: 12px; }
 .trstats .tper button .ico { width: 18px; height: 18px; }
@@ -2117,6 +2127,17 @@ dl.rules dd { margin: 0; }
 .tvol span i { font-style: normal; font-size: 9px; font-weight: 600; color: var(--dim); letter-spacing: 0.04em; }
 .tvol span.hit { background: var(--inv-bg); color: var(--inv-fg); border-color: var(--inv-bg); }
 .tvol span.hit i { color: inherit; opacity: 0.7; }
+.tvol.tvgame li { grid-template-columns: 30px repeat(3, minmax(0, 1fr)) minmax(52px, auto); }
+.tvol span.none { border-style: dashed; border-color: var(--faint); }
+.tvol .tvt { display: flex; flex-direction: column; justify-content: center; align-items: flex-end; padding: 3px 6px; font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.tvol .tvt small { align-self: flex-end; font-size: 9px; font-weight: 600; letter-spacing: 0.02em; white-space: nowrap; }
+.tvol .tvt.fin { background: var(--inv-bg); color: var(--inv-fg); }
+.tvol .tvt.fin small { color: inherit; }
+.tvol .tvt.bust em { font-style: normal; color: var(--red-text); letter-spacing: 0.06em; font-size: 12px; }
+.tvol li.bust span:not(.none) { text-decoration: line-through; text-decoration-color: var(--red-text); color: var(--dim); }
+.tvol li.open span:not(.none), .tvol li.open .tvt { border-style: dashed; }
+.tvol .tvleg { display: block; font-size: 10px; font-weight: 700; color: var(--dim); letter-spacing: 0.08em; padding-top: 4px; }
+.tvbroken { margin: 8px 12px 0; }
 .tcfoot { margin: 8px 12px 12px; width: calc(100% - 24px); }
 
 /* Lot 8 du 23/11 (9.2) : guide d'installation (appli et page installer.html) */
@@ -2261,3 +2282,33 @@ dl.rules dd { margin: 0; }
 .onpick .chip.pl { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 4px 10px 4px 4px; }
 .oncode .input { font-size: 26px; letter-spacing: 0.3em; text-transform: uppercase; text-align: center; }
 .online-btn.on { background: var(--inv-bg); color: var(--inv-fg); border-color: var(--inv-bg); }
+
+/* Lot 9.5 (A1) : étapes de la connexion en ligne, services de mise en relation de l'hôte */
+.onsteps { list-style: none; margin: 12px 0 0; padding: 0; border: var(--rule); }
+.onsteps li { display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: center; gap: 6px; padding: 7px 10px; border-top: var(--rule); font-size: 13px; }
+.onsteps li:first-child { border-top: 0; }
+.onsteps li b { text-align: center; font-weight: 800; }
+.onsteps li.todo { color: var(--dim); }
+.onsteps li.now { box-shadow: inset 4px 0 0 var(--fg); font-weight: 700; }
+.onsteps li.bad b, .onsteps li.bad span { color: var(--red-text); font-weight: 700; }
+.onsteps li small { color: var(--dim); font-weight: 600; }
+.banner .btn { margin-top: 8px; }
+.banner p { margin: 0; }
+.onsvc { margin: 10px 0 0; line-height: 1.6; }
+.onsvc .ibtn { vertical-align: middle; margin-left: 4px; }
+
+/* Lot 9.5 (B) : journal de débogage (Réglages › Développement) */
+pre.journal { margin: 10px 0 0; padding: 8px 10px; max-height: 360px; overflow: auto; border: var(--rule); background: var(--bg); color: var(--fg);
+  font: 500 10.5px/1.45 var(--font, inherit); white-space: pre-wrap; word-break: break-word; }
+/* Lot 9.5 (C2) : résumé d'un X01 / Cricket solo : volées et fléchettes en tête, grille des volées sous la cible */
+.trsum { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 0 0 10px; padding: 8px 12px; border: var(--rule); }
+.trsum b { font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
+.trsum span { font-size: 12px; color: var(--dim); text-align: right; }
+.trvols { border: var(--rule); }
+.trvols .tvol { padding: 8px; }
+/* Lot 9.5 (C3) : cases du tableau d'un exercice à cibles successives, touchables (impacts du secteur visé) */
+.clockg button { display: grid; justify-items: center; padding: 4px 0; background: var(--bg); color: var(--fg); border: 0; font: inherit; }
+.clockg button.open b { color: var(--dim); }
+.clockg button.on { background: var(--inv-bg); color: var(--inv-fg); }
+.clockg button.on small, .clockg button.on b { color: inherit; }
+.tfall { margin: 8px auto 0; display: flex; }

@@ -7,7 +7,8 @@ import { store, playerById, ckState, saveCk, archiveCk, deleteCk, startCricket, 
 import { esc, ico, topBar, plural, when, maquetteButtons } from '../dom.js';
 import { avatarHtml, colorIndex } from '../avatars.js';
 import { CRICKET_TARGETS, cricketStandings, cricketSummary, computeCricket } from '../../engine/cricket.js';
-import { makeDart } from '../../engine/darts.js';
+import { makeDart, formatDart } from '../../engine/darts.js';
+import { log } from '../journal.js';
 import { validatedAfterUndo } from '../turn.js';
 import { go, refresh, buzz, BUZZ, backFrom } from '../nav.js';
 import { sound, dartSound, say } from '../feedback.js';
@@ -280,6 +281,7 @@ function hit(seg, forced = null, fromHost = false) {
   g.darts = [...g.darts, dart];
   g.ui.mult = 1;
   saveCk();
+  log('saisie', `Cricket : fléchette ${g.darts.length} ${formatDart(dart)}`);
   const after = ckState();
   buzz(BUZZ.dart);
   sound(dartSound(dart));

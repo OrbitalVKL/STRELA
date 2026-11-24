@@ -111,6 +111,8 @@ src/engine/online.js      partie en ligne (lot 9.2, docs/enligne.md) : salon, au
                           tests/enligne.test.js) ; src/net/ : signal.js (signalisation PeerJS), link.js (WebRTC) ;
                           src/ui/online.js (contrôleur), screens/online.js (#/enligne), qr.js (QR code) ; rejoindre.html
                           (page du QR code) ; tools/lib/signal-server.mjs (serveur local des tests)
+src/ui/journal.js         journal de débogage (lot 9.5) : log(cat, msg), 7 jours / 1 Mo, Réglages › Développement ;
+                          src/ui/keyboard.js : champ actif gardé visible au-dessus du clavier
 src/engine/padinput.js    saisie au pavé debout (0.19.1) : secteur entier / secteur touché (pur, tests/saisie-pave.test.js)
 src/engine/shuffle.js     tirage au sort de l'ordre (Fisher-Yates sans biais, 0.11.0 ; tests/tirage.test.js)
 src/engine/alcohol.js     verres : comptes (verre 25 cl, pinte 50 cl = 2 verres, 0.8.2), place dans la partie, alcoolémie estimée (lot 7) ;
@@ -207,7 +209,28 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 8 (23/11) | Entraînement, stats et distribution (docs/lot-8-avancement.md) : 0.15.0 = saisie précise, règles, stats, listes en cartes — **fait** ; 0.16.0 = jeux de cible, défis en X01 solo, badges d'entraînement — **fait** ; 0.17.0 = modes, accueil, réglages, exports, installation — **fait** ; 0.17.1 = choix de la zone (rangées ou secteur) — **fait** |
 | 9 (23/11) | Lot 9 (docs/lot-9-avancement.md) : 0.18.0 = 9.3 saisie à la voix — **fait** ; 0.19.0 = 9.2 partie en ligne — **fait** ; 9.1 (iPhone) et 9.4 (audio en ligne) reportés |
 | 0.19.1 | Saisie verticale : secteur entier (rapide, d'un appui) / secteur touché (précis), réglage sur le pavé, traits S / D / T — **fait** |
+| 9.5 | Retours du 24/11 (docs/lot-9-5.md) : en ligne par étapes avec repli MQTT, clavier, historique X01 solo juste, journal de débogage, sélecteur Soirée / Entraînement en haut des stats, résumé X01 (volées), impacts par secteur visé (v0.20.0) — **fait** |
 | 11 | Recette |
+
+## État (version 0.20.0 : lot 9.5, retours du 24/11)
+
+- **0.20.0** (24/11) : tout le cahier docs/lot-9-5.md (détail : docs/interface.md « Version 0.20.0 », docs/enligne.md
+  « Lot 9.5 », docs/lot-9-5-avancement.md). Aucune migration (réglages `journal`, `journalInBackup`, `statsMode` ;
+  champ texte `journal` facultatif de la sauvegarde, ignoré à l'import). Coquille : place du clavier (encarts ime),
+  ACCESS_NETWORK_STATE (github), Bridge.saveFile accepte `strela-journal-…txt`.
+- **A3** : cause = la grille de la carte de séance regroupait les fléchettes 3 par 3 ; un bust à la 1re fléchette
+  (T20 depuis 40) ferme la volée → 13 volées, pas 12. Score, moyenne, meilleure volée étaient justes (moteur). Le
+  « 84 » de meilleure volée vu par Guillaume ne se reproduit pas avec les fléchettes de la grille (86 = V1) : à lui
+  faire confirmer (capture).
+- **A1** non reproduit d'ici (pas de WebSocket sortant dans les sessions) : étapes à l'écran, repli MQTT, journal pour
+  savoir où ça casse chez lui. Si l'étape 3 échoue (négociation) même sur le même Wi-Fi : regarder les candidats au
+  journal (types host / srflx).
+- Choix faits sans Guillaume (à lui dire) : courtiers MQTT publics EMQX et HiveMQ en repli (sans compte) ; journal
+  1 Mo au plus (le cahier disait « ex. 2 Mo ») ; journal joint à la sauvegarde par défaut pendant le lancement ;
+  sélecteur des stats en deux moitiés (proposition décrite dans le cahier, pas de maquette) ; touche OK du clavier =
+  REJOINDRE.
+- Test instable connu (aussi sur main) : tests/voix-parcours.test.js « APK (passerelle simulée)… » échoue parfois sous
+  charge ; relancer.
 
 ## État (version 0.19.1 : saisie verticale)
 

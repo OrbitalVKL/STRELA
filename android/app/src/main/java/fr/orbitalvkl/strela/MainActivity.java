@@ -77,9 +77,14 @@ public class MainActivity extends Activity {
         // caméra ; la zone des gestes en bas (getMandatorySystemGestureInsets) est transmise à la page, qui en fait la
         // marge basse du pavé (--gesture-native). En plein écran (partie), les barres sont masquées : seule la zone des
         // gestes reste, et la page la connaît.
+        // Lot 9.5 (A2) : en bord à bord, android:windowSoftInputMode="adjustResize" n'a plus d'effet (Android 15+) : le
+        // clavier recouvrait la page (champ du code de salon masqué). La place du clavier (WindowInsets.Type.ime()) est
+        // donc laissée en bas, comme celle des barres : la page rapetisse au-dessus du clavier, et elle fait défiler le
+        // champ actif dans la partie visible (src/ui/keyboard.js).
         root.setOnApplyWindowInsetsListener((v, ins) -> {
             Insets bars = ins.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
-            v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+            Insets ime = ins.getInsets(WindowInsets.Type.ime());
+            v.setPadding(bars.left, bars.top, bars.right, Math.max(bars.bottom, ime.bottom));
             Insets gest = ins.getInsets(WindowInsets.Type.mandatorySystemGestures());
             float d = getResources().getDisplayMetrics().density;
             int css = Math.round(Math.max(0, gest.bottom - bars.bottom) / d);

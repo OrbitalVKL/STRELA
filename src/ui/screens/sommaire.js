@@ -28,7 +28,8 @@ import { presetHistory2 } from './v2/history2.js';
 import { presetSettings2 } from './settings.js';
 import { startTraining, freshTrUi } from '../store.js';
 import { trainingState as trainingStateFn } from '../../engine/training.js';
-import { presetTraining, presetDetail } from './training.js';
+import { presetTraining, presetDetail, presetCards, presetFocus } from './training.js';
+import { log as jlog, clearJournal } from '../journal.js';
 import { presetTrainStats } from './trainstats.js';
 import { presetTrainSheet } from '../trainhonours.js';
 import { presetInfo } from '../info.js';
@@ -166,6 +167,18 @@ function mockTournee(sid) {
 const v78 = (route, prep = () => {}) => () => { seasonMock(); presetStats2(); presetHistory2(); presetSettings2(); prep(); return route; };
 
 // Lot 8 : séance d'entraînement fabriquée (remplace celle en cours) ; `n` fléchettes tirées autour des cibles, ou la notation.
+/** Lot 9.5 (A3) : la séance X01 solo du 23/11 (501 simple) : bust à V11, T20 seule en bust à V12, victoire à V13. */
+function a3Session() {
+  store.tr = null;
+  const darts = 'S20 T18 S12 S12 S20 0 S8 S1 D20 S20 S20 D20 S20 S12 0 S5 S9 D1 S18 S5 T5 T20 S1 S1 S1 S12 S12 S1 S20 S20 S18 S20 T15 T20 S20 S20'.split(' ').map(t => {
+    const d = parseDart(t); return d.multiplier === 1 && d.segment > 0 && d.segment <= 20 ? { ...d, ring: 'in' } : d;
+  });
+  const r = { id: 't-a3', startedAt: Date.now() - 3600e3, endedAt: Date.now() - 3000e3, player: 'p1', setId: 'ds-torpedo-22', mode: 'jeu', exercise: 'x01', game: { startScore: 501, outMode: 'single', legs: 1 }, darts, rules: 2 };
+  store.trainings = [r, ...store.trainings.filter(x => x.id !== r.id)];
+  store.trSetup = { ...(store.trSetup || {}), player: 'p1', mode: 'jeu' };
+  return r;
+}
+
 function setTr(exercise, n, { blocks = null, ui = {}, darts = null } = {}) {
   store.tr = null;
   store.trSetup = { player: 'p1', setId: 'ds-torpedo-22', mode: exercise === 'libre' ? 'libre' : 'coach' };
@@ -608,6 +621,26 @@ export const SCENES = {
     presetOnline({ role: 'guest', code: 'BCD23', me: 'p1', state: 'open', room: { ...roomSetup(mockRoom(['p1'], { host: 'p2' }), { game: 'cricket' }).room, phase: 'playing' } });
     return h;
   },
+  // Lot 9.5 : historique d'un X01 solo (partie de Guillaume du 23/11), étapes de la connexion, journal, stats, impacts.
+  'l95-carte': () => { const r = a3Session(); presetCards([r.id]); return '#/entrainement'; },
+  'l95-resume': () => { const r = a3Session(); presetInfo(); presetDetail(); return `#/entrainement/seance/${r.id}`; },
+  'l95-etapes': () => { presetOnline({ me: 'p1', state: 'connecting', step: 'host', stepService: 'EMQX', lastAction: 'join', draftCode: 'BCD2Q' }); return '#/enligne'; },
+  'l95-echec': () => { presetOnline({ me: 'p1', state: 'error', failStep: 'ice', lastAction: 'join', draftCode: 'BCD2Q', error: 'L\'hôte a répondu, mais les deux téléphones n\'arrivent pas à se parler directement : le réseau bloque la connexion (4G d\'opérateur, Wi-Fi invité ou d\'entreprise). Essayez tous les deux sur le même Wi-Fi, ou le partage de connexion d\'un des téléphones.' }); return '#/enligne'; },
+  'l95-hote': () => { presetOnline({ role: 'host', code: 'BCD23', me: 'p1', state: 'open', room: mockRoom(['p2']), services: [{ name: 'PeerJS', state: 'down' }, { name: 'EMQX', state: 'open' }, { name: 'HiveMQ', state: 'open' }] }); return '#/enligne'; },
+  'l95-journal': () => {
+    clearJournal();
+    jlog('appli', 'démarrage v0.20.0 (APK, base v3)');
+    jlog('enligne', 'invité : connexion au salon BCD23');
+    jlog('enligne', 'signalisation refusée : PeerJS → timeout après 8000 ms');
+    jlog('enligne', 'signalisation ouverte : EMQX (412 ms)');
+    jlog('enligne', 'invité : réponse de l\'hôte par EMQX (1630 ms)');
+    jlog('enligne', 'invité : échec à l\'étape « Négociation entre les téléphones » : unreachable ; candidats locaux host 1, srflx 1, distants srflx 1');
+    jlog('saisie', 'entraînement x01 : fléchette 34 T20 · volée BUST · reste 40');
+    presetSettings2({ diag: true }); return '#/reglages';
+  },
+  'l95-stats': () => { store.settings.modes = { train: true, soiree: true }; return '#/stats'; },
+  'l95-stats-train': () => { store.settings.modes = { train: true, soiree: true }; return '#/entrainement/stats'; },
+  'l95-serpent': () => { setTr('serpent', 45); presetFocus(store.tr.id, 18); presetInfo(); return '#/entrainement/fin'; },
   // Lot 9.3 : saisie à la voix.
   'voix-ecoute': () => { setGame(cfg(['p1', 'p2']), 'T20'); presetVoice({ listening: true, partial: 'triple vingt double' }); return '#/jeu'; },
   'voix-entendu': () => { setGame(cfg(['p1', 'p2']), 'T20 D16'); presetVoice({ heard: 'triple vingt double seize', labels: ['T20', 'D16'] }); return '#/jeu'; },
@@ -911,6 +944,15 @@ export function sommaire() {
       ${L('voix-explication', '◇ Voix : micro expliqué', 'avant la demande d\'Android')}
       ${L('voix-cricket', '◇ Voix : Cricket', 'micro dans le bandeau')}
       ${L('voix-entrainement', '◇ Voix : entraînement')}
+      ${L('l95-carte', '◆ Lot 9.5 : séance X01, grille des volées', 'bust, victoire en 2 fléchettes')}
+      ${L('l95-resume', '◆ Lot 9.5 : résumé X01 solo', 'volées en tête, grille sous la cible')}
+      ${L('l95-etapes', '◆ Lot 9.5 : en ligne, étapes de connexion')}
+      ${L('l95-echec', '◆ Lot 9.5 : en ligne, étape en échec', 'RÉESSAYER')}
+      ${L('l95-hote', '◆ Lot 9.5 : salon, services de mise en relation')}
+      ${L('l95-journal', '◆ Lot 9.5 : journal de débogage')}
+      ${L('l95-stats', '◆ Lot 9.5 : stats, sélecteur soirée / entraînement')}
+      ${L('l95-stats-train', '◆ Lot 9.5 : stats d\'entraînement, sélecteur')}
+      ${L('l95-serpent', '◆ Lot 9.5 : serpent, impacts du 18')}
       ${L('maj-importante', '◆ Accueil : mise à jour importante')}
       ${L('reglages-maj', '10 · Réglages : mise à jour disponible', 'INSTALLER')}
       ${L('reglages-maj-telechargement', '10 · Réglages : téléchargement', '42 %')}

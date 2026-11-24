@@ -2,8 +2,11 @@
 <!-- Variante « github » (APK publié en release GitHub, lot 6) : en plus du manifeste commun, ce qu'il faut à la mise à
      jour depuis l'appli. INTERNET : API GitHub (dernière release de OrbitalVKL/STRELA, au plus une fois par jour au
      lancement, ou sur demande) et téléchargement de strela.apk ; REQUEST_INSTALL_PACKAGES : installer cette mise à
-     jour (Android exige la même signature). -->
+     jour (Android exige la même signature). ACCESS_NETWORK_STATE (lot 9.5, A1 : partie en ligne) : la WebView en a besoin
+     pour connaître les réseaux du téléphone (Wi-Fi, 4G) quand WebRTC cherche un chemin vers l'autre téléphone ;
+     permission « normale », sans demande à l'utilisateur. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 </manifest>

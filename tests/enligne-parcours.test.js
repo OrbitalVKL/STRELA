@@ -112,3 +112,62 @@ test('en ligne : salon, partie X01 à deux téléphones, coupure et reprise, his
     assert.deepEqual(errors, []);
   } finally { await browser.close(); await srv.close(); await sig.close(); }
 });
+
+// Lot 9.5 (A1) : PeerJS en panne → repli par MQTT ; étapes affichées ; code sans hôte → étape « Réponse de l'hôte » en
+// échec, RÉESSAYER ; journal des deux côtés ; code tapé en minuscules avec espaces, ou lien collé.
+test('en ligne : repli MQTT quand PeerJS est en panne, étapes et RÉESSAYER, journal', { skip: !pw && 'Playwright absent', timeout: 180e3 }, async () => {
+  const sig = await signalServer();
+  sig.peerjsDown = true;
+  const srv = await serve();
+  const browser = await pw.chromium.launch();
+  const errors = [];
+  const url = `${srv.url}?signal=${encodeURIComponent(`peerjs:${sig.url},mqtt:${sig.mqttUrl}`)}`;
+  const phone = async name => {
+    const ctx = await browser.newContext(V);
+    const page = await ctx.newPage();
+    page.on('pageerror', e => errors.push(`${name} : ${e.message}`));
+    await openApp(page, url);
+    return { ctx, page };
+  };
+  try {
+    const A = await phone('A');
+    const B = await phone('B');
+    await createPlayer(A.page, 'Guillaume');
+    await createPlayer(B.page, 'Mathilde');
+    // Mauvais code (personne) : l'étape 2 échoue, message clair, RÉESSAYER.
+    await B.page.evaluate(() => { location.hash = '#/enligne'; });
+    await B.page.fill('#oncode', 'zzzzz');
+    assert.equal(await B.page.inputValue('#oncode'), 'ZZZZZ', 'majuscules d\'office');
+    await B.page.click('[data-act="on-join"]');
+    await B.page.waitForSelector('.onsteps li.now');
+    await B.page.waitForSelector('.onsteps li.bad', { timeout: 40000 });
+    assert.match(await B.page.textContent('.onsteps li.bad'), /Réponse de l'hôte/);
+    assert.match(await B.page.textContent('.banner.alert'), /aucun salon n'est ouvert à ce code/);
+    assert.ok(await B.page.$('[data-act="on-retry"]'));
+    // L'hôte crée le salon : PeerJS ✗, MQTT ✓.
+    await A.page.evaluate(() => { location.hash = '#/enligne'; });
+    await A.page.click('[data-act="on-create"]');
+    await A.page.waitForSelector('.oncodebig', { timeout: 20000 });
+    const code = (await A.page.textContent('.oncodebig')).trim();
+    assert.match(await A.page.textContent('.onsvc'), /PeerJS 1 ✗.*MQTT 2 ✓/);
+    // Lien collé dans le champ → le code ; REJOINDRE passe par MQTT.
+    await B.page.fill('#oncode', `https://orbitalvkl.github.io/STRELA/rejoindre.html#${code}`);
+    assert.equal(await B.page.inputValue('#oncode'), code);
+    await B.page.click('[data-act="on-retry"]');
+    await B.page.waitForSelector('.oncodebig', { timeout: 40000 });
+    await A.page.waitForFunction(() => document.querySelectorAll('.onm').length === 2, null, { timeout: 10000 });
+    // Journal : les étapes sont notées (invité : PeerJS refusé, réponse par MQTT, canal ouvert).
+    await B.page.waitForFunction(() => /canal ouvert/.test(localStorage.getItem('strela.journal') || ''), null, { timeout: 5000 });
+    const jb = await B.page.evaluate(() => JSON.parse(localStorage.getItem('strela.journal') || '[]').map(l => l[2]).join('\n'));
+    assert.match(jb, /signalisation refusée : PeerJS 1/);
+    assert.match(jb, /réponse de l'hôte par MQTT 2/);
+    assert.match(jb, /canal ouvert/);
+    assert.doesNotMatch(jb, /\d+\.\d+\.\d+\.\d+/, 'aucune adresse IP');
+    // Réglages › Développement › Journal : VOIR montre les lignes.
+    await B.page.evaluate(() => { location.hash = '#/reglages'; });
+    await B.page.click('[data-act="s2-diag"]');
+    await B.page.click('[data-act="journal-view"]');
+    assert.match(await B.page.textContent('pre.journal'), /EN LIGNE/);
+    assert.deepEqual(errors, []);
+  } finally { await browser.close(); await srv.close(); await sig.close(); }
+});

@@ -7,12 +7,13 @@
 //     `ui` (état d'affichage : multiplicateur armé, panneaux, vue de la cible…) n'est pas enregistré.
 // Sommaire de maquette (?maquette) : aucune base, données fictives en mémoire (src/ui/maquette.js), rien n'est écrit.
 
+import { log, journalText } from './journal.js';
 import { shuffled } from '../engine/shuffle.js';
 import { DEFI_SET } from '../engine/defis.js';
 import { computeState, STATUS, EVENTS } from '../engine/x01.js';
 import { deletePlayer as removePlayer, deletionImpact, isDeletedId } from '../engine/players.js';
 import { openDb, currentRecord, closedRecord, playerRecord, deletionOps, gameDeletionOps, soireeRecord, trainingRecord, DB_VERSION } from '../data/db.js';
-import { trainingState, cleanTrainingDart, cleanTarget, setRuns, setAt, setsUsed, cleanSetChanges, RULES_VERSION } from '../engine/training.js';
+import { trainingState, cleanTrainingDart, cleanTarget, setRuns, setAt, setsUsed, cleanSetChanges, RULES_VERSION, trainingDartLabel } from '../engine/training.js';
 import { dartSetRecord } from '../engine/dartsets.js';
 import { makeBackup, importPlan } from '../data/backup.js';
 import { bac, drinkTimes, drinkTime, drinkAt, isPint, unitsOf, drinkTally, PINT_L } from '../engine/alcohol.js';
@@ -39,7 +40,7 @@ export const store = {
   setupDraft: null,  // écran « Nouvelle partie » en cours
   crop: null,        // photo en cours de recadrage (screens/photo.js)
   // autoUpdate (lot 6) : recherche automatique de mise à jour (APK « github » seulement), OUI par défaut
-  settings: { theme: 'auto', night: false, vibrate: true, anim: true, sound: true, voice: true, autoUpdate: true, autoBackup: true, heatScale: 'clair', padRing: false, zonePad: 'rangees', voiceInput: true, voiceAsked: false }, // autoBackup : lot 9 ; heatScale, padRing, zonePad : lot 8 du 23/11 ; voiceInput, voiceAsked : lot 9.3 (saisie à la voix)
+  settings: { theme: 'auto', night: false, vibrate: true, anim: true, sound: true, voice: true, autoUpdate: true, autoBackup: true, heatScale: 'clair', padRing: false, zonePad: 'rangees', voiceInput: true, voiceAsked: false, journal: true, journalInBackup: true }, // journal, journalInBackup : lot 9.5 (journal de débogage) ; autoBackup : lot 9 ; heatScale, padRing, zonePad : lot 8 du 23/11 ; voiceInput, voiceAsked : lot 9.3 (saisie à la voix)
   maquette: false,
   // Base du téléphone : version, erreur éventuelle, stockage persistant (affichés dans le diagnostic des Réglages)
   db: { version: null, error: null, persisted: null, unreadable: 0, openCode: null, writeFail: null },
@@ -109,7 +110,8 @@ const readable = g => { try { if (isCricket(g)) computeCricket(g.config, g.darts
  * de la maquette (localStorage) y sont recopiés. `onVersionChange` : une version plus récente de l'appli ouvre la base.
  */
 export async function openStorage({ onVersionChange } = {}) {
-  db = await openDb({ onVersionChange: () => { db = null; if (onVersionChange) onVersionChange(); } });
+  db = await openDb({ onVersionChange: () => { db = null; if (onVersionChange) onVersionChange(); },
+    onUpgrade: (from, to) => log('base', `migration de la base : version ${from} → ${to}`) });
   store.db.version = db.version;
   const data = await db.loadAll();
   store.players = data.players;
@@ -129,6 +131,9 @@ export async function openStorage({ onVersionChange } = {}) {
   if (data.trainingStale && data.trainingStale.length) write(data.trainingStale.map(r => ({ store: 'trainings', put: r })));
   const tr = data.training && trOk(data.training);
   store.tr = tr ? { ...tr, ui: freshTrUi() } : null;
+  const trBad = (data.trainings || []).length - store.trainings.length;
+  if (trBad) log('base', `${trBad} séance(s) d'entraînement illisible(s) : gardée(s) dans la base, non affichée(s)`);
+  if (store.db.unreadable) log('base', `${store.db.unreadable} partie(s) illisible(s) : gardée(s) dans la base, non affichée(s)`);
   store.dartSets = (data.dartSets || []).map(dartSetRecord).filter(Boolean).sort((a, b) => a.createdAt - b.createdAt);
   store.trSetup = data.settings.training && typeof data.settings.training === 'object' ? data.settings.training : null;
   if (data.settings.display) {
@@ -720,9 +725,12 @@ export function deleteCurrent() {
 /** Sauvegarde complète de ce qui est sur le téléphone (src/data/backup.js). */
 export function exportBackup(app) {
   const display = { ...store.settings };
-  return makeBackup({ players: store.players, games: [...store.games, ...store.ckGames], current: store.current || store.ck, display, lastSetup: store.lastSetup,
+  const b = makeBackup({ players: store.players, games: [...store.games, ...store.ckGames], current: store.current || store.ck, display, lastSetup: store.lastSetup,
     trainings: store.trainings, training: store.tr, dartSets: store.dartSets, soiree: store.soiree, trSetup: store.trSetup },
   { app, dbVersion: store.db.version });
+  // Lot 9.5 (B) : journal de débogage joint si la case est cochée (texte ; ignoré à l'import).
+  if (store.settings.journalInBackup !== false && store.settings.journal !== false) b.journal = journalText(`Strela v${app}`);
+  return b;
 }
 
 /**
@@ -902,7 +910,22 @@ export function trThrow(dart) {
   try { if (trainingState(r, r.darts).done) return false; trainingState(r, darts); } catch (e) { return false; }
   r.darts = darts;
   saveTr();
+  logTrDart(r, darts);
   return true;
+}
+
+/** Journal (lot 9.5) : fléchette d'entraînement ajoutée, et en X01 / Cricket solo la volée close (total, bust, reste). */
+function logTrDart(r, darts) {
+  const d = darts[darts.length - 1];
+  let extra = '';
+  try {
+    const st = trainingState(r, darts);
+    const gs = st.gs;
+    const v = gs && !st.visitDarts && gs.visits.length ? gs.visits[gs.visits.length - 1] : null;
+    if (v && r.exercise === 'x01') extra = ` · volée ${v.bust ? 'BUST' : v.scored}${v.finish ? ' · gagnée' : ` · reste ${v.remainingAfter}`}`;
+    else if (v) extra = ` · volée ${v.marks} marque(s)`;
+  } catch (e) { extra = ' · état illisible'; }
+  log('saisie', `entraînement ${r.exercise} : fléchette ${darts.length} ${trainingDartLabel(d)}${extra}`);
 }
 
 export function trUndo() {
@@ -914,6 +937,7 @@ export function trUndo() {
     if (!st.blocks[st.blocks.length - 1].darts.length) { r.blocks = r.blocks.slice(0, -1); saveTr(); return true; }
   }
   if (!r.darts.length) return false;
+  log('saisie', `entraînement ${r.exercise} : ANNULER (fléchette ${r.darts.length} ${trainingDartLabel(r.darts[r.darts.length - 1])} retirée)`);
   r.darts = r.darts.slice(0, -1);
   saveTr();
   return true;

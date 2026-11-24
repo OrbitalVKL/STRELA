@@ -143,13 +143,16 @@ public class Bridge {
             // Lot 8 du 23/11 (8.2, 8.3) : feuille KPI de l'entraînement (strela-entrainement-…png|pdf) et fichier pour une IA
             // (strela-analyse-AAAAMMJJ-HHMM.md, texte).
             boolean ok = name.matches("strela-(fiche|soiree|resume|entrainement)-[0-9]{8}-[0-9]{4}\\.(png|pdf)")
-                || name.matches("strela-analyse-[0-9]{8}-[0-9]{4}\\.md");
+                || name.matches("strela-analyse-[0-9]{8}-[0-9]{4}\\.md")
+                // Lot 9.5 (B) : journal de débogage (texte).
+                || name.matches("strela-journal-[0-9]{8}-[0-9]{4}\\.txt");
             if (!ok) throw new IllegalArgumentException("nom de fichier refusé");
-            String type = name.endsWith(".pdf") ? "application/pdf" : name.endsWith(".md") ? "text/plain" : "image/png";
+            String type = name.endsWith(".pdf") ? "application/pdf" : name.endsWith(".md") || name.endsWith(".txt") ? "text/plain" : "image/png";
             byte[] data = android.util.Base64.decode(base64, android.util.Base64.DEFAULT);
             String title = name.startsWith("strela-soiree-") ? "Partager le rapport de soirée"
                 : name.startsWith("strela-entrainement-") ? "Partager la feuille d'entraînement"
-                : name.startsWith("strela-analyse-") ? "Partager le fichier pour l'analyse" : "Partager la fiche de score";
+                : name.startsWith("strela-analyse-") ? "Partager le fichier pour l'analyse"
+                : name.startsWith("strela-journal-") ? "Partager le journal de débogage" : "Partager la fiche de score";
             return save(name, data, type, share, title);
         } catch (Exception e) {
             return json("ok", false, "error", String.valueOf(e.getMessage()));

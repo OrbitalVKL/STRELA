@@ -7,7 +7,7 @@ Un joueur par téléphone, 2 à 4 téléphones (conçu pour 4, essayé à 2). Ca
 | Couche | Fichier | Rôle |
 |---|---|---|
 | Règles du salon et synchronisation | `src/engine/online.js` | pur, sans réseau ni DOM ; `tests/enligne.test.js` |
-| Signalisation | `src/net/signal.js` | trouver l'autre téléphone : serveur public PeerJS (`wss://0.peerjs.com/peerjs`), sans compte, avec son protocole mais sans sa bibliothèque ; petite interface `openSignal(id)` pour pouvoir en changer |
+| Signalisation | `src/net/signal.js` | trouver l'autre téléphone : serveur public PeerJS (`wss://0.peerjs.com/peerjs`), sans compte, avec son protocole mais sans sa bibliothèque ; en repli (lot 9.5) deux courtiers MQTT publics (EMQX, HiveMQ) ; petite interface `openSignal(id, { service })`, `openSignals` pour l'hôte |
 | Liaison | `src/net/link.js` | WebRTC, canal de données (`hostLink`, `guestLink`) ; messages JSON découpés au-delà de 15 000 caractères ; présence (ping 2 s, perdu après 8 s) |
 | Contrôleur | `src/ui/online.js` | salon, hôte / invité, reprise, lien avec les écrans de jeu |
 | Écran | `src/ui/screens/online.js` | `#/enligne` (créer, rejoindre, salon), `#/enligne/rejoindre/CODE` |
@@ -81,3 +81,28 @@ version web pour iPhone, lot 9.1 reporté).
 - Stats et classement : filtre TOUTES / LOCALES / EN LIGNE (affiché dès qu'une partie en ligne existe).
 - Sauvegarde, export, mise à jour : les champs `online` (partie) et `remote` (joueur) passent par `withDrinks` et
   `playerRecord` (db.js), donc dans la base, la sauvegarde et l'import.
+
+## Lot 9.5 (0.20.0) : « le mode en ligne n'arrive pas à se connecter »
+
+Non reproduit d'ici (les sessions ne laissent pas sortir les WebSocket ; 0.peerjs.com répond en HTTPS le 24/11). Ce
+qui a été corrigé ou ajouté, pour que la prochaine panne dise où elle est :
+
+- **Étapes** : 1 serveur de mise en relation, 2 réponse de l'hôte, 3 négociation entre les téléphones (ICE),
+  4 canal de données. Chacune a son délai (8 s pour ouvrir un service, 8 s pour la réponse de l'hôte sur ce service,
+  20 s pour la négociation), affichée à l'écran avec ✓ / … / ✗, et l'échec dit laquelle a lâché.
+- **Repli de signalisation** : PeerJS, puis `wss://broker.emqx.io:8084/mqtt`, puis `wss://broker.hivemq.com:8884/mqtt`
+  (MQTT 3.1.1 sur WebSocket écrit à la main, QoS 0, sujet `strela/v1/<id>`). L'hôte écoute sur les trois à la fois
+  (`openSignals` ; un service tombé est réessayé toutes les 5 s ; il répond par le service d'où l'offre est venue) ;
+  l'invité les essaie dans l'ordre et renvoie son offre et ses candidats sur le suivant. « Code pris » sur MQTT :
+  PROBE / TAKEN sur son propre sujet. Les sujets MQTT sont publics : quelqu'un qui devine le code peut lire la mise en
+  relation (adresses réseau, empreintes) comme le serveur PeerJS ; la partie, elle, reste chiffrée de bout en bout.
+- **Candidats arrivés avant l'offre** chez l'hôte : gardés puis ajoutés (ils étaient perdus).
+- **ACCESS_NETWORK_STATE** (variante github) : la WebView en a besoin pour énumérer les réseaux du téléphone quand
+  WebRTC cherche un chemin.
+- **Journal** : chaque étape, le service utilisé, les types de candidats (host / srflx / relay, jamais les adresses),
+  l'état ICE à l'échec. Sans candidat `srflx` d'un côté : STUN bloqué ; `srflx` des deux côtés mais échec : NAT
+  symétrique (4G) → il faudrait un relais TURN (aucun gratuit sans compte).
+- Tests : tests/lot95-signal.test.js (MQTT, repli, journal, dans node contre tools/lib/signal-server.mjs, qui fait aussi
+  courtier MQTT sur /mqtt) ; tests/enligne-parcours.test.js (2e test : PeerJS en panne, étapes, mauvais code, lien collé,
+  RÉESSAYER, journal, deux navigateurs).
+- URL de test : `?signal=peerjs:ws://…/peerjs,mqtt:ws://…/mqtt`.

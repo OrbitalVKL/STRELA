@@ -301,3 +301,11 @@ gage) ; KPI « Défis réussis » et message dans l'analyse.
   2,2 / 1,5 cm de groupement (9 au moins) ; En progrès +15 / +30 / +50 % (5 dernières contre 5 premières séances d'un
   exercice, 10 au moins) ; Chasseur de défis 10 / 50 / 200 petits défis. Recalculés sur tout l'historique
   (`trainingHonours`), chaque rang garde la séance où il a été atteint. Vitrine dans les stats d'entraînement.
+
+## Lot 9.5 (0.20.0) : volées d'une séance
+
+`sessionVolleys(rec)` (engine/training.js) est la seule source de la grille fléchette par fléchette : X01 et Cricket
+solo prennent les volées du moteur (un bust à la 1re fléchette ferme la volée, la finition aussi) ; exercices : 3 par 3
+depuis le début de chaque série ; jeux de cible et horloge : 3 par 3 depuis la 1re fléchette. Champs : n, leg, start,
+darts, total (points comptés, 0 sur bust ; marques au Cricket), raw, rest (reste après la volée, X01), bust, finish,
+open, targets. Cause du bug de la séance du 23/11 et tests : docs/interface.md « Version 0.20.0 ».
