@@ -2,6 +2,9 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.23.2', date: '2026-11-25', title: 'Contact', items: [
+    'À propos et politique de confidentialité : une adresse e-mail de contact pour toute question sur tes données.',
+  ] },
   { v: '0.23.1', date: '2026-11-25', title: 'Amis : c\'est parti', items: [
     'Strela est relié à son serveur : compte, amis, parties et stats partagées, présence fonctionnent maintenant pour de vrai (Réglages › Compte et amis affiche ton code d\'ami).',
     'Rien à faire : le compte se crée tout seul à l\'ouverture, avec le réseau.',

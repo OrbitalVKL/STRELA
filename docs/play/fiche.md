@@ -54,7 +54,7 @@ Thème sombre ou clair (ou celui du téléphone), mode nuit pour la pénombre, p
 
 - Type : **Application** ; catégorie : **Sports** (un compteur pour un jeu d'adresse ; voir
   [classification.md](classification.md)).
-- Adresse e-mail de contact : **[E-MAIL DE CONTACT]** (la même dans `package.json`, champ `strela.contact`, qui la
+- Adresse e-mail de contact : **orbitavkl@gmail.com** (la même dans `package.json`, champ `strela.contact`, qui la
   met dans l'écran À propos et la politique de confidentialité).
 - Politique de confidentialité : https://orbitalvkl.github.io/STRELA/confidentialite.html
 

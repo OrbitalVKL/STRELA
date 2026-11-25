@@ -223,6 +223,12 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 10 (24/11) | Amis, synchronisation, stats partagées (docs/lot-10.md, docs/lot-10-avancement.md) : 0.21.0 = étape 1, infra Supabase et compte invisible — **fait** ; 0.22.0 = étapes 2 à 5, amis, rattachement, parties et stats partagées — **fait** ; 0.23.0 = étape 6, présence — **fait** ; 0.23.1 = relié au vrai projet Supabase — **fait** ; reste : essai à deux téléphones |
 | 11 | Recette |
 
+## État (version 0.23.2 : e-mail de contact)
+
+- **0.23.2** (25/11) : e-mail de contact (`strela.contact` = orbitavkl@gmail.com, donné par Guillaume) : politique de
+  confidentialité et À propos le montrent au build. Comptes d'essai du 25/11 effacés par Guillaume ; projet en région
+  Europe (confirmé). Bilan du lot pour Guillaume : document Claude « Strela — lot 10 : travaux faits et reste à faire ».
+
 ## État (version 0.23.1 : relié au vrai projet Supabase)
 
 - **0.23.1** (25/11) : src/net/cloudconfig.js rempli (projet `zzpzaqhtqbttvvblzomc`, clé publishable). Schéma collé par
@@ -587,7 +593,7 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
     classification, captures, image de présentation, icône, checklist).
 - CI : émulateur Android 14 et 16, mise à jour en place 0.5.0 → 0.6.0 (APK de test, même clé), variante play à côté.
   apk.yml compare le certificat de la nouvelle release à celui de la précédente avant de publier.
-- Ouvert : e-mail de contact à fournir (package.json `strela.contact`) ; nom Play limité à 30 caractères (proposé :
+- E-mail de contact donné le 25/11 (package.json `strela.contact` : orbitavkl@gmail.com) ; nom Play limité à 30 caractères (proposé :
   « Strela, compteur de fléchettes ») ; pictogrammes chope et verre = « références à l'alcool » au questionnaire IARC.
 - Pour la suite : tout nouvel écran ou état va dans `SCENES` ; une fonction native nouvelle va dans `Bridge.java` (ou
   `UpdateBridge.java` si propre à la variante github), `src/ui/native.js` et la passerelle simulée de
