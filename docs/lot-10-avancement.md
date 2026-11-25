@@ -104,6 +104,11 @@ publiés : rien à terminer avant.
 - Faux Realtime dans tools/lib/fake-supabase.mjs (canal réservé aux connexions rattachées, comme les politiques
   `realtime.messages` de schema.sql).
 
+## 25/11 : relié au vrai projet (0.23.1)
+
+Projet `zzpzaqhtqbttvvblzomc` ; schéma collé en trois blocs ; tout le parcours vérifié en vrai depuis la session
+(Chromium par le proxy). Reste l'essai de Guillaume à deux téléphones.
+
 ## Lot 10 : fini côté code
 
 Restent : l'adresse du projet Supabase et sa clé publique (src/net/cloudconfig.js), le secret `SUPABASE_SECRET_KEY`

@@ -220,8 +220,19 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 0.19.1 | Saisie verticale : secteur entier (rapide, d'un appui) / secteur touché (précis), réglage sur le pavé, traits S / D / T — **fait** |
 | 0.20.1 | En ligne : messages à la forme exigée par le serveur PeerJS public (il coupait l'invité, l'hôte ne recevait rien) — **fait** |
 | 9.5 | Retours du 24/11 (docs/lot-9-5.md) : en ligne par étapes avec repli MQTT, clavier, historique X01 solo juste, journal de débogage, sélecteur Soirée / Entraînement en haut des stats, résumé X01 (volées), impacts par secteur visé (v0.20.0) — **fait** |
-| 10 (24/11) | Amis, synchronisation, stats partagées (docs/lot-10.md, docs/lot-10-avancement.md) : 0.21.0 = étape 1, infra Supabase et compte invisible — **fait** ; 0.22.0 = étapes 2 à 5, amis, rattachement, parties et stats partagées — **fait** ; 0.23.0 = étape 6, présence — **fait** ; reste : adresse et clé du projet Supabase, essai à deux téléphones |
+| 10 (24/11) | Amis, synchronisation, stats partagées (docs/lot-10.md, docs/lot-10-avancement.md) : 0.21.0 = étape 1, infra Supabase et compte invisible — **fait** ; 0.22.0 = étapes 2 à 5, amis, rattachement, parties et stats partagées — **fait** ; 0.23.0 = étape 6, présence — **fait** ; 0.23.1 = relié au vrai projet Supabase — **fait** ; reste : essai à deux téléphones |
 | 11 | Recette |
+
+## État (version 0.23.1 : relié au vrai projet Supabase)
+
+- **0.23.1** (25/11) : src/net/cloudconfig.js rempli (projet `zzpzaqhtqbttvvblzomc`, clé publishable). Schéma collé par
+  Guillaume en trois blocs (sans commentaires) depuis son téléphone ; `alter table realtime.messages` retiré (#47 :
+  refusé par Supabase, RLS déjà active). Secret `SUPABASE_SECRET_KEY` créé par Guillaume (copie du lundi).
+- **Vérifié en vrai depuis la session** (deux Chromium par le proxy, comptes d'essai supprimés ensuite) : connexion
+  anonyme, compte, code d'ami, demande et acceptation, partie envoyée et reçue chez l'ami, présence « en ligne » puis
+  « en partie », suppression des données en ligne. Le WebSocket de Node ne passe pas le proxy : essayer la présence avec
+  Chromium (comme tools/enligne-reel.mjs).
+- Reste : essai à deux vrais téléphones (rattachement des anciens joueurs locaux, soirée sur un seul téléphone).
 
 ## État (version 0.23.0 : lot 10, étape 6 — présence ; lot 10 fini côté code)
 

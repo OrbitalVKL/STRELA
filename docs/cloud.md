@@ -31,7 +31,9 @@ Cahier : [docs/lot-10.md](lot-10.md) ; avancement : [docs/lot-10-avancement.md](
 
 `src/net/cloudconfig.js` : `url` (https://<projet>.supabase.co) et `key` (clé **publique** : `sb_publishable_…` ou
 l'ancienne `anon`, JWT). Vides : synchronisation coupée, « pas encore relié » dans les Réglages. Tests : la page prend
-`?cloud=URL|CLÉ` (gardé pour la session).
+`?cloud=URL|CLÉ` (gardé pour la session). **Navigateur piloté** (`navigator.webdriver` : Playwright, captures, CI) sans
+`?cloud` : synchronisation coupée, jamais le vrai projet (le 25/11, une série de tests lancée avant cette règle y a créé
+24 comptes d'essai ; test de non-régression dans tests/cloud-parcours.test.js).
 
 Côté Supabase (Guillaume) : projet en région UE (Paris `eu-west-3` ou Francfort), Authentication › Sign In / Providers
 › **Allow anonymous sign-ins** activé ; SQL Editor : coller `supabase/schema.sql`, Run. Le fichier est rejouable : une

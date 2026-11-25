@@ -2,6 +2,10 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.23.1', date: '2026-11-25', title: 'Amis : c\'est parti', items: [
+    'Strela est relié à son serveur : compte, amis, parties et stats partagées, présence fonctionnent maintenant pour de vrai (Réglages › Compte et amis affiche ton code d\'ami).',
+    'Rien à faire : le compte se crée tout seul à l\'ouverture, avec le réseau.',
+  ] },
   { v: '0.23.0', date: '2026-11-24', title: 'Présence des amis', items: [
     'Sur la liste d\'amis, dans Joueurs et sur la fiche d\'un ami : une petite pastille sur son avatar quand il a Strela ouvert (carré vide, « en ligne ») ou qu\'il joue une partie ou une séance (carré plein, « en partie »). Sinon, sa dernière activité (« vu il y a 2 h »).',
     'Réglages › Compte et amis › Présence visible : NON pour ne plus montrer la tienne (tu vois toujours celle de tes amis).',
