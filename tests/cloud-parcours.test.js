@@ -110,3 +110,20 @@ test('compte invisible : créé à l\'ouverture, profil envoyé, gardé, retrouv
     await sb.close();
   }
 });
+
+test('navigateur piloté sans serveur donné : jamais le vrai projet (aucune requête, synchronisation coupée)', { skip: !pw && 'Playwright absent', timeout: 60e3 }, async () => {
+  const srv = await serve();
+  const browser = await pw.chromium.launch();
+  try {
+    const page = await (await browser.newContext(V)).newPage();
+    const outside = [];
+    page.on('request', r => { if (/supabase\.co/.test(r.url())) outside.push(r.url()); });
+    await openApp(page, srv.url);
+    await createPlayer(page, 'Guillaume');
+    await page.evaluate(() => { location.hash = '#/reglages'; });
+    await page.waitForSelector('#compte');
+    assert.equal((await state(page)).status, 'off');
+    assert.equal(await page.evaluate(() => window.__strelaSyncNow('essai')), false);
+    assert.deepEqual(outside, []);
+  } finally { await browser.close(); srv.close(); }
+});

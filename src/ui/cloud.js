@@ -24,6 +24,9 @@ export function cloudConfig() {
     const s = sessionStorage.getItem('strela.cloud');
     if (s) { const [url, key] = s.split('|'); const c = cleanCloudConfig({ url, key }); if (c) return c; }
   } catch (e) { /* */ }
+  // Navigateur piloté (tests, captures, Playwright) sans serveur donné : jamais le vrai projet (il se remplirait de
+  // comptes d'essai). Le téléphone et le navigateur de Guillaume n'ont jamais navigator.webdriver.
+  try { if (navigator.webdriver) return null; } catch (e) { /* */ }
   return cleanCloudConfig(CLOUD_CONFIG);
 }
 
