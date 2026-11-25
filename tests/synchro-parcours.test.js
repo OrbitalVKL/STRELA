@@ -90,11 +90,11 @@ test('parties partagées : soirée visible chez l\'amie, à part sans elle, hors
     assert.equal(gb2.friendGames.length, 1);
     // Étape 5 : stats de Guillaume chez B — ses deux parties (avec et sans Mathilde) ; sélecteur : moi, puis l'ami.
     await B.page.evaluate(id => { location.hash = `#/stats/${id}`; }, friendA);
-    await B.page.waitForSelector('.who2');
-    assert.match(await B.page.textContent('.who2'), /Guillaume[\s\S]*2\sparties[\s\S]*2\svictoires/);
-    const chips = await B.page.$$eval('.stats2 .chips .nm', els => els.map(e => e.textContent));
-    assert.deepEqual(chips.slice(0, 2), ['Mathilde', 'Guillaume']);
-    assert.match(await B.page.textContent('.modeband'), /Multijoueur|Stats multijoueur/);
+    await B.page.waitForSelector('.profile .phead'); // 0.24.0 : son profil, onglet Parties
+    assert.match(await B.page.textContent('.phead'), /Guillaume[\s\S]*2\sparties/);
+    assert.match(await B.page.textContent('.phead .pst'), /Ami/i);
+    assert.equal(await B.page.getAttribute('.ptabs a[aria-selected="true"]', 'data-tab'), 'parties');
+    assert.match(await B.page.textContent('[data-k="won"] b'), /2\s*\/\s*2/);
     // Rechargement de B : tout est gardé, au même endroit.
     await reload(B.page);
     const gb3 = await games(B.page);

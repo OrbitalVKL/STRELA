@@ -76,9 +76,11 @@ test('amis : demande par code, acceptation, lecture seule, partie, mise à jour,
     const secs = await A.page.$$eval('.players3 .sec', els => els.map(e => e.textContent.replace(/\s+/g, ' ').trim()));
     assert.deepEqual(secs.slice(0, 3), ['Mon profil', 'Joueurs locaux 1', 'Amis 1']);
     await A.page.click(`a[href="#/joueur/${fa[0].id}"]`);
-    await A.page.waitForSelector('.friends .preview');
+    await A.page.waitForSelector('.profile .phead'); // 0.24.0 : profil de l'ami (lecture seule)
     assert.equal(await A.page.$('#name'), null, 'pas de pseudo modifiable');
-    assert.match(await A.page.textContent('.friends'), /RETIRER DE MES AMIS/);
+    assert.equal(await A.page.$('.pedit'), null, 'pas de MODIFIER pour un ami');
+    assert.match(await A.page.textContent('.profile .pst'), /Ami · vient de son téléphone/i);
+    assert.match(await A.page.textContent('.profile'), /RETIRER DE MES AMIS/);
     // L'ami se choisit au lancement d'une partie comme n'importe quel joueur.
     await A.page.evaluate(() => { location.hash = '#/nouvelle'; });
     await A.page.waitForSelector('.screen');
@@ -87,17 +89,17 @@ test('amis : demande par code, acceptation, lecture seule, partie, mise à jour,
     await B.page.evaluate(() => { location.hash = '#/joueurs'; });
     await B.page.waitForSelector('.players3');
     const meB = await B.page.evaluate(() => window.__strelaPlayers().find(p => p.name === 'Mathilde').id);
-    await B.page.evaluate(id => { location.hash = `#/joueur/${id}`; }, meB);
+    await B.page.evaluate(id => { location.hash = `#/joueur/${id}/modifier`; }, meB);
     await B.page.waitForSelector('#name');
     await B.page.fill('#name', 'Mathou');
     await B.page.click('[data-act="save-player"]');
-    await B.page.waitForSelector('.players3');
+    await B.page.waitForSelector('.profile .phead'); // 0.24.0 : retour au profil
     await sync(B.page);
     await sync(A.page);
     assert.deepEqual((await friends(A.page)).map(p => p.name), ['Mathou']);
     // B retire A : chez les deux, l'ancien ami redevient un joueur local (ses parties restent).
     await B.page.evaluate(id => { location.hash = `#/joueur/${id}`; }, fb[0].id);
-    await B.page.waitForSelector('.friends .preview');
+    await B.page.waitForSelector('.profile .phead');
     await B.page.click('[data-act="fr-confirm"]');
     await B.page.click('[data-act="fr-remove"]');
     await B.page.waitForFunction(() => /Lien coupé/.test(document.querySelector('.vibe')?.textContent || ''));

@@ -37,6 +37,7 @@ import { presetVoice } from '../voiceinput.js';
 import { presetOnline } from '../online.js';
 import { presetAccount } from './account.js';
 import { presetFriends } from './friends.js';
+import { presetProfile } from './profile.js';
 import { pres } from '../presence.js';
 import { cloud as cloudState } from '../cloud.js';
 import { createRoom as roomOf, hostStart as roomStart, hostReceive as roomHello, hostMemberStatus as roomStatus, hostSetup as roomSetup, helloMsg, createGuest, playerCard } from '../../engine/online.js';
@@ -401,7 +402,7 @@ export const SCENES = {
   'ck-stats': () => { presetStats2({ info: ['cricket'] }); return '#/stats/p1'; },
   'v78-honneur': v78('#/honneur', () => presetHonour({ kind: 'tout' })), // lot 9 : tableau d'honneur
   'v78-honneur-badges': v78('#/honneur', () => presetHonour({ kind: 'badge' })),
-  'v78-stats-vitrine': v78('#/stats/p1', () => presetStats2({ info: ['vitrine'], folds: ['badges'] })), // 0.11.1 : badges dépliés
+  'v78-stats-vitrine': v78('#/joueur/p1/badges', () => presetProfile({ info: ['vitrine'] })), // 0.24.0 : badges dans le profil
   'v78-historique': v78('#/historique'),
   'v78-historique-filtre': v78('#/historique', () => { const d = new Date(); presetHistory2({ player: 'p2', month: `${d.getFullYear()}-${d.getMonth()}` }); }),
   'v78-historique-tout': v78('#/historique', () => presetHistory2({ open: store.games.map(g => (g.soiree ? `s:${g.soiree}` : '')).filter(Boolean) })),
@@ -588,7 +589,17 @@ export const SCENES = {
   'jeu-rangs': () => { setGame(cfg(['p1', 'p2', 'p3', 'p4']), 'T20 S20 S5  S20 S20 S1  T19 S19 S3  S1 S5 S20  T20 T20 S20'); return '#/jeu'; },
   // Lot 7.8 : fenêtre d'un badge (badge à rangs, puis badge simple)
   'v78-badge-rangs': v78('#/honneur', () => { presetHonour({ kind: 'badge' }); presetBadgeSheet({ pid: 'p1', key: 'fermier', tier: 0 }); }),
-  'v78-badge-180': v78('#/stats/p1', () => { presetStats2({}); presetBadgeSheet({ pid: 'p1', key: 'max', tier: 0 }); }),
+  'v78-badge-180': v78('#/joueur/p1/badges', () => { presetProfile(); presetBadgeSheet({ pid: 'p1', key: 'max', tier: 0 }); }),
+  // 0.24.0 : profil d'un joueur (onglets), statut, tableau des badges, fenêtre d'un badge d'une partie à 5 joueurs.
+  'v24-profil': v78('#/joueur/p1', () => { mockCloud('ok'); presetProfile(); }),
+  'v24-profil-parties': v78('#/joueur/p1/parties', () => { mockCloud('ok'); presetProfile(); }),
+  'v24-profil-parties-ouvert': v78('#/joueur/p1/parties', () => { presetStats2({ folds: ['pp-score', 'pp-precision', 'pp-finition', 'pp-volees', 'pp-face', 'pp-cricket', 'pp-cible', 'pp-verres'] }); }),
+  'v24-profil-entr': v78('#/joueur/p1/entrainement', () => { mockCloud('ok'); presetProfile(); }),
+  'v24-profil-badges': v78('#/joueur/p1/badges', () => { mockCloud('ok'); presetProfile(); }),
+  'v24-profil-chrono': v78('#/joueur/p1/badges', () => { mockCloud('ok'); presetProfile({ badges: 'chrono' }); }),
+  'v24-profil-local': v78('#/joueur/p3', () => presetProfile()),
+  'v24-profil-ami': () => { mockFriends(); presetFriends(); presetProfile(); return '#/joueur/u:b2c3d4e5-0000-4000-8000-00000000000a'; },
+  'v24-badge-joueurs': () => { presetProfile(); presetBadgeSheet({ pid: 'p2', key: 'clean', tier: 0 }); return '#/joueur/p2/badges'; }, // partie à 5 joueurs
   'jeu-handicap': () => { setGame({ ...cfg(['p1', 'p2']), starts: [701, 301] }, 'T20 S20 S5'); return '#/jeu'; },
   'nouvelle-vide': () => { store.players = []; store.current = null; store.setupDraft = null; return '#/nouvelle'; },
   'historique-vide': () => { store.games = []; return '#/historique'; },
@@ -993,6 +1004,15 @@ export function sommaire() {
       ${L('voix-explication', '◇ Voix : micro expliqué', 'avant la demande d\'Android')}
       ${L('voix-cricket', '◇ Voix : Cricket', 'micro dans le bandeau')}
       ${L('voix-entrainement', '◇ Voix : entraînement')}
+      ${L('v24-profil', '● 0.24.0 : profil, Résumé', 'mon profil synchronisé, records')}
+      ${L('v24-profil-parties', '● 0.24.0 : profil, Parties', 'blocs repliables')}
+      ${L('v24-profil-parties-ouvert', '● 0.24.0 : profil, Parties dépliées')}
+      ${L('v24-profil-entr', '● 0.24.0 : profil, Entraînement')}
+      ${L('v24-profil-badges', '● 0.24.0 : profil, Badges', 'vitrine par familles')}
+      ${L('v24-profil-chrono', '● 0.24.0 : profil, Badges', 'chronologie')}
+      ${L('v24-profil-local', '● 0.24.0 : profil d\'un joueur local')}
+      ${L('v24-profil-ami', '● 0.24.0 : profil d\'un ami', 'lecture seule')}
+      ${L('v24-badge-joueurs', '● 0.24.0 : fenêtre d\'un badge', 'partie à 5 joueurs : plus de débordement')}
       ${L('l10-compte', '▲ Lot 10 : Réglages › Compte et amis', 'synchronisé')}
       ${L('l10-compte-hors-ligne', '▲ Lot 10 : compte, hors ligne')}
       ${L('l10-compte-coupe', '▲ Lot 10 : synchronisation coupée')}
@@ -1000,7 +1020,7 @@ export function sommaire() {
       ${L('l10-amis', '▲ Lot 10 : Amis', 'code, QR code, demandes, amis')}
       ${L('l10-amis-vide', '▲ Lot 10 : Amis, hors ligne, sans ami')}
       ${L('l10-amis-retirer', '▲ Lot 10 : Amis, retirer à confirmer')}
-      ${L('l10-ami-fiche', '▲ Lot 10 : fiche d\'un ami', 'lecture seule')}
+      ${L('l10-ami-fiche', '▲ Lot 10 : profil d\'un ami', 'lecture seule')}
       ${L('l10-joueurs', '▲ Lot 10 : Joueurs en trois sections', 'avec un ami à rattacher')}
       ${L('l10-rattacher', '▲ Lot 10 : rattacher un joueur local', 'pseudo proche, fusion à confirmer')}
       ${L('l10-fusionne', '▲ Lot 10 : ami fusionné', 'ANNULER LA FUSION')}

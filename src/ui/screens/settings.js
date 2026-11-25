@@ -378,7 +378,7 @@ export function settings2Screen() {
       ${updateCardHtml()}
       ${card('players', 'Profil', 'prof', `
         ${s2box('prof', 'Ton nom et ton avatar : les séances d\'entraînement sont notées à ce nom. En mode soirée, les autres joueurs se gèrent dans Joueurs.')}
-        ${me ? `<a class="lrow" href="#/joueur/${esc(me.id)}">${avatarHtml(me, 36)}<span><b class="nm">${esc(me.name)}</b><small>Nom, avatar, finition préférée</small></span>${ico('chev')}</a>`
+        ${me ? `<a class="lrow" href="#/joueur/${esc(me.id)}/modifier">${avatarHtml(me, 36)}<span><b class="nm">${esc(me.name)}</b><small>Nom, avatar, finition préférée</small></span>${ico('chev')}</a>`
     : `<a class="lrow" href="#/bienvenue/nom">${ico('plus')}<span><b>Créer mon profil</b><small>Un nom et un avatar</small></span>${ico('chev')}</a>`}
         ${modes.soiree ? `<a class="lrow" href="#/joueurs">${ico('players')}<span><b>Joueurs</b><small>${plural(activePlayers().length, 'joueur', 'joueurs')}</small></span>${ico('chev')}</a>` : ''}
         ${setupDone() ? '' : `<a class="lrow" href="#/bienvenue">${ico('flag')}<span><b>Terminer la mise en place</b><small>Modes, nom, avatar, jeu de fléchettes</small></span>${ico('chev')}</a>`}`)}

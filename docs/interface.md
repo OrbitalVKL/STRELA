@@ -952,6 +952,45 @@ bouton ENTRAÎNEMENT SOLO sous la soirée (ENTRAÎNEMENT EN COURS en vidéo inve
 joueur : bouton STATS D'ENTRAÎNEMENT s'il a des séances. La saisie au doigt sur la cible est passée dans
 `src/ui/boardinput.js` (même comportement en partie).
 
+## Version 0.24.0 (25/11 : profils des joueurs, tableau des badges)
+
+Demande de Guillaume : « clarifier la lecture du profil de chaque joueur… de vrais profils et pas de stats éparpillées »,
+savoir si un profil est local ou synchronisé, « un vrai tableau de badges », fenêtre d'un badge plus large que l'écran.
+Choisi sur maquettes (images hors dépôt) : **profil A** (quatre onglets) avec les records, **badges A** (vitrine par
+familles) avec la **chronologie de B**.
+
+- **Profil** (`src/ui/screens/profile.js`) : `#/joueur/<id>` (Résumé), `/parties`, `/entrainement`, `/badges` ;
+  `#/joueur/<id>/modifier` = le formulaire d'avant (`playerForm`), `#/joueur/nouveau` inchangé. En-tête : avatar, sous-titre
+  (parties, séances, présence d'un ami), pastille de statut (`playerStatus`, `statusChip`), MODIFIER (jamais pour un ami).
+  Onglets en haut, collés en défilant (`.ptabs`).
+- **Statut** : mon profil « synchronisé » (cloudSupport ok) ou « ce téléphone » (raison : maquette, coupé, version Play) ;
+  « Joueur local · ce téléphone » ; « Ami · vient de son téléphone » ; « Adversaire en ligne ». Aussi dans la liste des
+  joueurs (version courte). Bas du résumé : ce qui part en ligne (pseudo, avatar, animation, jeux ; parties et séances
+  créées ici) et ce qui reste (finition), dernière synchronisation ; pour un ami, le bloc de son ancienne fiche
+  (`friendBlock` : ses jeux, rattacher, annuler la fusion, retirer).
+- **Résumé** : chiffres clés depuis toujours (moyenne, parties, victoires, meilleure volée, niveau d'entraînement, badges),
+  records datés, 5 meilleures volées, 3 derniers badges, 3 rivaux (face-à-face), liens Classement et Tableau d'honneur.
+- **Parties** : `stats2.js › playerGamesHtml(pid)` — période, chiffres clés (moyenne, 9 premières, victoires) toujours
+  visibles, puis blocs repliables `pp-…` (score et volées + le plus de 1, précision, finition, défis s'il y en a, courbe
+  ouverte d'office, meilleures et pires volées, face-à-face, au fil des verres, Cricket, carte de la cible). Plus de
+  pastilles de joueur ni de bandeau Multijoueur / Entraînement : les onglets du profil les remplacent.
+- **Entraînement** : `trainstats.js › trainStatsHtml(pid)` — niveau (`training.js › levelCard`), période, filtres, chiffres,
+  courbes, séances ; les badges d'entraînement sont dans l'onglet Badges.
+- **Badges** : médailles (gagnés / total, or, argent, bronze), « Presque » (3 badges les plus proches du palier suivant),
+  familles (Victoires, Volées, Collections à rangs, Soirée et mois, En ligne, Entraînement ; un badge oublié dans
+  `FAMILIES` va dans « Autres »), chaque tuile pleine si gagnée, grisée sinon, avec sa barre de progression (rangs : total
+  / palier suivant ; 10 victoires, Habitué, Casse-cou : compte / objectif ; entraînement : valeur / seuil, dans le bon
+  sens). Bascule **Chronologie** : badges, rangs, records battus et badges d'entraînement, du plus récent au plus ancien,
+  par mois ; un badge ouvre sa fenêtre. Badges d'entraînement montrés si le joueur s'entraîne ou si le mode est allumé.
+- **Anciennes adresses** : `#/stats` et `#/stats/<id>` → profil, onglet Parties (le mien sans joueur) ;
+  `#/entrainement/stats` → onglet Entraînement (dernier joueur vu, sinon celui de la séance) ; même famille d'écrans
+  pour le retour (`nav.js › FAMILY_ALIAS`). Classement et Tableau d'honneur : onglets « Profil · Classement · Honneur ».
+- **Fenêtre d'un badge** : `.sheet .body` en `minmax(0, 1fr)` et ligne Joueurs qui va à la ligne. Cause : une partie à
+  4 joueurs ou plus, leurs noms sur une ligne (nowrap) élargissaient toute la grille de la fenêtre (jusqu'à 530 px sur un
+  écran de 412).
+- Aucune migration. Tests : tests/profil-parcours.test.js ; tests adaptés aux nouvelles adresses (formulaire sous
+  `/modifier`, blocs à déplier). Sommaire : scènes `v24-…`.
+
 ## Version 0.20.1 (24/11 : la connexion en ligne)
 
 Aucun changement d'écran. Messages de signalisation PeerJS à la forme exigée par le serveur public (il coupait l'invité,

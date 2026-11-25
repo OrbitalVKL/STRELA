@@ -46,6 +46,14 @@ async function play(page, visits) {
   }
 }
 
+/** 0.24.0 : onglet Parties du profil, tous les blocs dépliés. */
+async function openFolds(page) {
+  for (let i = 0; i < 20; i++) {
+    const closed = page.locator('.pfolds > .fold[aria-expanded="false"]');
+    if (!(await closed.count())) return;
+    await closed.first().click();
+  }
+}
 const kpis = page => page.$$eval('.kpis [data-k]', els => Object.fromEntries(els.map(e => [e.dataset.k, e.querySelector('b').textContent.replace(/\s+/g, ' ').trim()])));
 
 test('historique et statistiques comparés aux calculs à la main', { skip: !pw && 'Playwright absent', timeout: 180e3 }, async () => {
@@ -83,7 +91,7 @@ test('historique et statistiques comparés aux calculs à la main', { skip: !pw 
     assert.equal(db.games.length, 3);
 
     // Charlie supprimé : sa partie avec Alpha reste (anonymisée), sa partie à trois aussi.
-    await page.evaluate(i => { location.hash = `#/joueur/${i}`; }, id.Charlie);
+    await page.evaluate(i => { location.hash = `#/joueur/${i}/modifier`; }, id.Charlie);
     await page.click('[data-act="delete"]');
     await page.click('[data-act="delete-yes"]');
     await page.waitForSelector('.list');
@@ -116,7 +124,9 @@ test('historique et statistiques comparés aux calculs à la main', { skip: !pw 
 
     // Stats d'Alpha, toutes périodes.
     await page.evaluate(i => { location.hash = `#/stats/${i}`; }, id.Alpha);
+    await page.waitForFunction(i => location.hash === `#/joueur/${i}/parties`, id.Alpha); // 0.24.0 : profil, onglet Parties
     await page.click('[data-act="period"][data-arg="tout"]');
+    await openFolds(page);
     assert.deepEqual(await kpis(page), {
       average: '128,8', first9: '141,0', won: '2 / 3', triple: '67 %', double: '100 %',
       bestFinish: '121', shortest: '6 fl.', bestVisit: '180', worstVisit: '100', ton: '2', ton40: '1', max: '2', busts: '1',
@@ -126,9 +136,17 @@ test('historique et statistiques comparés aux calculs à la main', { skip: !pw 
       ones: '2', king: 'Alpha',
       // 0.11.1 : précision et défis / badges. Triples 20 : 3 + 1 + 3 + 2 ; aucune fléchette à côté sur 18 ; pas de défi ;
       // badges : première victoire, 140+, 180, finition 100+ (121, partie 3), sans raté, Feu d'Artifice bronze (un 180).
-      t20: '9', bulls: '0', misses: '0 / 18 fl.', defisOk: '—', defisRate: '—', defisKo: '—', badgesGot: '6 / 23',
-      tiers: '0 · 0 · 1', lastBadge: 'Finition 100+',
+      t20: '9', bulls: '0', misses: '0 / 18 fl.',
     });
+    // 0.24.0 : pas de défi tiré → pas de bloc Défis ; badges dans l'onglet Badges du profil (vitrine).
+    assert.equal(await page.locator('[data-arg="pp-defis"]').count(), 0);
+    await page.evaluate(i => { location.hash = `#/joueur/${i}/badges`; }, id.Alpha);
+    await page.waitForSelector('.medals');
+    const on = await page.$$eval('.pfam:not([data-fam="entr"]) li.on', els => els.map(e => e.dataset.badge).sort());
+    assert.deepEqual(on, ['clean', 'feu', 'fin100', 'max', 'ton40', 'win1'], 'badges : première victoire, 140+, 180, finition 100+, sans raté, Feu d’Artifice');
+    assert.equal(await page.textContent('.medals [data-k="bronze"] b'), '1', 'Feu d’Artifice en bronze');
+    await page.evaluate(i => { location.hash = `#/joueur/${i}/parties`; }, id.Alpha);
+    await page.waitForSelector('.pfolds');
     assert.match(await page.innerText('.kpi.king.me'), /ex æquo avec 1\sautre/);
     await page.click('[data-act="v2-fold"][data-arg="worst"]');
     const worst = await page.$$eval('.worst li', lis => lis.map(li => li.querySelector('.w b').textContent.trim()));
@@ -149,14 +167,15 @@ test('historique et statistiques comparés aux calculs à la main', { skip: !pw 
 
     // Stats de Bravo.
     await page.evaluate(i => { location.hash = `#/stats/${i}`; }, id.Bravo);
+    await page.waitForFunction(i => location.hash === `#/joueur/${i}/parties`, id.Bravo);
+    await openFolds(page);
     assert.deepEqual(await kpis(page), {
       average: '105,5', first9: '105,5', won: '0 / 2', triple: '50 %', double: '—',
       bestFinish: '—', shortest: '—', bestVisit: '180', worstVisit: '60', ton: '1', ton40: '0', max: '1', busts: '0',
       drinks: '0', ones: '2', king: 'Bravo', // lot 7.8 : à égalité avec Alpha, roi des uns lui aussi
       // 0.11.1 : triples 20 : 2 + 1 + 3 ; un 0 sur 12 fléchettes (le « 20 » de la partie abandonnée n'est pas une volée
       // close) ; badges : 140+, 180 et Feu d'Artifice bronze, tous à la partie abandonnée.
-      t20: '6', bulls: '0', misses: '1 / 12 fl.', defisOk: '—', defisRate: '—', defisKo: '—', badgesGot: '3 / 23',
-      tiers: '0 · 0 · 1', lastBadge: 'Premier 140+',
+      t20: '6', bulls: '0', misses: '1 / 12 fl.',
     });
     // Liste des joueurs : moyenne, parties, victoires.
     await page.evaluate(() => { location.hash = '#/joueurs'; });

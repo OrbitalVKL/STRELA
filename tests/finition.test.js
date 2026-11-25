@@ -22,6 +22,7 @@ test('finition : double préféré et bull évité, enregistrés, conseillés en
     await createPlayer(page, 'Bravo');
     // Bravo : D16, bull évité
     await page.click('.list .item:has(.name:text-is("Bravo"))');
+    await page.click('.pedit'); // 0.24.0 : le profil, puis MODIFIER
     await page.waitForSelector('.dgrid');
     assert.equal(await page.getAttribute('[data-act="fin-double"][data-arg="20"]', 'aria-pressed'), 'true', 'D20 par défaut');
     await page.click('[data-act="fin-double"][data-arg="16"]');
@@ -29,14 +30,14 @@ test('finition : double préféré et bull évité, enregistrés, conseillés en
     assert.match(await page.textContent('.fin-ex'), /41 S9 D16/);
     assert.match(await page.textContent('.fin-ex'), /50 S10 D16|50 S18 D16/);
     await page.click('[data-act="save-player"]');
-    await page.waitForSelector('.list');
+    await page.waitForSelector('.profile .phead'); // 0.24.0 : retour au profil
     await settle(page);
     let db = await readDb(page);
     const byName = Object.fromEntries(db.players.map(p => [p.name, p]));
     assert.deepEqual(byName.Bravo.checkout, { double: 16, avoidBull: true });
     assert.deepEqual(byName.Alpha.checkout, { double: 20, avoidBull: false });
     await reload(page);
-    await page.evaluate(id => { location.hash = `#/joueur/${id}`; }, byName.Bravo.id);
+    await page.evaluate(id => { location.hash = `#/joueur/${id}/modifier`; }, byName.Bravo.id);
     await page.waitForSelector('.dgrid');
     assert.equal(await page.getAttribute('[data-act="fin-double"][data-arg="16"]', 'aria-pressed'), 'true', 'gardé au rechargement');
     assert.equal(await page.getAttribute('[data-act="fin-bull"][data-arg="1"]', 'aria-pressed'), 'true');

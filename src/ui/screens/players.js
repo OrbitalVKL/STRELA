@@ -3,7 +3,8 @@
 // disparaît avec ses stats ; ses parties avec d'autres restent, où il devient « Joueur supprimé » (src/engine/players.js).
 // Photo : appareil photo ou galerie (sélecteur d'images d'Android), puis recadrage carré (screens/photo.js).
 import { store, newId, inCurrentGame, deletionPreview, deletePlayer, savePlayer, setArchived, animationsOn, adoptRemote, profilePlayer, friendPlayers } from '../store.js';
-import { friendSheet, seenText, mergeBanner, presenceDot } from './friends.js';
+import { seenText, mergeBanner, presenceDot } from './friends.js';
+import { statusChip } from './profile.js';
 import { cloudSupport, syncSoon } from '../cloud.js';
 import { receivedRequests } from '../friends.js';
 import { esc, ico, topBar, avg, plural } from '../dom.js';
@@ -16,6 +17,8 @@ import { TURN_ANIMS, turnAnimOf, previewTurnFx } from '../turnfx.js';
 import { say, sound, SPEECH } from '../feedback.js';
 
 export const NAME_MAX = 40;
+/** Adresse du formulaire d'un joueur (0.24.0 : #/joueur/<id> est son profil, le formulaire est sous /modifier). */
+export const formHref = forId => (!forId || forId === 'nouveau' ? '#/joueur/nouveau' : `#/joueur/${forId}/modifier`);
 
 function row(p) {
   const st = playerStats(store.games, p.id);
@@ -24,7 +27,7 @@ function row(p) {
     : 'aucune partie';
   return `<a class="item${p.archived ? ' archived' : ''}" href="#/joueur/${esc(p.id)}">
     ${avatarHtml(p, 52)}
-    <span class="main"><span class="name nm ell">${esc(p.name)}</span><span class="sub">${sub}</span></span>
+    <span class="main"><span class="name nm ell">${esc(p.name)}</span><span class="sub">${sub}</span>${p.remote ? '' : statusChip(p, true)}</span>
     <span class="chev">${ico('chev')}</span></a>`;
 }
 
@@ -32,7 +35,7 @@ function row(p) {
 function friendRowHtml(p) {
   const st = playerStats(store.games, p.id);
   return `<a class="item" href="#/joueur/${esc(p.id)}"><span class="pav">${avatarHtml(p, 52)}${presenceDot(p)}</span>
-    <span class="main"><span class="name nm ell">${esc(p.name)}</span><span class="sub">${esc(seenText(p))}${st.played ? `<br>${plural(st.played, 'partie', 'parties')} ensemble` : ''}</span></span>
+    <span class="main"><span class="name nm ell">${esc(p.name)}</span><span class="sub">${esc(seenText(p))}${st.played ? `<br>${plural(st.played, 'partie', 'parties')} ensemble` : ''}</span>${statusChip(p, true)}</span>
     <span class="chev">${ico('chev')}</span></a>`;
 }
 
@@ -106,8 +109,7 @@ const previewHtml = d => {
 
 export function playerForm(id) {
   if (id !== 'nouveau' && !store.players.some(p => p.id === id)) { go('#/joueurs', { replace: true }); return ''; }
-  const friend = store.players.find(p => p.id === id && p.friend);
-  if (friend) return friendSheet(friend); // lot 10 : un ami est en lecture seule
+  if (store.players.some(p => p.id === id && p.friend)) { go(`#/joueur/${id}`, { replace: true }); return ''; } // lot 10 : un ami est en lecture seule
   const d = openDraft(id);
   if (d.del === 'refused' && !inCurrentGame(d.id)) d.del = null; // la partie est finie depuis le refus
   const kind = d.avatar.kind === 'icon' && !d.avatar.icon ? 'initials' : d.avatar.kind;
@@ -135,7 +137,7 @@ export function playerForm(id) {
       : `<button type="button" class="btn ghost" data-act="archive">ARCHIVER</button><p class="note">Archiver garde ses parties et ses stats ; on peut le réactiver.</p>`;
   const deleteBlock = isNew || d.confirm ? '' : deleteHtml(d);
 
-  return `<div class="screen has-dock">${topBar(isNew ? 'Nouveau joueur' : 'Modifier le joueur', '#/joueurs')}
+  return `<div class="screen has-dock">${topBar(isNew ? 'Nouveau joueur' : 'Modifier le joueur', isNew ? '#/joueurs' : `#/joueur/${esc(d.id)}`)}
     <div class="preview" id="preview">${previewHtml(d)}</div>
     <div class="pad">
       <div class="sec">Pseudo</div>
@@ -226,7 +228,7 @@ function deleteHtml(d) {
 // Lot 6 : 40 pictogrammes (41 avec la cravate, lot 7.4) rangés par thème (ICON_GROUPS), sur le fond choisi ; l'écran défile.
 export function avatarBank() {
   const d = store.draft || { name: 'Exemple', avatar: { kind: 'icon', icon: 'flechette', color: 0 }, forId: null };
-  const back = d.forId ? `#/joueur/${d.forId}` : '#/';
+  const back = d.forId ? formHref(d.forId) : '#/';
   const color = colorIndex(d.avatar.color ?? 0);
   const cur = d.avatar.kind === 'icon' ? d.avatar.icon : null;
   const groups = ICON_GROUPS.map(g => `<div class="sec">${esc(g.title)} <span class="n">${g.keys.length}</span></div>
@@ -265,7 +267,7 @@ export const actions = {
     if (!d) return;
     d.avatar.kind = 'icon';
     d.avatar.icon = key;
-    if (d.forId) goBackTo(`#/joueur/${d.forId}`); else refresh();
+    if (d.forId) goBackTo(formHref(d.forId)); else refresh();
   },
   archive() { store.draft.confirm = true; store.draft.del = null; refresh(); },
   delete() { const d = store.draft; d.del = inCurrentGame(d.id) ? 'refused' : 'ask'; d.reveal = true; refresh(); },
@@ -308,7 +310,7 @@ export const actions = {
     store.draft = null;
     const me = profilePlayer();
     if (me && me.id === rec.id) syncSoon('profil'); // lot 10 : mon profil part chez mes amis
-    go('#/joueurs');
+    go(old ? `#/joueur/${rec.id}` : '#/joueurs'); // 0.24.0 : retour au profil du joueur modifié
   },
 };
 

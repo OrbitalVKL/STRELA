@@ -2342,3 +2342,76 @@ button.frpick[aria-pressed="true"] { outline: 2px solid var(--fg); outline-offse
 .pav { position: relative; display: inline-flex; flex: 0 0 auto; }
 .pdot { position: absolute; right: -3px; bottom: -3px; width: 12px; height: 12px; border: 2px solid var(--bg); background: var(--bg); box-shadow: inset 0 0 0 2px var(--fg); }
 .pdot.jeu { background: var(--fg); box-shadow: none; }
+
+/* 0.24.0 : profil d'un joueur (#/joueur/<id>) — en-tête, statut, onglets, résumé, tableau des badges */
+.phead { display: flex; align-items: center; gap: 14px; padding: 16px 16px 14px; }
+.phead .who { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.phead .who > b { max-width: 100%; font-size: 22px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; overflow-wrap: anywhere; }
+.phead .who > small { font-size: 12px; color: var(--dim); }
+.pst { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; margin-top: 4px; padding: 3px 7px; border: var(--rule); font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg); }
+.pst .ico { flex: 0 0 14px; width: 14px; height: 14px; }
+.pst.inv { background: var(--inv-bg); color: var(--inv-fg); border-color: var(--inv-bg); }
+.list .pst { margin-top: 6px; }
+.pedit { flex: 0 0 auto; align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 10px; border: var(--rule); color: var(--fg); text-decoration: none; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; }
+.pedit .ico { width: 16px; height: 16px; }
+.pedit:active { background: var(--fg); color: var(--bg); }
+.ptabs { position: sticky; top: 0; z-index: 2; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: var(--bg); border-top: var(--rule); border-bottom: var(--rule); }
+.ptabs a { display: flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 2px; border-left: var(--rule); color: var(--dim); text-decoration: none; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.ptabs a:first-child { border-left: 0; }
+.ptabs a[aria-selected="true"] { color: var(--inv-fg); background: var(--inv-bg); }
+.pmini { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 14px; border-top: var(--rule); border-left: var(--rule); }
+.pmini > div { min-width: 0; padding: 8px 10px 9px; border-right: var(--rule); border-bottom: var(--rule); }
+.pmini small { display: block; font-size: 10px; font-weight: 600; color: var(--dim); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pmini b { display: block; margin-top: 2px; font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.pmini b small { display: inline; font-size: 12px; letter-spacing: 0; }
+.pmini .lvw { font-size: 13px; letter-spacing: 0.02em; }
+.sec .more { color: var(--fg); text-decoration: none; font-weight: 700; text-transform: none; letter-spacing: 0.02em; }
+.plinks { margin-top: 18px; border-top: var(--rule); }
+.pline { list-style: none; margin: 0; padding: 0; border-top: var(--rule); }
+.pline li { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 44px; padding: 6px 0; border-bottom: var(--rule); font-size: 13px; }
+.pline .ico { width: 18px; height: 18px; }
+.pline small { font-size: 11px; color: var(--dim); text-align: right; }
+.pfolds { margin-top: 4px; }
+.pfolds .fold-body > .sec:first-child, .pfolds .fold-body > .infobox:first-child + .sec { margin-top: 10px; }
+.pfolds .fold-body .kpis { margin-top: 10px; }
+.pfolds .fold .n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kpi small .ibtn { margin: -8px 0 -8px 2px; width: 24px; height: 24px; vertical-align: middle; }
+/* badges : progression, médailles, « Presque », familles, chronologie */
+.bprog { display: block; width: 80%; height: 5px; margin-top: auto; border: 1px solid currentColor; position: relative; }
+.bprog i { position: absolute; inset: 0 auto 0 0; background: currentColor; }
+.badges li.off .bprog { color: var(--dim); }
+.medals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 14px; border: var(--rule); }
+.medals > div { min-width: 0; padding: 10px 4px; text-align: center; border-left: var(--rule); }
+.medals > div:first-child { border-left: 0; }
+.medals b { display: block; font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.medals small { display: block; font-size: 10px; font-weight: 600; color: var(--dim); letter-spacing: 0.06em; text-transform: uppercase; overflow-wrap: anywhere; }
+.tier.mini .sq i { width: 7px; height: 7px; }
+.pnear { list-style: none; margin: 0; padding: 0; }
+.pnear li + li { margin-top: -1px; }
+.pnear button { width: 100%; display: grid; grid-template-columns: 24px minmax(0, 1fr); align-items: center; gap: 12px; padding: 10px 12px; border: var(--rule); background: none; color: var(--fg); text-align: left; }
+.pnear .ico { width: 24px; height: 24px; }
+.pnear b { display: block; font-size: 13px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; overflow-wrap: anywhere; }
+.pnear small { display: block; margin-top: 2px; font-size: 11px; color: var(--dim); overflow-wrap: anywhere; }
+.pnear .bprog { width: 100%; margin-top: 6px; }
+.pvhint { display: flex; align-items: center; gap: 8px; margin-top: 14px; font-size: 11.5px; color: var(--dim); }
+.pvhint .ibtn { order: 0; margin: 0; }
+.pfam .sec { margin-top: 20px; }
+.pbadges .honour-link { margin-top: 22px; }
+.ptl { list-style: none; margin: 0; padding: 0 0 0 14px; border-left: 2px solid var(--fg); }
+.ptl li { position: relative; padding: 0 0 12px 12px; }
+.ptl li::before { content: ''; position: absolute; left: -21px; top: 4px; width: 10px; height: 10px; background: var(--fg); }
+.ptl li.rec::before { background: var(--bg); box-shadow: inset 0 0 0 2px var(--fg); }
+.ptl button { display: block; width: 100%; padding: 0; border: 0; background: none; color: var(--fg); text-align: left; }
+.ptl small { display: block; font-size: 10.5px; font-weight: 600; color: var(--dim); letter-spacing: 0.06em; text-transform: uppercase; }
+.ptl b { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 2px; font-size: 13.5px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; overflow-wrap: anywhere; }
+.ptl b .ico { width: 18px; height: 18px; flex: 0 0 18px; }
+/* 0.24.0 : fenêtre d'un badge — rien ne l'élargit plus (une partie à 4 joueurs ou plus : leurs noms vont à la ligne) */
+.sheet .body { grid-template-columns: minmax(0, 1fr); }
+.bkv li > b.wrap { white-space: normal; overflow-wrap: anywhere; overflow: visible; }
+.pfolds .fold > span:first-of-type { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 0; }
+.pfolds .fold .ft { overflow-wrap: anywhere; }
+.pfolds .fold .fsub { font-size: 11px; font-weight: 500; letter-spacing: 0.02em; text-transform: none; color: var(--dim); overflow-wrap: anywhere; }
+.pfolds .fold[aria-expanded="true"] .fsub { color: inherit; }
+.pfolds .fold .n:empty { display: none; }
+.profile .infobox { margin-top: 10px; }
+.ptabs a { font-size: 11px; letter-spacing: 0; text-align: center; overflow-wrap: anywhere; }
