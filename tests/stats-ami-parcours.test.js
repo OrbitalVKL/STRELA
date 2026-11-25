@@ -104,13 +104,11 @@ test('ami vu d\'un autre téléphone : ses jeux au filtre, sa séance ouverte, s
 
     // Chez Guillaume : filtre sur un de SES jeux (torpedo), puis Mathilde choisie.
     const me = (await players(A.page)).find(p => p.name === 'Guillaume');
-    await A.page.evaluate(() => { location.hash = '#/entrainement/stats'; });
-    await A.page.waitForSelector('.trstats, .screen');
-    await A.page.click(`[data-act="ts-player"][data-arg="${me.id}"]`);
+    await A.page.evaluate(id => { location.hash = `#/joueur/${id}/entrainement`; }, me.id); // 0.24.0 : profil, onglet Entraînement
     await A.page.click('[data-act="ts-set"][data-arg="ds-torpedo-22"]');
     await A.page.waitForSelector('[data-act="ts-set"][data-arg="ds-torpedo-22"][aria-pressed="true"]');
     assert.equal(await A.page.locator('[data-act="ts-set"][data-arg="ds-droit-22"]').count(), 0, 'Guillaume n’a plus le fût droit');
-    await A.page.click(`[data-act="ts-player"][data-arg="${mathilde.id}"]`);
+    await A.page.evaluate(id => { location.hash = `#/joueur/${id}/entrainement`; }, mathilde.id);
     await A.page.waitForSelector('.trl li');
     assert.equal(await A.page.locator('.trl > li.tcard').count(), 1, 'la séance de Mathilde');
     assert.equal(await A.page.getAttribute('[data-act="ts-set"][data-arg=""]', 'aria-pressed'), 'true', 'filtre retombé sur TOUS');
@@ -157,8 +155,7 @@ test('ami vu d\'un autre téléphone : ses jeux au filtre, sa séance ouverte, s
     assert.equal(merged.id, math.id, 'le joueur local garde son identifiant');
     const trPlayers = async () => (await A.page.evaluate(() => window.__strelaGames())).friendTrainings.map(r => r.player);
     assert.deepEqual(await trPlayers(), [math.id], 'sa séance reçue suit le rattachement');
-    await A.page.evaluate(() => { location.hash = '#/entrainement/stats'; });
-    await A.page.click(`[data-act="ts-player"][data-arg="${math.id}"]`);
+    await A.page.evaluate(id => { location.hash = `#/joueur/${id}/entrainement`; }, math.id);
     await A.page.waitForSelector('.trl li');
     assert.equal(await A.page.locator('.trl > li.tcard').count(), 1);
     await A.page.evaluate(id => { location.hash = `#/joueur/${id}`; }, math.id);

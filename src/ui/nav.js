@@ -26,7 +26,9 @@ export function noteRoute(hash) { if (hash !== cur) { prev = cur; cur = hash; } 
 // joueur dans les Stats) ne change pas d'où elle a été ouverte. Le retour d'un écran de détail (backFrom) revient à
 // l'écran d'avant sa famille : des Stats ouvertes depuis le tableau de bord d'une soirée y reviennent, au lieu de
 // l'accueil. Jamais vers le jeu (on n'y revient que par REPRENDRE).
-const FAMILY_ALIAS = { classement: 'stats', honneur: 'stats' }; // onglets Joueur / Classement des Stats
+// 0.24.0 : #/stats et #/entrainement/stats mènent au profil (#/joueur/…) : même famille, sinon le retour du profil
+// ramènerait à l'ancienne adresse, qui renvoie au profil. Classement et tableau d'honneur : écrans de groupe à part.
+const FAMILY_ALIAS = { classement: 'groupe', honneur: 'groupe', stats: 'joueur', 'entrainement/stats': 'joueur' };
 const NO_RETURN = new Set(['jeu', 'manche', 'fin', 'nouvelle', 'recadrage']);
 // Lot 8 : les écrans de l'entraînement, des conseils et de l'armurerie forment chacun leur famille (stats, séance, une
 // fiche, un jeu), pour revenir à celui d'où l'on vient (une fiche ouverte depuis l'analyse d'une séance y revient).

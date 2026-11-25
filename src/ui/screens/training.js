@@ -124,7 +124,7 @@ export function goalText(key, level) {
   return pctOf(g.v);
 }
 
-function levelCard(pid) {
+export function levelCard(pid) {
   const lv = levelOf(allSessions(), pid);
   const crit = lv.criteria.map(c => `<li class="${c.met ? 'met' : ''}"><span class="ell">${esc(EXERCISES[c.exercise].name)} · ${esc(goalText(c.exercise, lv.level))}</span>
     <span class="lvs" aria-label="${c.met ? 'tenu' : `${c.streak} séance${c.streak > 1 ? 's' : ''} sur ${c.need}`}">${Array.from({ length: c.need }, (_, i) => `<i class="${c.met || i < c.streak ? 'on' : ''}"></i>`).join('')}</span></li>`).join('');

@@ -206,15 +206,15 @@ export const actions = {
   },
 };
 
-/** Fiche d'un ami (lecture seule) : #/joueur/u:… — ce qui vient de son téléphone, ses stats, RETIRER. */
-export function friendSheet(p) {
+/**
+ * Bloc « Ami » du profil d'un ami (0.24.0 ; avant : sa fiche) : ce qui vient de son téléphone, ses jeux, rattacher un
+ * joueur local, annuler une fusion, RETIRER.
+ */
+export function friendBlock(p) {
   const ask = fr.confirm === p.friend;
   const sets = Array.isArray(p.sets) ? p.sets.filter(s => s && !s.archived && typeof s.name === 'string') : [];
-  return `<div class="screen friends">${topBar('Ami', backFrom('#/joueurs'))}
-    <div class="preview"><span class="pav">${avatarHtml(p, 96)}${presenceDot(p)}</span><div class="who"><b class="nm">${esc(p.name)}</b><small>${esc(seenText(p))}</small></div></div>
-    <div class="pad">
-      <p class="note">Pseudo, avatar, animation de tour et jeux de fléchettes viennent de son téléphone : lui seul les change. Il s'ajoute à une partie comme n'importe quel joueur.</p>
-      <a class="lrow" href="#/stats/${esc(p.id)}">${ico('stats')}<span><b>Ses stats</b><small>Parties partagées</small></span>${ico('chev')}</a>
+  return `<div class="sec">Ami</div>
+      <p class="note">Pseudo, avatar, animation de tour et jeux de fléchettes viennent de son téléphone : lui seul les change. Il s'ajoute à une partie comme n'importe quel joueur. Ses stats comptent ses parties avec toi et celles jouées chez lui.</p>
       ${p.id.startsWith('u:') ? `<a class="lrow" href="#/amis/rattacher/${esc(p.friend)}">${ico('players')}<span><b>Rattacher un joueur local</b><small>S'il avait déjà un joueur sur ce téléphone</small></span>${ico('chev')}</a>` : ''}
       ${undoableMerge(p.friend) ? `<div class="vibe" role="status"><b>FUSIONNÉ</b><span>Avec ton joueur local « ${esc(undoableMerge(p.friend).prev.name)} ». Rien n'est encore parti en ligne : la fusion s'annule.</span></div>
         <button type="button" class="btn ghost" data-act="fr-unmerge" data-arg="${esc(p.friend)}">ANNULER LA FUSION</button>` : ''}
@@ -222,6 +222,5 @@ export function friendSheet(p) {
       ${fr.msg ? `<div class="vibe${fr.bad ? ' bad' : ''}" role="status"><b>AMIS</b><span>${esc(fr.msg)}</span></div>` : ''}
       ${ask ? `<div class="confirm"><p><b>Retirer ${esc(p.name)} de tes amis ?</b></p><p class="small dim">Le lien est coupé dans les deux sens ; vos parties communes restent dans l'historique de chacun. Il redevient un joueur de ce téléphone.</p>
         <div class="btns two"><button type="button" class="btn" data-act="fr-confirm" data-arg="">GARDER</button><button type="button" class="btn alert" data-act="fr-remove" data-arg="${esc(p.friend)}" ${fr.busy ? 'disabled' : ''}>RETIRER</button></div></div>`
-    : `<button type="button" class="btn ghost" data-act="fr-confirm" data-arg="${esc(p.friend)}">RETIRER DE MES AMIS</button>`}
-    </div></div>`;
+    : `<button type="button" class="btn ghost" data-act="fr-confirm" data-arg="${esc(p.friend)}">RETIRER DE MES AMIS</button>`}`;
 }

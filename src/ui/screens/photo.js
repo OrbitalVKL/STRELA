@@ -78,7 +78,7 @@ function closeCrop() {
   store.crop = null;
 }
 
-const backTo = c => `#/joueur/${c.forId || 'nouveau'}`;
+const backTo = c => (!c.forId || c.forId === 'nouveau' ? '#/joueur/nouveau' : `#/joueur/${c.forId}/modifier`);
 const zoomText = z => `×${z.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`;
 
 export function cropScreen() {

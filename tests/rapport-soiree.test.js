@@ -26,8 +26,8 @@ test('rapport de soirée : 4 feuilles A4 (D : chiffres, défis, badges), aperçu
     assert.equal(info.n, 4);
     assert.deepEqual(info.sizes, [[1240, 1754], [1240, 1754], [1240, 1754], [1240, 1754]]);
     assert.ok(info.defis > 0, 'la soirée fictive a des défis (feuille D)');
-    // 0.8.1 : un joueur touché sur le tableau de bord ouvre ses stats, dont le retour revient au tableau de bord (même
-    // après être passé à un autre joueur) ; les explications sont derrière (i).
+    // 0.8.1 : un joueur touché sur le tableau de bord ouvre ses stats (0.24.0 : son profil), dont le retour revient au
+    // tableau de bord (même après être passé à un autre onglet) ; les explications sont derrière (i).
     await page.waitForSelector('.dash2');
     assert.equal(await page.locator('.dash2 .infobox').count(), 0, 'explications repliées');
     await page.click('.dash2 [data-act="info"] >> nth=0');
@@ -35,8 +35,8 @@ test('rapport de soirée : 4 feuilles A4 (D : chiffres, défis, badges), aperçu
     await page.click('.podium a >> nth=0');
     await page.waitForSelector('.stats2');
     assert.equal(await page.getAttribute('header.top a.back', 'href'), '#/soiree/s1');
-    await page.click('.chips a >> nth=1');
-    await page.waitForSelector('.stats2');
+    await page.click('.ptabs a[data-tab="resume"]'); // 0.24.0 : un autre onglet du profil
+    await page.waitForSelector('.presume');
     assert.equal(await page.getAttribute('header.top a.back', 'href'), '#/soiree/s1', 'toujours le tableau de bord');
     await page.click('header.top a.back');
     await page.waitForSelector('.dash2');

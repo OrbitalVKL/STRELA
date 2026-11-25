@@ -5,15 +5,13 @@
 // - Classement (#/classement) : palmarès (le meilleur et le pire de chaque chiffre) et classement complet par chiffre.
 // Tout est recalculé depuis les fléchettes (engine/stats.js), comme les Stats actuelles.
 import { modeBand } from '../../modeband.js';
-import { store, playerById, appModes, allGames, allCkGames, allTrainings, profilePlayer } from '../../store.js';
+import { store, playerById, allGames, allCkGames, profilePlayer } from '../../store.js';
 import { esc, ico, topBar, avg, pct, int, plural, when, OUT_SHORT } from '../../dom.js';
 import { avatarHtml } from '../../avatars.js';
 import { playerStats, inPeriod, gameState } from '../../../engine/stats.js';
 import { drinkTally, averageByDrinks } from '../../../engine/alcohol.js';
-import { refresh, backFrom } from '../../nav.js';
+import { refresh, backFrom, go } from '../../nav.js';
 import { board, countOf, tally, currentPeriod, pickedBoard } from '../stats.js';
-import { vitrineHtml, allHonours } from '../../honours.js';
-import { playerBadges } from '../../../engine/badges.js';
 import { gameDefis } from '../../../engine/defis.js';
 import { cricketPlayerStats } from '../../../engine/cricket.js';
 import { onesOf } from '../../../engine/soiree.js';
@@ -63,7 +61,7 @@ const metric = k => METRICS.find(m => m.k === k) || METRICS[0];
 // ------------------------------------------------------------------ état de l'écran
 const ui = {
   info: new Set(),     // explications ouvertes (clés)
-  folds: new Set(),    // sections dépliées
+  folds: new Set(['pp-courbe']), // sections dépliées (0.24.0 : la courbe du profil d'office)
   metric: 'average',   // chiffre de la courbe
   zoom: 1,             // ×1, ×2, ×4, ×8
   point: null,         // partie touchée sur la courbe (identifiant)
@@ -72,9 +70,9 @@ const ui = {
 };
 /** Sommaire de maquette : état préparé. */
 export function presetStats2(state = {}) {
-  Object.assign(ui, { info: new Set(), folds: new Set(), metric: 'average', zoom: 1, point: null, rank: 'average', compare: null }, state);
+  Object.assign(ui, { info: new Set(), metric: 'average', zoom: 1, point: null, rank: 'average', compare: null }, state);
   if (state.info) ui.info = new Set(state.info);
-  if (state.folds) ui.folds = new Set(state.folds);
+  ui.folds = new Set(['pp-courbe', ...(state.folds || [])]); // 0.24.0 : la courbe du profil ouverte d'office
 }
 
 const infoBtn = key => `<button type="button" class="ibtn" data-act="v2-info" data-arg="${key}" aria-pressed="${ui.info.has(key)}" aria-label="Explication">${ico('info')}</button>`;
@@ -89,7 +87,7 @@ function fold(key, title, count, body) {
 }
 
 const tabs = active => `<div class="pad tabs2"><div class="seg">
-    <a href="#/stats" role="button" aria-pressed="${active === 'joueur'}">Joueur</a>
+    <a href="#/stats" role="button" aria-pressed="${active === 'joueur'}">Profil</a>
     <a href="#/classement" role="button" aria-pressed="${active === 'classement'}">Classement</a>
     <a href="#/honneur" role="button" aria-pressed="false">Honneur</a></div></div>`;
 
@@ -201,7 +199,7 @@ function chart(pts, m, pid) {
     <div class="chlegend"><span><i class="lg-ln"></i> ${ui.compare ? `<span class="nm">${esc(playerById(pid).name)}</span>` : 'partie par partie'}</span>${ui.compare ? `<span><i class="lg-ln2"></i> <span class="nm">${esc(playerById(ui.compare).name)}</span></span>` : ''}<span><i class="lg-mean"></i> moyenne ${m.pct ? `${Math.round(meanV)} %` : dec1(meanV)}</span><span>${plural(n, 'partie', 'parties')} · ${plural(days.length, 'jour', 'jours')}</span></div>`;
 }
 
-function chartBlock(games, pid) {
+function chartBlock(games, pid, inFold = false) {
   const m = metric(ui.metric);
   // Lot 9 : comparer avec un autre joueur (deux courbes sur le même graphique).
   const others = [...new Set(games.flatMap(g => g.config.players))].filter(id => id !== pid && store.players.some(p => p.id === id && !p.archived && !p.remote));
@@ -218,7 +216,7 @@ function chartBlock(games, pid) {
     ? `<a class="chread" href="#/partie/${esc(picked.g.id)}"><span><b>${when(picked.g.startedAt)}</b><small>${picked.g.config.startScore} · ${OUT_SHORT[picked.g.config.outMode]} · ${plural(picked.g.config.players.length, 'joueur', 'joueurs')}</small></span>
         <span>${esc(m.label)} <b>${(m.gameFmt || m.fmt)(picked.v)}</b></span>${ico('chev')}</a>`
     : '<p class="note center">Touchez un point pour lire la partie (heure, chiffre) et l\'ouvrir.</p>';
-  return `${sec('Courbe', 'courbe')}
+  return `${inFold ? `<div class="pvhint">${infoBtn('courbe')}<span>Un point par partie ; touchez-en un pour l\'ouvrir.</span></div>` : sec('Courbe', 'courbe')}
     ${infoBox('courbe', 'Chaque point est une partie, dans l\'ordre où elles ont été jouées : plusieurs parties du même soir ne s\'entassent plus. Les jours sont séparés par un filet et une bande grisée. La valeur est écrite au-dessus des points ; quand ils sont serrés, un sur deux ou trois : zoomez (×2 à ×8) pour les voir tous, puis faites glisser la courbe du doigt.')}
     <div class="chips2">${METRICS.filter(x => x.game).map(chip).join('')}</div>
     <div class="chtools"><span class="small dim caps">${esc(m.label)}${m.pct ? ' (%)' : ''}</span>${zoom}</div>
@@ -274,8 +272,8 @@ function visitsOf(games, pid) {
   return out;
 }
 
-function bestList(games, pid) {
-  const top = visitsOf(games, pid).sort((a, b) => b.v.scored - a.v.scored || b.g.startedAt - a.g.startedAt).slice(0, 10);
+export function bestList(games, pid, n = 10) {
+  const top = visitsOf(games, pid).sort((a, b) => b.v.scored - a.v.scored || b.g.startedAt - a.g.startedAt).slice(0, n);
   return `<ol class="vlist">${top.map((x, i) => `<li><a href="#/partie/${esc(x.g.id)}"><span class="rk">${i + 1}</span><b class="sc">${x.v.scored}</b>
       <span class="dl">${when(x.g.startedAt)}</span><span class="g">${x.g.config.startScore}</span>${ico('chev')}</a></li>`).join('')}</ol>`;
 }
@@ -310,15 +308,6 @@ function cricketBlock(pid) {
       <div class="kpi" data-k="ckbest"><small>Meilleure volée</small><b>${c.best}<small> marques</small></b></div><div class="kpi" data-k="ckdarts"><small>Fléchettes</small><b>${c.darts}</b></div></div>`;
 }
 
-/** Lot 8 : lien vers les stats d'entraînement du joueur, s'il a des séances. */
-function trainingLink(pid) {
-  const n = allTrainings().filter(r => r.player === pid).length;
-  // Lot 9.5 (C1) : les deux modes allumés, le choix est en haut de l'écran (modeband.js) : plus de bouton ici.
-  const m = appModes();
-  if (!n || (m.train && m.soiree)) return '';
-  return `${sec('Entraînement', null)}<button type="button" class="btn" data-act="ts-open" data-arg="${esc(pid)}">${ico('stats')} STATS D'ENTRAÎNEMENT <small>${plural(n, 'séance', 'séances')}</small></button>`;
-}
-
 /**
  * Lot 10 (étape 5) : joueurs du sélecteur des stats — moi d'abord, puis mes amis, puis les joueurs du téléphone (les
  * archivés seulement s'ils ont joué). Jamais les joueurs distants (adversaires en ligne, joueurs des téléphones d'amis).
@@ -331,68 +320,91 @@ export function statsPlayers() {
   return pool.map((p, i) => ({ p, i })).sort((a, b) => rank(a.p) - rank(b.p) || a.i - b.i).map(x => x.p);
 }
 
+/**
+ * 0.24.0 (profil des joueurs, choix de Guillaume : profil A) : #/stats et #/stats/<id> ouvrent l'onglet Parties du profil
+ * (#/joueur/<id>/parties) ; sans joueur choisi, le mien (sinon le premier). Les anciens liens restent bons.
+ */
 export function stats2Screen(id) {
   const players = statsPlayers(); // lot 10 : moi, mes amis, puis les joueurs du téléphone (adversaires en ligne à part)
   if (!players.length) return `<div class="screen">${topBar('Stats', '#/')}<div class="empty"><div class="big">AUCUN JOUEUR</div></div></div>`;
-  const pid = id && players.some(p => p.id === id) ? id : players[0].id;
+  const me = profilePlayer();
+  const pid = id && store.players.some(p => p.id === id) ? id : me && players.some(p => p.id === me.id) ? me.id : players[0].id;
+  go(`#/joueur/${pid}/parties`, { replace: true });
+  return '';
+}
+
+/** Blocs repliables de l'onglet Parties (0.24.0) : la courbe est ouverte d'office, le reste comme on l'a laissé. */
+const pfold = (key, title, sub, body) => (body ? fold(key, `<span class="ft">${title}</span>${sub ? `<small class="fsub">${sub}</small>` : ''}`, '', body) : '');
+
+/**
+ * 0.24.0 : onglet Parties du profil — les chiffres de l'ancien écran Stats d'un joueur, rangés : période, chiffres clés
+ * toujours visibles, puis des blocs repliables (score et volées, précision, finition, défis, courbe, meilleures et pires
+ * volées, face-à-face, verres, Cricket, carte). Records et badges : onglets Résumé et Badges.
+ */
+export function playerGamesHtml(pid) {
   const p = playerById(pid);
   const games = bySource(inPeriod(allGames(), currentPeriod()));
   const st = playerStats(games, pid);
-  const chips = `<div class="chips">${players.map(q => `<a class="btn chip" href="#/stats/${esc(q.id)}" aria-pressed="${q.id === pid}">${avatarHtml(q, 38)}<span class="nm">${esc(q.name.split(' ')[0])}</span></a>`).join('')}</div>`;
-  const head = `${topBar('Stats', backFrom('#/'))}${modeBand('soiree', { tabs: true, pid })}${tabs('joueur')}${chips}<div class="pad" style="margin-top:10px">${periodSeg()}</div>`;
+  const head = `<div class="pad" style="margin-top:12px">${periodSeg()}</div>`;
   if (!st.played) {
     const ck = cricketBlock(pid);
-    if (ck) return `<div class="screen stats2">${head}<div class="pad"><p class="note">Aucune partie de 301 · 501 · 701 sur cette période.</p>${ck}</div></div>`;
-    return `<div class="screen">${head}<div class="empty"><div class="big">AUCUNE PARTIE</div><p><span class="nm">${esc(p.name)}</span> n'a pas joué sur cette période.</p>
-      <button type="button" class="btn primary" data-act="period" data-arg="tout">VOIR DEPUIS TOUJOURS</button></div></div>`;
+    if (ck) return `<div class="stats2">${head}<div class="pad"><p class="note">Aucune partie de 301 · 501 · 701 sur cette période.</p>${ck}</div></div>`;
+    return `<div class="stats2">${head}<div class="empty"><div class="big">AUCUNE PARTIE</div><p><span class="nm">${esc(p.name)}</span> n'a pas joué sur cette période.</p>
+      ${currentPeriod() !== 'tout' ? '<button type="button" class="btn primary" data-act="period" data-arg="tout">VOIR DEPUIS TOUJOURS</button>' : ''}</div></div>`;
   }
   const k = (key, label, value, cls = '') => `<div class="kpi ${cls}" data-k="${key}"><small>${label}</small><b>${value}</b></div>`;
   const drinkT = drinkTally(...games.filter(g => g.config.players.includes(pid)).map(g => g.drinks && g.drinks[pid]));
-  const h2h = Object.entries(st.headToHead).sort((a, b) => b[1].played - a[1].played).map(([oid, h]) => {
+  const heads = Object.entries(st.headToHead).sort((a, b) => b[1].played - a[1].played);
+  const h2h = heads.map(([oid, h]) => {
     const o = playerById(oid);
     return `<li><a class="h2h-row" href="#/face/${esc(pid)}/${esc(oid)}">${avatarHtml(o, 32)}<span class="nm ell b">${esc(o.name)}</span><span class="sc">${tally(h.won, h.lost)}</span>${ico('chev')}</a></li>`;
   }).join('');
   const pb = pickedBoard();
   const readBoard = pb ? `<b>${pb}</b> : ${plural(countOf(st.segments, pb), 'impact', 'impacts')}` : 'Touchez une case de la cible pour lire le nombre d\'impacts.';
-  return `<div class="screen stats2">${head}
+  const d = defisOf(games, pid);
+  const ck = cricketPlayerStats(bySource(inPeriod(allCkGames(), currentPeriod())), pid);
+  const drinks = drinksBlock(games, pid);
+  return `<div class="stats2">${head}
     <div class="pad">
-      <div class="who2">${avatarHtml(p, 44)}<div><b class="nm">${esc(p.name)}</b><span>${plural(st.played, 'partie', 'parties')} · ${plural(st.won, 'victoire', 'victoires')}</span></div></div>
-      ${sec('Score', 'score')}
-      ${infoBox('score', `<b>Moyenne</b> : ${metric('average').info} <b>9 premières</b> : ${metric('first9').info} <b>Pire volée</b> : ${metric('worstVisit').info}`)}
-      <div class="kpis">
+      ${infoBox('score', `<b>Moyenne</b> : ${metric('average').info} <b>9 premières</b> : ${metric('first9').info}`)}
+      <div class="kpis" style="margin-top:12px">
         ${k('average', 'Moyenne sur 3 fléchettes', avg(st.average), 'hero wide')}
         ${k('first9', '9 premières', avg(st.first9))}${k('won', 'Victoires', `${st.won}<small> / ${st.played}</small>`)}
-        ${k('bestVisit', 'Meilleure volée', st.bestVisit)}${k('worstVisit', 'Pire volée', st.worstVisit ?? '—')}
       </div>
-      ${sec('Précision', 'precision')}
-      ${infoBox('precision', `<b>Triples</b> : ${metric('tripleRate').info} <b>Doubles</b> : ${metric('doubleRate').info}`)}
-      <div class="kpis">${k('triple', 'Taux de triples', pct(st.tripleRate))}${k('double', 'Taux de doubles', pct(st.doubleRate))}
-        ${k('t20', 'Triples 20', st.segments[20][2])}${k('bulls', 'Bulls (25 · 50)', st.segments[25][0] + st.segments[25][1])}
-        ${k('misses', 'Hors cible', `${st.segments.miss}<small> / ${st.segments.total} fl.</small>`, 'wide')}</div>
-      ${sec('Finition', null)}
-      <div class="kpis">${k('bestFinish', 'Meilleure finition', int(st.bestFinish))}${k('shortest', 'Manche la + courte', `${st.shortestLeg ?? '—'}${st.shortestLeg ? '<small> fl.</small>' : ''}`)}</div>
-      ${defisBadgesKpis(games, pid, sec, k)}
-      ${sec('Le plus de 1', 'uns')}
-      ${infoBox('uns', 'Fléchettes tombées dans le 1 sur la période. Le roi des uns est le joueur qui en a le plus (classement « Le plus de 1 »). Le badge Le Roi des Uns, lui, compte toutes les parties depuis toujours.')}
-      ${onesKpi(games, pid, st)}
-      ${sec('Volées', null)}
-      <div class="kpis"><div class="kpi wide tons"><div data-k="ton"><small>100+</small><b>${st.ton}</b></div><div data-k="ton40"><small>140+</small><b>${st.ton40}</b></div><div data-k="max"><small>180</small><b>${st.max}</b></div><div data-k="busts"><small>Bust</small><b>${st.busts}</b></div></div>
-        ${k('drinks', `Verres en ${plural(st.played, 'partie', 'parties')}`, `${drinkT.glasses}${drinkT.pints ? `<small> · ${plural(drinkT.pints, 'pinte', 'pintes')}</small>` : ''}`, 'wide')}</div>
-      ${cricketBlock(pid)}
-      ${trainingLink(pid)}
-      ${vitrineHtml(pid, sec, infoBox, fold)}
-      ${chartBlock(games, pid)}
-      ${drinksBlock(games, pid)}
-      ${sec('Meilleures et pires volées', 'volees')}
-      ${infoBox('volees', 'Les 10 meilleures volées de la période, et la pire volée de chaque partie (sans les bust ni les volées de finition). Touchez une ligne pour ouvrir la partie.')}
-      ${fold('best', 'Meilleures volées', 10, bestList(games, pid))}
-      ${fold('worst', 'Pire volée de chaque partie', st.perGame.length, worstPerGame(st.perGame))}
-      ${h2h ? `${sec('Face-à-face', null)}<ul class="h2h">${h2h}</ul>` : ''}
-      ${sec('Segments touchés', 'cible', `<span class="n">${st.segments.total} fl.</span>`)}
-      ${infoBox('cible', 'Chaque fléchette lancée sur la période, par zone : plus la case est foncée, plus elle a été touchée.')}
-      ${fold('board', 'Carte de la cible', `${st.segments.miss} à côté`, `${board(st.segments, { counts: true })}
+      <div class="pfolds">
+      ${pfold('pp-score', 'Score et volées', `meilleure ${st.bestVisit} · 100+ ${st.ton + st.ton40 + st.max}`, `
+        ${infoBox('pire', `<b>Pire volée</b> : ${metric('worstVisit').info}`)}
+        <div class="kpis">${k('bestVisit', 'Meilleure volée', st.bestVisit)}${k('worstVisit', `Pire volée ${infoBtn('pire')}`, st.worstVisit ?? '—')}
+          <div class="kpi wide tons"><div data-k="ton"><small>100+</small><b>${st.ton}</b></div><div data-k="ton40"><small>140+</small><b>${st.ton40}</b></div><div data-k="max"><small>180</small><b>${st.max}</b></div><div data-k="busts"><small>Bust</small><b>${st.busts}</b></div></div>
+          ${k('drinks', `Verres en ${plural(st.played, 'partie', 'parties')}`, `${drinkT.glasses}${drinkT.pints ? `<small> · ${plural(drinkT.pints, 'pinte', 'pintes')}</small>` : ''}`, 'wide')}</div>
+        ${sec('Le plus de 1', 'uns')}
+        ${infoBox('uns', 'Fléchettes tombées dans le 1 sur la période. Le roi des uns est le joueur qui en a le plus (classement « Le plus de 1 »). Le badge Le Roi des Uns, lui, compte toutes les parties depuis toujours.')}
+        ${onesKpi(games, pid, st)}`)}
+      ${pfold('pp-precision', 'Précision', `triples ${pct(st.tripleRate)} · doubles ${pct(st.doubleRate)}`, `
+        ${infoBox('precision', `<b>Triples</b> : ${metric('tripleRate').info} <b>Doubles</b> : ${metric('doubleRate').info}`)}
+        <div class="kpis">${k('triple', `Taux de triples ${infoBtn('precision')}`, pct(st.tripleRate))}${k('double', 'Taux de doubles', pct(st.doubleRate))}
+          ${k('t20', 'Triples 20', st.segments[20][2])}${k('bulls', 'Bulls (25 · 50)', st.segments[25][0] + st.segments[25][1])}
+          ${k('misses', 'Hors cible', `${st.segments.miss}<small> / ${st.segments.total} fl.</small>`, 'wide')}</div>`)}
+      ${pfold('pp-finition', 'Finition', `meilleure ${int(st.bestFinish)}`, `
+        <div class="kpis">${k('bestFinish', 'Meilleure finition', int(st.bestFinish))}${k('shortest', 'Manche la + courte', `${st.shortestLeg ?? '—'}${st.shortestLeg ? '<small> fl.</small>' : ''}`)}</div>`)}
+      ${pfold('pp-defis', 'Défis', d.n ? `${d.ok} réussis sur ${d.n}` : 'aucun', d.n ? `
+        ${infoBox('defis', 'Défis tirés au sort pendant ses volées (option « Défis » au lancement), sur la période.')}
+        <div class="kpis">${k('defisOk', `Défis réussis ${infoBtn('defis')}`, `${d.ok}<small> / ${d.n}</small>`)}${k('defisRate', 'Taux de réussite', pct(d.ok / d.n))}
+          ${k('defisKo', 'Défis ratés', d.gages, 'wide')}</div>` : '')}
+      ${pfold('pp-courbe', 'Courbe', esc(metric(ui.metric).label.toLowerCase()), chartBlock(games, pid, true))}
+      ${pfold('pp-volees', 'Meilleures et pires volées', `${plural(st.perGame.length, 'partie', 'parties')}`, `
+        ${infoBox('volees', 'Les 10 meilleures volées de la période, et la pire volée de chaque partie (sans les bust ni les volées de finition). Touchez une ligne pour ouvrir la partie.')}
+        ${fold('best', 'Meilleures volées', 10, bestList(games, pid))}
+        ${fold('worst', 'Pire volée de chaque partie', st.perGame.length, worstPerGame(st.perGame))}`)}
+      ${pfold('pp-face', 'Face-à-face', plural(heads.length, 'adversaire', 'adversaires'), h2h ? `<ul class="h2h">${h2h}</ul>` : '')}
+      ${pfold('pp-verres', 'Au fil des verres', 'moyenne selon les verres bus', drinks)}
+      ${pfold('pp-cricket', 'Cricket', ck.played ? `MPR ${ck.mpr === null ? '—' : (Math.round(ck.mpr * 100) / 100).toFixed(2).replace('.', ',')} · ${ck.won} / ${ck.played}` : '', cricketBlock(pid))}
+      ${pfold('pp-cible', 'Carte de la cible', `${st.segments.total} fl. · ${st.segments.miss} à côté`, `
+        ${infoBox('cible', 'Chaque fléchette lancée sur la période, par zone : plus la case est foncée, plus elle a été touchée.')}
+        ${board(st.segments, { counts: true })}
         <p class="note center">Chiffre sur chaque secteur : impacts dans ce secteur (simple, double et triple), au centre : le bull (25 et 50). ${readBoard}</p>
         ${sectorTable(st.segments)}`)}
+      </div>
     </div></div>`;
 }
 
@@ -406,20 +418,6 @@ export function defisOf(games, pid) {
   }
   return { ok, n, gages };
 }
-function defisBadgesKpis(games, pid, sec, k) {
-  const d = defisOf(games, pid);
-  const b = playerBadges(allHonours(), pid);
-  const got = b.filter(x => x.earned);
-  const tiers = [1, 2, 3].map(t => b.filter(x => x.tiers && x.tier === t).length);
-  const last = got.filter(x => x.at).sort((a, c) => c.at - a.at)[0];
-  return `${sec('Défis et badges', 'defisbadges')}
-    ${infoBox('defisbadges', '<b>Défis</b> : sur la période, défis tirés au sort pendant ses volées (option « Défis » au lancement), réussis et ratés (les gages ne sont plus notés dans les verres). <b>Badges</b> : depuis toujours, gagnés sur les badges existants ; rangs : badges à rangs atteints en or, argent et bronze (le rang le plus haut de chacun).')}
-    <div class="kpis">${k('defisOk', 'Défis réussis', d.n ? `${d.ok}<small> / ${d.n}</small>` : '—')}${k('defisRate', 'Taux de réussite', d.n ? pct(d.ok / d.n) : '—')}
-      ${k('defisKo', 'Défis ratés', d.n ? d.gages : '—')}${k('badgesGot', 'Badges gagnés', `${got.length}<small> / ${b.length}</small>`)}
-      ${k('tiers', 'Rangs or · argent · bronze', `${tiers[2]} · ${tiers[1]} · ${tiers[0]}`, 'wide')}
-      ${last ? k('lastBadge', `Dernier badge · ${shortDateOf(last.at)}`, esc(last.name), 'wide') : ''}</div>`;
-}
-const shortDateOf = ms => { const x = new Date(ms); return `${x.getDate()}/${String(x.getMonth() + 1).padStart(2, '0')}`; };
 
 /** Lot 7.8 : fléchettes du joueur dans le 1, et le détenteur du classement « le plus de 1 » (roi des uns). */
 function onesKpi(games, pid, st) {
@@ -458,7 +456,7 @@ function ranked(rows, m) {
 export function rankingScreen() {
   const games = bySource(inPeriod(allGames(), currentPeriod()));
   const rows = rankingData(games);
-  const head = `${topBar('Classement', backFrom('#/'))}${modeBand('soiree', { tabs: true })}${tabs('classement')}<div class="pad" style="margin-top:10px">${periodSeg()}</div>`;
+  const head = `${topBar('Classement', backFrom('#/'))}${modeBand('soiree')}${tabs('classement')}<div class="pad" style="margin-top:10px">${periodSeg()}</div>`;
   if (rows.length < 2) {
     return `<div class="screen">${head}<div class="empty"><div class="big">PAS ASSEZ DE JOUEURS</div><p>Il faut au moins deux joueurs avec une partie sur la période.</p>
       <button type="button" class="btn primary" data-act="period" data-arg="tout">VOIR DEPUIS TOUJOURS</button></div></div>`;

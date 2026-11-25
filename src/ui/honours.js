@@ -123,9 +123,9 @@ export function honourScreen() {
   const item = e => {
     const p = playerById(e.id);
     const inner = `${avatarHtml(p, 30)}<span class="nm ell">${esc(p.name)}</span><span class="rl">${esc(e.label)} · ${shortDate(e.at)}</span>`;
-    // Lot 7.8 : un badge ouvre sa fenêtre (signification, partie, volée) ; un record ouvre les stats du joueur.
+    // Lot 7.8 : un badge ouvre sa fenêtre (signification, partie, volée) ; un record ouvre le profil du joueur (0.24.0).
     if (e.kind === 'badge') return `<li class="badge"><button type="button" ${badgeOpen(e.id, e.key, e.tier)}>${inner}<b class="bi">${ico(byKey[e.key].icon)}</b><small>${e.tier ? TIER_NAMES[e.tier] : 'badge'}</small></button></li>`;
-    return `<li class="${e.kind}"><a href="#/stats/${esc(e.id)}">${inner}<b>${esc(e.value)}</b><small>avant : ${esc(e.before)}</small></a></li>`;
+    return `<li class="${e.kind}"><a href="#/joueur/${esc(e.id)}">${inner}<b>${esc(e.value)}</b><small>avant : ${esc(e.before)}</small></a></li>`;
   };
   return `<div class="screen honour">${head}
     <div class="pad">
@@ -178,7 +178,7 @@ function whereHtml(where, b) {
   const rows = [
     `<li><span>Date</span><b>${esc(when(g.startedAt))}</b></li>`,
     `<li><span>Partie</span><b>${g.config.startScore} · ${OUT_SHORT[g.config.outMode] || ''}</b></li>`,
-    `<li><span>Joueurs</span><b class="ell">${esc(others)}</b></li>`,
+    `<li><span>Joueurs</span><b class="wrap">${esc(others)}</b></li>`,
     vi ? `<li><span>Volée</span><b>${vi.legs > 1 ? `MANCHE ${vi.leg} · ` : ''}TOUR ${vi.tour}</b></li><li><span>Fléchettes</span><b>${esc(vi.darts) || '–'} <em>= ${vi.score}</em></b></li>`
       : `<li><span>Volée</span><b>${b.key === 'clean' || b.key === 'marathon' || b.key === 'games50' ? 'toute la partie' : '—'}</b></li>`,
   ];

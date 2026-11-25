@@ -110,6 +110,7 @@ test('vraie appli : choix gardé au rechargement ; aucune animation quand elles 
     await reload(page);
     await page.evaluate(() => { location.hash = '#/joueurs'; });
     await page.click('a.item:has(.name:text-is("Angelina"))'); // fiche relue depuis la base
+    await page.click('.pedit'); // 0.24.0 : le profil, puis MODIFIER
     await page.waitForSelector('[data-act="turn-anim"]');
     assert.equal(await page.locator('[data-act="turn-anim"][aria-pressed="true"]').getAttribute('data-arg'), 'planete');
     await newGame(page, ['Angelina', 'Tsia'], { startScore: 301, shuffle: false });
@@ -307,6 +308,7 @@ test('lot 7.9 : vraie appli — sans rien choisir, le pictogramme du joueur s’
     // Fiche : PICTOGRAMME allumé d'office, et l'aperçu joue celle du pictogramme.
     await page.evaluate(() => { location.hash = '#/joueurs'; });
     await page.click('a.item:has(.name:text-is("Renard"))');
+    await page.click('.pedit'); // 0.24.0 : le profil, puis MODIFIER
     await page.waitForSelector('[data-act="turn-anim"]');
     assert.equal(await page.locator('[data-act="turn-anim"][aria-pressed="true"]').getAttribute('data-arg'), 'picto');
     await page.click('[data-act="turn-anim"][data-arg="picto"]');

@@ -120,6 +120,8 @@ src/net/supabase.js       client Supabase maison (connexion anonyme, jeton, rpc)
 tools/lib/pg.mjs          Postgres local jetable des tests (Supabase imité) ; tools/lib/fake-supabase.mjs : faux Supabase
                           (mêmes adresses, fonctions jouées dans ce Postgres) ; tools/supabase.mjs : réveil, copie, remise ;
                           .github/workflows/supabase.yml : réveil tous les 3 jours, copie chiffrée chaque lundi
+src/ui/screens/profile.js profil d'un joueur (0.24.0) : #/joueur/<id>[/parties|entrainement|badges], statut (synchronisé,
+                          local, ami), Résumé, tableau des badges (vitrine, chronologie) ; formulaire sous /modifier
 src/ui/journal.js         journal de débogage (lot 9.5) : log(cat, msg), 7 jours / 1 Mo, Réglages › Développement ;
                           src/ui/keyboard.js : champ actif gardé visible au-dessus du clavier
 src/engine/padinput.js    saisie au pavé debout (0.19.1) : secteur entier / secteur touché (pur, tests/saisie-pave.test.js)
@@ -221,7 +223,21 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 0.20.1 | En ligne : messages à la forme exigée par le serveur PeerJS public (il coupait l'invité, l'hôte ne recevait rien) — **fait** |
 | 9.5 | Retours du 24/11 (docs/lot-9-5.md) : en ligne par étapes avec repli MQTT, clavier, historique X01 solo juste, journal de débogage, sélecteur Soirée / Entraînement en haut des stats, résumé X01 (volées), impacts par secteur visé (v0.20.0) — **fait** |
 | 10 (24/11) | Amis, synchronisation, stats partagées (docs/lot-10.md, docs/lot-10-avancement.md) : 0.21.0 = étape 1, infra Supabase et compte invisible — **fait** ; 0.22.0 = étapes 2 à 5, amis, rattachement, parties et stats partagées — **fait** ; 0.23.0 = étape 6, présence — **fait** ; 0.23.1 = relié au vrai projet Supabase — **fait** ; reste : essai à deux téléphones |
+| 0.24.0 | Profils des joueurs (4 onglets, statut synchronisé / local / ami), tableau des badges (vitrine par familles + chronologie), fenêtre de badge corrigée — **fait** |
 | 11 | Recette |
+
+## État (version 0.24.0 : profils des joueurs, tableau des badges)
+
+- **0.24.0** (25/11) : demande de Guillaume (« de vrais profils, pas de stats éparpillées », « local ou synchro ? »,
+  « un vrai tableau de badges », fenêtre de badge trop large). Choisi sur maquettes : profil A (quatre onglets) avec les
+  records, badges A (vitrine par familles) avec la chronologie de B. Détail : docs/interface.md « Version 0.24.0 ».
+- `#/joueur/<id>` = profil (src/ui/screens/profile.js) ; le formulaire est sous `#/joueur/<id>/modifier` ; `#/stats/<id>`
+  et `#/entrainement/stats` y redirigent (onglets Parties, Entraînement). Le contenu des anciennes pages est dans
+  `stats2.js › playerGamesHtml` et `trainstats.js › trainStatsHtml`. Aucune migration.
+- Fenêtre d'un badge : cause = noms des joueurs d'une partie à 4+ sur une ligne ; `.sheet .body` en `minmax(0, 1fr)`.
+- Tests adaptés (formulaire sous /modifier, blocs à déplier, plus de pastilles de joueur dans les stats) ; nouveau
+  tests/profil-parcours.test.js. Maquettes des propositions : captures/maquettes/ (ignoré par git, refait au besoin).
+- Pour la suite : un badge nouveau va dans une famille de `FAMILIES` (profile.js), sinon il tombe dans « Autres ».
 
 ## État (version 0.23.4 : stats d'entraînement d'un ami, revue des effets de bord du lot 10)
 

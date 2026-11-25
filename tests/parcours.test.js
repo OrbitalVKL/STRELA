@@ -192,7 +192,7 @@ test('joueurs : archiver, réactiver depuis la liste, supprimer (refusé pendant
   const testId = db.players.find(p => p.name === 'Test').id;
 
   // Joueur de la partie en cours : suppression refusée.
-  await page.evaluate(id => { location.hash = `#/joueur/${id}`; }, testId);
+  await page.evaluate(id => { location.hash = `#/joueur/${id}/modifier`; }, testId);
   await page.click('[data-act="delete"]');
   assert.match(await page.innerText('.confirm'), /SUPPRESSION IMPOSSIBLE/);
 
@@ -201,7 +201,7 @@ test('joueurs : archiver, réactiver depuis la liste, supprimer (refusé pendant
   await page.click('[data-act="pause"]');
   await page.click('[data-act="abandon"]');
   await page.click('[data-act="abandon-yes"]');
-  await page.evaluate(id => { location.hash = `#/joueur/${id}`; }, testId);
+  await page.evaluate(id => { location.hash = `#/joueur/${id}/modifier`; }, testId);
   await page.click('[data-act="archive"]');
   await page.click('[data-act="archive-yes"]');
   await page.waitForSelector('.arow');
@@ -213,7 +213,7 @@ test('joueurs : archiver, réactiver depuis la liste, supprimer (refusé pendant
   assert.equal(await page.locator('.arow').count(), 0);
 
   // Suppression : fiche retirée, partie gardée et anonymisée.
-  await page.evaluate(id => { location.hash = `#/joueur/${id}`; }, testId);
+  await page.evaluate(id => { location.hash = `#/joueur/${id}/modifier`; }, testId);
   await page.click('[data-act="delete"]');
   await page.click('[data-act="delete-yes"]');
   await page.waitForSelector('.list');

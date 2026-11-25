@@ -17,11 +17,10 @@ import { EXERCISES, ALL_EXERCISES, GAME_EXERCISES, analyze, sessionValue, zoneOf
 import { gameState } from '../../engine/stats.js';
 import { refresh, backFrom, go } from '../nav.js';
 import { infoBtn, infoBox } from '../info.js';
-import { fmtValue, sessionCard, heatBoard } from './training.js';
+import { fmtValue, sessionCard, heatBoard, levelCard } from './training.js';
 import { trend, periodBounds, inPeriod, timeAxis, labelIndexes, isoDay } from '../../engine/trends.js';
 import { heatLegend } from '../heat.js';
-import { modeBand } from '../modeband.js';
-import { trainBadgesGrid, honoursOf } from '../trainhonours.js';
+import { honoursOf } from '../trainhonours.js';
 import { buildAiExport, aiFileName } from '../../engine/aiexport.js';
 import { drawTrainReport, trainReportBase } from '../trainreport.js';
 import { heatScale } from '../heat.js';
@@ -268,15 +267,28 @@ function byExercise(sessions) {
   return rows ? `<table class="sectab trtab"><thead><tr><th>Exercice</th><th>Séan.</th><th>Dern.</th><th>Meill.</th></tr></thead><tbody>${rows}</tbody></table>` : '';
 }
 
-export function trainStatsScreen() {
-  // Lot 10 : moi, mes amis, puis les joueurs du téléphone (sélecteur commun aux stats multijoueur).
-  const players = activePlayers();
+/** Joueurs qui ont des stats d'entraînement : moi, mes amis, puis les joueurs du téléphone (archivés s'ils ont des séances). */
+function trainPlayers() {
   const withTr = new Set(allTrainings().map(r => r.player));
   const me = profilePlayer();
   const rank = p => (me && p.id === me.id ? 0 : p.friend ? 1 : 2);
-  const list = [...players, ...store.players.filter(p => p.archived && withTr.has(p.id))].map((p, i) => ({ p, i })).sort((a, b) => rank(a.p) - rank(b.p) || a.i - b.i).map(x => x.p);
+  return [...activePlayers(), ...store.players.filter(p => p.archived && withTr.has(p.id))].map((p, i) => ({ p, i })).sort((a, b) => rank(a.p) - rank(b.p) || a.i - b.i).map(x => x.p);
+}
+
+/**
+ * 0.24.0 (profil des joueurs) : #/entrainement/stats ouvre l'onglet Entraînement du profil (#/joueur/<id>/entrainement)
+ * du dernier joueur vu, sinon du joueur de la séance, sinon le mien.
+ */
+export function trainStatsScreen() {
+  const list = trainPlayers();
   if (!list.length) return `<div class="screen">${topBar('Stats d\'entraînement', backFrom('#/entrainement'))}<div class="empty"><div class="big">AUCUN JOUEUR</div></div></div>`;
   const pid = list.some(p => p.id === ui.player) ? ui.player : (store.trSetup && list.some(p => p.id === store.trSetup.player) ? store.trSetup.player : list[0].id);
+  go(`#/joueur/${pid}/entrainement`, { replace: true });
+  return '';
+}
+
+/** 0.24.0 : onglet Entraînement du profil du joueur `pid` — les stats d'entraînement d'avant, sans second sélecteur. */
+export function trainStatsHtml(pid) {
   ui.player = pid;
   // Lot 10 : jeux du joueur choisi (ceux d'un ami viennent de son profil) ; un filtre sur un jeu qu'il n'a pas (resté
   // d'un autre joueur) retombe sur TOUS, sinon l'écran restait vide sans moyen de choisir.
@@ -331,7 +343,6 @@ export function trainStatsScreen() {
   const freeNote = !free.length ? '<p class="note">Triples, doubles et carte de chaleur : seulement sur les jeux X01 et Cricket (mode Jeux) et les parties, où l\'on vise comme en partie. Sur un exercice, la cible est imposée.</p>' : '';
 
   const p = playerById(pid);
-  const chips = list.length > 1 ? `<div class="chips">${list.map(q => `<button type="button" class="btn chip" data-act="ts-player" data-arg="${esc(q.id)}" aria-pressed="${q.id === pid}">${avatarHtml(q, 38)}<span class="nm">${esc(q.name.split(' ')[0])}</span></button>`).join('')}</div>` : '';
   const setChips = ui.source === 'parties' ? '' : `<span class="small dim caps">Jeu de fléchettes</span><div class="chips2">
     <button type="button" class="chip2" data-act="ts-set" data-arg="" aria-pressed="${!ui.set}">TOUS</button>
     ${sets.map(x => `<button type="button" class="chip2" data-act="ts-set" data-arg="${esc(x.id)}" aria-pressed="${ui.set === x.id}">${esc(x.name)}</button>`).join('')}</div>`;
@@ -343,12 +354,12 @@ export function trainStatsScreen() {
   const per = `<div class="seg tper">${segBtn('ts-period', '7j', ui.period, '7 jours')}${segBtn('ts-period', '30j', ui.period, '30 jours')}${segBtn('ts-period', 'tout', ui.period, 'Tout')}<button type="button" data-act="ts-period" data-arg="plage" aria-pressed="${ui.period === 'plage'}" aria-label="Plage de dates">${ico('calendar')}</button></div>
     ${ui.period === 'plage' ? `<div class="trange"><label><small>DU</small><input type="date" class="input" data-input="ts-from" value="${esc(ui.range.from)}" max="${isoDay(Date.now())}"></label><label><small>AU</small><input type="date" class="input" data-input="ts-to" value="${esc(ui.range.to)}" max="${isoDay(Date.now())}"></label></div>` : ''}
     <p class="small dim tperl">Période : ${esc(bounds().label)}</p>`;
-  const head = `${topBar('Stats d\'entraînement', backFrom('#/entrainement'))}${modeBand('train', { tabs: true, pid })}<div class="pad">${per}${chips}
+  const head = `<div class="pad">${allTrainings().some(r => r.player === pid) ? levelCard(pid) : ''}${per}
     <div class="sec">Filtres${infoBtn('ts-filters')}</div>
     ${infoBox('ts-filters', '<b>Entraînements</b> : les séances seules. <b>Parties</b> : les fléchettes du joueur dans ses parties X01 (sans cible visée : ni précision, ni groupement). <b>Les deux</b> : séances et parties, pour les chiffres qui se comparent (triples, doubles, hors cible, carte). Le jeu de fléchettes et l\'exercice ne concernent que l\'entraînement. Triples, doubles et carte de chaleur ne comptent que les jeux X01 et Cricket (mode Jeux) et les parties ; précision et groupement, que les exercices.')}
     ${filters}</div>`;
   if (!darts.length) {
-    return `<div class="screen trstats">${head}<div class="empty" style="padding-top:20px"><div class="big">RIEN À MONTRER</div>
+    return `<div class="trstats">${head}<div class="empty" style="padding-top:20px"><div class="big">RIEN À MONTRER</div>
       <p><span class="nm">${esc(p.name)}</span> n'a ${ui.source === 'parties' ? 'pas de partie' : 'pas de séance'} avec ces filtres.</p>
       ${ui.period !== 'tout' || ui.set || ui.exercise ? '<button type="button" class="btn primary" data-act="ts-reset">TOUT AFFICHER</button>' : '<a class="btn primary" href="#/entrainement">S\'ENTRAÎNER</a>'}</div></div>`;
   }
@@ -358,7 +369,7 @@ export function trainStatsScreen() {
   const fmt = mk === 'exercise' ? exerciseFmt() : m.fmt;
   const pct = mk === 'exercise' ? fmt === pctOf : !!m.pct;
   const hb = heatBoard(free);
-  return `<div class="screen trstats">${head}
+  return `<div class="trstats">${head}
     <div class="pad">
       <div class="kpis">${kpis.join('')}</div>${approxNote}${freeNote}
       ${exportBlock()}
@@ -370,9 +381,6 @@ export function trainStatsScreen() {
       ${infoBox('ts-heat', `Chaque fléchette sur la cible, par zone : ${heatLegend()} (échelle au choix dans Réglages › Affichage). ${FREE_AIM} À l'entraînement, le simple intérieur et le simple extérieur sont comptés à part ; une fléchette de partie (simple sans anneau connu) compte pour moitié dans chacun.`)}
       <div class="heatbox">${hb.svg}</div><p class="note center">${plural(hb.off, 'fléchette', 'fléchettes')} hors cible, non dessinée${hb.off > 1 ? 's' : ''}.</p>` : ''}
       ${ui.source !== 'parties' && !exIsGame() ? trendsBlock(sessions) : ''}
-      ${ui.source !== 'parties' ? `<div class="sec">Badges d'entraînement${infoBtn('ts-badges')}</div>
-        ${infoBox('ts-badges', 'Bronze, argent, or : jours d\'affilée, fléchettes lancées, écart moyen à la cible, groupement, progrès sur un exercice, petits défis réussis en séance (volée parfaite, trio, même trou, œil de bœuf). Calculés sur tout l\'historique du joueur, quelle que soit la période choisie. Touchez un badge pour voir ce qu\'il veut dire et la séance où il a été gagné.')}
-        ${trainBadgesGrid(pid)}` : ''}
       ${ui.source !== 'parties' && sessions.length ? `<div class="sec">Par jeu de fléchettes${infoBtn('ts-sets')}</div>
         ${infoBox('ts-sets', 'Pour comparer les jeux : sur les exercices, séances, fléchettes, précision (dans la cible visée) et groupement moyen (cm) ; sur les jeux X01 et Cricket, fléchettes, moyenne sur 3 fléchettes, MPR, part de triples et de doubles. Sur les filtres choisis.')}
         ${aimed.length ? bySet(aimed) : ''}${played.length ? `${aimed.length ? '<p class="small dim caps tsub">En jeu (X01, Cricket)</p>' : ''}${bySetGames(played)}` : ''}
@@ -393,14 +401,14 @@ export const actions = {
   'ts-reset'() { Object.assign(ui, { period: 'tout', range: { from: '', to: '' }, set: '', exercise: '' }); refresh(); },
   'ts-all'() { ui.folds.add('all'); refresh(); },
   // Depuis les Stats d'un joueur : ses stats d'entraînement.
-  'ts-open'(pid) { ui.player = pid; go('#/entrainement/stats'); },
+  'ts-open'(pid) { ui.player = pid; go(`#/joueur/${pid}/entrainement`); },
   // Lot 9.5 (C1) : sélecteur Soirée / Entraînement du haut des stats (modeband.js) ; même joueur ; l'adresse est
   // remplacée (pas empilée) : le retour ramène à l'écran d'où l'on est venu aux stats.
   'stats-mode'(arg) {
     const [mode, pid] = String(arg).split(':');
     saveSetting('statsMode', mode === 'train' ? 'train' : 'soiree');
-    if (mode === 'train') { if (pid) ui.player = pid; go('#/entrainement/stats', { replace: true }); }
-    else go(pid && playerById(pid) && !playerById(pid).remote ? `#/stats/${pid}` : '#/stats', { replace: true });
+    if (mode === 'train') { if (pid) ui.player = pid; go(pid ? `#/joueur/${pid}/entrainement` : '#/entrainement/stats', { replace: true }); }
+    else go(pid && playerById(pid) && !playerById(pid).remote ? `#/joueur/${pid}/parties` : '#/stats', { replace: true });
   },
 };
 

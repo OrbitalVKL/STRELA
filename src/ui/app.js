@@ -4,7 +4,8 @@
 import { store, loadSettings, animationsOn, openStorage, requestPersistence, saving, setStorageListener, exportBackup } from './store.js';
 import { BUILD } from './build.js';
 import { setRenderer, noteRoute, keepAwake, go } from './nav.js';
-import { playersList, playerForm, avatarBank, actions as playerActions, inputs as playerInputs } from './screens/players.js';
+import { playersList, avatarBank, actions as playerActions, inputs as playerInputs } from './screens/players.js';
+import { profileRoute, actions as profileActions } from './screens/profile.js';
 import { newGame, actions as newGameActions } from './screens/newgame.js';
 import { game, key, mountGame, vowelKey, turnFx, actions as gameActions } from './screens/game.js';
 import { applyVowels, clearVowelFall } from './vowels.js';
@@ -56,7 +57,7 @@ import { friendsScreen, actions as friendsActions, inputs as friendsInputs } fro
 const ROUTES = [
   [/^\/?$/, home2],
   [/^\/joueurs$/, playersList],
-  [/^\/joueur\/(.+)$/, playerForm],
+  [/^\/joueur\/([^/]+)(?:\/([a-z]+))?$/, profileRoute], // 0.24.0 : profil (onglets), formulaire (nouveau, /modifier)
   [/^\/avatars$/, avatarBank],
   [/^\/nouvelle$/, newGame],
   [/^\/jeu$/, game],
@@ -99,6 +100,7 @@ const ROUTES = [
 ];
 
 const ACTIONS = {
+  ...profileActions,
   ...playerActions, ...newGameActions, ...gameActions, ...resultActions,
   ...statsActions, ...settingsActions, ...historyActions, ...photoActions, ...aboutActions, ...sheetActions, ...soireeActions,
   ...stats2Actions, ...history2Actions, ...dashActions, ...infoActions, ...drinkActions, ...honourActions, ...cricketActions,

@@ -50,12 +50,13 @@ test('défilements gardés d’un rendu à l’autre et au retour ; liens sans b
     assert.ok(p.chart > 120 && p.chart < p.chartMax, `courbe recentrée après le zoom (${p.chart} / ${p.chartMax})`);
     assert.equal(p.y, before.y);
     // Autre joueur : même écran, la page ne remonte pas ; sa courbe à lui repart à droite.
-    await page.evaluate(() => document.querySelectorAll('.chips a')[1].click()); // sans faire défiler la page jusqu'à la pastille
+    await page.evaluate(() => { location.hash = '#/joueur/p2/parties'; }); // 0.24.0 : profil d'un autre joueur, même onglet
     await page.waitForFunction(() => document.querySelector('.chscroll')?.dataset.hscroll === 'courbe:p2');
     p = await pos();
     assert.equal(p.y, before.y, 'autre joueur : la page ne remonte pas');
     assert.equal(p.chart, p.chartMax, 'courbe d’un autre joueur : calée à droite');
     // Une partie ouverte depuis la courbe, puis retour : la page reprend où elle était.
+    await page.click('[data-act="v2-fold"][data-arg="pp-volees"]'); // 0.24.0 : bloc « Meilleures et pires volées »
     await page.click('[data-act="v2-fold"][data-arg="worst"]');
     await page.evaluate(() => document.querySelector('.worst a').scrollIntoView({ block: 'center' }));
     const y0 = (await pos()).y;

@@ -162,7 +162,7 @@ test('APK (passerelle simulée) : vibreur, voix, export, écran, gestes, retour,
     await page.waitForSelector('.t-main');
     assert.equal(await page.evaluate(() => window.strelaBack()), false, 'accueil : sortie permise');
     await page.evaluate(() => { location.hash = '#/stats'; });
-    await page.waitForSelector('.chips');
+    await page.waitForSelector('.profile .ptabs'); // 0.24.0 : les Stats ouvrent un profil
     await page.evaluate(() => window.strelaBack());
     await page.waitForSelector('.t-main');
 

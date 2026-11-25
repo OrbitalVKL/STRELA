@@ -2,6 +2,15 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.24.0', date: '2026-11-25', title: 'Profils des joueurs', items: [
+    'Toucher un joueur ouvre son profil : avatar, chiffres clés et quatre onglets — Résumé, Parties, Entraînement, Badges. MODIFIER (en haut à droite) ouvre le formulaire d\'avant.',
+    'Résumé : moyenne, parties, victoires, niveau d\'entraînement, records avec leur date, 5 meilleures volées, derniers badges, rivaux.',
+    'Statut de chaque joueur, dans la liste et sur son profil : « Mon profil · synchronisé » (ce qui part chez tes amis est détaillé en bas du résumé), « Joueur local · ce téléphone », « Ami · vient de son téléphone ».',
+    'Parties : les stats d\'avant, rangées en blocs repliables (score et volées, précision, finition, courbe, face-à-face, Cricket, carte…). Entraînement : les stats d\'entraînement du même joueur.',
+    'Badges : un vrai tableau — médailles, « Presque » (les plus proches), tous les badges par famille, gagnés ou à gagner avec leur progression ; bascule Chronologie : badges, rangs et records dans l\'ordre où ils ont été gagnés.',
+    'Stats (accueil) ouvre ton profil ; classement et tableau d\'honneur restent accessibles depuis le résumé.',
+    'Fenêtre d\'un badge : elle ne dépasse plus de l\'écran (une partie à 4 joueurs ou plus l\'élargissait).',
+  ] },
   { v: '0.23.4', date: '2026-11-25', title: 'Stats d\'entraînement d\'un ami', items: [
     'Stats d\'entraînement : le filtre « Jeu de fléchettes » propose les jeux du joueur choisi (pour un ami, les siens, venus de son téléphone) ; ses séances montrent le nom de son jeu au lieu de « ? ».',
     'Un filtre resté sur un de tes jeux revient à TOUS quand tu passes sur un ami qui ne l\'a pas.',
