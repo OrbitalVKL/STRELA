@@ -8,7 +8,7 @@ images, réponses aux formulaires, politique de confidentialité en ligne. Il ne
 - [ ] Créer un compte Google Play Console **personnel** : https://play.google.com/console/signup (25 $, une fois).
 - [ ] Vérifier ton identité (pièce d'identité), ton adresse et ton numéro de téléphone, comme Google le demande.
 - [ ] Vérifier l'accès à un appareil Android depuis l'appli Play Console (demandé aux nouveaux comptes).
-- [x] E-mail de contact public : orbitavkl@gmail.com (donné le 25/11 ; dans l'appli, À propos, et dans la politique de
+- [x] E-mail de contact public : orbitalvkl@gmail.com (donné le 25/11 ; dans l'appli, À propos, et dans la politique de
       confidentialité).
 
 ## 2. Créer l'appli

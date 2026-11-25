@@ -267,6 +267,14 @@ test('APK github : recherche automatique au lancement, repère, réglage ; retou
     assert.equal(await page.$('.updcard'), null, 'pas de carte sans mise à jour');
     // La coquille trouve une version plus récente : carte à l'accueil (lot 8 du 23/11), qui mène aux Réglages
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('strela-native', { detail: { update: { current: '0.5.0', latest: '0.6.0', available: true, state: 'idle', progress: 0, auto: true } } })));
+    // 0.23.3 : l'accueil déjà affiché se redessine (avant, seuls les Réglages le faisaient : l'accueil gardait la version
+    // de la recherche précédente, v0.23.0 quand les Réglages disaient v0.23.2).
+    await page.waitForSelector('.t-main .updcard');
+    assert.match(await page.textContent('.updcard'), /MISE À JOUR v0\.6\.0/);
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('strela-native', { detail: { update: { current: '0.5.0', latest: '0.6.1', available: true, state: 'idle', progress: 0, auto: true } } })));
+    await page.waitForFunction(() => /v0\.6\.1/.test(document.querySelector('.updcard')?.textContent || ''));
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('strela-native', { detail: { update: { current: '0.5.0', latest: '0.6.0', available: true, state: 'idle', progress: 0, auto: true } } })));
+    await page.waitForFunction(() => /v0\.6\.0/.test(document.querySelector('.updcard')?.textContent || ''));
     await page.evaluate(() => { location.hash = '#/joueurs'; });
     await page.waitForSelector('.empty');
     assert.deepEqual((await calls(page, 'setBackHandled')).at(-1), [true], 'ailleurs, la page traite le retour');
