@@ -1298,6 +1298,18 @@ export function resumeTraining(id) {
 
 export const trainingById = id => (store.tr && store.tr.id === id ? store.tr : store.trainings.find(r => r.id === id) || null);
 export const dartSetById = id => store.dartSets.find(x => x.id === id) || null;
+/** Lot 10 : jeu de fléchettes du téléphone, sinon celui d'un ami (`sets` de son profil, lecture seule) ; pour les noms et dessins. */
+export const anySetById = id => dartSetById(id) || store.players.reduce((f, p) => f || (Array.isArray(p.sets) ? p.sets.find(x => x && x.id === id) : null), null) || null;
+/** Jeux de fléchettes proposés au filtre des stats d'un joueur : ceux de son profil pour un ami, ceux du téléphone
+ * sinon (sans les jeux mis de côté), plus tout jeu noté dans ses séances. */
+export function setsOfPlayer(pid) {
+  const p = playerById(pid);
+  const own = p && p.friend ? (Array.isArray(p.sets) ? p.sets : []) : store.dartSets;
+  const used = new Set(allTrainings().filter(r => r.player === pid).flatMap(setsUsed).filter(Boolean));
+  const out = own.filter(x => x && x.id && (!x.archived || used.has(x.id)));
+  for (const id of used) if (!out.some(x => x.id === id)) { const x = anySetById(id); if (x) out.push(x); }
+  return out;
+}
 /** Séances (closes et en cours) qui utilisent un jeu. */
 export const setUses = id => store.trainings.filter(r => setsUsed(r).includes(id) || r.setId === id).length + (store.tr && (setsUsed(store.tr).includes(id) || setAt(store.tr, store.tr.darts.length) === id) ? 1 : 0);
 

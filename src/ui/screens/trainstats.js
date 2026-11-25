@@ -10,7 +10,7 @@
 // lancées « comme en partie » : jeux X01 et Cricket en solo, et parties. Sur un exercice (un secteur visé, l'horloge qui
 // vise tout), la cible est imposée : ces chiffres n'y diraient rien. La précision et le groupement, à l'inverse, ne
 // comptent que les exercices (un jeu n'a pas de cible imposée).
-import { store, activePlayers, playerById, dartSetById, saveSetting, allGames, allTrainings, profilePlayer } from '../store.js';
+import { store, activePlayers, playerById, anySetById, setsOfPlayer, saveSetting, allGames, allTrainings, profilePlayer } from '../store.js';
 import { esc, ico, topBar, plural, when } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
 import { EXERCISES, ALL_EXERCISES, GAME_EXERCISES, analyze, sessionValue, zoneOf, pointsOf, setsUsed, setAt, isGameSession, gamePart } from '../../engine/training.js';
@@ -221,7 +221,7 @@ function trendsBlock(sessions) {
 // ------------------------------------------------------------------ écran
 const segBtn = (act, v, cur, label) => `<button type="button" data-act="${act}" data-arg="${v}" aria-pressed="${cur === v}">${label}</button>`;
 
-const setName = k => (k ? (dartSetById(k) || { name: '?' }).name : 'Sans jeu noté');
+const setName = k => (k ? (anySetById(k) || { name: '?' }).name : 'Sans jeu noté');
 /** Jeux en solo par jeu de fléchettes : fléchettes, moyenne X01, MPR, triples, doubles. */
 function bySetGames(sessions) {
   const rows = new Map();
@@ -278,6 +278,10 @@ export function trainStatsScreen() {
   if (!list.length) return `<div class="screen">${topBar('Stats d\'entraînement', backFrom('#/entrainement'))}<div class="empty"><div class="big">AUCUN JOUEUR</div></div></div>`;
   const pid = list.some(p => p.id === ui.player) ? ui.player : (store.trSetup && list.some(p => p.id === store.trSetup.player) ? store.trSetup.player : list[0].id);
   ui.player = pid;
+  // Lot 10 : jeux du joueur choisi (ceux d'un ami viennent de son profil) ; un filtre sur un jeu qu'il n'a pas (resté
+  // d'un autre joueur) retombe sur TOUS, sinon l'écran restait vide sans moyen de choisir.
+  const sets = setsOfPlayer(pid);
+  if (ui.set && !sets.some(x => x.id === ui.set)) ui.set = '';
   const sessions = ui.source === 'parties' ? [] : sessionsOf(pid);
   const games = ui.source === 'entrainements' ? [] : gamesOf(pid);
   const tDarts = sessions.flatMap(dartsOfSet);
@@ -328,13 +332,12 @@ export function trainStatsScreen() {
 
   const p = playerById(pid);
   const chips = list.length > 1 ? `<div class="chips">${list.map(q => `<button type="button" class="btn chip" data-act="ts-player" data-arg="${esc(q.id)}" aria-pressed="${q.id === pid}">${avatarHtml(q, 38)}<span class="nm">${esc(q.name.split(' ')[0])}</span></button>`).join('')}</div>` : '';
-  const sets = store.dartSets.filter(x => !x.archived || store.trainings.some(r => setsUsed(r).includes(x.id)));
   const setChips = ui.source === 'parties' ? '' : `<span class="small dim caps">Jeu de fléchettes</span><div class="chips2">
     <button type="button" class="chip2" data-act="ts-set" data-arg="" aria-pressed="${!ui.set}">TOUS</button>
     ${sets.map(x => `<button type="button" class="chip2" data-act="ts-set" data-arg="${esc(x.id)}" aria-pressed="${ui.set === x.id}">${esc(x.name)}</button>`).join('')}</div>`;
   const exChips = ui.source === 'parties' ? '' : `<span class="small dim caps">Exercice</span><div class="chips2">
     <button type="button" class="chip2" data-act="ts-ex" data-arg="" aria-pressed="${!ui.exercise}">TOUS</button>
-    ${ALL_EXERCISES.filter(x => x === ui.exercise || store.trainings.some(r => r.player === pid && r.exercise === x)).map(x => `<button type="button" class="chip2" data-act="ts-ex" data-arg="${x}" aria-pressed="${ui.exercise === x}">${esc(EXERCISES[x].name)}</button>`).join('')}</div>`;
+    ${ALL_EXERCISES.filter(x => x === ui.exercise || allTrainings().some(r => r.player === pid && r.exercise === x)).map(x => `<button type="button" class="chip2" data-act="ts-ex" data-arg="${x}" aria-pressed="${ui.exercise === x}">${esc(EXERCISES[x].name)}</button>`).join('')}</div>`;
   const filters = `<div class="seg tsrc">${segBtn('ts-source', 'entrainements', ui.source, 'Entraîn.')}${segBtn('ts-source', 'parties', ui.source, 'Parties')}${segBtn('ts-source', 'deux', ui.source, 'Les deux')}</div>
     ${setChips}${exChips}`;
   const per = `<div class="seg tper">${segBtn('ts-period', '7j', ui.period, '7 jours')}${segBtn('ts-period', '30j', ui.period, '30 jours')}${segBtn('ts-period', 'tout', ui.period, 'Tout')}<button type="button" data-act="ts-period" data-arg="plage" aria-pressed="${ui.period === 'plage'}" aria-label="Plage de dates">${ico('calendar')}</button></div>
@@ -444,12 +447,12 @@ export function exportData(pid = ui.player) {
   return {
     now: Date.now(), player: p.name, level: LEVELS[lv], period: b.label === 'tout' ? 'toute la période' : b.label, source: ui.source,
     sourceLabel: ui.source === 'parties' ? 'parties de soirée' : ui.source === 'deux' ? 'entraînement et soirée' : 'entraînement',
-    sets: setsIds.map(id => dartSetById(id)).filter(Boolean).map(x => ({ name: x.name, summary: dartSetSummary(x) })),
+    sets: setsIds.map(id => anySetById(id)).filter(Boolean).map(x => ({ name: x.name, summary: dartSetSummary(x) })),
     summary: { sessions: sessions.length, darts: sessions.reduce((n, r) => n + dartsOfSet(r).length, 0), dist: distOf(parts), spread, rate: tN ? hits / tN : null, approx, noPos },
     trends: trendRows(sessions),
     exercises: ALL_EXERCISES.map(k => { const list = sessions.filter(r => r.exercise === k); if (!list.length) return null; const vals = list.map(r => sessionValue(r, an(r))).filter(Boolean); const best = vals.length ? vals.reduce((m, v) => ((v.dir > 0 ? v.v > m.v : v.v < m.v) ? v : m)) : null; return { name: EXERCISES[k].name, n: list.length, last: fmtValue(vals[vals.length - 1]), best: fmtValue(best), goal: goalOf(k, lv) ? goalText(k, lv) : '' }; }).filter(Boolean),
     sessions: sessions.map(r => { const a = an(r), x = setPart(r, a), bias = a.messages.find(m => m.kind === 'bias'); const sv = sessionValue(r, a);
-      return { at: r.startedAt, title: (EXERCISES[r.exercise] || EXERCISES.libre).name, sets: setsUsed(r).map(id => (id ? (dartSetById(id) || { name: '?' }).name : 'sans jeu noté')).join(' puis '), darts: r.darts.length,
+      return { at: r.startedAt, title: (EXERCISES[r.exercise] || EXERCISES.libre).name, sets: setsUsed(r).map(id => (id ? (anySetById(id) || { name: '?' }).name : 'sans jeu noté')).join(' puis '), darts: r.darts.length,
         result: sv ? `${fmtValue(sv)} (${sv.label.toLowerCase()})` : '—', dist: x.dist, spread: x.points >= 3 ? x.spread : null, rate: x.rate, bias: bias ? bias.text.replace(/^Tes fléchettes partent /, '').replace(/\.$/, '') : '', entry: entryOf(r), notes: r.note || '',
         dartsText: r.darts.map(trainingDartLabel).join(' ') }; }),
     games: ps ? { n: games.length, average: ps.average, tripleRate: ps.tripleRate ?? null, doubleRate: (ds => (ds.length ? ds.filter(x => x.multiplier === 2).length / ds.length : null))(games.flatMap(g => gameDarts(g, pid))), finishRate: ps.doubleRate ?? null,

@@ -223,6 +223,16 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 10 (24/11) | Amis, synchronisation, stats partagées (docs/lot-10.md, docs/lot-10-avancement.md) : 0.21.0 = étape 1, infra Supabase et compte invisible — **fait** ; 0.22.0 = étapes 2 à 5, amis, rattachement, parties et stats partagées — **fait** ; 0.23.0 = étape 6, présence — **fait** ; 0.23.1 = relié au vrai projet Supabase — **fait** ; reste : essai à deux téléphones |
 | 11 | Recette |
 
+## État (version 0.23.4 : stats d'entraînement d'un ami)
+
+- **0.23.4** (25/11) : vu par Guillaume après son premier ami, « je n'ai pas son jeu de fléchettes pour le filtrage ».
+  Le filtre des stats d'entraînement ne proposait que les jeux du téléphone (`store.dartSets`) et les noms ne se
+  cherchaient que là (« ? » pour un jeu d'ami). Maintenant : store.js › `setsOfPlayer(pid)` (jeux du profil d'un ami,
+  `p.sets`, sinon ceux du téléphone, plus tout jeu noté dans ses séances) et `anySetById` (noms et dessins, aussi au
+  détail d'une séance reçue) ; un filtre sur un jeu que le joueur choisi n'a pas retombe sur TOUS ; exercices proposés
+  d'après `allTrainings()`. Test : tests/stats-ami-parcours.test.js (deux téléphones, faux Supabase). Les jeux de
+  départ (`ds-torpedo-22`, `ds-droit-22`) ont le même identifiant sur tous les téléphones : ils se confondent, c'est voulu.
+
 ## État (version 0.23.3 : carte de mise à jour de l'accueil)
 
 - **0.23.3** (25/11) : vu par Guillaume, accueil « MISE À JOUR v0.23.0 » et Réglages « v0.23.2 ». Cause : l'accueil est

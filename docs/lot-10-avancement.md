@@ -86,6 +86,8 @@ publiés : rien à terminer avant.
   (`accounts` : mon profil et mes amis). Sang-froid : seul dernier (moins de manches, puis plus gros reste) après la
   moitié des fléchettes. Reconnexion héroïque : `online.cut` posé par ui/online.js à chaque coupure (hôte qui perd un
   invité, invité qui perd l'hôte, hôte qui reprend son salon). Fidèle au poste : badge à rangs 10 / 50 / 150.
+- Jeux de fléchettes d'un ami (0.23.4) : ceux de son profil (`p.sets`) au filtre de ses stats d'entraînement
+  (store.js › `setsOfPlayer`, `anySetById`) ; un filtre sur un jeu qu'il n'a pas retombe sur TOUS.
 - Synchronisation : une demande pendant une passe en cours en programme une seule autre et en attend le résultat
   (cloud.js › syncNow).
 
