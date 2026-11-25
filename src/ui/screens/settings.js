@@ -127,7 +127,13 @@ onNative(d => {
   if (d.update) {
     // Journal (lot 9.5) : chaque changement d'état de la mise à jour (recherche, téléchargement, erreur).
     if (!upd || upd.state !== d.update.state || upd.latest !== d.update.latest) log('maj', `mise à jour : ${d.update.state || '?'}${d.update.latest ? ` (dernière ${d.update.latest}, ici ${d.update.current || '?'})` : ''}${d.update.msg ? ` — ${d.update.msg}` : ''}`);
-    upd = d.update; if (location.hash === '#/reglages') refresh();
+    // Accueil (0.23.3) : la carte « MISE À JOUR » est dessinée à l'ouverture avec la version de la recherche précédente
+    // (gardée par la coquille) ; redessiner l'accueil quand la recherche du jour la change (vu : v0.23.0 à l'accueil,
+    // v0.23.2 dans les Réglages). Seulement si la carte change : pas de rendu à chaque pour-cent du téléchargement.
+    const home = !location.hash || location.hash === '#/' || location.hash === '#';
+    const before = home ? updateBadge() : '';
+    upd = d.update;
+    if (location.hash === '#/reglages' || (home && updateBadge() !== before)) refresh();
   }
   // Sauvegarde choisie pendant qu'Android avait fermé l'appli (sélecteur de fichiers) : relue par la coquille.
   if (d.importFile && typeof d.importFile.text === 'string') {

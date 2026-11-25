@@ -2,7 +2,7 @@
 
 ## Questionnaire de classification (IARC)
 
-Play Console › Contenu de l'appli › Classification du contenu. Adresse e-mail : **orbitavkl@gmail.com**.
+Play Console › Contenu de l'appli › Classification du contenu. Adresse e-mail : **orbitalvkl@gmail.com**.
 
 **Catégorie** : Strela est un **compteur pour un jeu d'adresse** (les fléchettes) : elle ne se joue pas elle-même,
 elle tient les scores. Catégorie à choisir : « Toutes les autres catégories d'applis » (application de référence,

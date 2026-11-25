@@ -1,6 +1,6 @@
 {
   "name": "strela",
-  "version": "0.23.2",
+  "version": "0.23.3",
   "description": "Strela — compteur de fléchettes X01 hors ligne, Android",
   "private": true,
   "type": "module",
@@ -13,6 +13,6 @@
     "build": "node tools/build-site.mjs"
   },
   "strela": {
-    "contact": "orbitavkl@gmail.com"
+    "contact": "orbitalvkl@gmail.com"
   }
 }
