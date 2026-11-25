@@ -9,7 +9,7 @@
 //   hors de la cible ne compte rien).
 // Après la 3e fléchette ou un bust, la volée reste affichée jusqu'à VALIDER (turn.js) ; ANNULER reste possible.
 // À la validation, « À TOI, PSEUDO » occupe le haut de l'écran ~0,8 s, puis le bandeau du joueur glisse en place.
-import { store, currentState, playerById, archiveCurrent, deleteCurrent, animationsOn, saveCurrent, legEndPending, addDrink, removeDrink, drinksHere, gameDrinking, gameDrinkTally } from '../store.js';
+import { store, allGames, currentState, playerById, archiveCurrent, deleteCurrent, animationsOn, saveCurrent, legEndPending, addDrink, removeDrink, drinksHere, gameDrinking, gameDrinkTally } from '../store.js';
 import { drinkSizeSeg, plusDrink, plusLabel, pintMode, drinkCount, drinkPair } from '../drinks.js';
 import { esc, ico, avg, OUT_SHORT, maquetteButtons } from '../dom.js';
 import { avatarHtml, colorIndex } from '../avatars.js';
@@ -178,11 +178,14 @@ export function visitRank(g, s) {
 }
 // Lot 9 : record personnel battu (meilleure volée de toutes ses parties d'avant), montré à la place du rang de la soirée.
 const recCache = new Map(); // joueur → { key (parties closes), rec }
+// Lot 10 : sur toutes ses parties connues (allGames : aussi celles d'un ami jouées chez lui), comme ses stats ; sinon
+// un ami pouvait battre ici un « record » qu'il avait déjà dépassé chez lui.
 export function recordsOf(id) {
-  const key = `${store.games.length}:${store.games.reduce((n, g) => n + g.darts.length, 0)}`;
+  const all = allGames();
+  const key = `${all.length}:${all.reduce((n, g) => n + g.darts.length, 0)}`;
   const c = recCache.get(id);
   if (c && c.key === key) return c.rec;
-  const rec = playerRecords(store.games, id);
+  const rec = playerRecords(all, id);
   recCache.set(id, { key, rec });
   return rec;
 }

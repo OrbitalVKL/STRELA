@@ -223,15 +223,27 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 10 (24/11) | Amis, synchronisation, stats partagées (docs/lot-10.md, docs/lot-10-avancement.md) : 0.21.0 = étape 1, infra Supabase et compte invisible — **fait** ; 0.22.0 = étapes 2 à 5, amis, rattachement, parties et stats partagées — **fait** ; 0.23.0 = étape 6, présence — **fait** ; 0.23.1 = relié au vrai projet Supabase — **fait** ; reste : essai à deux téléphones |
 | 11 | Recette |
 
-## État (version 0.23.4 : stats d'entraînement d'un ami)
+## État (version 0.23.4 : stats d'entraînement d'un ami, revue des effets de bord du lot 10)
 
 - **0.23.4** (25/11) : vu par Guillaume après son premier ami, « je n'ai pas son jeu de fléchettes pour le filtrage ».
   Le filtre des stats d'entraînement ne proposait que les jeux du téléphone (`store.dartSets`) et les noms ne se
   cherchaient que là (« ? » pour un jeu d'ami). Maintenant : store.js › `setsOfPlayer(pid)` (jeux du profil d'un ami,
   `p.sets`, sinon ceux du téléphone, plus tout jeu noté dans ses séances) et `anySetById` (noms et dessins, aussi au
   détail d'une séance reçue) ; un filtre sur un jeu que le joueur choisi n'a pas retombe sur TOUS ; exercices proposés
-  d'après `allTrainings()`. Test : tests/stats-ami-parcours.test.js (deux téléphones, faux Supabase). Les jeux de
-  départ (`ds-torpedo-22`, `ds-droit-22`) ont le même identifiant sur tous les téléphones : ils se confondent, c'est voulu.
+  d'après `allTrainings()`. Les jeux de départ (`ds-torpedo-22`, `ds-droit-22`) ont le même identifiant sur tous les
+  téléphones : ils se confondent, c'est voulu.
+- **Revue des effets de bord du lot 10** (demandée par Guillaume, même version) : tout ce qui lit parties, séances,
+  joueurs et jeux de fléchettes passé en revue. Corrigé : `trainingById` cherche aussi `store.friendTrainings` (séance
+  d'ami introuvable depuis ses stats ou un badge ; écritures toujours limitées à store.trainings) ; printsheet ›
+  `findGame` aussi `store.friendGames` ; game.js › `recordsOf` sur `allGames()` (faux « RECORD PERSO » d'un ami, aussi
+  en fin de partie) ; training.js : niveau, coach, dernière séance et nombre de séances sur `allTrainings()` ;
+  store.js › `rewirePlayer` et `undoMergeFriend` rattachent aussi `friendGames` / `friendTrainings` (fusion faite après
+  une synchronisation : ce qui était déjà reçu restait sur `u:<uuid>`, la réception ne reprend pas tout). Vérifié sans
+  écart : écritures et suppressions (gardes `owner`), sauvegarde (REMPLACER TOUT vide `friendsKey` : tout est reçu à
+  nouveau), stats multijoueur, face-à-face, classement, honneur, badges, exports, fiche d'ami, liste des joueurs.
+  Test : tests/stats-ami-parcours.test.js (deux téléphones, faux Supabase ; chaque contrôle échoue sans sa correction).
+- Laissé tel quel (choix, à dire à Guillaume si ça gêne) : un ami retiré redevient joueur local avec aussi ses parties
+  jouées sans moi ; un ami qui s'entraîne sur mon téléphone choisit parmi les jeux de fléchettes de mon téléphone.
 
 ## État (version 0.23.3 : carte de mise à jour de l'accueil)
 

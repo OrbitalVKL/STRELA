@@ -10,7 +10,7 @@
 // 0.14.0 : mode JEUX — X01 et Cricket en solo, aux vraies règles (même saisie ; en tête, le reste et la finition
 // proposée, ou les cibles du Cricket ; analyse du jeu et carte de chaleur à la fin).
 // Moteur : engine/training.js (exercices, analyse, coach) ; données : store.js (section « entraînement solo »).
-import { store, receivedNote, activePlayers, playerById, trState, startTraining, trThrow, trUndo, trAddBlock, closeTraining, deleteTrainings, trainingById, dartSetById, anySetById, saveTrSetup,
+import { store, allTrainings, receivedNote, activePlayers, playerById, trState, startTraining, trThrow, trUndo, trAddBlock, closeTraining, deleteTrainings, trainingById, dartSetById, anySetById, saveTrSetup,
   trChangeSet, updateTraining, resumeTraining, saveTr, appModes, profilePlayer, saveSetting } from '../store.js';
 import { esc, ico, topBar, plural, when } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
@@ -136,9 +136,11 @@ function levelCard(pid) {
     ${crit ? `<ul class="lvc"><li class="lvh">POUR PASSER ${LEVELS[lv.next]}</li>${crit}</ul>` : ''}`;
 }
 
-/** Séances closes et en cours. */
-const allSessions = () => [...store.trainings, ...(store.tr ? [store.tr] : [])];
-const lastOf = (pid, key) => store.trainings.find(r => r.player === pid && r.exercise === key && !r.stopped && !r.excluded);
+/** Séances closes et en cours (lot 10 : aussi celles d'un ami faites chez lui : son niveau et le coach sont les mêmes
+ * que chez lui, comme ses stats). */
+const allSessions = () => [...allTrainings(), ...(store.tr ? [store.tr] : [])];
+/** Dernière séance complète d'un exercice (la plus récente, toutes séances confondues). */
+const lastOf = (pid, key) => allTrainings().filter(r => r.player === pid && r.exercise === key && !r.stopped && !r.excluded).reduce((m, r) => (!m || r.startedAt > m.startedAt ? r : m), null);
 
 function exerciseRows(pid, proposed, keys, level) {
   return `<ul class="exl">${keys.map(k => {
@@ -244,7 +246,7 @@ export function trainingHub() {
       ${targetPicker(t, 'setup')}
       <button type="button" class="btn ${resume ? 'accent-line' : 'accent'} big" data-act="tr-start" data-arg="libre">${ico('target')} VISER ${esc(targetLabel(t))} · ${t.n} FL.</button>`;
   }
-  const mine = store.trainings.filter(r => r.player === su.player);
+  const mine = allTrainings().filter(r => r.player === su.player);
   const tiles = [
     ['#/entrainement/stats', 'stats', 'Stats', mine.length ? plural(mine.length, 'séance', 'séances') : 'aucune séance'],
     ['#/conseils', 'info', 'Conseils', '4 fiches'],
@@ -958,7 +960,7 @@ function dartsOfTarget(r, t) {
 const trainingStateOf = r => trainingState(r, r.darts);
 
 function nextCard(r, a, closeFirst) {
-  const list = [...store.trainings.filter(x => x.id !== r.id), { ...r, endedAt: r.endedAt ?? Date.now() }];
+  const list = [...allTrainings().filter(x => x.id !== r.id), { ...r, endedAt: r.endedAt ?? Date.now() }];
   const level = levelOf(list, r.player).level;
   const n = r.mode === 'coach' ? (nextFor(a, r, level) || suggestNext(list, r.player, level)) : a.game ? a.next : null;
   if (!n) return '';
