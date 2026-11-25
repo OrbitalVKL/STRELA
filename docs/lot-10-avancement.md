@@ -86,6 +86,13 @@ publiés : rien à terminer avant.
   (`accounts` : mon profil et mes amis). Sang-froid : seul dernier (moins de manches, puis plus gros reste) après la
   moitié des fléchettes. Reconnexion héroïque : `online.cut` posé par ui/online.js à chaque coupure (hôte qui perd un
   invité, invité qui perd l'hôte, hôte qui reprend son salon). Fidèle au poste : badge à rangs 10 / 50 / 150.
+- Jeux de fléchettes d'un ami (0.23.4) : ceux de son profil (`p.sets`) au filtre de ses stats d'entraînement
+  (store.js › `setsOfPlayer`, `anySetById`) ; un filtre sur un jeu qu'il n'a pas retombe sur TOUS.
+- Revue du 25/11 (0.23.4) : tout ce qui ne lit qu'une partie des données (store.games, store.trainings) alors que les
+  stats lisent tout (`allGames`, `allTrainings`) donne des chiffres différents pour un ami : records en partie, niveau
+  et coach, détail d'une séance, fiche de score. Règle : un calcul ou un affichage sur un joueur lit `all…()` ; une
+  écriture ne touche que store.games / ckGames / trainings (jamais ce qui a `owner`). Une fusion ou une annulation
+  doit aussi traiter `friendGames` / `friendTrainings`.
 - Synchronisation : une demande pendant une passe en cours en programme une seule autre et en attend le résultat
   (cloud.js › syncNow).
 

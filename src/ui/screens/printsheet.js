@@ -12,7 +12,8 @@ import { refresh } from '../nav.js';
 
 const status = new Map(); // id de partie → { busy, msg }
 
-const findGame = id => (store.current && store.current.id === id ? store.current : store.games.find(g => g.id === id));
+// Lot 10 : aussi une partie d'amis jouée sans moi (détail ouvert depuis leurs stats ou un badge).
+const findGame = id => (store.current && store.current.id === id ? store.current : store.games.find(g => g.id === id) || store.friendGames.find(g => g.id === id));
 
 /** Bloc « Fiche de score » : IMAGE · PDF, et le résultat du dernier export. */
 export function sheetSection(g) {

@@ -10,7 +10,7 @@
 // 0.14.0 : mode JEUX — X01 et Cricket en solo, aux vraies règles (même saisie ; en tête, le reste et la finition
 // proposée, ou les cibles du Cricket ; analyse du jeu et carte de chaleur à la fin).
 // Moteur : engine/training.js (exercices, analyse, coach) ; données : store.js (section « entraînement solo »).
-import { store, receivedNote, activePlayers, playerById, trState, startTraining, trThrow, trUndo, trAddBlock, closeTraining, deleteTrainings, trainingById, dartSetById, saveTrSetup,
+import { store, allTrainings, receivedNote, activePlayers, playerById, trState, startTraining, trThrow, trUndo, trAddBlock, closeTraining, deleteTrainings, trainingById, dartSetById, anySetById, saveTrSetup,
   trChangeSet, updateTraining, resumeTraining, saveTr, appModes, profilePlayer, saveSetting } from '../store.js';
 import { esc, ico, topBar, plural, when } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
@@ -90,7 +90,7 @@ function setChips(su) {
 }
 /** Noms des jeux d'une séance : « 22 g torpedo », « 22 g torpedo puis 22 g fût droit », « sans jeu noté ». */
 export function setsText(r) {
-  const names = setRuns(r).filter((x, i) => i === 0 || x.from < r.darts.length).map(x => (x.setId ? (dartSetById(x.setId) || { name: '?' }).name : 'sans jeu noté'));
+  const names = setRuns(r).filter((x, i) => i === 0 || x.from < r.darts.length).map(x => (x.setId ? (anySetById(x.setId) || { name: '?' }).name : 'sans jeu noté'));
   return names.join(' puis ');
 }
 
@@ -136,9 +136,11 @@ function levelCard(pid) {
     ${crit ? `<ul class="lvc"><li class="lvh">POUR PASSER ${LEVELS[lv.next]}</li>${crit}</ul>` : ''}`;
 }
 
-/** Séances closes et en cours. */
-const allSessions = () => [...store.trainings, ...(store.tr ? [store.tr] : [])];
-const lastOf = (pid, key) => store.trainings.find(r => r.player === pid && r.exercise === key && !r.stopped && !r.excluded);
+/** Séances closes et en cours (lot 10 : aussi celles d'un ami faites chez lui : son niveau et le coach sont les mêmes
+ * que chez lui, comme ses stats). */
+const allSessions = () => [...allTrainings(), ...(store.tr ? [store.tr] : [])];
+/** Dernière séance complète d'un exercice (la plus récente, toutes séances confondues). */
+const lastOf = (pid, key) => allTrainings().filter(r => r.player === pid && r.exercise === key && !r.stopped && !r.excluded).reduce((m, r) => (!m || r.startedAt > m.startedAt ? r : m), null);
 
 function exerciseRows(pid, proposed, keys, level) {
   return `<ul class="exl">${keys.map(k => {
@@ -244,7 +246,7 @@ export function trainingHub() {
       ${targetPicker(t, 'setup')}
       <button type="button" class="btn ${resume ? 'accent-line' : 'accent'} big" data-act="tr-start" data-arg="libre">${ico('target')} VISER ${esc(targetLabel(t))} · ${t.n} FL.</button>`;
   }
-  const mine = store.trainings.filter(r => r.player === su.player);
+  const mine = allTrainings().filter(r => r.player === su.player);
   const tiles = [
     ['#/entrainement/stats', 'stats', 'Stats', mine.length ? plural(mine.length, 'séance', 'séances') : 'aucune séance'],
     ['#/conseils', 'info', 'Conseils', '4 fiches'],
@@ -838,7 +840,7 @@ function gameAnalysisHtml(r, a, key) {
     : `<table class="sectab trtab"><thead><tr><th>Manche</th><th>Volées</th><th>Fl.</th><th>MPR</th></tr></thead><tbody>${x.legs.map(l => `<tr><th>${l.number}${l.done ? '' : ' …'}</th><td>${l.rounds}</td><td>${l.darts}</td><td>${dec2(l.mpr)}</td></tr>`).join('')}</tbody></table>
        <div class="sec">Marques par cible</div><div class="clockg">${CRICKET_TARGETS.map(t => `<span><small>${t === 25 ? 'B' : t}</small><b>${x.marksByTarget[t]}</b></span>`).join('')}</div>`;
   const bySet = x.bySet ? `<div class="sec">Par jeu de fléchettes</div><table class="sectab trtab"><thead><tr><th>Jeu</th><th>Fl.</th><th>${x.game === 'x01' ? 'Moy.' : 'MPR'}</th><th>T %</th><th>D %</th></tr></thead><tbody>
-    ${x.bySet.map(y => `<tr><th class="ell">${esc(y.setId ? (dartSetById(y.setId) || { name: '?' }).name : 'Sans jeu noté')}</th><td>${y.darts}</td><td>${x.game === 'x01' ? dec1(y.value) : dec2(y.value)}</td><td>${pctOf(y.triples / y.n)}</td><td>${pctOf(y.doubles / y.n)}</td></tr>`).join('')}</tbody></table>` : '';
+    ${x.bySet.map(y => `<tr><th class="ell">${esc(y.setId ? (anySetById(y.setId) || { name: '?' }).name : 'Sans jeu noté')}</th><td>${y.darts}</td><td>${x.game === 'x01' ? dec1(y.value) : dec2(y.value)}</td><td>${pctOf(y.triples / y.n)}</td><td>${pctOf(y.doubles / y.n)}</td></tr>`).join('')}</tbody></table>` : '';
   // Lot 9.5 (C2) : en tête, le nombre de volées et de fléchettes (celles du moteur : un bust à la 1re fléchette est une
   // volée d'une fléchette) ; sous la cible, la grille des volées (fléchettes, total, reste, bust).
   const vols = sessionVolleysSafe(r).volleys;
@@ -902,7 +904,7 @@ function analysisHtml(r, a, key) {
   const goal = goalLine(r, a);
   // Par jeu de fléchettes, quand il a changé pendant la séance.
   const bySet = a.extra.bySet ? `<div class="sec">Par jeu de fléchettes</div><table class="sectab trtab"><thead><tr><th>Jeu</th><th>Fl.</th><th>Préc.</th><th>Grp.</th></tr></thead><tbody>
-    ${a.extra.bySet.map(x => `<tr><th class="ell">${esc(x.setId ? (dartSetById(x.setId) || { name: '?' }).name : 'Sans jeu noté')}</th><td>${x.darts}</td><td>${pctOf(x.rate)}</td><td>${x.points >= 3 && x.spread !== null ? dec1(x.spread / 10) : '—'}</td></tr>`).join('')}</tbody></table>` : '';
+    ${a.extra.bySet.map(x => `<tr><th class="ell">${esc(x.setId ? (anySetById(x.setId) || { name: '?' }).name : 'Sans jeu noté')}</th><td>${x.darts}</td><td>${pctOf(x.rate)}</td><td>${x.points >= 3 && x.spread !== null ? dec1(x.spread / 10) : '—'}</td></tr>`).join('')}</tbody></table>` : '';
   return `<div class="kpis">${kpis.join('')}</div>${goal}
     ${`<div class="sec">Analyse du coach${infoBtn(`tr-an-${key}`)}</div>`}
     ${infoBox(`tr-an-${key}`, 'Écarts mesurés sur une vraie cible (en centimètres) : chaque fléchette est placée au point touché (saisie sur la cible) ou au milieu de sa zone (saisie au pavé). <b>Croix</b> : point visé ; <b>carré</b> : centre des impacts ; le trait entre les deux est l\'écart moyen. <b>Groupement</b> : distance moyenne des fléchettes à leur centre (plus c\'est petit, plus elles sont groupées).')}
@@ -958,7 +960,7 @@ function dartsOfTarget(r, t) {
 const trainingStateOf = r => trainingState(r, r.darts);
 
 function nextCard(r, a, closeFirst) {
-  const list = [...store.trainings.filter(x => x.id !== r.id), { ...r, endedAt: r.endedAt ?? Date.now() }];
+  const list = [...allTrainings().filter(x => x.id !== r.id), { ...r, endedAt: r.endedAt ?? Date.now() }];
   const level = levelOf(list, r.player).level;
   const n = r.mode === 'coach' ? (nextFor(a, r, level) || suggestNext(list, r.player, level)) : a.game ? a.next : null;
   if (!n) return '';
@@ -1009,7 +1011,7 @@ function managePanel(r) {
     <label class="field"><textarea class="input trnote" data-input="tr-note" data-id="${esc(r.id)}" maxlength="300" rows="3" placeholder="Une remarque sur cette séance" spellcheck="true">${esc(r.note || '')}</textarea></label>`;
   // Jeu(x) de fléchettes : corriger celui noté (par partie de séance si le jeu a changé en cours).
   const setRows = runs.map((x, i) => {
-    const o = x.setId ? dartSetById(x.setId) : null;
+    const o = x.setId ? anySetById(x.setId) : null;
     const span = runs.length > 1 ? `fléchettes ${x.from + 1} à ${Math.min(x.to, r.darts.length)}` : 'toute la séance';
     return `<li><span class="setd" aria-hidden="true">${o ? dartDiagram({ shape: o.shape, flight: o.flight, colors: o.colors, mini: true }) : ''}</span><span class="t"><b class="ell">${esc(o ? o.name : 'Sans jeu noté')}</b><small>${span}</small></span>
       <button type="button" class="btn small-btn" data-act="tr-det-edit" data-arg="${esc(r.id)}|set|${i}">CHANGER</button></li>`;

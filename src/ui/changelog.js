@@ -2,6 +2,15 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.23.4', date: '2026-11-25', title: 'Stats d\'entraînement d\'un ami', items: [
+    'Stats d\'entraînement : le filtre « Jeu de fléchettes » propose les jeux du joueur choisi (pour un ami, les siens, venus de son téléphone) ; ses séances montrent le nom de son jeu au lieu de « ? ».',
+    'Un filtre resté sur un de tes jeux revient à TOUS quand tu passes sur un ami qui ne l\'a pas.',
+    'Une séance d\'ami s\'ouvre depuis ses stats (VOIR LA SÉANCE), en lecture seule.',
+    'Records en partie : ceux d\'un ami comptent aussi ses parties jouées chez lui (plus de « RECORD PERSO » qu\'il avait déjà battu).',
+    'Niveau et exercice proposé par le coach d\'un ami qui s\'entraîne sur ton téléphone : d\'après toutes ses séances.',
+    'Rattacher un joueur local à un ami après une synchronisation : ses parties et séances déjà reçues suivent (et reviennent si tu annules).',
+    'Fiche de score (IMAGE, PDF) d\'une partie de tes amis jouée sans toi.',
+  ] },
   { v: '0.23.3', date: '2026-11-25', title: 'Mise à jour à l\'accueil', items: [
     'Accueil : la carte « MISE À JOUR » montre tout de suite la dernière version publiée (elle pouvait garder celle de la recherche précédente alors que les Réglages montraient la bonne).',
     'Adresse e-mail de contact corrigée (orbitalvkl@gmail.com).',
