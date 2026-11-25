@@ -415,12 +415,12 @@ grant execute on function
 
 -- ------------------------------------------------------------------ présence (Supabase Realtime)
 -- Canal privé « strela-presence » : seuls les téléphones connectés (connexion anonyme) peuvent s'y joindre ; chacun
--- n'y publie que son identifiant de profil et son état (en ligne, en partie). Ignoré si Realtime est absent.
+-- n'y publie que son identifiant de profil et son état (en ligne, en partie). Ignoré si Realtime est absent. La sécurité
+-- par ligne de realtime.messages est déjà activée par Supabase (et sa table ne nous appartient pas : pas d'alter table).
 do $$
 begin
   if exists (select 1 from pg_namespace where nspname = 'realtime')
      and exists (select 1 from pg_tables where schemaname = 'realtime' and tablename = 'messages') then
-    execute 'alter table realtime.messages enable row level security';
     execute 'drop policy if exists strela_presence_lire on realtime.messages';
     execute 'create policy strela_presence_lire on realtime.messages for select to authenticated using (realtime.topic() = ''strela-presence'' and public.strela_moi() is not null)';
     execute 'drop policy if exists strela_presence_ecrire on realtime.messages';
