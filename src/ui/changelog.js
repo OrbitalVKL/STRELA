@@ -2,6 +2,15 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.25.0', date: '2026-11-26', title: 'Stats et sons selon le jeu', items: [
+    'En tête des stats (profil › Parties, profil › Entraînement), une phrase en clair : « En progrès sur ta moyenne, en recul sur les busts. » Elle suit la période choisie.',
+    'X01 en solo : fiche « Évolution » à la fin de chaque partie — moyenne, volées et fléchettes pour finir, hors cible, régularité (« tes volées varient de ±18 points »), busts et ce qu\'ils coûtent, moyenne au-dessus et en dessous de 100 restants, doubles de fin, meilleure et pire volée — avec une flèche verte (mieux) ou rouge (moins bien) par rapport à tes parties précédentes, et la répartition des volées (moins de 20, 20 à 39, 40 à 59, 60 et plus). Les mêmes chiffres en courbe dans les stats (filtre X01).',
+    'Exercices à cible : chaque séance comparée aux précédentes du même exercice (score, chaque secteur visé), secteur le plus réussi et le plus raté, dérive des fléchettes (« tu tires souvent sous la cible », flèche sur une petite cible), hors cible.',
+    'Parties : forme du soir (ta dernière soirée contre ta moyenne habituelle, aussi sur chaque carte du tableau de bord de soirée) et « Face à mes amis » : moyenne, meilleure volée, busts par partie, taux de victoire, côte à côte.',
+    'Libellés en clair : « Moyenne des 9 premières fléchettes » (avec son explication), en-têtes des tableaux sans abréviations.',
+    'Sons : chaque fléchette sonne selon qu\'elle est réussie, neutre ou ratée par rapport à ce que tu vises (un 7 visé en serpent sonne comme une réussite) ; un double ou un triple voulu sonne plus riche ; le ton monte sur une série. Bonne volée, fin de partie ou d\'exercice selon le résultat, record personnel, badge (plus grand pour un rang en or), arrivée d\'un défi (signal bien reconnaissable) et son résultat.',
+    'Réglages › Son et animations : volume des sons, et chaque famille à part (touches, fléchettes, défis et badges, fins).',
+  ] },
   { v: '0.24.1', date: '2026-11-26', title: 'Séances d\'entraînement des amis', items: [
     'Les séances d\'entraînement d\'un ami lié arrivent enfin : celles déjà reçues avant d\'avoir rattaché ton joueur local à ton ami lui sont rendues, et tout ce qui est en ligne est repris une fois (sans doublon).',
     'Une séance finie part tout de suite chez tes amis, même si l\'écran de fin reste ouvert sans TERMINER.',

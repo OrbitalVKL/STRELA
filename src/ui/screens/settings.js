@@ -323,7 +323,7 @@ const VOLUMES = [[0.25, 'Faible'], [0.5, 'Moyen'], [0.75, 'Fort'], [1, 'Max']];
 function soundDetails() {
   const v = Number.isFinite(store.settings.soundVolume) ? store.settings.soundVolume : 1;
   return `<div class="row col"><div class="lbl"><b>Volume</b></div><div class="seg sndvol" role="group" aria-label="Volume des sons">${VOLUMES.map(([x, l]) => `<button type="button" data-act="snd-vol" data-arg="${x}" aria-pressed="${Math.abs(v - x) < 0.01}">${l}</button>`).join('')}</div></div>
-    ${Object.entries(SOUND_FAMILIES).map(([k, f]) => srow(`snd-fam-${k}`, f.label, null, familyOn(k))).join('')}`;
+    <div class="sndfam">${Object.entries(SOUND_FAMILIES).map(([k, f]) => srow(`snd-fam-${k}`, f.label, null, familyOn(k))).join('')}</div>`;
 }
 const srow = (act, title, desc, on, disabled = false) => `<div class="row"><div class="lbl"><b>${title}</b>${desc ? `<small>${desc}</small>` : ''}</div>${toggle(act, on, disabled)}</div>`;
 

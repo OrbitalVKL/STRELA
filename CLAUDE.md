@@ -122,6 +122,9 @@ tools/lib/pg.mjs          Postgres local jetable des tests (Supabase imité) ; t
                           .github/workflows/supabase.yml : réveil tous les 3 jours, copie chiffrée chaque lundi
 src/ui/screens/profile.js profil d'un joueur (0.24.0) : #/joueur/<id>[/parties|entrainement|badges], statut (synchronisé,
                           local, ami), Résumé, tableau des badges (vitrine, chronologie) ; formulaire sous /modifier
+src/engine/evolution.js   stats contextuelles (lot 9.6 B) : fiche Évolution du X01 solo, exercices à cible, forme du soir,
+                          résumé en clair ; src/ui/evolution.js : leur affichage
+src/engine/verdict.js     verdict de chaque fléchette (lot 9.6 C) → son (feedback.js › verdictSound, familles, priorités)
 src/ui/journal.js         journal de débogage (lot 9.5) : log(cat, msg), 7 jours / 1 Mo, Réglages › Développement ;
                           src/ui/keyboard.js : champ actif gardé visible au-dessus du clavier
 src/engine/padinput.js    saisie au pavé debout (0.19.1) : secteur entier / secteur touché (pur, tests/saisie-pave.test.js)
@@ -224,8 +227,16 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 9.5 | Retours du 24/11 (docs/lot-9-5.md) : en ligne par étapes avec repli MQTT, clavier, historique X01 solo juste, journal de débogage, sélecteur Soirée / Entraînement en haut des stats, résumé X01 (volées), impacts par secteur visé (v0.20.0) — **fait** |
 | 10 (24/11) | Amis, synchronisation, stats partagées (docs/lot-10.md, docs/lot-10-avancement.md) : 0.21.0 = étape 1, infra Supabase et compte invisible — **fait** ; 0.22.0 = étapes 2 à 5, amis, rattachement, parties et stats partagées — **fait** ; 0.23.0 = étape 6, présence — **fait** ; 0.23.1 = relié au vrai projet Supabase — **fait** ; reste : essai à deux téléphones |
 | 0.24.0 | Profils des joueurs (4 onglets, statut synchronisé / local / ami), tableau des badges (vitrine par familles + chronologie), fenêtre de badge corrigée — **fait** |
-| 9.6 | docs/lot-9-6.md, docs/lot-9-6-avancement.md : 0.24.1 = A, séances des amis — **fait** ; B (stats contextuelles) et C (sons contextuels) à suivre |
+| 9.6 | docs/lot-9-6.md, docs/lot-9-6-avancement.md : 0.24.1 = A, séances des amis — **fait** ; 0.25.0 = B stats contextuelles + C sons contextuels — **fait** |
 | 11 | Recette |
+
+## État (version 0.25.0 : lot 9.6 B et C, stats et sons contextuels)
+
+- **0.25.0** (26/11) : détail docs/interface.md « Version 0.25.0 ». Nouveaux fichiers : src/engine/evolution.js,
+  src/ui/evolution.js, src/engine/verdict.js ; tests evolution, verdict, stats-contexte, sons-parcours. Aucune
+  migration (réglages `soundVolume`, `soundFamilies`). Jeton `--good-text` (flèche « mieux »).
+- Pour la suite : un nouvel exercice ou mode fournit son verdict (engine/verdict.js) et le passe à `verdictSound` ;
+  un nouveau chiffre comparé va dans `X01_METRICS` / `VERSUS_METRICS` (libellé, explication, sens).
 
 ## État (version 0.24.1 : lot 9.6 A, séances d'entraînement des amis)
 
