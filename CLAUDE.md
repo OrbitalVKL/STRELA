@@ -224,7 +224,19 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 9.5 | Retours du 24/11 (docs/lot-9-5.md) : en ligne par étapes avec repli MQTT, clavier, historique X01 solo juste, journal de débogage, sélecteur Soirée / Entraînement en haut des stats, résumé X01 (volées), impacts par secteur visé (v0.20.0) — **fait** |
 | 10 (24/11) | Amis, synchronisation, stats partagées (docs/lot-10.md, docs/lot-10-avancement.md) : 0.21.0 = étape 1, infra Supabase et compte invisible — **fait** ; 0.22.0 = étapes 2 à 5, amis, rattachement, parties et stats partagées — **fait** ; 0.23.0 = étape 6, présence — **fait** ; 0.23.1 = relié au vrai projet Supabase — **fait** ; reste : essai à deux téléphones |
 | 0.24.0 | Profils des joueurs (4 onglets, statut synchronisé / local / ami), tableau des badges (vitrine par familles + chronologie), fenêtre de badge corrigée — **fait** |
+| 9.6 | docs/lot-9-6.md, docs/lot-9-6-avancement.md : 0.24.1 = A, séances des amis — **fait** ; B (stats contextuelles) et C (sons contextuels) à suivre |
 | 11 | Recette |
+
+## État (version 0.24.1 : lot 9.6 A, séances d'entraînement des amis)
+
+- **Reprise** : docs/lot-9-6.md (cahier : A puis B puis C), docs/lot-9-6-avancement.md (où on en est).
+- **0.24.1** (26/11) : cause trouvée dans le journal de Guillaume — séances reçues de Patrick restées sur la fiche
+  « u:<uuid> » supprimée par une fusion faite en 0.23.3 (détail : docs/cloud.md « Séances d'un ami »). Réparation au
+  lancement, reprise complète une fois (`RESYNC`), séance finie non rangée envoyée quand même, bloc Synchronisation et
+  RESYNCHRONISER dans le profil d'un ami, « Jeu inconnu », traces au journal. Aucune migration.
+- Non vérifiable d'ici : le téléphone de Patrick (ses séances d'après 21:09 n'apparaissent nulle part au journal de
+  Guillaume : soit jamais parties de chez lui — séance laissée ouverte, corrigé —, soit autre chose : son journal le
+  dira avec la 0.24.1).
 
 ## État (version 0.24.0 : profils des joueurs, tableau des badges)
 

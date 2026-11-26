@@ -220,7 +220,7 @@ function trendsBlock(sessions) {
 // ------------------------------------------------------------------ écran
 const segBtn = (act, v, cur, label) => `<button type="button" data-act="${act}" data-arg="${v}" aria-pressed="${cur === v}">${label}</button>`;
 
-const setName = k => (k ? (anySetById(k) || { name: '?' }).name : 'Sans jeu noté');
+const setName = k => (k ? (anySetById(k) || { name: 'Jeu inconnu' }).name : 'Sans jeu noté');
 /** Jeux en solo par jeu de fléchettes : fléchettes, moyenne X01, MPR, triples, doubles. */
 function bySetGames(sessions) {
   const rows = new Map();
@@ -460,7 +460,7 @@ export function exportData(pid = ui.player) {
     trends: trendRows(sessions),
     exercises: ALL_EXERCISES.map(k => { const list = sessions.filter(r => r.exercise === k); if (!list.length) return null; const vals = list.map(r => sessionValue(r, an(r))).filter(Boolean); const best = vals.length ? vals.reduce((m, v) => ((v.dir > 0 ? v.v > m.v : v.v < m.v) ? v : m)) : null; return { name: EXERCISES[k].name, n: list.length, last: fmtValue(vals[vals.length - 1]), best: fmtValue(best), goal: goalOf(k, lv) ? goalText(k, lv) : '' }; }).filter(Boolean),
     sessions: sessions.map(r => { const a = an(r), x = setPart(r, a), bias = a.messages.find(m => m.kind === 'bias'); const sv = sessionValue(r, a);
-      return { at: r.startedAt, title: (EXERCISES[r.exercise] || EXERCISES.libre).name, sets: setsUsed(r).map(id => (id ? (anySetById(id) || { name: '?' }).name : 'sans jeu noté')).join(' puis '), darts: r.darts.length,
+      return { at: r.startedAt, title: (EXERCISES[r.exercise] || EXERCISES.libre).name, sets: setsUsed(r).map(id => (id ? (anySetById(id) || { name: 'Jeu inconnu' }).name : 'sans jeu noté')).join(' puis '), darts: r.darts.length,
         result: sv ? `${fmtValue(sv)} (${sv.label.toLowerCase()})` : '—', dist: x.dist, spread: x.points >= 3 ? x.spread : null, rate: x.rate, bias: bias ? bias.text.replace(/^Tes fléchettes partent /, '').replace(/\.$/, '') : '', entry: entryOf(r), notes: r.note || '',
         dartsText: r.darts.map(trainingDartLabel).join(' ') }; }),
     games: ps ? { n: games.length, average: ps.average, tripleRate: ps.tripleRate ?? null, doubleRate: (ds => (ds.length ? ds.filter(x => x.multiplier === 2).length / ds.length : null))(games.flatMap(g => gameDarts(g, pid))), finishRate: ps.doubleRate ?? null,

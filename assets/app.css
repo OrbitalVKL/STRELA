@@ -2371,6 +2371,9 @@ button.frpick[aria-pressed="true"] { outline: 2px solid var(--fg); outline-offse
 .pline li { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 44px; padding: 6px 0; border-bottom: var(--rule); font-size: 13px; }
 .pline .ico { width: 18px; height: 18px; }
 .pline small { font-size: 11px; color: var(--dim); text-align: right; }
+.frsync li { grid-template-columns: 18px minmax(0, 1fr) minmax(0, 48%); }
+.frsync small { overflow-wrap: anywhere; }
+.pline li > span { min-width: 0; overflow-wrap: anywhere; }
 .pfolds { margin-top: 4px; }
 .pfolds .fold-body > .sec:first-child, .pfolds .fold-body > .infobox:first-child + .sec { margin-top: 10px; }
 .pfolds .fold-body .kpis { margin-top: 10px; }
