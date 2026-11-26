@@ -76,8 +76,10 @@ test('séance coachée au pavé : intérieur / extérieur, hors cible, ANNULER, 
     await page.evaluate(() => { location.hash = '#/reglages'; });
     await page.click('[data-act="pad-ring"][data-arg="1"]');
     await createPlayer(page, 'Alpha', { color: 0 });
-    // Accueil : le bouton Entraînement, à côté de la partie et de la soirée.
+    // Accueil : le bouton Entraînement (0.26.0 : dans l'espace Entraînement, choisi par la bascule de l'accueil).
     await page.evaluate(() => { location.hash = '#/'; });
+    await page.waitForSelector('.t-main');
+    if (await page.locator('.space [data-act="space"][data-arg="e"]').count()) await page.click('.space [data-act="space"][data-arg="e"]');
     await page.click('a.tr-btn');
     await page.waitForSelector('.trhub');
     assert.equal(await page.locator('[data-act="tr-set"][data-arg="ds-torpedo-22"]').count(), 1, 'jeux de Guillaume proposés');

@@ -1223,3 +1223,38 @@ d'affichage nouveaux (`modes`, `setup`, `profile`, `updSnooze`, `heatScale`), ch
   coupe ces familles. Aucune migration (réglages d'affichage).
 - Branché : game.js (`x01DartVerdict`), cricket.js (`ckDartVerdict`), training.js (`trVerdict`, `endSound`).
   Test : tests/sons-parcours.test.js ; tests/annonces.test.js suit les nouveaux sons.
+
+## Version 0.26.0 (26/11 : refonte des infos, proposition A « deux espaces » ; partie comptée dès la dernière fléchette)
+
+Demande de Guillaume : parties et entraînement séparés, mêmes indicateurs des deux côtés, d'une stat au déroulé, accès et
+listes identiques, tuiles plutôt que défilement. Inventaire, organisation et indicateurs : docs/refonte-infos.md. Choisi
+sur maquettes : **A « deux espaces »**, avec « un menu d'accueil clair avec le minimum d'infos ».
+
+- **Espace** : `currentSpace()` (src/ui/screens/infos.js) = 'p' (parties) ou 'e' (entraînement), d'après les modes
+  allumés et le réglage existant `statsMode` ('soiree' | 'train') ; bascule `spaceSwitch` (rien si un seul mode).
+- **Accueil** (v2/home2.js) : bande STRELA, bascule, REPRENDRE ou bienvenue, action principale de l'espace (NOUVELLE
+  PARTIE + SOIRÉE / EN LIGNE, ou S'ENTRAÎNER), six tuiles `.tile3` (pictogramme et nom seulement) :
+  Parties = Historique, Stats, Records, Badges, Joueurs, Classement ; Entraînement = Séances, Stats, Records, Badges,
+  Armurerie, Conseils. Réglages et version en pied de page. Plus de cartes « dernière partie » ni « en tête ».
+- **Stats en tuiles** `#/tableau/<p|e>/<joueur>/<famille>` : joueur, période (7 J / 30 J / TOUT, TOUT par défaut),
+  familles en grille 3 × 2 (Score, Volées, Finition, Précision, Cricket, Résultats | Exercices). Chaque tuile : valeur,
+  tendance (3 dernières contre celles d'avant, pas sur un record), mini-courbe, source ou précision ; elle ouvre sa fiche.
+  « TOUT LE DÉTAIL » mène aux anciens onglets du profil (au fil des verres, carte de la cible, exports… restent là).
+- **Fiche** `#/indicateur/<p|e>/<joueur>/<clé>` (ou `ex-<exercice>`) : valeur, VOIR LA VOLÉE / PARTIE / SÉANCE, courbe
+  (un point = une partie ou séance, lien), explication, meilleures et pires (volées) ou meilleures et dernières.
+- **Records** `#/records/<p|e>/<joueur>` (depuis toujours) : meilleure volée, meilleure moyenne, plus grosse finition,
+  manche la plus courte, meilleur départ, le plus de 100+, Cricket, meilleur score de chaque exercice ; chacun ouvre sa
+  volée ou sa partie / séance.
+- **Séances** `#/seances` : historique des séances, même rangement que celui des parties (classes `hlist`, `hgroup`) :
+  par jour, filtres joueur, type, mois ; une ligne ouvre la séance.
+- **Déroulé ouvert sur une volée** : `#/partie/<id>/v<n>` (case n-1 du tour par tour ouverte et montrée, une seule fois
+  en arrivant), `#/entrainement/seance/<id>/v<n>` (volée surlignée, panneau sur la cible sous sa ligne) ;
+  `#/cricket/partie/<id>/v<n>` ouvre la partie. Dans une séance, un appui sur une volée l'ouvre (`tr-vsel`).
+- **Moteur commun** src/engine/indicators.js : `asGame` (séance X01 / Cricket → partie à un joueur), `x01Indicators`,
+  `cricketIndicators`, `exerciseBests` ; chaque meilleure ou pire valeur garde `ref` { kind, id, visit } (+ tour, manche).
+  « Doubles touchés » (part des fléchettes dans un double, 50 compris) et « Réussite au double de fin » sont deux chiffres.
+  Test : tests/indicateurs.test.js (une partie et une séance aux mêmes fléchettes : mêmes chiffres).
+- **En ligne** (demande de Guillaume, même version) : `#/enligne` montre en haut les amis connectés (présence en direct,
+  pastille) et hors ligne (« vu il y a… »), en bas les profils locaux du téléphone (moi d'abord) ; un appui ouvre le
+  profil. La présence redessine aussi cet écran (presence.js › redraw).
+- Sommaire : section 0.26.0 (scènes `v26-…`). Aucune migration.

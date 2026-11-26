@@ -5,7 +5,7 @@
 // fenêtre : ce qu'il veut dire, la partie et la volée où il a été gagné (VOIR LA PARTIE ouvre le détail sur cette
 // volée) ; badges à rangs (bronze, argent, or) ; badges gagnés pendant une soirée (tableau de bord).
 import { modeBand } from './modeband.js';
-import { store, playerById, allGames, profilePlayer } from './store.js';
+import { store, playerById, allGames, profilePlayer, isOpenFinished } from './store.js';
 import { esc, ico, topBar, plural, shortDate, when, OUT_SHORT } from './dom.js';
 import { avatarHtml } from './avatars.js';
 import { honours, playerBadges, badgesOfGame, badgeWhere, badgeByKey, badgeLabel, BADGES, TIER_NAMES } from '../engine/badges.js';
@@ -190,7 +190,7 @@ function whereHtml(where, b) {
       : `<li><span>Volée</span><b>${b.key === 'clean' || b.key === 'marathon' || b.key === 'games50' ? 'toute la partie' : '—'}</b></li>`,
   ];
   // La partie qui vient de finir n'est pas encore dans l'historique (elle y entre en quittant la fin de partie).
-  const listed = allGames().some(x => x.id === g.id);
+  const listed = !isOpenFinished(g.id) && allGames().some(x => x.id === g.id);
   return `<ul class="bkv">${rows.join('')}</ul>
     ${listed ? `<button type="button" class="btn" data-act="badge-game" data-arg="${esc(`${g.id}|${vi ? where.visit : ''}`)}">${ico('history')} VOIR LA PARTIE${vi ? ' À CETTE VOLÉE' : ''}</button>` : ''}`;
 }

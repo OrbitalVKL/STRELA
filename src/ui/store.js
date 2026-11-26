@@ -65,6 +65,8 @@ export const saving = { pending: 0, done: 0 };
 let onClosed = () => {};
 export const setClosedListener = fn => { onClosed = fn; };
 const closed = () => { try { onClosed(); } catch (e) { /* */ } };
+/** 0.26.0 : la dernière fléchette vient de finir la partie en cours (elle compte et part sans attendre ACCUEIL). */
+export const gameFinished = () => closed();
 
 /** Appelé quand une écriture échoue ou réussit de nouveau (l'appli redessine l'écran : alerte d'enregistrement). */
 let onStorageChange = () => {};
@@ -350,9 +352,14 @@ export function repairOrphans() {
 
 /** Lot 10, étape 5 : toutes les parties connues (les miennes et celles de mes amis entre eux) pour les stats, badges,
  *  records et classements — chaque calcul filtre par joueur. X01 seulement / Cricket seulement / séances. */
-export const allGames = () => (store.friendGames.length ? [...store.games, ...store.friendGames.filter(g => !isCricket(g))] : store.games);
-export const allCkGames = () => (store.friendGames.length ? [...store.ckGames, ...store.friendGames.filter(isCricket)] : store.ckGames);
-export const allTrainings = () => (store.friendTrainings.length ? [...store.trainings, ...store.friendTrainings] : store.trainings);
+// 0.26.0 : la partie (ou la séance) finie restée sur l'écran de fin compte déjà, dès la dernière fléchette.
+const withOpen = (list, open) => (open ? [...list, open] : list);
+export const allGames = () => withOpen(store.friendGames.length ? [...store.games, ...store.friendGames.filter(g => !isCricket(g))] : store.games, finishedOpenGame());
+export const allCkGames = () => withOpen(store.friendGames.length ? [...store.ckGames, ...store.friendGames.filter(isCricket)] : store.ckGames, finishedOpenCk());
+export const allTrainings = () => withOpen(store.friendTrainings.length ? [...store.trainings, ...store.friendTrainings] : store.trainings, finishedOpenTraining());
+
+/** 0.26.0 : la partie (ou séance) en cours `id` est-elle finie mais pas encore rangée (écran de fin) ? */
+export const isOpenFinished = id => !!id && [finishedOpenGame(), finishedOpenCk(), finishedOpenTraining()].some(r => r && r.id === id);
 
 /** Est-ce une partie (ou séance) reçue d'un ami, en lecture seule ? */
 export const isReceived = rec => !!(rec && rec.owner);
@@ -526,7 +533,62 @@ export function adoptRemote(id) {
 // ------------------------------------------------------------------ partie en cours
 /** Enregistre la partie en cours telle quelle (à chaque fléchette, ANNULER, VALIDER, fin de manche validée). */
 export function saveCurrent() {
-  if (store.current) write([{ store: 'games', put: currentRecord(store.current) }]);
+  if (!store.current) return;
+  let done = false;
+  try { done = currentState().status === STATUS.FINISHED; } catch (e) { /* */ }
+  stampFinish(store.current, done);
+  write([{ store: 'games', put: currentRecord(store.current) }]);
+}
+
+/**
+ * 0.26.0 : instant de la dernière fléchette d'une partie (ou séance) finie, gardé dans la base tant qu'elle reste ouverte
+ * sur l'écran de fin ; effacé si ANNULER (ou ENCORE UNE SÉRIE) la rouvre. Il sert de fin à la copie comptée et envoyée
+ * avant TERMINER / ACCUEIL, puis à l'enregistrement rangé (même empreinte : rien n'est renvoyé pour rien).
+ */
+function stampFinish(rec, done, now = Date.now()) {
+  openRev += 1;
+  if (done && !Number.isFinite(rec.finishedAt)) rec.finishedAt = now;
+  else if (!done && rec.finishedAt !== undefined) delete rec.finishedAt;
+}
+const endOf = g => (Number.isFinite(g.finishedAt) ? g.finishedAt : Date.now());
+/** Fin d'un enregistrement ouvert et fini qui n'a pas encore son instant (fini avant la 0.26.0) : noté une fois pour toutes. */
+function ensureFinish(g, put) {
+  if (Number.isFinite(g.finishedAt)) return g.finishedAt;
+  g.finishedAt = Date.now();
+  if (!store.maquette) write([put()]);
+  return g.finishedAt;
+}
+// Copies closes des enregistrements ouverts, gardées tant que rien n'a changé (allGames() est appelé souvent par rendu,
+// et une copie stable garde valables les caches des stats) : chaque enregistrement (save*) change la révision.
+let openRev = 0;
+const openCache = new Map();
+function cachedOpen(kind, src, make) {
+  if (!src) return null;
+  const c = openCache.get(kind);
+  if (c && c.src === src && c.rev === openRev && c.n === src.darts.length) return c.rec;
+  const rec = make();
+  openCache.set(kind, { src, rev: openRev, n: src.darts.length, rec });
+  return rec;
+}
+
+/** 0.26.0 : la partie X01 en cours si elle est finie mais pas rangée (écran de fin), telle qu'elle sera rangée ; sinon null. */
+export function finishedOpenGame() {
+  const g = store.current;
+  if (!g || !g.darts.length) return null;
+  return cachedOpen('x01', g, () => {
+    try { if (computeState(g.config, g.darts).status !== STATUS.FINISHED) return null; } catch (e) { return null; }
+    return closedRecord(g, false, ensureFinish(g, () => ({ store: 'games', put: currentRecord(g) })));
+  });
+}
+
+/** 0.26.0 : la partie de Cricket en cours si elle est finie mais pas rangée ; sinon null. */
+export function finishedOpenCk() {
+  const g = store.ck;
+  if (!g || !g.darts.length) return null;
+  return cachedOpen('ck', g, () => {
+    try { if (computeCricket(g.config, g.darts).status !== 'finished') return null; } catch (e) { return null; }
+    return closedRecord(g, false, ensureFinish(g, () => ({ store: 'games', put: currentRecord(g) })));
+  });
 }
 
 // ------------------------------------------------------------------ verres (lot 7)
@@ -959,7 +1021,7 @@ export function archiveCurrent(abandoned) {
   store.current = null;
   const s = computeState(g.config, g.darts);
   if (g.darts.length && (abandoned || s.status === STATUS.FINISHED)) {
-    const rec = closedRecord(g, abandoned && s.status !== STATUS.FINISHED, Date.now());
+    const rec = closedRecord(g, abandoned && s.status !== STATUS.FINISHED, s.status === STATUS.FINISHED ? endOf(g) : Date.now());
     store.games.unshift(rec);
     write([{ store: 'games', put: rec }]);
     closed();
@@ -1000,6 +1062,7 @@ export function deleteCurrent() {
   const g = store.current;
   if (!g) return;
   store.current = null;
+  noteDeleted([g.id]); // 0.26.0 : déjà envoyée si elle a été finie (puis rouverte par ANNULER)
   write(gameDeletionOps([g.id]));
 }
 
@@ -1128,7 +1191,11 @@ export const ckState = () => (store.ck ? computeCricket(store.ck.config, store.c
 
 /** Enregistre la partie de Cricket en cours (à chaque fléchette, ANNULER, VALIDER). */
 export function saveCk() {
-  if (store.ck) write([{ store: 'games', put: currentRecord(store.ck) }]);
+  if (!store.ck) return;
+  let done = false;
+  try { done = ckState().status === 'finished'; } catch (e) { /* */ }
+  stampFinish(store.ck, done);
+  write([{ store: 'games', put: currentRecord(store.ck) }]);
 }
 
 /** Démarre un Cricket ({ players, ckMode, legsToWin, shuffle }) ; la partie en cours (X01 ou Cricket) est d'abord rangée. */
@@ -1153,7 +1220,7 @@ export function archiveCk(abandoned) {
   store.ck = null;
   const s = computeCricket(g.config, g.darts);
   if (g.darts.length && (abandoned || s.status === 'finished')) {
-    const rec = closedRecord(g, abandoned && s.status !== 'finished', Date.now());
+    const rec = closedRecord(g, abandoned && s.status !== 'finished', s.status === 'finished' ? endOf(g) : Date.now());
     store.ckGames.unshift(rec);
     write([{ store: 'games', put: rec }]);
     closed();
@@ -1167,6 +1234,7 @@ export function deleteCk() {
   const g = store.ck;
   if (!g) return;
   store.ck = null;
+  noteDeleted([g.id]); // 0.26.0 : déjà envoyée si elle a été finie (puis rouverte par ANNULER)
   write(gameDeletionOps([g.id]));
 }
 
@@ -1179,7 +1247,11 @@ export const freshTrUi = () => ({ pick: null, zone: null, rules: false, pause: f
 export const trState = () => (store.tr ? trainingState(store.tr, store.tr.darts) : null);
 
 export function saveTr() {
-  if (store.tr) write([{ store: 'trainings', put: trainingRecord(store.tr) }]);
+  if (!store.tr) return;
+  let done = false;
+  try { done = trainingState(store.tr, store.tr.darts).done; } catch (e) { /* */ }
+  stampFinish(store.tr, done && store.tr.darts.length > 0);
+  write([{ store: 'trainings', put: trainingRecord(store.tr) }]);
 }
 
 /** Derniers choix de l'écran Entraînement (joueur, jeu, mode, exercice, cible libre). */
@@ -1215,9 +1287,10 @@ export function trThrow(dart) {
 export function finishedOpenTraining() {
   const r = store.tr;
   if (!r || r.owner || !r.darts.length) return null;
-  try { if (!trainingState(r, r.darts).done) return null; } catch (e) { return null; }
-  if (!Number.isFinite(r.ui.doneAt)) r.ui.doneAt = Date.now();
-  return trainingRecord({ ...r, ...cleanSetChanges(r, r.darts.length), endedAt: r.ui.doneAt });
+  return cachedOpen('tr', r, () => {
+    try { if (!trainingState(r, r.darts).done) return null; } catch (e) { return null; }
+    return trainingRecord({ ...r, ...cleanSetChanges(r, r.darts.length), endedAt: ensureFinish(r, () => ({ store: 'trainings', put: trainingRecord(r) })) });
+  });
 }
 
 /** Journal (lot 9.5) : fléchette d'entraînement ajoutée, et en X01 / Cricket solo la volée close (total, bust, reste). */
@@ -1266,7 +1339,7 @@ export function closeTraining({ stopped = false } = {}, now = Date.now()) {
   store.tr = null;
   if (!r.darts.length) { write([{ store: 'trainings', del: r.id }]); return null; }
   const done = trainingState(r, r.darts).done;
-  const rec = trainingRecord({ ...r, ...cleanSetChanges(r, r.darts.length), endedAt: now, stopped: stopped || !done });
+  const rec = trainingRecord({ ...r, ...cleanSetChanges(r, r.darts.length), endedAt: done && Number.isFinite(r.finishedAt) ? r.finishedAt : now, stopped: stopped || !done });
   store.trainings.unshift(rec);
   write([{ store: 'trainings', put: rec }]);
   closed();

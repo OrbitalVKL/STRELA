@@ -9,7 +9,7 @@
 //   hors de la cible ne compte rien).
 // Après la 3e fléchette ou un bust, la volée reste affichée jusqu'à VALIDER (turn.js) ; ANNULER reste possible.
 // À la validation, « À TOI, PSEUDO » occupe le haut de l'écran ~0,8 s, puis le bandeau du joueur glisse en place.
-import { store, allGames, currentState, playerById, archiveCurrent, deleteCurrent, animationsOn, saveCurrent, legEndPending, addDrink, removeDrink, drinksHere, gameDrinking, gameDrinkTally } from '../store.js';
+import { store, allGames, currentState, playerById, archiveCurrent, deleteCurrent, animationsOn, saveCurrent, legEndPending, addDrink, removeDrink, drinksHere, gameDrinking, gameDrinkTally, gameFinished } from '../store.js';
 import { drinkSizeSeg, plusDrink, plusLabel, pintMode, drinkCount, drinkPair } from '../drinks.js';
 import { esc, ico, avg, OUT_SHORT, maquetteButtons } from '../dom.js';
 import { avatarHtml, colorIndex } from '../avatars.js';
@@ -182,7 +182,9 @@ const recCache = new Map(); // joueur → { key (parties closes), rec }
 // Lot 10 : sur toutes ses parties connues (allGames : aussi celles d'un ami jouées chez lui), comme ses stats ; sinon
 // un ami pouvait battre ici un « record » qu'il avait déjà dépassé chez lui.
 export function recordsOf(id) {
-  const all = allGames();
+  // 0.26.0 : sans la partie en cours, même finie (elle compte déjà dans allGames dès sa dernière fléchette).
+  const cur = store.current && store.current.id;
+  const all = allGames().filter(g => g.id !== cur);
   const key = `${all.length}:${all.reduce((n, g) => n + g.darts.length, 0)}`;
   const c = recCache.get(id);
   if (c && c.key === key) return c.rec;
@@ -801,6 +803,7 @@ function play(dart, key, pos = null) {
         const bs = gameBadgesSound(g);
         if (badges) setTimeout(() => { if (bs) sound(bs); say(badges); }, payers.length ? 5200 : 2600);
       }
+      if (st.status === 'finished') gameFinished(); // 0.26.0 : comptée et envoyée sans attendre ACCUEIL ou REVANCHE
       go(st.lastEvent === 'leg_won' ? '#/manche' : '#/fin');
       return true;
     default: { buzz(BUZZ.dart); const vd = x01DartVerdict(g, st, dart); if (vd) verdictSound(vd, st.visit ? st.visit.player : null); else sound(dartSound(dart)); }

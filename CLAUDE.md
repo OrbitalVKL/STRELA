@@ -1,6 +1,6 @@
 # Strela — règles du projet
 
-Appli Android de fléchettes (X01, Cricket depuis la 0.10.0, entraînement solo depuis la 0.12.0, niveau intermédiaire depuis la 0.13.0, X01 et Cricket en solo à l'entraînement depuis la 0.14.0, saisie à la voix depuis la 0.18.0, partie en ligne depuis la 0.19.0, compte en ligne et amis depuis la 0.21.0) pour Guillaume. Dépôt `OrbitalVKL/STRELA` (public, branche `main`).
+Appli Android de fléchettes (X01, Cricket depuis la 0.10.0, entraînement solo depuis la 0.12.0, niveau intermédiaire depuis la 0.13.0, X01 et Cricket en solo à l'entraînement depuis la 0.14.0, saisie à la voix depuis la 0.18.0, partie en ligne depuis la 0.19.0, compte en ligne et amis depuis la 0.21.0, deux espaces Parties / Entraînement depuis la 0.26.0) pour Guillaume. Dépôt `OrbitalVKL/STRELA` (public, branche `main`).
 Cahier des charges : [docs/cahier-des-charges.md](docs/cahier-des-charges.md).
 
 ## Méthode de travail
@@ -127,6 +127,10 @@ src/engine/evolution.js   stats contextuelles (lot 9.6 B) : fiche Évolution du 
 src/engine/verdict.js     verdict de chaque fléchette (lot 9.6 C) → son (feedback.js › verdictSound, familles, priorités)
 src/ui/journal.js         journal de débogage (lot 9.5) : log(cat, msg), 7 jours / 1 Mo, Réglages › Développement ;
                           src/ui/keyboard.js : champ actif gardé visible au-dessus du clavier
+src/engine/indicators.js  indicateurs communs aux parties et à l'entraînement (0.26.0) : séance X01 / Cricket lue comme une
+                          partie, meilleures et pires valeurs avec leur source (tests/indicateurs.test.js) ;
+                          src/ui/screens/infos.js : espaces, stats en tuiles (#/tableau), fiche (#/indicateur), records,
+                          historique des séances (#/seances)
 src/engine/padinput.js    saisie au pavé debout (0.19.1) : secteur entier / secteur touché (pur, tests/saisie-pave.test.js)
 src/engine/shuffle.js     tirage au sort de l'ordre (Fisher-Yates sans biais, 0.11.0 ; tests/tirage.test.js)
 src/engine/alcohol.js     verres : comptes (verre 25 cl, pinte 50 cl = 2 verres, 0.8.2), place dans la partie, alcoolémie estimée (lot 7) ;
@@ -228,7 +232,24 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 10 (24/11) | Amis, synchronisation, stats partagées (docs/lot-10.md, docs/lot-10-avancement.md) : 0.21.0 = étape 1, infra Supabase et compte invisible — **fait** ; 0.22.0 = étapes 2 à 5, amis, rattachement, parties et stats partagées — **fait** ; 0.23.0 = étape 6, présence — **fait** ; 0.23.1 = relié au vrai projet Supabase — **fait** ; reste : essai à deux téléphones |
 | 0.24.0 | Profils des joueurs (4 onglets, statut synchronisé / local / ami), tableau des badges (vitrine par familles + chronologie), fenêtre de badge corrigée — **fait** |
 | 9.6 | docs/lot-9-6.md, docs/lot-9-6-avancement.md : 0.24.1 = A, séances des amis — **fait** ; 0.25.0 = B stats contextuelles + C sons contextuels — **fait** |
+| 0.26.0 | Partie et séance comptées et envoyées dès la dernière fléchette ; refonte des infos (proposition A « deux espaces », accueil épuré, stats en tuiles, fiche, records, séances, stat → volée) — **fait** |
 | 11 | Recette |
+
+## État (version 0.26.0 : deux espaces Parties / Entraînement, stats en tuiles ; partie comptée dès la fin)
+
+- **Fin de partie** : journal du téléphone de Patrick (Samsung) : séance X01 solo à 135 laissée sur « SÉANCE FINIE »
+  sans TERMINER, donc absente de ses stats. Maintenant une partie (X01, Cricket) ou une séance compte et part dès sa
+  dernière fléchette (`finishedAt`, `finishedOpen*`, détail : docs/cloud.md « Fin de partie »). Champ facultatif
+  `finishedAt` de l'enregistrement en cours, aucune migration. Test : tests/fin-poussee-parcours.test.js.
+- **Refonte des infos** (demande du 26/11) : inventaire et indicateurs dans docs/refonte-infos.md ; maquettes A et B en
+  images, **A retenue** avec « un menu d'accueil clair avec le minimum d'infos ». Détail : docs/interface.md « Version
+  0.26.0 ». Espace = réglage `statsMode` existant. Les anciens onglets Parties / Entraînement du profil restent (lien
+  TOUT LE DÉTAIL). Tests : tests/indicateurs.test.js, tests/refonte-parcours.test.js. Aucune migration.
+- Pour la suite : un indicateur nouveau = une entrée de `IND` (infos.js, famille, valeur, série, sens, source) et, s'il
+  est calculé, un champ de `x01Indicators` / `cricketIndicators` (engine/indicators.js). Une source s'ouvre par
+  `refHref(ref)` (`#/partie/<id>/v<n>`, `#/entrainement/seance/<id>/v<n>`).
+- À vérifier sur le Pixel : lisibilité des tuiles, bascule, fiche et ouverture sur la volée ; le 135 de Patrick dans
+  Entraînement › Records (après mise à jour de son téléphone).
 
 ## État (version 0.25.0 : lot 9.6 B et C, stats et sons contextuels)
 

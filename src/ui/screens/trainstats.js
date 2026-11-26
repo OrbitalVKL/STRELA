@@ -275,8 +275,19 @@ function byExercise(sessions) {
   return rows ? `<table class="sectab trtab"><thead><tr><th>Exercice</th><th>Séances</th><th>Dernière</th><th>Meilleure</th></tr></thead><tbody>${rows}</tbody></table>` : '';
 }
 
+/**
+ * 0.26.0 (stats en tuiles) : chiffres des exercices à cible d'une liste de séances (tous jeux de fléchettes) :
+ * { n (séances d'exercice), prec (écart moyen à la cible, mm), rate (dans la cible), spread (groupement moyen, mm) }.
+ */
+export function aimKpis(sessions) {
+  const parts = sessions.filter(r => !isGameSession(r)).map(r => setPart(r, an(r), null));
+  const hits = parts.reduce((n, a) => n + a.hits, 0), n = parts.reduce((k, a) => k + a.darts, 0);
+  const spreads = parts.filter(a => a.points >= 3 && a.spread !== null).map(a => a.spread);
+  return { n: parts.length, prec: distOf(parts), rate: n ? hits / n : null, spread: spreads.length ? spreads.reduce((a, b) => a + b, 0) / spreads.length : null };
+}
+
 /** Joueurs qui ont des stats d'entraînement : moi, mes amis, puis les joueurs du téléphone (archivés s'ils ont des séances). */
-function trainPlayers() {
+export function trainPlayers() {
   const withTr = new Set(allTrainings().map(r => r.player));
   const me = profilePlayer();
   const rank = p => (me && p.id === me.id ? 0 : p.friend ? 1 : 2);

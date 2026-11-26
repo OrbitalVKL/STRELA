@@ -1,57 +1,24 @@
 // Accueil (version 0.8.0, refonte du lot 7.8 ; variante A « tableau de bord » retenue par Guillaume le 13/11/2026 —
 // la B « console » est abandonnée) et page des nouveautés (changelog).
-// Bande rouge STRELA, REPRENDRE ou accueil du premier lancement, action principale, soirée, deux cartes vivantes
-// (dernière partie, en tête du classement sur 30 jours), puis six raccourcis avec un chiffre chacun. Version en bas
-// de page (un appui ouvre les nouveautés) ; repère NOUVEAU sur Nouveautés tant que la page de la version installée
-// n'a pas été ouverte (localStorage « strela.news »).
-import { store, activePlayers, playerById, soireeTotal, appModes, setupDone, firstRun } from '../../store.js';
+// 0.26.0 (refonte des infos, proposition A « deux espaces ») : bande rouge STRELA, bascule PARTIES | ENTRAÎNEMENT,
+// REPRENDRE ou accueil du premier lancement, action principale de l'espace, six tuiles (pictogramme et nom), Réglages et
+// version en bas de page (un appui ouvre les nouveautés) ; repère NOUVEAU tant que la page de la version installée n'a
+// pas été ouverte (localStorage « strela.news »).
+import { store, soireeTotal, appModes, setupDone, firstRun, profilePlayer } from '../../store.js';
+import { currentSpace, spaceSwitch } from '../infos.js';
 import { onlineGame, onlineSupport } from '../../online.js';
 import { isApk } from '../../native.js';
-import { sessionValue, EXERCISES } from '../../../engine/training.js';
-import { fmtValue, sessionTitle } from '../training.js';
 import { drinksText } from '../../../engine/alcohol.js';
 import { backFrom } from '../../nav.js';
-import { esc, ico, plural, when, topBar, avg, maquetteButtons } from '../../dom.js';
-import { avatarHtml } from '../../avatars.js';
+import { esc, ico, plural, topBar, maquetteButtons } from '../../dom.js';
 import { BUILD } from '../../build.js';
-import { playerStats, inPeriod, gameWinner } from '../../../engine/stats.js';
 import { storageBanner, updateBadge } from '../settings.js';
 import { CHANGELOG } from '../../changelog.js';
-import { resumeButtonHtml, welcomeHtml, savedLabel } from '../home.js';
+import { resumeButtonHtml, welcomeHtml } from '../home.js';
 
 const NEWS_KEY = 'strela.news';
 const newsSeen = () => { try { return localStorage.getItem(NEWS_KEY) === BUILD.version; } catch (e) { return true; } };
 const markNewsSeen = () => { try { localStorage.setItem(NEWS_KEY, BUILD.version); } catch (e) { /* stockage refusé */ } };
-
-/** Joueur en tête (meilleure moyenne sur 30 jours, au moins 2 parties), ou null. */
-function leader() {
-  const games = inPeriod(store.games, '30j');
-  let best = null;
-  for (const p of activePlayers()) {
-    const s = playerStats(games, p.id);
-    if (s.played >= 2 && s.average !== null && (!best || s.average > best.avg)) best = { p, avg: s.average, played: s.played };
-  }
-  return best;
-}
-
-function lastGameCard() {
-  const g = [...store.games].sort((a, b) => b.startedAt - a.startedAt)[0];
-  if (!g) return '';
-  const w = gameWinner(g);
-  return `<a class="hcard" href="#/partie/${esc(g.id)}"><small>DERNIÈRE PARTIE</small>
-    <span class="avs">${g.config.players.slice(0, 3).map(id => avatarHtml(playerById(id), 26)).join('')}${g.config.players.length > 3 ? `<small>+${g.config.players.length - 3}</small>` : ''}</span>
-    <b>${w ? `${ico('trophy')} <span class="nm ell">${esc(playerById(w).name)}</span>` : g.abandoned ? 'ABANDONNÉE' : 'EN COURS'}</b>
-    <span class="d">${when(g.startedAt)} · ${g.config.startScore}</span></a>`;
-}
-
-function leaderCard() {
-  const l = leader();
-  if (!l) return '';
-  return `<a class="hcard" href="#/classement"><small>EN TÊTE · 30 JOURS</small>
-    <span class="avs">${avatarHtml(l.p, 26)}</span>
-    <b><span class="nm ell">${esc(l.p.name)}</span></b>
-    <span class="d">MOY. ${avg(l.avg)} · ${plural(l.played, 'partie', 'parties')}</span></a>`;
-}
 
 const newsDot = () => `<span class="newdot" aria-label="Nouveau">NOUVEAU</span>`;
 
@@ -72,15 +39,6 @@ function welcomeCard() {
 }
 const setupCard = () => `<a class="btn setup-card" href="#/bienvenue">${ico('flag')}<span><b>TERMINER LA MISE EN PLACE</b><small>Ton nom, ton avatar, ton jeu de fléchettes</small></span>${ico('chev')}</a>`;
 
-/** Dernière séance d'entraînement (accueil en mode entraînement). */
-function lastSessionCard() {
-  const r = store.trainings[0];
-  if (!r) return '';
-  const sv = sessionValue(r);
-  return `<a class="hcard" href="#/entrainement/seance/${esc(r.id)}"><small>DERNIÈRE SÉANCE</small>
-    <b class="ell">${esc(sessionTitle(r))}</b><span class="d">${when(r.startedAt)}${sv ? ` · ${fmtValue(sv)}` : ''}</span></a>`;
-}
-
 /** Lot 9.2 : entrée « En ligne » (partie en cours : REPRENDRE la mène au salon). */
 function onlineEntry(og) {
   return og
@@ -93,55 +51,44 @@ export function home2() {
   const first = firstRun();
   const resume = resumeButtonHtml();
   const welcome = modes.soiree && !first ? welcomeHtml(resume) : { html: '', first: false };
-  const n = activePlayers().length;
-  const g = store.games.length;
   const lead = first ? welcomeCard() : setupDone() ? '' : setupCard();
   const strong = resume || welcome.html || lead;
-  // Une seule action forte en aplat rouge : NOUVELLE PARTIE (soirée) ou ENTRAÎNEMENT (entraînement seul), sauf derrière
-  // REPRENDRE ou l'accueil du premier lancement.
-  const newGame = modes.soiree ? `<a class="btn ${strong ? 'accent-line' : 'accent'} big" href="#/nouvelle">${ico('target')} NOUVELLE PARTIE</a>` : '';
-  const soiree = !modes.soiree ? '' : store.soiree
-    ? `<a class="btn soiree-btn on" href="#/soiree"><span class="t">${ico('glass')} SOIRÉE EN COURS</span><small>${plural(store.soiree.players.length, 'JOUEUR', 'JOUEURS')} · ${drinksText(soireeTotal()).toUpperCase()}</small><span class="go">${ico('chev')}</span></a>`
-    : welcome.first ? '' : `<a class="btn ghost soiree-btn" href="#/soiree"><span class="t">${ico('glass')} DÉBUTER UNE SOIRÉE</span></a>`;
-  // Lot 8 : entraînement solo, à côté de la partie et de la soirée ; seul mode : l'action principale.
-  const trainMain = modes.train && !modes.soiree;
-  const train = !modes.train ? '' : store.tr
-    ? `<a class="btn tr-btn on" href="#/entrainement"><span class="t">${ico('sniper')} ENTRAÎNEMENT EN COURS</span><small>${plural(store.tr.darts.length, 'FLÉCHETTE', 'FLÉCHETTES')}</small><span class="go">${ico('chev')}</span></a>`
-    : trainMain ? `<a class="btn ${strong ? 'accent-line' : 'accent'} big tr-btn" href="#/entrainement">${ico('sniper')} S'ENTRAÎNER</a>`
-      : welcome.first ? '' : `<a class="btn ghost tr-btn" href="#/entrainement"><span class="t">${ico('sniper')} ENTRAÎNEMENT SOLO</span></a>`;
-  // Lot 9.2 : partie en ligne (un joueur par téléphone), réglable dans Réglages › Modes.
+  // 0.26.0 (refonte des infos, proposition A « deux espaces », choix de Guillaume le 26/11 : « un menu d'accueil clair
+  // avec le minimum d'infos ») : bascule PARTIES | ENTRAÎNEMENT, l'action principale de l'espace, puis six tuiles rangées
+  // à l'identique des deux côtés (pictogramme et nom seulement).
+  const sp = currentSpace();
   const og = onlineGame();
-  const online = !modes.online || !onlineSupport().ok || welcome.first ? (og ? onlineEntry(og) : '') : onlineEntry(og);
-  const nt = store.trainings.length;
-  const items = modes.soiree
-    ? [
-      ['#/joueurs', 'players', 'Joueurs', n ? plural(n, 'joueur', 'joueurs') : 'aucun'],
-      ['#/historique', 'history', 'Historique', g ? plural(g, 'partie', 'parties') : 'aucune partie'],
-      ['#/stats', 'stats', 'Stats', 'par joueur'],
-      ['#/classement', 'trophy', 'Classement', 'palmarès'],
-      ['#/reglages', 'settings', 'Réglages', 'modes · thème'],
-      ['#/nouveautes', 'news', 'Nouveautés', 'ce qui change'],
-    ]
-    : [
-      ['#/entrainement/stats', 'stats', 'Stats', nt ? plural(nt, 'séance', 'séances') : 'aucune séance'],
-      ['#/armurerie', 'wrench', 'Armurerie', plural(store.dartSets.filter(x => !x.archived).length, 'jeu', 'jeux')],
-      ['#/conseils', 'info', 'Conseils', '4 fiches'],
-      ['#/tutoriel', 'play', 'Tutoriel', 'en 6 pages'],
-      ['#/reglages', 'settings', 'Réglages', 'modes · thème'],
-      ['#/nouveautes', 'news', 'Nouveautés', 'ce qui change'],
-    ];
+  let actions;
+  if (sp === 'p') {
+    const newGame = `<a class="btn ${strong ? 'accent-line' : 'accent'} big" href="#/nouvelle">${ico('target')} NOUVELLE PARTIE</a>`;
+    const soiree = store.soiree
+      ? `<a class="btn soiree-btn on" href="#/soiree"><span class="t">${ico('glass')} SOIRÉE EN COURS</span><small>${plural(store.soiree.players.length, 'JOUEUR', 'JOUEURS')} · ${drinksText(soireeTotal()).toUpperCase()}</small><span class="go">${ico('chev')}</span></a>`
+      : welcome.first ? '' : `<a class="btn ghost" href="#/soiree">${ico('glass')} SOIRÉE</a>`;
+    const online = og ? onlineEntry(og) : modes.online && onlineSupport().ok && !welcome.first ? `<a class="btn ghost" href="#/enligne">${ico('phone')} EN LIGNE</a>` : '';
+    // Une séance d'entraînement en cours reste à un appui, même dans l'espace Parties.
+    const tr = store.tr && modes.train ? `<a class="btn tr-btn on" href="#/entrainement"><span class="t">${ico('sniper')} ENTRAÎNEMENT EN COURS</span><small>${plural(store.tr.darts.length, 'FLÉCHETTE', 'FLÉCHETTES')}</small><span class="go">${ico('chev')}</span></a>` : '';
+    actions = `${newGame}${store.soiree || og ? `${soiree}${online}` : soiree || online ? `<div class="btns two hduo">${soiree}${online}</div>` : ''}${tr}`;
+  } else {
+    actions = store.tr
+      ? `<a class="btn tr-btn on" href="#/entrainement"><span class="t">${ico('sniper')} ENTRAÎNEMENT EN COURS</span><small>${plural(store.tr.darts.length, 'FLÉCHETTE', 'FLÉCHETTES')}</small><span class="go">${ico('chev')}</span></a>`
+      : `<a class="btn ${strong ? 'accent-line' : 'accent'} big tr-btn" href="#/entrainement">${ico('sniper')} S'ENTRAÎNER</a>`;
+  }
+  const me = profilePlayer();
+  const badges = me ? `#/joueur/${esc(me.id)}/badges` : '#/honneur';
+  const items = sp === 'p'
+    ? [['#/historique', 'history', 'Historique'], ['#/tableau/p', 'stats', 'Stats'], ['#/records/p', 'trophy', 'Records'],
+      [badges, 'star', 'Badges'], ['#/joueurs', 'players', 'Joueurs'], ['#/classement', 'glass', 'Classement']]
+    : [['#/seances', 'history', 'Séances'], ['#/tableau/e', 'stats', 'Stats'], ['#/records/e', 'trophy', 'Records'],
+      [badges, 'star', 'Badges'], ['#/armurerie', 'wrench', 'Armurerie'], ['#/conseils', 'info', 'Conseils']];
+  const tiles = items.map(([href, icon, label]) => `<a class="tile3" href="${href}">${ico(icon)}<b data-shrink>${label}</b></a>`).join('');
   // Version en bas de page (demande de Guillaume), un appui ouvre les nouveautés.
-  const foot = `<footer class="home-foot"><span>${savedLabel()} · Orbital VKL</span><a class="home-ver" href="#/nouveautes">v${esc(BUILD.version)}</a></footer>
+  const foot = `<footer class="home-foot"><a class="hset" href="#/reglages">${ico('settings')} RÉGLAGES</a><span class="hver">${!newsSeen() ? newsDot() : ''}<a class="home-ver" href="#/nouveautes">v${esc(BUILD.version)}</a></span></footer>
     ${store.maquette ? `<div class="mq-row">${maquetteButtons('mq')}</div>` : ''}`;
-
-  const tiles = items.map(([href, icon, label, sub]) => `<a class="tile2" href="${href}">${ico(icon)}<b data-shrink>${label}</b><span data-shrink>${sub}</span>${href === '#/nouveautes' && !newsSeen() ? newsDot() : ''}</a>`).join('');
-  const cards = modes.soiree ? `${lastGameCard()}${leaderCard()}` : lastSessionCard();
   return `<div class="screen home2 v-tableau">
-    <header class="t-head"><h1 class="home-title" data-shrink>STRELA</h1><p>${modes.soiree ? 'Compteur de fléchettes · X01 · Cricket' : 'Entraînement aux fléchettes'}</p></header>
+    <header class="t-head"><h1 class="home-title" data-shrink>STRELA</h1><p>${sp === 'p' ? 'Compteur de fléchettes · X01 · Cricket' : 'Entraînement aux fléchettes'}</p></header>
     <main class="t-main">${storageBanner()}${updateBadge()}
-      ${lead}${welcome.html}${resume}${trainMain ? `${train}${newGame}${online}` : `${newGame}${soiree}${online}${train}`}
-      <div class="hcards">${cards}</div>
-      <nav class="tiles2" aria-label="Menu">${tiles}</nav>
+      ${lead}${welcome.html}${spaceSwitch(sp)}${resume}${actions}
+      <nav class="tiles3" aria-label="Menu">${tiles}</nav>
     </main>${foot}</div>`;
 }
 

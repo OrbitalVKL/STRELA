@@ -9,7 +9,7 @@
 //      le début quand un ami arrive ou que le format connu augmente.
 // Rien n'est perdu si le réseau tombe au milieu : ce qui n'a pas été confirmé repart la fois suivante.
 
-import { store, saveCloudKey, profilePlayer, applyReceived, friendPlayers, finishedOpenTraining } from './store.js';
+import { store, saveCloudKey, profilePlayer, applyReceived, friendPlayers, finishedOpenTraining, finishedOpenGame, finishedOpenCk } from './store.js';
 import { addSyncStep, cloudAccount } from './cloud.js';
 import { log } from './journal.js';
 import { toCloud, fromCloud, fingerprint } from '../engine/sync.js';
@@ -39,11 +39,13 @@ export function shareContext(me) {
 
 /** Ce que ce téléphone envoie : [{ rec, kind }] (créé ici, clos). */
 export function ownRecords() {
-  const games = [...store.games, ...store.ckGames].filter(g => !g.owner && !(g.online && g.online.role === 'guest'));
+  // 0.26.0 : la partie finie restée sur l'écran de fin (avant ACCUEIL ou REVANCHE) part aussi, dès la dernière fléchette.
+  const open = [finishedOpenGame(), finishedOpenCk()].filter(Boolean);
+  const games = [...store.games, ...store.ckGames, ...open].filter(g => !g.owner && !(g.online && g.online.role === 'guest'));
   const trs = store.trainings.filter(r => !r.owner && Number.isFinite(r.endedAt));
   // 0.24.1 : une séance finie mais restée ouverte (écran de fin, appli quittée sans TERMINER) part aussi.
-  const open = finishedOpenTraining();
-  if (open) trs.push(open);
+  const openTr = finishedOpenTraining();
+  if (openTr) trs.push(openTr);
   return [...games.map(rec => ({ rec, kind: 'game' })), ...trs.map(rec => ({ rec, kind: 'training' }))];
 }
 

@@ -32,7 +32,7 @@ export function myPresence() {
 export const presenceOf = uuid => (uuid ? presenceState(pres.map[uuid]) : null);
 
 function redraw() {
-  try { if (/^#\/(amis|joueurs|joueur\/u:)/.test(location.hash) || /^#\/joueur\//.test(location.hash)) refresh(); } catch (e) { /* */ }
+  try { if (/^#\/(amis|joueurs|joueur\/u:|enligne$)/.test(location.hash) || /^#\/joueur\//.test(location.hash)) refresh(); } catch (e) { /* */ }
 }
 
 function connect() {

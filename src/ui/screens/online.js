@@ -1,7 +1,9 @@
 // Strela — écran « En ligne » (lot 9.2) : créer ou rejoindre un salon, puis le salon (code, QR code, téléphones
 // connectés en direct, réglages de la partie chez l'hôte, ordre, LANCER LA PARTIE). Contrôleur : src/ui/online.js.
 
-import { store, activePlayers, playerById } from '../store.js';
+import { store, activePlayers, playerById, friendPlayers, profilePlayer } from '../store.js';
+import { seenText, presenceDot } from './friends.js';
+import { presenceOf } from '../presence.js';
 import { esc, ico, topBar, plural } from '../dom.js';
 import { avatarHtml } from '../avatars.js';
 import { refresh, go, backFrom } from '../nav.js';
@@ -45,6 +47,26 @@ const explain = () => `<button type="button" class="fold" data-act="on-info" ari
     <p class="note">Les téléphones se parlent directement (WebRTC, chiffré). Un service gratuit (PeerJS) sert seulement à les mettre en relation ; rien n'est stocké sur un serveur. Certains réseaux (4G d'opérateur, Wi-Fi d'entreprise) bloquent la connexion directe : sur le même Wi-Fi, ça marche presque toujours.</p>
     <p class="note">Coupure (veille, réseau) : la partie se met en pause pour tous et reprend d'elle-même au retour du joueur ; l'hôte peut passer ses volées ou l'exclure. Verres et animations de Tsia restent propres à chaque téléphone.</p></div>` : ''}`;
 
+/**
+ * 0.26.0 (demande de Guillaume) : les joueurs, en trois groupes — amis connectés (en ligne ou en partie, en direct),
+ * amis hors ligne (dernière activité), profils locaux de ce téléphone. Un appui ouvre le profil.
+ */
+function playersBlock() {
+  const me = profilePlayer();
+  const friends = friendPlayers().filter(p => !p.archived).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  const live = friends.filter(p => presenceOf(p.friend));
+  const off = friends.filter(p => !presenceOf(p.friend));
+  const local = store.players.filter(p => !p.friend && !p.remote && !p.archived)
+    .sort((a, b) => (me && a.id === me.id ? -1 : me && b.id === me.id ? 1 : a.name.localeCompare(b.name, 'fr')));
+  const row = (p, sub) => `<li class="frow"><a class="frmain" href="#/joueur/${esc(p.id)}"><span class="pav">${avatarHtml(p, 40)}${presenceDot(p)}</span><span class="main"><b class="nm ell">${esc(p.name)}</b><small>${esc(sub)}</small></span></a></li>`;
+  const group = (title, list, sub, empty) => `${sec(title, list.length)}${list.length ? `<ul class="frlist onplayers">${list.map(p => row(p, sub(p))).join('')}</ul>` : `<p class="note" style="margin-top:0">${empty}</p>`}`;
+  const noFriends = !friends.length ? `<p class="note" style="margin-top:0">Aucun ami pour l'instant. <a href="#/amis">AJOUTER UN AMI</a></p>` : '';
+  return {
+    friends: friends.length ? group('Amis connectés', live, seenText, 'Aucun ami connecté en ce moment.') + group('Amis hors ligne', off, seenText, 'Tous tes amis sont connectés.') : `${sec('Amis')}${noFriends}`,
+    local: group('Profils locaux', local, p => (me && p.id === me.id ? 'toi · sur ce téléphone' : 'sur ce téléphone'), 'Aucun joueur sur ce téléphone.'),
+  };
+}
+
 /** Écran d'entrée : choisir son joueur, créer ou rejoindre. */
 function startScreen(code) {
   const sup = onlineSupport();
@@ -53,10 +75,12 @@ function startScreen(code) {
   if (code && !on.draftCode) on.draftCode = code;
   const busy = on.state === 'connecting';
   const g = onlineGame();
+  const pl = playersBlock();
   return `<div class="screen online">${topBar('En ligne', backFrom('#/'))}
     <div class="pad">
       ${!sup.ok ? `<div class="banner alert" role="alert">${esc(sup.why)}</div>` : `
       ${g ? `<div class="banner" role="status">Partie en ligne en cours (salon ${esc(g.online.code)}). <button type="button" class="btn" data-act="on-resume">REPRENDRE</button></div>` : ''}
+      ${pl.friends}
       ${sec('Ton joueur sur ce téléphone')}
       ${playerChips('on-me', on.me)}
       ${sec('Créer un salon')}
@@ -69,6 +93,7 @@ function startScreen(code) {
       ${busy || (on.state === 'error' && on.failStep) ? stepsHtml() : ''}
       ${busy ? `<p class="banner" role="status">CONNEXION… <button type="button" class="btn ghost" data-act="on-cancel">ANNULER</button></p>` : ''}
       ${on.state === 'error' && on.error ? `<div class="banner alert" role="alert"><p>${esc(on.error)}</p>${on.lastAction ? '<button type="button" class="btn" data-act="on-retry">RÉESSAYER</button>' : ''}</div>` : ''}`}
+      ${pl.local}
       ${explain()}
     </div></div>`;
 }

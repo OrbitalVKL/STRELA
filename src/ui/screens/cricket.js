@@ -3,7 +3,7 @@
 // Saisie : SIMPLE / DOUBLE / TRIPLE armé puis 20 à 15, BULL ou RATÉ (le multiplicateur revient à simple après chaque
 // fléchette, comme en X01) ; après 3 fléchettes, la volée attend VALIDER ; ANNULER retire la dernière fléchette.
 // Marques : / (1), ✕ (2), ✕ cerclé (3 : fermé). Règles : engine/cricket.js.
-import { store, playerById, ckState, saveCk, archiveCk, deleteCk, startCricket, deleteGames, receivedNote } from '../store.js';
+import { store, playerById, ckState, saveCk, archiveCk, deleteCk, startCricket, deleteGames, receivedNote, gameFinished } from '../store.js';
 import { esc, ico, topBar, plural, when, maquetteButtons } from '../dom.js';
 import { avatarHtml, colorIndex } from '../avatars.js';
 import { CRICKET_TARGETS, cricketStandings, cricketSummary, computeCricket } from '../../engine/cricket.js';
@@ -242,7 +242,8 @@ export function cricketEnd() {
 }
 
 /** Détail d'une partie de Cricket close (historique) : classement, tableau final, volées. */
-export function cricketDetail(id) {
+export function cricketDetail(arg) {
+  const id = String(arg).replace(/\/v\d+$/, ''); // 0.26.0 : « /v<n> » (lien d'une stat) : la partie entière
   const g = store.ckGames.find(x => x.id === id) || store.friendGames.find(x => x.id === id);
   if (!g) return `<div class="screen">${topBar('Cricket', backFrom('#/historique'))}<div class="empty"><div class="big">PARTIE INTROUVABLE</div></div></div>`;
   const s = computeCricket(g.config, g.darts);
@@ -300,6 +301,7 @@ function hit(seg, forced = null, fromHost = false) {
   if (after.status === 'finished') {
     sound('finish');
     say(`Partie, ${playerById(g.config.players[after.winner]).name} !`);
+    gameFinished(); // 0.26.0 : comptée et envoyée dès maintenant, sans attendre ACCUEIL ou REVANCHE
     go('#/cricket/fin');
     return true;
   }

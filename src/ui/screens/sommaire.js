@@ -601,6 +601,21 @@ export const SCENES = {
   'v24-profil-ami': () => { mockFriends(); presetFriends(); presetProfile(); return '#/joueur/u:b2c3d4e5-0000-4000-8000-00000000000a'; },
   // Lot 9.6 B : stats contextuelles (Évolution du X01 solo, séance d'exercice comparée, face à mes amis, forme du soir).
   'v96-profil-face': v78('#/joueur/p1/parties', () => { store.players = store.players.map(q => (q.id === 'p2' ? { ...q, friend: 'b2c3d4e5-0000-4000-8000-0000000000f2' } : q)); presetStats2({ folds: ['pp-versus'] }); }),
+  // 0.26.0 : refonte des infos (deux espaces, stats en tuiles, fiche, records, séances, déroulé ouvert sur une volée)
+  'v26-accueil': v78('#/', () => { store.settings.statsMode = 'soiree'; }),
+  'v26-accueil-entr': v78('#/', () => { store.settings.statsMode = 'train'; }),
+  'v26-tableau': v78('#/tableau/p/p1/score'),
+  'v26-tableau-volees': v78('#/tableau/p/p1/volees'),
+  'v26-tableau-entr': () => { store.tr = null; return '#/tableau/e/p1/volees'; },
+  'v26-tableau-exos': () => { store.tr = null; return '#/tableau/e/p1/exercices'; },
+  'v26-fiche': v78('#/indicateur/p/p1/bestVisit'),
+  'v26-fiche-moyenne': v78('#/indicateur/p/p1/average'),
+  'v26-records': v78('#/records/p/p1'),
+  'v26-records-entr': () => { store.tr = null; return '#/records/e/p1'; },
+  'v26-seances': () => { store.tr = null; return '#/seances'; },
+  'v26-seance-volee': () => { store.tr = null; presetInfo(); presetDetail(); return `#/entrainement/seance/${store.trainings.find(x => x.exercise === 'x01').id}/v2`; },
+  'v26-enligne': () => { mockFriends(); delete pres.map['b2c3d4e5-0000-4000-8000-00000000000b']; return '#/enligne'; },
+  'v26-partie-volee': () => { seasonMock(); presetStats2(); presetHistory2(); return `#/partie/${store.games[0].id}/v3`; },
   'v96-stats-x01-busts': () => { presetTrainStats({ exercise: 'x01', metric: 'ev_busts' }); presetInfo(['ts-evo']); return '#/entrainement/stats'; },
   'v96-cible-comparee': () => {
     store.tr = null; presetInfo(); presetDetail();
@@ -1027,6 +1042,20 @@ export function sommaire() {
       ${L('v96-stats-x01-busts', '● 0.25.0 : stats X01 en solo', 'Évolution, courbe des busts')}
       ${L('v96-cible-comparee', '● 0.25.0 : exercice comparé', 'par secteur, dérive')}
       ${L('v96-profil-face', '● 0.25.0 : profil, Parties', 'résumé, forme du soir, face à mes amis')}
+      ${L('v26-accueil', '● 0.26.0 : accueil, Parties', 'bascule et six tuiles')}
+      ${L('v26-accueil-entr', '● 0.26.0 : accueil, Entraînement')}
+      ${L('v26-tableau', '● 0.26.0 : stats en tuiles, Score')}
+      ${L('v26-tableau-volees', '● 0.26.0 : stats en tuiles, Volées')}
+      ${L('v26-tableau-entr', '● 0.26.0 : stats d\'entraînement, Volées', 'X01 en solo')}
+      ${L('v26-tableau-exos', '● 0.26.0 : stats d\'entraînement, Exercices')}
+      ${L('v26-fiche', '● 0.26.0 : fiche, meilleure volée')}
+      ${L('v26-fiche-moyenne', '● 0.26.0 : fiche, moyenne')}
+      ${L('v26-records', '● 0.26.0 : records, Parties')}
+      ${L('v26-records-entr', '● 0.26.0 : records, Entraînement')}
+      ${L('v26-seances', '● 0.26.0 : historique des séances')}
+      ${L('v26-seance-volee', '● 0.26.0 : séance ouverte sur une volée')}
+      ${L('v26-partie-volee', '● 0.26.0 : partie ouverte sur une volée')}
+      ${L('v26-enligne', '● 0.26.0 : En ligne', 'joueurs connectés, hors ligne, profils locaux')}
       ${L('l10-compte', '▲ Lot 10 : Réglages › Compte et amis', 'synchronisé')}
       ${L('l10-compte-hors-ligne', '▲ Lot 10 : compte, hors ligne')}
       ${L('l10-compte-coupe', '▲ Lot 10 : synchronisation coupée')}

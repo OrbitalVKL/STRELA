@@ -144,7 +144,7 @@ export function levelCard(pid) {
 
 /** Séances closes et en cours (lot 10 : aussi celles d'un ami faites chez lui : son niveau et le coach sont les mêmes
  * que chez lui, comme ses stats). */
-const allSessions = () => [...allTrainings(), ...(store.tr ? [store.tr] : [])];
+const allSessions = () => [...allTrainings().filter(r => !store.tr || r.id !== store.tr.id), ...(store.tr ? [store.tr] : [])];
 /** Lot 9.6 B : séances closes du même joueur et du même exercice, avant celle-ci, dans la période des stats (plus
  *  anciennes d'abord) ; mises de côté exclues. */
 function previousSame(r) {
@@ -185,9 +185,16 @@ export function presetCards(ids = []) { openCards.clear(); for (const id of ids)
  * volée ; bust marqué (fléchettes barrées, total 0) ; rien après la victoire. Seule source : sessionVolleys (le moteur).
  * Aussi sous la cible du résumé d'un X01 / Cricket solo (C2).
  */
+// 0.26.0 : volée ouverte dans le détail d'une séance (« #/entrainement/seance/<id>/v<n> », ou un appui sur la volée) :
+// { id, idx (rang dans la liste des volées, à partir de 0), reveal (l'écran défile jusqu'à elle une fois) }.
+let volSel = null;
+let lastVolArg = null;
 export function volleyGrid(r) {
   const { volleys, broken } = sessionVolleysSafe(r);
   if (!volleys.length) return '';
+  const sel = volSel && volSel.id === r.id ? volSel.idx : -1;
+  const reveal = sel >= 0 && volSel.reveal;
+  if (reveal) volSel.reveal = false;
   const game = isGameSession(r);
   const x01 = r.exercise === 'x01';
   const legs = new Set(volleys.map(v => v.leg)).size > 1;
@@ -201,10 +208,23 @@ export function volleyGrid(r) {
     while (cells.length < 3) cells.push('<span class="none" aria-hidden="true"></span>');
     const tot = !game ? '' : v.bust ? '<b class="tvt bust"><em>BUST</em><small>0</small></b>'
       : `<b class="tvt${v.finish ? ' fin' : ''}">${v.total}${x01 ? `<small>${v.finish ? 'GAGNÉ' : v.open ? `reste ${v.rest}…` : `reste ${v.rest}`}</small>` : `<small>${v.finish ? 'FERMÉ' : 'marq.'}</small>`}</b>`;
-    return `${head}<li class="${game ? 'g' : ''}${v.bust ? ' bust' : ''}${v.open ? ' open' : ''}"><small>V${v.n}</small>${cells.join('')}${tot}</li>`;
+    const pick = v.open ? '' : ` data-act="tr-vsel" data-arg="${esc(`${r.id}|${i}`)}"`;
+    const panel = i === sel ? `<li class="tvpanel"${reveal ? ' data-reveal' : ''}>${volleyPanel(r, v, game, x01)}</li>` : '';
+    return `${head}<li class="${game ? 'g' : ''}${v.bust ? ' bust' : ''}${v.open ? ' open' : ''}${i === sel ? ' sel' : ''}"${pick}><small>V${v.n}</small>${cells.join('')}${tot}</li>${panel}`;
   }).join('');
   return `${broken ? '<p class="note tvbroken">Historique incomplet : ces fléchettes ne se rejouent plus (séance enregistrée par une ancienne version). Le score affiché ailleurs reste celui enregistré.</p>' : ''}<ol class="tvol${game ? ' tvgame' : ''}">${rows}</ol>`;
 }
+/** 0.26.0 : la volée ouverte, sur la cible (comme le panneau d'une case du tour par tour d'une partie). */
+function volleyPanel(r, v, game, x01) {
+  const impacts = v.darts.map((d, k) => ({ dart: d, n: k + 1 }));
+  const sum = !game ? '' : v.bust ? '<b class="red">BUST</b> · aucun point' : x01 ? `${v.finish ? 'manche gagnée' : `reste ${v.rest}`}` : `${v.finish ? 'fermé' : 'marques'}`;
+  return `<div class="vdet trvsel${v.bust ? ' bust' : ''}"><div class="vb">${boardSvg({ size: 170, impacts, label: 'Impacts de la volée' })}
+    <div class="vtxt"><span class="small dim caps">Volée ${v.n}${v.leg > 1 || r.game?.legs > 1 ? ` · manche ${v.leg}` : ''}</span>
+      <b class="vtot">${v.bust ? 'BUST' : game ? v.total : v.darts.length}</b>
+      <div class="vdarts">${v.darts.map(d => `<span>${esc(trainingDartLabel(d))}</span>`).join('')}</div>
+      ${sum ? `<span class="small">${sum}</span>` : ''}</div></div></div>`;
+}
+
 export function sessionCard(r) {
   const ex = EXERCISES[r.exercise] || EXERCISES.libre;
   const sv = sessionValue(r);
@@ -1091,7 +1111,12 @@ function managePanel(r) {
     </div>`;
 }
 
-export function trainingDetail(id) {
+export function trainingDetail(arg) {
+  // 0.26.0 : « /v<n> » ouvre la séance sur sa n-ième volée (depuis une stat, un record, un point de courbe).
+  const m = /^(.+)\/v(\d+)$/.exec(arg);
+  const id = m ? m[1] : arg;
+  if (m && lastVolArg !== arg) volSel = { id, idx: Number(m[2]) - 1, reveal: true };
+  lastVolArg = m ? arg : null;
   const r = trainingById(id);
   if (!r) { go('#/entrainement', { replace: true }); return ''; }
   if (store.tr && store.tr.id === id) { go(trState().done ? '#/entrainement/fin' : '#/entrainement/jeu', { replace: true }); return ''; }
@@ -1121,6 +1146,12 @@ export const actions = {
     refresh();
   },
   'tr-player'(id) { saveTrSetup({ player: id }); refresh(); },
+  'tr-vsel'(arg) {
+    const [id, i] = String(arg).split('|');
+    const idx = Number(i);
+    volSel = volSel && volSel.id === id && volSel.idx === idx ? null : { id, idx, reveal: false };
+    refresh();
+  },
   'tr-card'(id) { if (openCards.has(id)) openCards.delete(id); else openCards.add(id); refresh(); },
   'tr-set'(id) { saveTrSetup({ setId: id || null }); refresh(); },
   'tr-fold'() { othersOpen = !othersOpen; refresh(); },
