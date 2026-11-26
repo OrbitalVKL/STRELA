@@ -182,7 +182,7 @@ const recCache = new Map(); // joueur → { key (parties closes), rec }
 // Lot 10 : sur toutes ses parties connues (allGames : aussi celles d'un ami jouées chez lui), comme ses stats ; sinon
 // un ami pouvait battre ici un « record » qu'il avait déjà dépassé chez lui.
 export function recordsOf(id) {
-  // 0.25.1 : sans la partie en cours, même finie (elle compte déjà dans allGames dès sa dernière fléchette).
+  // 0.26.0 : sans la partie en cours, même finie (elle compte déjà dans allGames dès sa dernière fléchette).
   const cur = store.current && store.current.id;
   const all = allGames().filter(g => g.id !== cur);
   const key = `${all.length}:${all.reduce((n, g) => n + g.darts.length, 0)}`;
@@ -803,7 +803,7 @@ function play(dart, key, pos = null) {
         const bs = gameBadgesSound(g);
         if (badges) setTimeout(() => { if (bs) sound(bs); say(badges); }, payers.length ? 5200 : 2600);
       }
-      if (st.status === 'finished') gameFinished(); // 0.25.1 : comptée et envoyée sans attendre ACCUEIL ou REVANCHE
+      if (st.status === 'finished') gameFinished(); // 0.26.0 : comptée et envoyée sans attendre ACCUEIL ou REVANCHE
       go(st.lastEvent === 'leg_won' ? '#/manche' : '#/fin');
       return true;
     default: { buzz(BUZZ.dart); const vd = x01DartVerdict(g, st, dart); if (vd) verdictSound(vd, st.visit ? st.visit.player : null); else sound(dartSound(dart)); }

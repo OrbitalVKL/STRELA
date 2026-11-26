@@ -65,7 +65,7 @@ export const saving = { pending: 0, done: 0 };
 let onClosed = () => {};
 export const setClosedListener = fn => { onClosed = fn; };
 const closed = () => { try { onClosed(); } catch (e) { /* */ } };
-/** 0.25.1 : la dernière fléchette vient de finir la partie en cours (elle compte et part sans attendre ACCUEIL). */
+/** 0.26.0 : la dernière fléchette vient de finir la partie en cours (elle compte et part sans attendre ACCUEIL). */
 export const gameFinished = () => closed();
 
 /** Appelé quand une écriture échoue ou réussit de nouveau (l'appli redessine l'écran : alerte d'enregistrement). */
@@ -352,13 +352,13 @@ export function repairOrphans() {
 
 /** Lot 10, étape 5 : toutes les parties connues (les miennes et celles de mes amis entre eux) pour les stats, badges,
  *  records et classements — chaque calcul filtre par joueur. X01 seulement / Cricket seulement / séances. */
-// 0.25.1 : la partie (ou la séance) finie restée sur l'écran de fin compte déjà, dès la dernière fléchette.
+// 0.26.0 : la partie (ou la séance) finie restée sur l'écran de fin compte déjà, dès la dernière fléchette.
 const withOpen = (list, open) => (open ? [...list, open] : list);
 export const allGames = () => withOpen(store.friendGames.length ? [...store.games, ...store.friendGames.filter(g => !isCricket(g))] : store.games, finishedOpenGame());
 export const allCkGames = () => withOpen(store.friendGames.length ? [...store.ckGames, ...store.friendGames.filter(isCricket)] : store.ckGames, finishedOpenCk());
 export const allTrainings = () => withOpen(store.friendTrainings.length ? [...store.trainings, ...store.friendTrainings] : store.trainings, finishedOpenTraining());
 
-/** 0.25.1 : la partie (ou séance) en cours `id` est-elle finie mais pas encore rangée (écran de fin) ? */
+/** 0.26.0 : la partie (ou séance) en cours `id` est-elle finie mais pas encore rangée (écran de fin) ? */
 export const isOpenFinished = id => !!id && [finishedOpenGame(), finishedOpenCk(), finishedOpenTraining()].some(r => r && r.id === id);
 
 /** Est-ce une partie (ou séance) reçue d'un ami, en lecture seule ? */
@@ -541,7 +541,7 @@ export function saveCurrent() {
 }
 
 /**
- * 0.25.1 : instant de la dernière fléchette d'une partie (ou séance) finie, gardé dans la base tant qu'elle reste ouverte
+ * 0.26.0 : instant de la dernière fléchette d'une partie (ou séance) finie, gardé dans la base tant qu'elle reste ouverte
  * sur l'écran de fin ; effacé si ANNULER (ou ENCORE UNE SÉRIE) la rouvre. Il sert de fin à la copie comptée et envoyée
  * avant TERMINER / ACCUEIL, puis à l'enregistrement rangé (même empreinte : rien n'est renvoyé pour rien).
  */
@@ -551,7 +551,7 @@ function stampFinish(rec, done, now = Date.now()) {
   else if (!done && rec.finishedAt !== undefined) delete rec.finishedAt;
 }
 const endOf = g => (Number.isFinite(g.finishedAt) ? g.finishedAt : Date.now());
-/** Fin d'un enregistrement ouvert et fini qui n'a pas encore son instant (fini avant la 0.25.1) : noté une fois pour toutes. */
+/** Fin d'un enregistrement ouvert et fini qui n'a pas encore son instant (fini avant la 0.26.0) : noté une fois pour toutes. */
 function ensureFinish(g, put) {
   if (Number.isFinite(g.finishedAt)) return g.finishedAt;
   g.finishedAt = Date.now();
@@ -571,7 +571,7 @@ function cachedOpen(kind, src, make) {
   return rec;
 }
 
-/** 0.25.1 : la partie X01 en cours si elle est finie mais pas rangée (écran de fin), telle qu'elle sera rangée ; sinon null. */
+/** 0.26.0 : la partie X01 en cours si elle est finie mais pas rangée (écran de fin), telle qu'elle sera rangée ; sinon null. */
 export function finishedOpenGame() {
   const g = store.current;
   if (!g || !g.darts.length) return null;
@@ -581,7 +581,7 @@ export function finishedOpenGame() {
   });
 }
 
-/** 0.25.1 : la partie de Cricket en cours si elle est finie mais pas rangée ; sinon null. */
+/** 0.26.0 : la partie de Cricket en cours si elle est finie mais pas rangée ; sinon null. */
 export function finishedOpenCk() {
   const g = store.ck;
   if (!g || !g.darts.length) return null;
@@ -1062,7 +1062,7 @@ export function deleteCurrent() {
   const g = store.current;
   if (!g) return;
   store.current = null;
-  noteDeleted([g.id]); // 0.25.1 : déjà envoyée si elle a été finie (puis rouverte par ANNULER)
+  noteDeleted([g.id]); // 0.26.0 : déjà envoyée si elle a été finie (puis rouverte par ANNULER)
   write(gameDeletionOps([g.id]));
 }
 
@@ -1234,7 +1234,7 @@ export function deleteCk() {
   const g = store.ck;
   if (!g) return;
   store.ck = null;
-  noteDeleted([g.id]); // 0.25.1 : déjà envoyée si elle a été finie (puis rouverte par ANNULER)
+  noteDeleted([g.id]); // 0.26.0 : déjà envoyée si elle a été finie (puis rouverte par ANNULER)
   write(gameDeletionOps([g.id]));
 }
 

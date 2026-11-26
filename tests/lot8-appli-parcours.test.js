@@ -23,7 +23,7 @@ test('première ouverture : bienvenue, modes, mise en place, accueil selon les m
     assert.equal(await page.getAttribute('.modepick[data-act="mode-train"]', 'aria-pressed'), 'true');
     assert.equal(await page.getAttribute('.modepick[data-act="mode-soiree"]', 'aria-pressed'), 'false');
     assert.equal(await page.locator('a[href="#/nouvelle"]').count(), 0, 'pas de partie en mode entraînement seul');
-    assert.equal(await page.locator('.tile2[href="#/classement"], .tile2[href="#/joueurs"]').count(), 0, 'ni joueurs ni classement');
+    assert.equal(await page.locator('.tile3[href="#/classement"], .tile3[href="#/joueurs"]').count(), 0, 'ni joueurs ni classement');
     // Mise en place : nom, avatar, fléchettes, fin.
     await page.click('a[href="#/bienvenue/nom"]');
     await page.waitForSelector('#wname');
@@ -127,7 +127,7 @@ test('première ouverture : bienvenue, modes, mise en place, accueil selon les m
     await page.click('[data-act="mode-soiree"][data-arg="1"]');
     await page.evaluate(() => { location.hash = '#/'; });
     await page.waitForSelector('a[href="#/nouvelle"]');
-    assert.equal(await page.locator('.tile2[href="#/joueurs"]').count(), 1);
+    assert.equal(await page.locator('.tile3[href="#/joueurs"]').count(), 1, '0.26.0 : tuiles de l\'accueil (espace Parties)');
     // Tutoriel et installer.
     await page.evaluate(() => { location.hash = '#/tutoriel'; });
     await page.waitForSelector('.tpage');

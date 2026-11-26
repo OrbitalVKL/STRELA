@@ -39,7 +39,7 @@ export function shareContext(me) {
 
 /** Ce que ce téléphone envoie : [{ rec, kind }] (créé ici, clos). */
 export function ownRecords() {
-  // 0.25.1 : la partie finie restée sur l'écran de fin (avant ACCUEIL ou REVANCHE) part aussi, dès la dernière fléchette.
+  // 0.26.0 : la partie finie restée sur l'écran de fin (avant ACCUEIL ou REVANCHE) part aussi, dès la dernière fléchette.
   const open = [finishedOpenGame(), finishedOpenCk()].filter(Boolean);
   const games = [...store.games, ...store.ckGames, ...open].filter(g => !g.owner && !(g.online && g.online.role === 'guest'));
   const trs = store.trainings.filter(r => !r.owner && Number.isFinite(r.endedAt));

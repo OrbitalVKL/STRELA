@@ -39,7 +39,14 @@ export function historyEmpty() {
       <a class="btn primary" href="#/nouvelle">NOUVELLE PARTIE</a></div></div>`;
 }
 
-export function historyDetail(id) {
+// 0.26.0 : « #/partie/<id>/v<n> » ouvre la partie sur sa n-ième volée (depuis une stat, un record, un point de courbe) ;
+// la case n'est ouverte qu'en arrivant sur l'adresse (un appui sur une autre case reste possible ensuite).
+let lastVisitArg = null;
+export function historyDetail(arg) {
+  const m = /^(.+)\/v(\d+)$/.exec(arg);
+  const id = m ? m[1] : arg;
+  if (m && lastVisitArg !== arg) selectLogCell(`${id}|${Number(m[2]) - 1}`, true);
+  lastVisitArg = m ? arg : null;
   const g = store.games.find(x => x.id === id) || store.friendGames.find(x => x.id === id); // lot 10 : partie d'amis (badges, stats)
   if (!g) { go('#/historique', { replace: true }); return ''; }
   const s = gameState(g);

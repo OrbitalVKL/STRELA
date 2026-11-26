@@ -242,7 +242,8 @@ export function cricketEnd() {
 }
 
 /** Détail d'une partie de Cricket close (historique) : classement, tableau final, volées. */
-export function cricketDetail(id) {
+export function cricketDetail(arg) {
+  const id = String(arg).replace(/\/v\d+$/, ''); // 0.26.0 : « /v<n> » (lien d'une stat) : la partie entière
   const g = store.ckGames.find(x => x.id === id) || store.friendGames.find(x => x.id === id);
   if (!g) return `<div class="screen">${topBar('Cricket', backFrom('#/historique'))}<div class="empty"><div class="big">PARTIE INTROUVABLE</div></div></div>`;
   const s = computeCricket(g.config, g.darts);
@@ -300,7 +301,7 @@ function hit(seg, forced = null, fromHost = false) {
   if (after.status === 'finished') {
     sound('finish');
     say(`Partie, ${playerById(g.config.players[after.winner]).name} !`);
-    gameFinished(); // 0.25.1 : comptée et envoyée dès maintenant, sans attendre ACCUEIL ou REVANCHE
+    gameFinished(); // 0.26.0 : comptée et envoyée dès maintenant, sans attendre ACCUEIL ou REVANCHE
     go('#/cricket/fin');
     return true;
   }

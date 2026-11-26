@@ -2,7 +2,13 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
-  { v: '0.25.1', date: '2026-11-26', title: 'Partie comptée dès la dernière fléchette', items: [
+  { v: '0.26.0', date: '2026-11-26', title: 'Parties et entraînement rangés à part, stats en tuiles', items: [
+    'Accueil épuré : une bascule PARTIES | ENTRAÎNEMENT, l\'action principale, puis six tuiles rangées pareil des deux côtés (Historique ou Séances, Stats, Records, Badges, puis Joueurs et Classement ou Armurerie et Conseils). Réglages et version en bas.',
+    'Stats en tuiles, par familles (Score, Volées, Finition, Précision, Cricket, Résultats ou Exercices), avec les mêmes chiffres pour un X01 en partie et un X01 en solo : moyenne, 9 premières fléchettes, meilleure et pire volée, 100+ / 140+ / 180, bust, réussite au double de fin, plus grosse finition, manche la plus courte, triples, doubles touchés, bulls, hors cible.',
+    'Une tuile ouvre sa fiche : la valeur, la courbe (un point ouvre la partie ou la séance), les meilleures et les pires. Une volée, un record ou un point ouvre la partie (ou la séance) directement sur la volée, surlignée, avec ses fléchettes sur la cible.',
+    'Records des deux côtés, chacun vers sa volée : le 135 d\'une séance X01 en solo est maintenant un record d\'entraînement.',
+    'Historique des séances, comme celui des parties : par jour, filtres joueur, type (X01, Cricket, exercices, jeux de cible) et mois.',
+    'Dans le détail d\'une séance, un appui sur une volée l\'ouvre sur la cible.',
     'Une partie (X01, Cricket) ou une séance d\'entraînement compte dans les stats, les records et les badges dès sa dernière fléchette, et part chez tes amis aussitôt : plus besoin d\'appuyer sur ACCUEIL, REVANCHE ou TERMINER LA SÉANCE. ANNULER LA DERNIÈRE FLÉCHETTE sur l\'écran de fin la retire tant qu\'elle n\'est pas refinie.',
   ] },
   { v: '0.25.0', date: '2026-11-26', title: 'Stats et sons selon le jeu', items: [

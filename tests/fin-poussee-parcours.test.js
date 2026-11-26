@@ -1,4 +1,4 @@
-// 0.25.1 : une partie (ou une séance) compte et part dès sa dernière fléchette, sans attendre ACCUEIL, REVANCHE ou
+// 0.26.0 : une partie (ou une séance) compte et part dès sa dernière fléchette, sans attendre ACCUEIL, REVANCHE ou
 // TERMINER. Cas vu le 26/11 (journal du téléphone de Patrick) : un 501 en solo à l'entraînement avec une volée de 135,
 // laissé sur l'écran « SÉANCE FINIE » ; la séance n'était ni dans ses stats ni chez ses amis.
 // Vraie appli contre le faux Supabase : partie X01 finie et laissée sur l'écran de fin (stats, envoi, rechargement,

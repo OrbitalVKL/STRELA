@@ -27,6 +27,7 @@ import { soireeScreen, actions as soireeActions } from './screens/soiree.js';
 import { settings2Screen } from './screens/settings.js';
 import { stats2Screen, rankingScreen, actions as stats2Actions } from './screens/v2/stats2.js';
 import { history2List, leaveHistory2, actions as history2Actions } from './screens/v2/history2.js';
+import { dashboardScreen, indicatorScreen, recordsScreen, sessionsScreen, actions as infosActions } from './screens/infos.js';
 import { home2, changelogScreen } from './screens/v2/home2.js';
 import { soireeDashScreen, actions as dashActions } from './screens/v2/soireedash.js';
 import { actions as infoActions } from './info.js';
@@ -65,6 +66,11 @@ const ROUTES = [
   [/^\/manche$/, legEnd],
   [/^\/fin$/, matchEnd],
   [/^\/historique$/, history2List],
+  // 0.26.0 : refonte des infos (deux espaces : p = parties, e = entraînement)
+  [/^\/tableau(?:\/(.+))?$/, dashboardScreen],
+  [/^\/indicateur\/(.+)$/, indicatorScreen],
+  [/^\/records(?:\/(.+))?$/, recordsScreen],
+  [/^\/seances$/, sessionsScreen],
   [/^\/partie\/(.+)$/, historyDetail],
   [/^\/stats(?:\/(.+))?$/, stats2Screen],
   [/^\/classement$/, rankingScreen],
@@ -106,7 +112,7 @@ const ACTIONS = {
   ...statsActions, ...settingsActions, ...historyActions, ...photoActions, ...aboutActions, ...sheetActions, ...soireeActions,
   ...stats2Actions, ...history2Actions, ...dashActions, ...infoActions, ...drinkActions, ...honourActions, ...cricketActions,
   ...trainingActions, ...trainStatsActions, ...arsenalActions, ...trainHonourActions, ...welcomeActions, ...voiceActions, ...onlineActions,
-  ...accountActions, ...friendsActions,
+  ...accountActions, ...friendsActions, ...infosActions,
 };
 const INPUTS = { ...playerInputs, ...arsenalInputs, ...trainingInputs, ...trainStatsInputs, ...welcomeInputs, ...onlineInputs, ...accountInputs, ...friendsInputs };
 

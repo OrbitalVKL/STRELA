@@ -62,14 +62,14 @@ rattachement), src/engine/merge.js (fusion), src/engine/sync.js et src/ui/gamesy
 src/net/presence.js et src/ui/presence.js (présence). Ordre des étapes d'une synchronisation : compte, profil, amis,
 parties (envoi, suppressions, réception), présence.
 
-### Fin de partie (0.25.1)
+### Fin de partie (0.26.0)
 
 - **Cause du 26/11** (journal du téléphone de Patrick) : un 501 en solo, volée de 135, laissé sur « SÉANCE FINIE » sans
   TERMINER : la séance n'était pas rangée, donc absente de ses stats. Même piège pour une vraie partie X01 ou Cricket :
   rangée seulement par ACCUEIL ou REVANCHE (le retour d'Android sur l'écran de fin la laissait « en cours »).
 - **Dès la dernière fléchette** : l'enregistrement en cours garde `finishedAt` (instant de la fin, écrit dans la base par
   `saveCurrent` / `saveCk` / `saveTr`, effacé si ANNULER ou ENCORE UNE SÉRIE le rouvre ; noté une fois au besoin pour
-  un enregistrement fini avant la 0.25.1). `finishedOpenGame()`, `finishedOpenCk()`, `finishedOpenTraining()` en donnent
+  un enregistrement fini avant la 0.26.0). `finishedOpenGame()`, `finishedOpenCk()`, `finishedOpenTraining()` en donnent
   la copie close (`endedAt = finishedAt`) : `allGames()` / `allCkGames()` / `allTrainings()` l'ajoutent (stats, records,
   badges, classement) et `ownRecords()` l'envoie ; `gameFinished()` lance la synchronisation à la dernière fléchette.
 - Le rangement (ACCUEIL, REVANCHE, TERMINER…) garde `endedAt = finishedAt` : même empreinte, rien n'est renvoyé.
@@ -91,7 +91,7 @@ parties (envoi, suppressions, réception), présence.
   identifiant (aucun doublon). Monter `RESYNC` refait la même chose chez tous. Bouton RESYNCHRONISER du profil d'un ami
   (`resyncAll` : `sent` vidé, `full`).
 - **Séance finie restée ouverte** (écran de fin sans TERMINER, appli quittée) : elle part quand même
-  (`finishedOpenTraining`) et la synchronisation part dès la dernière fléchette. Depuis la 0.25.1 : fin = `finishedAt`
+  (`finishedOpenTraining`) et la synchronisation part dès la dernière fléchette. Depuis la 0.26.0 : fin = `finishedAt`
   (instant de la dernière fléchette, gardé dans la base), TERMINER la range avec cette même fin, sans renvoi ; elle compte
   aussi dans les stats du téléphone (« Fin de partie » ci-dessus). La copie reçue de sa propre séance en cours est ignorée.
 - **Jeu de fléchettes inconnu** : jamais un motif de rejet (le jeu n'est lu qu'à l'affichage, `anySetById`) ; affiché

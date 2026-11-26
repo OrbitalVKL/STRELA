@@ -122,9 +122,10 @@ historique.
   - Une bascule Parties | Entraînement en tête de chaque onglet.
   - Stats : grandes tuiles avec une mini-courbe, une page par famille.
 
-Choix de Guillaume : *(à venir)*.
+Choix de Guillaume (26/11) : **A**, « et garde un menu d'accueil clair avec le minimum d'infos » (tuiles avec
+pictogramme et nom seulement, sans chiffre). Codé en 0.26.0 : docs/interface.md « Version 0.26.0 ».
 
-## 5. Code, une fois la maquette choisie (lot C)
+## 5. Code (lot C, fait en 0.26.0)
 
 1. `src/engine/indicators.js` (pur) :
    - la liste des indicateurs (clé, libellé, famille, unité, sens, calcul), commune aux parties et aux séances X01 et
