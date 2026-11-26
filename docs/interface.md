@@ -1254,4 +1254,7 @@ sur maquettes : **A « deux espaces »**, avec « un menu d'accueil clair avec l
   `cricketIndicators`, `exerciseBests` ; chaque meilleure ou pire valeur garde `ref` { kind, id, visit } (+ tour, manche).
   « Doubles touchés » (part des fléchettes dans un double, 50 compris) et « Réussite au double de fin » sont deux chiffres.
   Test : tests/indicateurs.test.js (une partie et une séance aux mêmes fléchettes : mêmes chiffres).
+- **En ligne** (demande de Guillaume, même version) : `#/enligne` montre en haut les amis connectés (présence en direct,
+  pastille) et hors ligne (« vu il y a… »), en bas les profils locaux du téléphone (moi d'abord) ; un appui ouvre le
+  profil. La présence redessine aussi cet écran (presence.js › redraw).
 - Sommaire : section 0.26.0 (scènes `v26-…`). Aucune migration.

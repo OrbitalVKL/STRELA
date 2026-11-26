@@ -614,6 +614,7 @@ export const SCENES = {
   'v26-records-entr': () => { store.tr = null; return '#/records/e/p1'; },
   'v26-seances': () => { store.tr = null; return '#/seances'; },
   'v26-seance-volee': () => { store.tr = null; presetInfo(); presetDetail(); return `#/entrainement/seance/${store.trainings.find(x => x.exercise === 'x01').id}/v2`; },
+  'v26-enligne': () => { mockFriends(); delete pres.map['b2c3d4e5-0000-4000-8000-00000000000b']; return '#/enligne'; },
   'v26-partie-volee': () => { seasonMock(); presetStats2(); presetHistory2(); return `#/partie/${store.games[0].id}/v3`; },
   'v96-stats-x01-busts': () => { presetTrainStats({ exercise: 'x01', metric: 'ev_busts' }); presetInfo(['ts-evo']); return '#/entrainement/stats'; },
   'v96-cible-comparee': () => {
@@ -1054,6 +1055,7 @@ export function sommaire() {
       ${L('v26-seances', '● 0.26.0 : historique des séances')}
       ${L('v26-seance-volee', '● 0.26.0 : séance ouverte sur une volée')}
       ${L('v26-partie-volee', '● 0.26.0 : partie ouverte sur une volée')}
+      ${L('v26-enligne', '● 0.26.0 : En ligne', 'joueurs connectés, hors ligne, profils locaux')}
       ${L('l10-compte', '▲ Lot 10 : Réglages › Compte et amis', 'synchronisé')}
       ${L('l10-compte-hors-ligne', '▲ Lot 10 : compte, hors ligne')}
       ${L('l10-compte-coupe', '▲ Lot 10 : synchronisation coupée')}

@@ -9,6 +9,7 @@ export const CHANGELOG = Object.freeze([
     'Records des deux côtés, chacun vers sa volée : le 135 d\'une séance X01 en solo est maintenant un record d\'entraînement.',
     'Historique des séances, comme celui des parties : par jour, filtres joueur, type (X01, Cricket, exercices, jeux de cible) et mois.',
     'Dans le détail d\'une séance, un appui sur une volée l\'ouvre sur la cible.',
+    'En ligne : tes amis connectés (en ligne ou en partie, en direct) et hors ligne (dernière activité) en haut de l\'écran, et les profils locaux du téléphone en bas ; un appui ouvre le profil.',
     'Une partie (X01, Cricket) ou une séance d\'entraînement compte dans les stats, les records et les badges dès sa dernière fléchette, et part chez tes amis aussitôt : plus besoin d\'appuyer sur ACCUEIL, REVANCHE ou TERMINER LA SÉANCE. ANNULER LA DERNIÈRE FLÉCHETTE sur l\'écran de fin la retire tant qu\'elle n\'est pas refinie.',
   ] },
   { v: '0.25.0', date: '2026-11-26', title: 'Stats et sons selon le jeu', items: [

@@ -98,6 +98,10 @@ test('deux espaces : accueil, stats en tuiles, fiche, records, séances, déroul
     assert.match(page.url(), /#\/entrainement\/seance\/[^/]+\/v2$/);
     assert.match(await page.innerText('.trvsel'), /135/);
 
+    // En ligne (demande de Guillaume) : amis connectés, hors ligne, profils locaux.
+    await go(page, '#/enligne', '.online');
+    assert.match(await page.innerText('.online'), /AMIS[\s\S]*Aucun ami pour l'instant/i);
+    assert.equal(await page.locator('.onplayers a.frmain').count(), 2, 'les deux profils du téléphone');
     // Historique des séances : la séance du jour, qui ouvre son détail.
     await go(page, '#/seances', '.hlist');
     assert.equal(await page.locator('.hlist a.srow').count(), 1);
