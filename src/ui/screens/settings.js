@@ -10,7 +10,7 @@ import { esc, ico, topBar, plural } from '../dom.js';
 import { lastAutoBackup } from '../autobackup.js';
 import { BUILD } from '../build.js';
 import { refresh, buzz, BUZZ, go } from '../nav.js';
-import { say, sound, voiceInfo } from '../feedback.js';
+import { say, sound, voiceInfo, SOUND_FAMILIES, familyOn } from '../feedback.js';
 import { isApk, call, callJson, onNative, nativeTheme, hasUpdater, nativeInfo } from '../native.js';
 import { voiceEngine } from '../voiceinput.js';
 import { onlineSupport } from '../online.js';
@@ -318,6 +318,13 @@ function journalBlock() {
     ${jr.msg ? `<div class="vibe" role="status"><b>JOURNAL</b><span>${esc(jr.msg)}</span></div>` : ''}${view}`;
 }
 
+/** Lot 9.6 C : volume général et familles de sons (touches, fléchettes, défis et badges, fins). */
+const VOLUMES = [[0.25, 'Faible'], [0.5, 'Moyen'], [0.75, 'Fort'], [1, 'Max']];
+function soundDetails() {
+  const v = Number.isFinite(store.settings.soundVolume) ? store.settings.soundVolume : 1;
+  return `<div class="row col"><div class="lbl"><b>Volume</b></div><div class="seg sndvol" role="group" aria-label="Volume des sons">${VOLUMES.map(([x, l]) => `<button type="button" data-act="snd-vol" data-arg="${x}" aria-pressed="${Math.abs(v - x) < 0.01}">${l}</button>`).join('')}</div></div>
+    ${Object.entries(SOUND_FAMILIES).map(([k, f]) => srow(`snd-fam-${k}`, f.label, null, familyOn(k))).join('')}`;
+}
 const srow = (act, title, desc, on, disabled = false) => `<div class="row"><div class="lbl"><b>${title}</b>${desc ? `<small>${desc}</small>` : ''}</div>${toggle(act, on, disabled)}</div>`;
 
 /** Lot 9 : dernière sauvegarde automatique, en clair. */
@@ -404,9 +411,10 @@ export function settings2Screen() {
         <div class="rows">${srow('night', 'Mode nuit', dark ? 'Rouge atténué' : 'En thème sombre seulement', store.settings.night && dark, !dark)}</div>
         ${heatSetting()}`)}
       ${card('sound', 'Son et animations', 'son', `
-        ${s2box('son', 'Sons : clic à chaque fléchette, bust, validation et finition. Annonces vocales : total de la volée, bust, finition jouable, manche et partie, moqueries et répliques des personnages. Vibrations : courte à chaque fléchette, longue sur un bust. Animations : chiffres qui roulent, bandeau du joueur qui glisse, animations de tour ; coupées d\'office si le téléphone demande moins d\'animations.')}
+        ${s2box('son', 'Sons : chaque fléchette sonne selon qu\'elle est réussie, neutre ou ratée par rapport à ce que tu vises (un double ou un triple voulu sonne plus riche, le ton monte sur une série de réussites) ; bonne volée, bust, fin de partie ou d\'exercice selon le résultat, record, badge, arrivée et résultat d\'un défi. Le plus important passe devant : record, puis badge, puis défi, puis fléchette. Annonces vocales : total de la volée, bust, finition jouable, manche et partie, moqueries et répliques des personnages. Vibrations : courte à chaque fléchette, longue sur un bust. Animations : chiffres qui roulent, bandeau du joueur qui glisse, animations de tour ; coupées d\'office si le téléphone demande moins d\'animations.')}
         <div class="rows">
           ${srow('sound', 'Sons', null, store.settings.sound)}
+          ${store.settings.sound ? soundDetails() : ''}
           ${srow('voice', 'Annonces vocales', null, store.settings.voice)}
           ${srow('vibrate', 'Vibrations', null, store.settings.vibrate)}
           ${srow('anim', 'Animations', reduced ? 'Coupées par le téléphone' : null, store.settings.anim && !reduced, reduced)}
@@ -453,6 +461,12 @@ export const actions = {
   anim(v) { saveSetting('anim', v === '1'); applyTheme(); refresh(); },
   vibrate(v) { saveSetting('vibrate', v === '1'); if (v === '1') buzz(BUZZ.dart); refresh(); },
   sound(v) { saveSetting('sound', v === '1'); if (v === '1') sound('validate'); refresh(); },
+  'snd-vol'(v) { saveSetting('soundVolume', Math.max(0, Math.min(1, Number(v) || 1))); sound('v-rich', { force: true }); refresh(); },
+  ...Object.fromEntries(Object.keys(SOUND_FAMILIES).map(k => [`snd-fam-${k}`, v => {
+    saveSetting('soundFamilies', { ...(store.settings.soundFamilies || {}), [k]: v === '1' });
+    if (v === '1') sound(SOUND_FAMILIES[k].sounds[0], { force: true });
+    refresh();
+  }])),
   voice(v) { saveSetting('voice', v === '1'); if (v === '1') say('Annonces vocales activées'); refresh(); },
   // Dans le clic (geste de l'utilisateur), même si le réglage est sur NON : on veut entendre.
   'test-voice'() { say('Strela. Guillaume, il reste quarante. Cent quatre-vingts !', { force: true }); setTimeout(refresh, 600); },

@@ -31,7 +31,10 @@ import { padModeOf, padRingFor, PAD_MODES, fastDefault, fastToggle, padPress, zo
 import { segmentAt, RINGS, zoneTone } from '../../engine/board.js';
 import { boardSvg, plainBoard, svgN } from '../board.js';
 import { go, refresh, buzz, BUZZ, backFrom } from '../nav.js';
-import { sound, dartSound } from '../feedback.js';
+import { sound, dartSound, verdictSound } from '../feedback.js';
+import { targetVerdict, defiSound, GOOD_VISIT } from '../../engine/verdict.js';
+import { x01DartVerdict } from './game.js';
+import { ckDartVerdict } from './cricket.js';
 import { bindBoardInput, boardHint, frozenLoupe } from '../boardinput.js';
 import { isLandscape } from './game.js';
 import { infoBtn, infoBox } from '../info.js';
@@ -688,6 +691,9 @@ function soloDefiBand(r, st) {
   const d = soloDefiNow(r, st);
   if (!d) return '';
   const def = DEFIS[d.key];
+  // Lot 9.6 C : signal à l'arrivée du défi, puis son du résultat (une fois chacun).
+  const snd = d.open ? `in:${d.index}` : d.result && !(d.result.declare && d.result.declared === undefined) ? `res:${d.index}` : null;
+  if (snd && r.ui.defiSnd !== snd) { r.ui.defiSnd = snd; sound(defiSound(d.open ? 'in' : !!d.result.ok)); }
   if (d.open) return `<section class="dfb open" role="status" aria-label="Défi : ${esc(def.short)}"><div class="dfc"><b class="dft" data-shrink><span class="dfl">${ico('flag')}DÉFI</span> ${esc(def.short)}</b>${def.hint ? `<small class="dfh">${esc(def.hint)}</small>` : ''}</div></section>`;
   const x = d.result;
   if (x.declare && x.declared === undefined) {
@@ -736,6 +742,26 @@ export function heatBoard(darts, size = 380) {
   return { svg: boardSvg({ size, heat: (k, r) => op(h.get(k, r)), heatScale: heatScale(), cls: 'board', label: 'Carte de chaleur des impacts' }), off: h.off, total: h.total };
 }
 
+/** Lot 9.6 C : verdict de la dernière fléchette d'une séance (cible visée, X01 ou Cricket en solo). */
+function trVerdict(r, st, dart) {
+  if (st.game) {
+    if (r.exercise === 'x01') return x01DartVerdict({ config: { outMode: st.setup.outMode } }, st.gs, dart);
+    const before = trainingStateOf({ ...r, darts: r.darts.slice(0, -1) }).gs;
+    return ckDartVerdict(before, dart, 'sans');
+  }
+  const i = r.darts.length - 1;
+  const b = (st.blocks || []).find(x => i >= x.start && i < x.start + x.darts.length);
+  return targetVerdict({ dart, t: b && b.s ? { s: b.s, z: b.z || 'any' } : null });
+}
+/** Lot 9.6 C : jingle de fin d'exercice selon le résultat (objectif tenu, sinon séance finie). */
+function endSound(r) {
+  try {
+    const a = analyze(r);
+    const ok = goalMet(r, a, levelOf(allSessions(), r.player).level);
+    return ok === true ? 'end-win' : ok === false ? 'end-ok' : 'end-meh';
+  } catch (e) { return 'finish'; }
+}
+
 /** Fléchette saisie (pavé ou cible). */
 function play(dart) {
   const r = tr();
@@ -746,10 +772,16 @@ function play(dart) {
   r.ui.loupe = null;
   const st = trState();
   buzz(BUZZ.dart);
-  if (st.done) { sound('finish'); go('#/entrainement/fin'); return true; }
+  if (st.done) { sound(endSound(r)); go('#/entrainement/fin'); return true; }
   if (st.game && st.gs.lastEvent === 'bust') sound('bust');
   else if (st.game && st.gs.lastEvent === 'leg_won') sound('finish');
-  else sound(dartSound(dart));
+  else {
+    // Lot 9.6 C : le son suit le verdict de la fléchette par rapport à l'objectif du moment.
+    let vd = null;
+    try { vd = trVerdict(r, st, dart); } catch (e) { vd = null; }
+    if (vd) verdictSound(vd, r.id); else sound(dartSound(dart));
+    if (st.game && r.exercise === 'x01' && st.gs.lastEvent === 'visit_end' && st.gs.lastVisit && st.gs.lastVisit.scored >= GOOD_VISIT) sound('visit-good');
+  }
   refresh();
   return true;
 }

@@ -11,7 +11,8 @@ import { makeDart, formatDart } from '../../engine/darts.js';
 import { log } from '../journal.js';
 import { validatedAfterUndo } from '../turn.js';
 import { go, refresh, buzz, BUZZ, backFrom } from '../nav.js';
-import { sound, dartSound, say } from '../feedback.js';
+import { sound, dartSound, say, verdictSound } from '../feedback.js';
+import { cricketVerdict } from '../../engine/verdict.js';
 import { turnFxKind } from '../turnfx.js';
 import { micButton, registerVoice } from '../voiceinput.js';
 import { registerOnlineGame, input as onlineInput, onlineGame, onlineQuit, onlineFinish, on as online } from '../online.js';
@@ -270,6 +271,17 @@ export function cricketDetail(id) {
 const detailUi = { del: null };
 
 // ------------------------------------------------------------------ actions
+/** Lot 9.6 C : verdict d'une fléchette au Cricket, d'après l'état avant elle (marques ouvertes, points possibles). */
+export function ckDartVerdict(s, dart, mode = 'points') {
+  const t = CRICKET_TARGETS.includes(dart.segment) ? dart.segment : null;
+  if (t === null) return cricketVerdict({ dart, marks: 0, target: false });
+  const p = s.currentPlayer;
+  const mine = s.marks[p][t];
+  const open = s.marks.some((m, q) => q !== p && m[t] < 3);
+  const marks = mine < 3 ? Math.min(dart.multiplier, 3 - mine) + (mode !== 'sans' && open ? Math.max(0, dart.multiplier - (3 - mine)) : 0)
+    : mode !== 'sans' && open ? dart.multiplier : 0;
+  return cricketVerdict({ dart, marks, target: true });
+}
 function hit(seg, forced = null, fromHost = false) {
   const g = store.ck;
   if (!g || (g.ui.pause && !fromHost)) return false;
@@ -284,7 +296,7 @@ function hit(seg, forced = null, fromHost = false) {
   log('saisie', `Cricket : fléchette ${g.darts.length} ${formatDart(dart)}`);
   const after = ckState();
   buzz(BUZZ.dart);
-  sound(dartSound(dart));
+  verdictSound(ckDartVerdict(s, dart, g.config.mode), s.currentPlayer); // lot 9.6 C : le son suit le verdict
   if (after.status === 'finished') {
     sound('finish');
     say(`Partie, ${playerById(g.config.players[after.winner]).name} !`);

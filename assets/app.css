@@ -2457,3 +2457,5 @@ button.frpick[aria-pressed="true"] { outline: 2px solid var(--fg); outline-offse
 .vstab { table-layout: fixed; }
 .vstab th:first-child { width: 40%; white-space: normal; overflow-wrap: anywhere; }
 .vstab thead th.ell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row.col { flex-direction: column; align-items: stretch; gap: 8px; }
+.sndvol { margin: 0; }
