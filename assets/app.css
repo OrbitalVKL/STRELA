@@ -2549,3 +2549,6 @@ button.frpick[aria-pressed="true"] { outline: 2px solid var(--fg); outline-offse
 .tvol .trvsel .vb { flex-wrap: wrap; }
 .tvol .trvsel .vtxt { flex: 1 1 150px; }
 .btn.big.tr-btn:not(.on) { display: flex; justify-content: center; text-align: center; margin-top: 0; }
+/* 0.26.0 : une case avec des verres (en bas à gauche) garde la place du pictogramme : BUST ne le chevauche plus. */
+.lt .c:has(.dk) b, .lt .c:has(.dk) small { padding-left: 26px; }
+.lt .c:has(.dk.two) b, .lt .c:has(.dk.two) small { padding-left: 30px; }
