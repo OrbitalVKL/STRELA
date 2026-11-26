@@ -79,6 +79,13 @@ export function gameBadgesHtml(g) {
 }
 
 /** Texte annoncé à la voix pour les badges de la partie (ou ''). */
+/** Lot 9.6 C : son des badges gagnés dans une partie (« badge-gold » si un rang en or), ou null. */
+export function gameBadgesSound(g) {
+  if (!g || g.abandoned) return null;
+  const list = badgesOfGame(allHonours(g), g.id);
+  if (!list.length) return null;
+  return list.some(x => x.tier === 3) ? 'badge-gold' : 'badge';
+}
 export function gameBadgesSay(g) {
   if (!g || g.abandoned) return '';
   const list = badgesOfGame(allHonours(g), g.id);

@@ -599,6 +599,16 @@ export const SCENES = {
   'v24-profil-chrono': v78('#/joueur/p1/badges', () => { mockCloud('ok'); presetProfile({ badges: 'chrono' }); }),
   'v24-profil-local': v78('#/joueur/p3', () => presetProfile()),
   'v24-profil-ami': () => { mockFriends(); presetFriends(); presetProfile(); return '#/joueur/u:b2c3d4e5-0000-4000-8000-00000000000a'; },
+  // Lot 9.6 B : stats contextuelles (Évolution du X01 solo, séance d'exercice comparée, face à mes amis, forme du soir).
+  'v96-profil-face': v78('#/joueur/p1/parties', () => { store.players = store.players.map(q => (q.id === 'p2' ? { ...q, friend: 'b2c3d4e5-0000-4000-8000-0000000000f2' } : q)); presetStats2({ folds: ['pp-versus'] }); }),
+  'v96-stats-x01-busts': () => { presetTrainStats({ exercise: 'x01', metric: 'ev_busts' }); presetInfo(['ts-evo']); return '#/entrainement/stats'; },
+  'v96-cible-comparee': () => {
+    store.tr = null; presetInfo(); presetDetail();
+    const n = {};
+    for (const x of store.trainings) if (x.mode !== 'jeu') n[x.exercise] = (n[x.exercise] || 0) + 1;
+    const r = [...store.trainings].sort((a, b) => b.startedAt - a.startedAt).find(x => x.mode !== 'jeu' && n[x.exercise] > 1) || store.trainings[0];
+    return `#/entrainement/seance/${r.id}`;
+  },
   'v24-badge-joueurs': () => { presetProfile(); presetBadgeSheet({ pid: 'p2', key: 'clean', tier: 0 }); return '#/joueur/p2/badges'; }, // partie à 5 joueurs
   'jeu-handicap': () => { setGame({ ...cfg(['p1', 'p2']), starts: [701, 301] }, 'T20 S20 S5'); return '#/jeu'; },
   'nouvelle-vide': () => { store.players = []; store.current = null; store.setupDraft = null; return '#/nouvelle'; },
@@ -1013,6 +1023,10 @@ export function sommaire() {
       ${L('v24-profil-local', '● 0.24.0 : profil d\'un joueur local')}
       ${L('v24-profil-ami', '● 0.24.0 : profil d\'un ami', 'lecture seule')}
       ${L('v24-badge-joueurs', '● 0.24.0 : fenêtre d\'un badge', 'partie à 5 joueurs : plus de débordement')}
+      ${L('tr-seance-x01', '● 0.25.0 : X01 en solo, fiche Évolution', 'comparée aux parties précédentes')}
+      ${L('v96-stats-x01-busts', '● 0.25.0 : stats X01 en solo', 'Évolution, courbe des busts')}
+      ${L('v96-cible-comparee', '● 0.25.0 : exercice comparé', 'par secteur, dérive')}
+      ${L('v96-profil-face', '● 0.25.0 : profil, Parties', 'résumé, forme du soir, face à mes amis')}
       ${L('l10-compte', '▲ Lot 10 : Réglages › Compte et amis', 'synchronisé')}
       ${L('l10-compte-hors-ligne', '▲ Lot 10 : compte, hors ligne')}
       ${L('l10-compte-coupe', '▲ Lot 10 : synchronisation coupée')}

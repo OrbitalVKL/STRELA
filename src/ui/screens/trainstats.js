@@ -33,6 +33,8 @@ import { deliverFile } from './printsheet.js';
 import { pdfFromJpegs, sheetFonts } from '../sheet.js';
 import { goalText } from './training.js';
 import { HEAT_LABELS } from '../theme.js';
+import { x01PeriodHtml, summaryHtml, exercisesSummary, x01Of, fmtOf } from '../evolution.js';
+import { X01_METRICS, summaryLine } from '../../engine/evolution.js';
 
 const dec1 = v => (v === null || v === undefined || Number.isNaN(v) ? '—' : (Math.round(v * 10) / 10).toFixed(1).replace('.', ','));
 const dec2 = v => (v === null || v === undefined || Number.isNaN(v) ? '—' : (Math.round(v * 100) / 100).toFixed(2).replace('.', ','));
@@ -113,9 +115,15 @@ const METRICS = {
   doubles: { label: 'Doubles', fmt: pctOf, pct: true, free: true, info: `Fléchettes dans un double (le 50 compris) ÷ fléchettes lancées. ${FREE_AIM}` },
   off: { label: 'Hors cible', fmt: pctOf, pct: true, both: true, info: 'Fléchettes à côté de la cible ÷ fléchettes lancées.' },
 };
+// Lot 9.6 B : chiffres de la fiche « Évolution » du X01 en solo, aussi en courbe (filtre exercice X01).
+for (const m of X01_METRICS) {
+  if (m.k === 'avg' || m.k === 'offRate') continue; // déjà là : « Résultat » (moyenne) et « Hors cible »
+  METRICS[`ev_${m.k}`] = { label: m.label, fmt: fmtOf(m.fmt), pct: m.fmt === 'pct', dir: m.dir, of: r => (r.exercise === 'x01' ? (x01Of(r) || {})[m.k] ?? null : null), info: m.info };
+}
+const EV_KEYS = X01_METRICS.filter(m => m.k !== 'avg' && m.k !== 'offRate').map(m => `ev_${m.k}`);
 const exIsGame = () => GAME_EXERCISES.includes(ui.exercise);
 const metricsFor = () => (ui.source === 'entrainements'
-  ? (exIsGame() ? ['exercise', 'triples', 'doubles', 'off'] : ui.exercise ? ['prec', 'spread', 'exercise', 'rate', 'off'] : ['prec', 'spread', 'rate', 'triples', 'doubles', 'off'])
+  ? (ui.exercise === 'x01' ? ['exercise', ...EV_KEYS, 'triples', 'doubles', 'off'] : exIsGame() ? ['exercise', 'triples', 'doubles', 'off'] : ui.exercise ? ['prec', 'spread', 'exercise', 'rate', 'off'] : ['prec', 'spread', 'rate', 'triples', 'doubles', 'off'])
   : ui.source === 'parties' ? ['average', 'triples', 'doubles', 'off'] : ['triples', 'doubles', 'off']);
 
 function exerciseFmt() {
@@ -213,7 +221,7 @@ function trendsBlock(sessions) {
   const cell = t => (t.mean === null ? '<td>—</td>' : `<td><b>${dec1(t.mean / 10)}</b> ${trendBadge(t)}</td>`);
   return `<div class="sec">Tendances${infoBtn('ts-trend')}</div>
     ${infoBox('ts-trend', 'Sur les dix dernières séances de la période (pour chaque exercice, et toutes ensemble) : la moyenne, en centimètres, et une flèche quand la progression dépasse 5 % (il faut au moins quatre séances). <b>Précision</b> : distance au point visé ; <b>groupement</b> : distance des fléchettes à leur centre. Pour les deux, plus bas = mieux : une flèche vers le bas est un progrès.')}
-    <table class="sectab trtab trends"><thead><tr><th>Exercice</th><th>Préc. (cm)</th><th>Grp. (cm)</th></tr></thead><tbody>
+    <table class="sectab trtab trends"><thead><tr><th>Exercice</th><th>Précision (cm)</th><th>Groupement (cm)</th></tr></thead><tbody>
     ${rows.map(r => `<tr${r.key ? '' : ' class="all"'}><th class="ell">${esc(r.name)} <small>${r.n}</small></th>${cell(r.prec)}${cell(r.spread)}</tr>`).join('')}</tbody></table>`;
 }
 
@@ -235,7 +243,7 @@ function bySetGames(sessions) {
   if (!rows.size) return '';
   const list = [...rows.values()];
   const hasX = list.some(x => x.x01.length), hasC = list.some(x => x.cricket.length);
-  return `<table class="sectab trtab"><thead><tr><th>Jeu</th>${hasX && hasC ? '' : '<th>Fl.</th>'}${hasX ? '<th>Moy.</th>' : ''}${hasC ? '<th>MPR</th>' : ''}<th>T %</th><th>D %</th></tr></thead><tbody>
+  return `<table class="sectab trtab"><thead><tr><th>Jeu</th>${hasX && hasC ? '' : '<th>Fléchettes</th>'}${hasX ? '<th>Moyenne</th>' : ''}${hasC ? '<th>MPR</th>' : ''}<th>Triples</th><th>Doubles</th></tr></thead><tbody>
     ${list.map(x => `<tr><th class="ell">${esc(setName(x.k))}</th>${hasX && hasC ? '' : `<td>${x.n}</td>`}${hasX ? `<td>${dec1(gameValue(x.x01))}</td>` : ''}${hasC ? `<td>${dec2(gameValue(x.cricket))}</td>` : ''}<td>${pctOf(x.n ? x.t / x.n : null)}</td><td>${pctOf(x.n ? x.d / x.n : null)}</td></tr>`).join('')}</tbody></table>`;
 }
 
@@ -251,7 +259,7 @@ function bySet(sessions) {
     }
   }
   if (rows.size < 1) return '';
-  return `<table class="sectab trtab"><thead><tr><th>Jeu</th><th>Séan.</th><th>Préc.</th><th>Cible</th><th>Grp.</th></tr></thead><tbody>
+  return `<table class="sectab trtab"><thead><tr><th>Jeu</th><th>Séances</th><th>Précision</th><th>Cible</th><th>Groupement</th></tr></thead><tbody>
     ${[...rows.values()].map(x => { const d = distOf(x.parts); return `<tr><th class="ell">${esc(setName(x.k))}</th><td>${x.n}</td><td>${d === null ? '—' : dec1(d / 10)}</td><td>${pctOf(x.darts ? x.hits / x.darts : null)}</td><td>${x.spread.length ? dec1(x.spread.reduce((a, b) => a + b, 0) / x.spread.length / 10) : '—'}</td></tr>`; }).join('')}</tbody></table>`;
 }
 
@@ -264,7 +272,7 @@ function byExercise(sessions) {
     const best = vals.length ? vals.reduce((b, v) => ((v.dir > 0 ? v.v > b.v : v.v < b.v) ? v : b)) : null;
     return `<tr><th class="ell">${esc(EXERCISES[k].name)}</th><td>${list.length}</td><td>${fmtValue(last)}</td><td>${fmtValue(best)}</td></tr>`;
   }).join('');
-  return rows ? `<table class="sectab trtab"><thead><tr><th>Exercice</th><th>Séan.</th><th>Dern.</th><th>Meill.</th></tr></thead><tbody>${rows}</tbody></table>` : '';
+  return rows ? `<table class="sectab trtab"><thead><tr><th>Exercice</th><th>Séances</th><th>Dernière</th><th>Meilleure</th></tr></thead><tbody>${rows}</tbody></table>` : '';
 }
 
 /** Joueurs qui ont des stats d'entraînement : moi, mes amis, puis les joueurs du téléphone (archivés s'ils ont des séances). */
@@ -369,9 +377,15 @@ export function trainStatsHtml(pid) {
   const fmt = mk === 'exercise' ? exerciseFmt() : m.fmt;
   const pct = mk === 'exercise' ? fmt === pctOf : !!m.pct;
   const hb = heatBoard(free);
+  // Lot 9.6 B : résumé en clair en tête (tendances sur la période) ; X01 en solo : fiche « Évolution ».
+  const evo = ui.source === 'entrainements' && ui.exercise === 'x01' ? x01PeriodHtml(played.filter(r => r.exercise === 'x01'), trendBadge) : { summary: '', html: '' };
+  const line = evo.summary || (ui.source === 'entrainements' && !exIsGame() ? exercisesSummary(parts)
+    : ui.source === 'parties' ? summaryLine([{ short: 'ta moyenne', t: trend(games.map(g => { const ds = gameDarts(g, pid); return ds.length ? (ds.reduce((n, d) => n + pointsOf(d), 0) / ds.length) * 3 : null; }), 1) }]) : '');
   return `<div class="trstats">${head}
     <div class="pad">
+      ${summaryHtml(line, 'Pas encore de tendance nette sur la période (il faut au moins quatre séances).')}
       <div class="kpis">${kpis.join('')}</div>${approxNote}${freeNote}
+      ${evo.html}
       ${exportBlock()}
       <div class="sec">Progression${infoBtn('ts-curve')}</div>
       ${infoBox('ts-curve', esc(m.info) + ' Chaque point est une séance (ou une partie), dans l\'ordre ; la valeur est écrite au-dessus. Touchez la liste des séances plus bas pour en ouvrir une.')}

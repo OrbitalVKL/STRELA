@@ -24,13 +24,14 @@ import { pendingVisit, validatedAfterUndo } from '../turn.js';
 import { go, refresh, buzz, BUZZ } from '../nav.js';
 import { themeControls, storageBanner } from './settings.js';
 import { gameLog, selectLogCell, selectedLogCell } from './history.js';
-import { sound, dartSound, say, SPEECH } from '../feedback.js';
+import { sound, dartSound, say, SPEECH, verdictSound } from '../feedback.js';
+import { x01Verdict, defiSound, GOOD_VISIT } from '../../engine/verdict.js';
 import { correctDart, locateDart, visitStart, CORRECT_ERRORS } from '../../engine/correct.js';
 import { turnAnimOf, turnFxKind, syncTurnFx } from '../turnfx.js';
 import { leader, flop, visitStanding, standings } from '../../engine/ranking.js';
 import { playerRecords, isVisitRecord } from '../../engine/records.js';
 import { defiOf, defiResult, DEFIS } from '../../engine/defis.js';
-import { gameBadgesSay } from '../honours.js';
+import { gameBadgesSay, gameBadgesSound } from '../honours.js';
 import { bindBoardInput, boardHint, frozenLoupe } from '../boardinput.js';
 import { micKey, registerVoice } from '../voiceinput.js';
 import { log } from '../journal.js';
@@ -317,6 +318,7 @@ function sayDefiStart(v, d) {
   if (!d || !d.open || v.darts.length || v.ui.defiSaid === d.id) return;
   v.ui.defiSaid = d.id;
   const p = playerById(v.cfg.players[d.player]);
+  sound(defiSound('in')); // lot 9.6 C : signal bien reconnaissable à l'arrivée d'un défi
   setTimeout(() => say(`Défi pour ${p.name} : ${DEFIS[d.key].say}`), 400);
 }
 
@@ -723,6 +725,16 @@ function bindBoard(wrap) {
 const hint = boardHint;
 
 // ------------------------------------------------------------------ saisie
+/** Lot 9.6 C : verdict de la fléchette qui vient d'être jouée (X01), d'après la volée où elle tombe. */
+export function x01DartVerdict(g, st, dart) {
+  const v = st.lastEvent === 'dart' ? st.visit : st.lastVisit;
+  if (!v || !v.darts || !v.darts.length) return null;
+  const k = v.darts.length;
+  const before = v.startRemaining - v.darts.slice(0, k - 1).reduce((n, d) => n + d.segment * d.multiplier, 0);
+  return x01Verdict({ dart, before, after: before - dart.segment * dart.multiplier, bust: st.lastEvent === 'bust' || !!v.bust,
+    finish: ['leg_won', 'match_won', 'placed'].includes(st.lastEvent) || !!v.finish, outMode: g.config.outMode, dartsLeft: 4 - k });
+}
+
 function play(dart, key, pos = null) {
   const g = store.current;
   if (!g) return false;
@@ -747,10 +759,13 @@ function play(dart, key, pos = null) {
   switch (st.lastEvent) {
     case 'visit_end':
       buzz(BUZZ.dart);
-      sound(v.total === 180 ? 'max' : f ? (f.kind === 'moto' || f.kind === 'uns' ? f.kind : 'flop') : dartSound(dart));
+      // Lot 9.6 C : 180, nuls (inchangés), bonne volée (60 et plus), sinon le verdict de la dernière fléchette.
+      if (v.total === 180 || f) sound(v.total === 180 ? 'max' : f.kind === 'moto' || f.kind === 'uns' ? f.kind : 'flop');
+      else if (v.total >= GOOD_VISIT) { verdictSound(x01DartVerdict(g, st, dart), v.player); sound('visit-good'); }
+      else verdictSound(x01DartVerdict(g, st, dart), v.player);
       later(() => say(f ? SPEECH.flop(f.kind, name(v.player), f.value) : SPEECH.total(v.total), { strong: v.total === 180 }));
       // Lot 9 : record personnel (meilleure volée de toutes ses parties) annoncé après le total ; puis le défi.
-      if (!v.bust && visitIsRecord(g, st)) later(() => say(`Record personnel pour ${name(v.player)} !`, { strong: true }));
+      if (!v.bust && visitIsRecord(g, st)) { sound('record'); later(() => say(`Record personnel pour ${name(v.player)} !`, { strong: true })); }
       sayDefi(g, st);
       if (v.total >= 100) celebrate(v.total === 180 ? 'max' : v.total >= 140 ? 'ton40' : 'ton', v.total, v.player);
       else if (f) celebrate(`nul-${f.kind}`, f.kind === 'serie' ? f.value : v.total, v.player);
@@ -783,11 +798,12 @@ function play(dart, key, pos = null) {
         later(() => say(place > 1 ? SPEECH.place(place, name(v.player)) : SPEECH.match(name(v.player))));
         const payers = []; // 0.11.2 : plus de tournée du dernier (personne ne la paie)
         const badges = gameBadgesSay(g); // lot 9 : badges gagnés dans la partie
-        if (badges) setTimeout(() => say(badges), payers.length ? 5200 : 2600);
+        const bs = gameBadgesSound(g);
+        if (badges) setTimeout(() => { if (bs) sound(bs); say(badges); }, payers.length ? 5200 : 2600);
       }
       go(st.lastEvent === 'leg_won' ? '#/manche' : '#/fin');
       return true;
-    default: buzz(BUZZ.dart); sound(dartSound(dart));
+    default: { buzz(BUZZ.dart); const vd = x01DartVerdict(g, st, dart); if (vd) verdictSound(vd, st.visit ? st.visit.player : null); else sound(dartSound(dart)); }
   }
   refresh();
   flash(key);
@@ -913,6 +929,7 @@ function sayDefi(g, st) {
   if (!r) return;
   const n = playerById(g.config.players[r.player]).name;
   if (r.declare && r.declared === undefined) { setTimeout(() => say(`${n}, ${DEFIS[r.key].short.toLowerCase()} : fait, ou pas fait ?`), 1800); return; }
+  setTimeout(() => sound(defiSound(!!r.ok)), 900);
   const txt = r.ok ? (r.gage === 'autres' ? `Défi réussi ! Les autres boivent.` : `Défi réussi, ${n} !`)
     : `Défi raté. ${r.gage === 'pinte' ? 'Une pinte' : 'Un verre'} pour ${n} !`;
   setTimeout(() => say(txt), 1800);

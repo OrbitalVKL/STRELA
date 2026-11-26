@@ -1180,3 +1180,46 @@ d'affichage nouveaux (`modes`, `setup`, `profile`, `updSnooze`, `heatScale`), ch
   **RESYNCHRONISER** (`fr-resync` : tout renvoyer, tout recevoir de nouveau, sans doublon ; message dans le bloc).
 - Jeu de fléchettes d'une séance inconnu ici : « Jeu inconnu » (avant : « ? ») au détail, aux stats, à l'export.
 - Le reste est côté synchronisation : docs/cloud.md « Séances d'un ami (0.24.1) ».
+
+## Version 0.25.0 (26/11 : lot 9.6 B et C, stats contextuelles et sons contextuels)
+
+### B. Stats contextuelles
+- Calculs purs : src/engine/evolution.js (tests/evolution.test.js, chiffres faits à la main) ; affichage :
+  src/ui/evolution.js. Chaque chiffre : libellé en clair, explication (i), sens (`dir`), forme courte pour le résumé.
+- **Résumé en clair** (`.evsum`) en tête du profil › Parties et › Entraînement : `summaryLine` sur les tendances de la
+  période (trends.js › trend, il faut 4 parties ou séances), au plus deux progrès et deux reculs.
+- **X01 en solo** : fiche « Évolution » au détail et à la fin d'une partie (`x01EvolutionHtml`) — chaque chiffre de
+  `X01_METRICS` comparé à la moyenne des parties précédentes du même joueur dans la période des stats (▲ vert
+  `--good-text`, ▼ rouge `--red-text`, = pareil sous un écart `eps`), régularité, coût des busts, fin de partie
+  (au-dessus / à 100 restants ou moins), répartition des volées par paliers `TIERS` (moins de 20, 20–39, 40–59, 60+).
+  Stats filtrées sur X01 : bloc « Évolution · X01 en solo » (moyennes de la période et tendances) et chaque chiffre en
+  courbe (`ev_<clé>` dans METRICS de trainstats.js). Pas de précision ni de dérive en X01 solo.
+- **Exercices à cible** (`targetCompareHtml`) : score comparé aux séances précédentes du même exercice (période), chaque
+  secteur visé comparé à la séance précédente, plus réussi / plus raté, dérive (biais moyen ≥ 9 mm, phrase
+  `driftOf` et flèche sur une petite cible ; mention d'approximation pour les saisies au pavé), hors cible. Pas de
+  stats X01 dans un exercice.
+- **Multijoueur** (profil › Parties) : forme du soir (`formOf` : dernière soirée, sinon dernier jour de jeu, contre les
+  autres parties de la période), « Face à mes amis » / « Face à moi » (`VERSUS_METRICS` : moyenne, meilleure volée,
+  busts par partie, taux de victoire ; meilleur de la ligne souligné). Tableau de bord de soirée : « forme ▲ +3,2 »
+  sur chaque carte.
+- Libellés : « Moyenne des 9 premières fléchettes » (puce de courbe : « 9 premières fléchettes ») ; en-têtes des
+  tableaux d'entraînement en toutes lettres (ils passent à la ligne, `.trtab thead th`).
+- Scènes : `v96-profil-face`, `v96-stats-x01-busts`, `v96-cible-comparee` (et `tr-seance-x01`). Test :
+  tests/stats-contexte.test.js.
+
+### C. Sons contextuels
+- Verdict de chaque fléchette : src/engine/verdict.js (tests/verdict.test.js : table par mode). `x01Verdict` (scoring :
+  triple réussi, riche dès le T15 ; zone de finition : réussie si elle laisse une finition ; finition ; bust),
+  `cricketVerdict` (marques comptées), `targetVerdict` (cible visée : dedans, bon secteur, à côté). Un nouveau mode
+  n'a qu'à fournir son verdict ; `verdictSoundKey` → son.
+- feedback.js : sons `v-hit`, `v-rich`, `v-neutral`, `v-miss`, `v-off` (série : `verdictSound` monte d'un demi-ton par
+  réussite de suite, 7 au plus ; remise à zéro au changement de joueur), `visit-good` (60 et plus), `end-win` /
+  `end-ok` / `end-meh` (fin d'exercice : objectif tenu, pas tenu, incomplet), `record`, `badge`, `badge-gold`
+  (rang en or), `defi-in` (arrivée, en partie et en X01 solo), `defi-ok`, `defi-ko`. Gardés : touches (`undo`,
+  `validate`), bust, 180, nuls, sons des animations de tour.
+- Priorités (`PRIO`) : record > badge > défi > fléchette — un son plus bas est sauté pendant qu'un plus haut joue.
+- Réglages › Son et animations (sons à OUI) : volume (`soundVolume` : 25, 50, 75, 100 %, gain commun) et familles
+  (`soundFamilies` : touches, verdicts, evenements, fins). `store.audioCall` (à poser par un futur audio en ligne)
+  coupe ces familles. Aucune migration (réglages d'affichage).
+- Branché : game.js (`x01DartVerdict`), cricket.js (`ckDartVerdict`), training.js (`trVerdict`, `endSound`).
+  Test : tests/sons-parcours.test.js ; tests/annonces.test.js suit les nouveaux sons.

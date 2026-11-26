@@ -1,6 +1,7 @@
 // Strela — point d'entrée de la page : routes, rendu, actions, thème, écran allumé, base du téléphone, service worker.
 // Adresses internes en « #/… » ; « ?maquette » ouvre le sommaire de maquette (données fictives en mémoire, la base du
 // téléphone n'est pas ouverte ; sommaire et données fictives ne sont chargés que dans ce cas).
+import { trainingState } from '../engine/training.js';
 import { store, loadSettings, animationsOn, openStorage, requestPersistence, saving, setStorageListener, exportBackup } from './store.js';
 import { BUILD } from './build.js';
 import { setRenderer, noteRoute, keepAwake, go } from './nav.js';
@@ -396,6 +397,9 @@ if (!store.maquette && !store.db.openCode) { startCloud(); startPresence(); } //
 window.__strelaCloud = () => ({ status: cloud.status, error: cloud.error, busy: cloud.busy, sync: { ...store.cloudSync }, account: store.settings.cloudAccount || null });
 window.__strelaSyncNow = reason => syncNow(reason || 'test');
 window.__strelaPresence = () => ({ ...pres });
+// Lot 9.6 C (tests) : cible visée de la séance en cours, réglages d'affichage.
+window.__strelaTrTarget = () => { try { const c = trainingState(store.tr, store.tr.darts).cur; return c ? { s: c.s, z: c.z } : null; } catch (e) { return null; } };
+window.__strelaSettings = () => ({ ...store.settings });
 window.__strelaPlayers = () => store.players.map(p => ({ id: p.id, name: p.name, friend: p.friend || null, archived: !!p.archived, remote: !!p.remote }));
 window.__strelaGames = () => {
   const g = x => ({ id: x.id, owner: x.owner || null, players: x.config.players, darts: x.darts.length });

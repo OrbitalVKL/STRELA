@@ -16,6 +16,15 @@ Cahier : docs/lot-9-6.md. Ordre : A (bug de synchro) → B (stats) → C (sons).
   fléchettes inconnu (jamais filtré, « Jeu inconnu »), filtres de période et de jeu (0.23.4), hors ligne puis synchro.
 - Détail technique : docs/cloud.md « Séances d'un ami ».
 
-## B — stats contextuelles : à faire
+## B — stats contextuelles : fait (0.25.0)
 
-## C — sons contextuels : à faire
+Détail : docs/interface.md « Version 0.25.0 ». Choix faits sans Guillaume (à lui dire) : référence d'une partie = moyenne
+des parties précédentes de la période des stats ; secteur d'un exercice comparé à la séance précédente du même exercice ;
+« forme du soir » = dernière soirée (sinon dernier jour de jeu) contre les autres parties de la période ; dérive dite
+à partir de 9 mm d'écart moyen (seuil du coach) ; flèche verte = jeton `--good-text` (vert de la cible mêlé au texte).
+
+## C — sons contextuels : fait (0.25.0)
+
+Détail : docs/interface.md « Version 0.25.0 ». Choix faits sans Guillaume : en X01, hors zone de finition, triple =
+réussi, double ou 15 points et plus = neutre, moins = raté ; volume en 4 crans ; fin d'exercice selon l'objectif du
+niveau. Non vérifiable d'ici : le rendu sur le haut-parleur du Pixel (sons trop discrets ou trop forts ?).

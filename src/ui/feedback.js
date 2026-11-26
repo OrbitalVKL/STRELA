@@ -10,6 +10,7 @@
 // en toutes lettres (« 140 » → « cent quarante »).
 import { store } from './store.js';
 import { isApk, call, callJson } from './native.js';
+import { verdictSoundKey, nextStreak, streakStep } from '../engine/verdict.js';
 
 // ------------------------------------------------------------------ sons (Web Audio)
 let ctx = null;
@@ -20,6 +21,16 @@ const audio = () => {
   try { ctx = new AC({ latencyHint: 'interactive' }); } catch (e) { ctx = null; }
   return ctx;
 };
+// Lot 9.6 C : volume général (réglage `soundVolume`, 0 à 1) sur un gain commun à tous les sons.
+let master = null;
+const outOf = ac => {
+  if (!master || master.context !== ac) { try { master = ac.createGain(); master.connect(ac.destination); } catch (e) { return ac.destination; } }
+  const v = Number.isFinite(store.settings.soundVolume) ? store.settings.soundVolume : 1;
+  master.gain.value = Math.max(0, Math.min(1, v));
+  return master;
+};
+/** Demi-tons → rapport de fréquence (série de réussites). */
+const semi = n => 2 ** (n / 12);
 
 /** Note brève : forme d'onde, fréquence (Hz, ou [départ, arrivée] en glissando), début et durée (s), volume. */
 function tone(ac, type, freq, at, dur, gain = 0.2) {
@@ -32,7 +43,7 @@ function tone(ac, type, freq, at, dur, gain = 0.2) {
   g.gain.setValueAtTime(0.0001, at);
   g.gain.exponentialRampToValueAtTime(gain, at + 0.004);
   g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
-  o.connect(g).connect(ac.destination);
+  o.connect(g).connect(outOf(ac));
   o.start(at);
   o.stop(at + dur + 0.02);
 }
@@ -59,7 +70,7 @@ function noise(ac, at, dur, gain, filter = 'bandpass', freq = 1000, q = 1) {
   g.gain.setValueAtTime(0.0001, at);
   g.gain.exponentialRampToValueAtTime(gain, at + Math.min(0.03, dur / 3));
   g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
-  src.connect(f).connect(g).connect(ac.destination);
+  src.connect(f).connect(g).connect(outOf(ac));
   src.start(at);
   src.stop(at + dur + 0.02);
 }
@@ -88,7 +99,7 @@ function growl(ac, at, dur, [f0, f1], gain = 0.3, roll = 26) {
   g.gain.exponentialRampToValueAtTime(gain, at + 0.06);
   g.gain.setValueAtTime(gain, at + dur * 0.7);
   g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
-  o.connect(lp).connect(amp).connect(g).connect(ac.destination);
+  o.connect(lp).connect(amp).connect(g).connect(outOf(ac));
   o.start(at); lfo.start(at);
   o.stop(at + dur + 0.02); lfo.stop(at + dur + 0.02);
   noise(ac, at, dur, gain * 0.25, 'lowpass', 500, 1);
@@ -136,7 +147,7 @@ export const SOUNDS = Object.freeze({
     g.gain.exponentialRampToValueAtTime(0.09, t + 0.25);
     g.gain.setValueAtTime(0.09, t + 1.9);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 2.3);
-    o.connect(g).connect(ac.destination);
+    o.connect(g).connect(outOf(ac));
     o.start(t); lfo.start(t); o.stop(t + 2.35); lfo.stop(t + 2.35);
   },
   'planet-twinkle': (ac, t) => [2093, 2637, 3136, 2349].forEach((f, i) => ping(ac, f, t + i * 0.11)),
@@ -174,16 +185,51 @@ export const SOUNDS = Object.freeze({
     [1.6, 1.75, 1.95].forEach(d => noise(ac, t + d, 0.06, 0.14, 'highpass', 2000, 1));
   },
   uns: (ac, t) => [[523, 0], [523, 0.16], [523, 0.32], [415, 0.5]].forEach(([f, d], i) => tone(ac, 'square', f, t + d, i === 3 ? 0.6 : 0.12, 0.09)),
+  // Lot 9.6 C : verdict de chaque fléchette (engine/verdict.js) — courts, discrets ; `o.step` : demi-tons de la série.
+  'v-hit': (ac, t, o = {}) => { const k = semi(o.step || 0); ping(ac, 1568 * k, t, 0.09); },
+  'v-rich': (ac, t, o = {}) => { const k = semi(o.step || 0); ping(ac, 1568 * k, t, 0.09); ping(ac, 1976 * k, t + 0.045, 0.08); ping(ac, 2349 * k, t + 0.09, 0.07); },
+  'v-neutral': (ac, t) => tone(ac, 'triangle', 1100, t, 0.035, 0.1),
+  'v-miss': (ac, t) => tone(ac, 'triangle', [420, 300], t, 0.09, 0.16),
+  'v-off': (ac, t) => { tone(ac, 'sine', [170, 80], t, 0.12, 0.22); noise(ac, t, 0.05, 0.1, 'lowpass', 600, 1); },
+  'visit-good': (ac, t) => [880, 1109, 1319].forEach((f, i) => tone(ac, 'triangle', f, t + i * 0.06, 0.09, 0.14)),
+  'end-win': (ac, t) => [523, 659, 784, 1047, 1319].forEach((f, i) => tone(ac, 'triangle', f, t + i * 0.1, i === 4 ? 0.5 : 0.1, 0.22)),
+  'end-ok': (ac, t) => [523, 659, 784].forEach((f, i) => tone(ac, 'triangle', f, t + i * 0.1, i === 2 ? 0.35 : 0.1, 0.2)),
+  'end-meh': (ac, t) => [523, 494, 523].forEach((f, i) => tone(ac, 'triangle', f, t + i * 0.12, i === 2 ? 0.3 : 0.1, 0.16)),
+  record: (ac, t) => { [659, 784, 988, 1319].forEach((f, i) => tone(ac, 'square', f, t + i * 0.08, i === 3 ? 0.45 : 0.08, 0.09)); ping(ac, 2637, t + 0.4, 0.08); },
+  badge: (ac, t) => [784, 988, 1175].forEach((f, i) => tone(ac, 'triangle', f, t + i * 0.08, i === 2 ? 0.3 : 0.08, 0.18)),
+  'badge-gold': (ac, t) => { [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => tone(ac, 'triangle', f, t + i * 0.08, i === 5 ? 0.6 : 0.09, 0.2)); [2093, 2637].forEach((f, i) => ping(ac, f, t + 0.5 + i * 0.1, 0.07)); },
+  'defi-in': (ac, t) => [0, 0.18, 0.36].forEach(d => { tone(ac, 'square', 988, t + d, 0.07, 0.1); tone(ac, 'square', 1480, t + d + 0.08, 0.07, 0.1); }),
+  'defi-ok': (ac, t) => [784, 1047, 1568].forEach((f, i) => tone(ac, 'triangle', f, t + i * 0.07, i === 2 ? 0.3 : 0.08, 0.2)),
+  'defi-ko': (ac, t) => [[392, 370], [349, 262]].forEach(([a, b], i) => tone(ac, 'triangle', [a, b], t + i * 0.2, i === 1 ? 0.4 : 0.18, 0.16)),
 });
 
+// Lot 9.6 C : familles (réglage `soundFamilies` : on coupe une famille sans toucher aux autres) et priorités (un son plus
+// important coupe les moins importants pendant qu'il joue : record > badge > défi > fléchette ; pas de chevauchement).
+export const SOUND_FAMILIES = Object.freeze({
+  touches: { label: 'Touches', sounds: ['undo', 'validate'] },
+  verdicts: { label: 'Fléchettes (réussie, neutre, ratée)', sounds: ['v-hit', 'v-rich', 'v-neutral', 'v-miss', 'v-off', 'visit-good', 'single', 'double', 'triple', 'miss'] },
+  evenements: { label: 'Défis, badges, records', sounds: ['defi-in', 'defi-ok', 'defi-ko', 'badge', 'badge-gold', 'record'] },
+  fins: { label: 'Fin de partie ou d\'exercice', sounds: ['finish', 'end-win', 'end-ok', 'end-meh', 'max'] },
+});
+const FAMILY_OF = Object.fromEntries(Object.entries(SOUND_FAMILIES).flatMap(([f, x]) => x.sounds.map(k => [k, f])));
+export const familyOn = f => { const fs = store.settings.soundFamilies; return !fs || typeof fs !== 'object' || fs[f] !== false; };
+const PRIO = { record: [4, 1.2], 'badge-gold': [3, 1.3], badge: [3, 0.6], 'defi-in': [2, 0.7], 'defi-ok': [2, 0.4], 'defi-ko': [2, 0.6] };
+const prioOf = k => (PRIO[k] ? PRIO[k][0] : FAMILY_OF[k] === 'verdicts' ? 1 : FAMILY_OF[k] === 'touches' ? 0 : 1);
+let busy = { until: 0, prio: -1 };
+
 /** Joue un son (si le réglage « Sons » est sur OUI, ou `force` pour le test). Renvoie false si Web Audio manque. */
-export function sound(kind, { force = false } = {}) {
+export function sound(kind, { force = false, step = 0 } = {}) {
   if (!force && !store.settings.sound) return true;
+  if (!force && FAMILY_OF[kind] && !familyOn(FAMILY_OF[kind])) return true;
+  if (!force && store.audioCall && FAMILY_OF[kind]) return true; // plus tard : pas de son pendant un appel en ligne
   const ac = audio();
   if (!ac || !SOUNDS[kind]) return false;
+  const now = Date.now(), p = prioOf(kind);
+  if (!force && now < busy.until && p < busy.prio) { soundLog.push(`(${kind})`); if (soundLog.length > 50) soundLog.shift(); return true; }
+  if (PRIO[kind]) busy = { until: now + PRIO[kind][1] * 1000, prio: p };
   try {
     if (ac.state === 'suspended') ac.resume();
-    SOUNDS[kind](ac, ac.currentTime + 0.005);
+    SOUNDS[kind](ac, ac.currentTime + 0.005, { step });
     soundLog.push(kind);
     if (soundLog.length > 50) soundLog.shift();
   } catch (e) { return false; }
@@ -194,6 +240,19 @@ export const soundLog = [];
 
 /** Son d'une fléchette : 0, simple, double ou triple. */
 export const dartSound = d => (d.segment === 0 ? 'miss' : d.multiplier === 3 ? 'triple' : d.multiplier === 2 ? 'double' : 'single');
+
+// Lot 9.6 C : le son suit le verdict de la fléchette (engine/verdict.js), avec la série de réussites qui fait monter le ton.
+let streak = 0;
+/** Joue le son d'un verdict ; `who` (joueur) remet la série à zéro quand il change. Renvoie la clé jouée. */
+let streakWho = null;
+export function verdictSound(vd, who = null) {
+  if (who !== streakWho) { streak = 0; streakWho = who; }
+  streak = nextStreak(streak, vd);
+  const key = verdictSoundKey(vd);
+  sound(key, { step: streakStep(streak) });
+  return key;
+}
+export const resetStreak = () => { streak = 0; };
 
 // ------------------------------------------------------------------ voix (speechSynthesis)
 const synth = () => globalThis.speechSynthesis || null;

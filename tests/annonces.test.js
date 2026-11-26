@@ -47,14 +47,14 @@ test('voix, sons et bandeaux pendant une partie ; réglages respectés', { skip:
     const sounds = () => page.evaluate(() => window.__strelaFeedback().sounds);
 
     await throwDarts(page, 'T20');
-    assert.deepEqual(await sounds(), ['triple'], 'clic de triple');
+    assert.deepEqual(await sounds(), ['v-rich'], 'lot 9.6 : triple 20 en début de partie = réussite riche');
     assert.deepEqual(await said(), [], 'rien de dit en milieu de volée');
     await throwDarts(page, 'T20 T20');
     assert.deepEqual(await said(), ['Cent quatre-vingts !']);
     const strong = await page.evaluate(() => window.__speech.at(-1));
     assert.ok(strong.pitch > 1 && strong.rate < 1, '180 appuyé');
     assert.equal(strong.lang, 'fr-FR');
-    assert.equal((await sounds()).at(-1), 'max');
+    assert.ok((await sounds()).slice(-2).includes('max'), 'son du 180 (puis celui du record personnel)');
     assert.ok(await page.locator('.cele.max').count(), 'bandeau 180');
     // Lot 7.1 : le bandeau reste jusqu'à ce qu'on l'acquitte ; le premier appui le ferme sans rien faire d'autre.
     await page.waitForTimeout(6000); // lot 7.2 : Guillaume les voit partir seules ; ici elles restent
@@ -73,7 +73,8 @@ test('voix, sons et bandeaux pendant une partie ; réglages respectés', { skip:
 
     await throwDarts(page, '20 D20 0');
     assert.equal((await said()).at(-1), '60');
-    assert.deepEqual((await sounds()).slice(-3), ['single', 'double', 'miss']);
+    // Lot 9.6 : 20 et D20 en début de partie = neutres ; 0 = hors cible ; volée de 60 = bonne volée.
+    assert.deepEqual((await sounds()).slice(-4), ['v-neutral', 'v-neutral', 'v-off', 'visit-good']);
     await validate(page);
     assert.equal((await said()).at(-1), 'Alpha, il reste 121', 'Alpha commence son tour avec une finition jouable');
     const before = await page.evaluate(() => window.__speech.length);
