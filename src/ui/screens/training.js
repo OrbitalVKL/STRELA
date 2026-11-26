@@ -144,7 +144,7 @@ export function levelCard(pid) {
 
 /** Séances closes et en cours (lot 10 : aussi celles d'un ami faites chez lui : son niveau et le coach sont les mêmes
  * que chez lui, comme ses stats). */
-const allSessions = () => [...allTrainings(), ...(store.tr ? [store.tr] : [])];
+const allSessions = () => [...allTrainings().filter(r => !store.tr || r.id !== store.tr.id), ...(store.tr ? [store.tr] : [])];
 /** Lot 9.6 B : séances closes du même joueur et du même exercice, avant celle-ci, dans la période des stats (plus
  *  anciennes d'abord) ; mises de côté exclues. */
 function previousSame(r) {

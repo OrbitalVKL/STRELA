@@ -228,7 +228,18 @@ la session n'a pas d'accès à l'API Pages. Après activation : Actions → page
 | 10 (24/11) | Amis, synchronisation, stats partagées (docs/lot-10.md, docs/lot-10-avancement.md) : 0.21.0 = étape 1, infra Supabase et compte invisible — **fait** ; 0.22.0 = étapes 2 à 5, amis, rattachement, parties et stats partagées — **fait** ; 0.23.0 = étape 6, présence — **fait** ; 0.23.1 = relié au vrai projet Supabase — **fait** ; reste : essai à deux téléphones |
 | 0.24.0 | Profils des joueurs (4 onglets, statut synchronisé / local / ami), tableau des badges (vitrine par familles + chronologie), fenêtre de badge corrigée — **fait** |
 | 9.6 | docs/lot-9-6.md, docs/lot-9-6-avancement.md : 0.24.1 = A, séances des amis — **fait** ; 0.25.0 = B stats contextuelles + C sons contextuels — **fait** |
+| 0.25.1 | Partie et séance comptées et envoyées dès la dernière fléchette — **fait** ; refonte des infos (parties / entraînement, tuiles, stat → déroulé) : maquettes en attente du choix de Guillaume |
 | 11 | Recette |
+
+## État (version 0.25.1 : partie comptée dès la dernière fléchette ; refonte des infos en préparation)
+
+- **0.25.1** (26/11) : journal du téléphone de Patrick (Samsung) : séance X01 solo à 135 laissée sur « SÉANCE FINIE »
+  sans TERMINER, donc absente de ses stats. Maintenant une partie (X01, Cricket) ou une séance compte et part dès sa
+  dernière fléchette (`finishedAt`, `finishedOpen*`, détail : docs/cloud.md « Fin de partie »). Aucune migration
+  (champ facultatif `finishedAt` de l'enregistrement en cours). Test : tests/fin-poussee-parcours.test.js.
+- **Refonte de la présentation des infos** (demande du 26/11) : inventaire, organisation et indicateurs dans
+  docs/refonte-infos.md ; deux maquettes en images (A « deux espaces », B « barre du bas ») envoyées à Guillaume ;
+  le code attend son choix (plan : lot C de docs/refonte-infos.md).
 
 ## État (version 0.25.0 : lot 9.6 B et C, stats et sons contextuels)
 

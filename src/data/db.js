@@ -189,9 +189,14 @@ export function splitGames(records) {
 }
 
 /** Enregistrement d'une partie en cours (sans l'état d'affichage `ui`). */
-export const currentRecord = g => withDrinks(g, {
-  id: g.id, startedAt: g.startedAt, endedAt: null, config: g.config, darts: g.darts, validated: g.validated, abandoned: false,
-});
+export const currentRecord = g => {
+  const rec = withDrinks(g, {
+    id: g.id, startedAt: g.startedAt, endedAt: null, config: g.config, darts: g.darts, validated: g.validated, abandoned: false,
+  });
+  // 0.25.1 (champ facultatif) : instant de la dernière fléchette d'une partie finie restée sur l'écran de fin.
+  if (Number.isFinite(g.finishedAt)) rec.finishedAt = g.finishedAt;
+  return rec;
+};
 
 /** Lot 7 : verres de la partie (champ facultatif, absent s'il n'y en a pas : aucune migration). Lot 7.6 : aussi les
  *  champs facultatifs `shuffled` (ordre tiré au sort, pour la REVANCHE), `soiree` (identifiant de la soirée) et
@@ -322,6 +327,8 @@ export function trainingRecord(r) {
   };
   if (Array.isArray(r.blocks)) rec.blocks = r.blocks.map(b => { const t = cleanTarget(b); return t && { ...t, n: Math.max(1, Math.min(99, Math.round(Number(b.n)) || 9)) }; }).filter(Boolean);
   if (r.stopped === true) rec.stopped = true;
+  // 0.25.1 (champ facultatif) : séance finie (dernière fléchette) mais pas encore rangée : instant de sa fin.
+  if (rec.endedAt === null && Number.isFinite(r.finishedAt)) rec.finishedAt = r.finishedAt;
   // 0.13.0 (champs facultatifs, aucune migration) : jeu changé en cours de séance, note, séance mise de côté.
   if (Array.isArray(r.setChanges)) {
     const by = new Map();

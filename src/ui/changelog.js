@@ -2,6 +2,9 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.25.1', date: '2026-11-26', title: 'Partie comptée dès la dernière fléchette', items: [
+    'Une partie (X01, Cricket) ou une séance d\'entraînement compte dans les stats, les records et les badges dès sa dernière fléchette, et part chez tes amis aussitôt : plus besoin d\'appuyer sur ACCUEIL, REVANCHE ou TERMINER LA SÉANCE. ANNULER LA DERNIÈRE FLÉCHETTE sur l\'écran de fin la retire tant qu\'elle n\'est pas refinie.',
+  ] },
   { v: '0.25.0', date: '2026-11-26', title: 'Stats et sons selon le jeu', items: [
     'En tête des stats (profil › Parties, profil › Entraînement), une phrase en clair : « En progrès sur ta moyenne, en recul sur les busts. » Elle suit la période choisie.',
     'X01 en solo : fiche « Évolution » à la fin de chaque partie — moyenne, volées et fléchettes pour finir, hors cible, régularité (« tes volées varient de ±18 points »), busts et ce qu\'ils coûtent, moyenne au-dessus et en dessous de 100 restants, doubles de fin, meilleure et pire volée — avec une flèche verte (mieux) ou rouge (moins bien) par rapport à tes parties précédentes, et la répartition des volées (moins de 20, 20 à 39, 40 à 59, 60 et plus). Les mêmes chiffres en courbe dans les stats (filtre X01).',
