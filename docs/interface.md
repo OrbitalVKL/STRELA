@@ -1172,3 +1172,11 @@ d'affichage nouveaux (`modes`, `setup`, `profile`, `updSnooze`, `heatScale`), ch
   côte à côte, sur les filtres de l'écran. Bridge.saveFile accepte ces deux noms (.md en text/plain).
 - **Installer** (9.1, 9.2) : lien stable `releases/latest/download/strela.apk` ; page installer.html (Pages, version
   remplie au build) et écran `#/installer` (PARTAGER / COPIER LE LIEN) avec le même guide (src/ui/installguide.js).
+
+## Version 0.24.1 (26/11 : lot 9.6 A, séances d'entraînement des amis)
+
+- Profil d'un ami › Résumé, bloc « Ami » : section **Synchronisation** (`.frsync`) — ce téléphone (dernière
+  synchronisation), son téléphone (vu…), séances et parties reçues de chez lui, note sur quand une séance part, bouton
+  **RESYNCHRONISER** (`fr-resync` : tout renvoyer, tout recevoir de nouveau, sans doublon ; message dans le bloc).
+- Jeu de fléchettes d'une séance inconnu ici : « Jeu inconnu » (avant : « ? ») au détail, aux stats, à l'export.
+- Le reste est côté synchronisation : docs/cloud.md « Séances d'un ami (0.24.1) ».

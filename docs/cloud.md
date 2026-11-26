@@ -62,6 +62,28 @@ rattachement), src/engine/merge.js (fusion), src/engine/sync.js et src/ui/gamesy
 src/net/presence.js et src/ui/presence.js (présence). Ordre des étapes d'une synchronisation : compte, profil, amis,
 parties (envoi, suppressions, réception), présence.
 
+### Séances d'un ami (0.24.1, lot 9.6 A)
+
+- **Cause du 26/11** (journal du Pixel de Guillaume) : Patrick ajouté en ami à 21:09, 4 parties ou séances reçues de chez
+  lui sur la fiche « u:<uuid> » ; 20 s plus tard, son joueur local « Patrick » est rattaché (0.23.3). La fusion de la
+  0.23.3 ne reprenait que les parties avec moi : les séances de chez lui (store.friendTrainings) restaient sur
+  « u:<uuid> », fiche supprimée à la fusion — à personne, invisibles. La 0.23.4 a corrigé la fusion, pas les données
+  déjà faites ; et rien ne les faisait recevoir de nouveau (curseur passé, `friendsKey` inchangé).
+- **Réparation** (store.js › `repairOrphans`, à chaque lancement, sans réseau) : tout ce qui est noté « u:<uuid> » alors
+  qu'un joueur local porte `friend = uuid` lui revient.
+- **Reprise complète une fois** (gamesync.js › `RESYNC`) : au premier passage d'une version ≥ 0.24.1, chaque téléphone
+  renvoie tout (`resent`) et reçoit tout depuis le début (`resync`) ; chaque reçue remplace la copie de même
+  identifiant (aucun doublon). Monter `RESYNC` refait la même chose chez tous. Bouton RESYNCHRONISER du profil d'un ami
+  (`resyncAll` : `sent` vidé, `full`).
+- **Séance finie restée ouverte** (écran de fin sans TERMINER, appli quittée) : elle part quand même
+  (`finishedOpenTraining`, fin = l'instant où elle a été vue finie) et la synchronisation part dès la dernière
+  fléchette ; TERMINER la renvoie avec sa vraie fin. La copie reçue de sa propre séance en cours est ignorée.
+- **Jeu de fléchettes inconnu** : jamais un motif de rejet (le jeu n'est lu qu'à l'affichage, `anySetById`) ; affiché
+  « Jeu inconnu », nommé dès que les jeux de l'ami arrivent avec son profil.
+- **Journal** (SYNCHRO) : « envoi : N partie(s), M séance(s) », « envoi refusé : … », « réception : … (tout repris) »,
+  « réception rejetée : séance <id> (raison) » (illisible, pas finie, fléchettes illisibles), « séances en ligne de
+  « X » vues : N », « réparation : … ». Test : tests/seances-ami-parcours.test.js.
+
 ## Robustesse
 
 - **Format** : colonne `fmt` (profil, partie) = `CLOUD_FORMAT` (1). Une appli plus ancienne ignore les champs qu'elle ne

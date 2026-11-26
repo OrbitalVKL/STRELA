@@ -9,13 +9,15 @@
 //      le début quand un ami arrive ou que le format connu augmente.
 // Rien n'est perdu si le réseau tombe au milieu : ce qui n'a pas été confirmé repart la fois suivante.
 
-import { store, saveCloudKey, profilePlayer, applyReceived, friendPlayers } from './store.js';
+import { store, saveCloudKey, profilePlayer, applyReceived, friendPlayers, finishedOpenTraining } from './store.js';
 import { addSyncStep, cloudAccount } from './cloud.js';
 import { log } from './journal.js';
 import { toCloud, fromCloud, fingerprint } from '../engine/sync.js';
 import { CLOUD_FORMAT } from '../engine/cloud.js';
 
 const cs = () => store.cloudSync || {};
+/** 0.24.1 : version de la reprise complète faite une fois (monter ce nombre = tout recevoir de nouveau chez tous). */
+export const RESYNC = 1;
 const saveCs = patch => saveCloudKey('cloudSync', { ...cs(), ...patch });
 
 /** Identifiant local → UUID (mon profil, mes amis) ; pseudo et avatar (sans photo) des autres joueurs. */
@@ -39,6 +41,9 @@ export function shareContext(me) {
 export function ownRecords() {
   const games = [...store.games, ...store.ckGames].filter(g => !g.owner && !(g.online && g.online.role === 'guest'));
   const trs = store.trainings.filter(r => !r.owner && Number.isFinite(r.endedAt));
+  // 0.24.1 : une séance finie mais restée ouverte (écran de fin, appli quittée sans TERMINER) part aussi.
+  const open = finishedOpenTraining();
+  if (open) trs.push(open);
   return [...games.map(rec => ({ rec, kind: 'game' })), ...trs.map(rec => ({ rec, kind: 'training' }))];
 }
 
@@ -61,10 +66,12 @@ export function pendingCount() {
   return a ? pendingUploads(a.profileId).length + (cs().deleted || []).length : 0;
 }
 
+const what = row => (row && row.type === 'entrainement' ? 'séance' : 'partie');
+
 async function upload(call, me) {
   const todo = pendingUploads(me);
   if (!todo.length) return 0;
-  let n = 0;
+  let n = 0, nt = 0, missing = 0;
   for (let i = 0; i < todo.length; i += 20) {
     const chunk = todo.slice(i, i + 20);
     const r = await call('strela_envoyer', { p_parties: chunk.map(x => x.row) });
@@ -72,12 +79,13 @@ async function upload(call, me) {
     const ok = new Set((r && r.ok) || []);
     const refused = new Set((r && r.refusees) || []);
     for (const x of chunk) {
-      if (ok.has(x.row.id)) { sent[x.row.id] = x.fp; n++; } else if (refused.has(x.row.id)) sent[x.row.id] = `refus:${x.fp}`;
+      if (ok.has(x.row.id)) { sent[x.row.id] = x.fp; n++; if (x.row.type === 'entrainement') nt++; } else if (refused.has(x.row.id)) sent[x.row.id] = `refus:${x.fp}`;
+      else missing++;
     }
     saveCs({ sent });
-    if (refused.size) log('cloud', `envoi : ${refused.size} partie(s) refusée(s) (créées par un autre compte)`);
+    for (const x of chunk) if (refused.has(x.row.id)) log('cloud', `envoi refusé : ${what(x.row)} ${x.row.id} (créée par un autre compte)`);
   }
-  log('cloud', `envoi : ${n} partie(s) ou séance(s)`);
+  log('cloud', `envoi : ${n - nt} partie(s), ${nt} séance(s)${missing ? ` ; ${missing} sans réponse (repartent la fois suivante)` : ''}`);
   return n;
 }
 
@@ -97,10 +105,15 @@ async function receive(call, me) {
   // Tout reprendre : nouvel ami (son historique est plus ancien que le curseur), format plus récent désormais lisible.
   const friendsKey = friendPlayers().map(p => p.friend).sort().join(',');
   const tooNew = cs().tooNew || null;
-  if (cs().friendsKey !== friendsKey || (tooNew && tooNew <= CLOUD_FORMAT)) cursor = { maj: 0, id: '' };
+  // 0.24.1 : `resync` (RESYNC) — tout reprendre une fois pour les liens d'avant (séances d'un ami restées sur une
+  // ancienne fiche) ; `full` : bouton RESYNCHRONISER de la fiche d'un ami. Rien en double : chaque reçue remplace la
+  // copie d'ici de même identifiant.
+  const full = cs().full || (cs().resync || 0) < RESYNC;
+  if (full || cs().friendsKey !== friendsKey || (tooNew && tooNew <= CLOUD_FORMAT)) cursor = { maj: 0, id: '' };
   const me0 = profilePlayer();
   const friends = Object.fromEntries(friendPlayers().map(p => [p.friend, p.id]));
-  let total = 0, newer = 0;
+  let total = 0, newer = 0, games = 0, trs = 0, deleted = 0;
+  const byFriend = {};
   for (let page = 0; page < 50; page++) {
     const r = await call('strela_recevoir', { p_depuis: cursor.maj, p_apres_id: cursor.id });
     const rows = (r && Array.isArray(r.parties)) ? r.parties : [];
@@ -108,12 +121,19 @@ async function receive(call, me) {
     newer += items.filter(x => x.action === 'tooNew').length;
     const c = applyReceived(items);
     total += c.put + c.deleted;
+    games += c.games; trs += c.trainings; deleted += c.deleted;
+    for (const row of rows) if (row.createur !== me && row.type === 'entrainement' && row.etat !== 'supprimee') byFriend[row.createur] = (byFriend[row.createur] || 0) + 1;
+    for (const x of c.skipped) log('cloud', `réception rejetée : ${x.kind === 'training' ? 'séance' : x.kind === 'game' ? 'partie' : 'ligne'} ${x.id || '?'} (${x.why})`);
     if (rows.length) { const last = rows[rows.length - 1]; cursor = { maj: last.maj, id: last.id }; }
     saveCs({ cursor, friendsKey });
     if (!rows.length || (r && r.complet)) break;
   }
-  saveCs({ tooNew: newer ? CLOUD_FORMAT + 1 : null, tooNewCount: newer });
-  if (total) log('cloud', `réception : ${total} partie(s) ou séance(s)`);
+  saveCs({ tooNew: newer ? CLOUD_FORMAT + 1 : null, tooNewCount: newer, resync: RESYNC, full: false, ...(full ? { fullAt: Date.now() } : {}) });
+  if (total) log('cloud', `réception : ${games} partie(s), ${trs} séance(s)${deleted ? `, ${deleted} suppression(s)` : ''}${full ? ' (tout repris)' : ''}`);
+  for (const [uuid, k] of Object.entries(byFriend)) {
+    const p = store.players.find(q => q.friend === uuid);
+    if (p) log('cloud', `séances en ligne de « ${p.name} » vues : ${k}${full ? ' (toutes)' : ' (nouvelles)'}`);
+  }
   return total;
 }
 
@@ -128,6 +148,9 @@ addSyncStep('parties', async ({ call }) => {
   const me = cloudAccount().profileId;
   // Compte changé (sauvegarde importée, compte retrouvé, base reconstruite) : tout repart de zéro pour ce compte.
   if (cs().syncFor !== me) saveCs({ syncFor: me, sent: {}, deleted: [], cursor: { maj: 0, id: '' } });
+  // 0.24.1 : une fois, tout renvoyer (rattrapage : une séance qui n'était jamais partie part maintenant ; le serveur
+  // remplace chaque ligne de même identifiant, rien en double).
+  if ((cs().resent || 0) < RESYNC) { saveCs({ sent: {}, resent: RESYNC }); log('cloud', 'rattrapage : tout est renvoyé une fois'); }
   await upload(call, me);
   await deletions(call);
   if (!pendingUploads(me).length) sealMerges();
@@ -136,3 +159,11 @@ addSyncStep('parties', async ({ call }) => {
 
 /** Base en ligne reconstruite (strela_compte répond « nouveau ») : tout renvoyer. */
 export const resendAll = () => saveCs({ sent: {} });
+
+/** 0.24.1 : RESYNCHRONISER (fiche d'un ami) — tout renvoyer et tout recevoir de nouveau à la prochaine passe. */
+export const resyncAll = () => { saveCs({ sent: {}, full: true }); log('cloud', 'resynchronisation complète demandée'); };
+
+/** Séances d'un ami reçues sur ce téléphone (fiche de l'ami). */
+export const friendTrainingCount = p => [...store.trainings, ...store.friendTrainings].filter(r => r.player === p.id && r.owner === p.friend).length;
+/** Dernière reprise complète, dernière synchronisation de ce téléphone. */
+export const fullSyncAt = () => cs().fullAt || null;

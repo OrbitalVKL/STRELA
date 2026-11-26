@@ -160,6 +160,7 @@ export async function openStorage({ onVersionChange } = {}) {
   }
   store.db.storage = data.settings.storage || null;
   partitionReceived();
+  repairOrphans();
   store.cloudAuth = data.settings.cloudAuth && typeof data.settings.cloudAuth === 'object' ? data.settings.cloudAuth : null;
   store.cloudSync = data.settings.cloudSync && typeof data.settings.cloudSync === 'object' ? data.settings.cloudSync : {};
   return data;
@@ -321,6 +322,32 @@ function partitionReceived() {
   store.trainings = store.trainings.filter(r => !isFriendOnly(r, 'training'));
 }
 
+/**
+ * 0.24.1 (lot 9.6 A) : parties et séances reçues restées sur « u:<uuid> » alors que cet ami a été rattaché à un joueur
+ * local (fusion faite en 0.23.3 ou avant, qui ne reprenait pas ce qui était déjà reçu sans moi) : elles repassent au
+ * joueur local. Sans ça, elles n'étaient plus à personne (la fiche « u:… » a disparu à la fusion). Renvoie le nombre.
+ */
+export function repairOrphans() {
+  let n = 0;
+  const ops = [];
+  for (const p of [...store.players]) {
+    if (!p.friend || p.id === `u:${p.friend}`) continue;
+    const from = `u:${p.friend}`;
+    const ghost = store.players.find(q => q.id === from);
+    if (ghost && !ghost.remote) continue;
+    const used = [...store.games, ...store.ckGames, ...store.friendGames].some(g => g.config.players.includes(from))
+      || [...store.trainings, ...store.friendTrainings].some(r => r.player === from);
+    if (!used && !ghost) continue;
+    const rw = rewirePlayer(from, p.id);
+    ops.push(...rw.ops);
+    if (ghost) { store.players = store.players.filter(q => q.id !== from); ops.push({ store: 'players', del: from }); }
+    n += rw.games.length + rw.trainings.length;
+    log('cloud', `réparation : ${rw.games.length} partie(s) et ${rw.trainings.length} séance(s) reçues de « ${p.name} » rendues à son joueur (restées sur l'ancienne fiche d'ami)`);
+  }
+  if (ops.length) write(ops);
+  return n;
+}
+
 /** Lot 10, étape 5 : toutes les parties connues (les miennes et celles de mes amis entre eux) pour les stats, badges,
  *  records et classements — chaque calcul filtre par joueur. X01 seulement / Cricket seulement / séances. */
 export const allGames = () => (store.friendGames.length ? [...store.games, ...store.friendGames.filter(g => !isCricket(g))] : store.games);
@@ -348,7 +375,8 @@ export const receivedNote = (rec, what = 'partie') => `Cette ${what} vient du t�
  */
 export function applyReceived(items) {
   const ops = [];
-  const counts = { put: 0, deleted: 0 };
+  const counts = { put: 0, deleted: 0, games: 0, trainings: 0, skipped: [] };
+  const skip = (it, why) => counts.skipped.push({ id: it.id, kind: it.kind || '?', why });
   const byId = new Map(store.players.map(p => [p.id, p]));
   for (const it of items) {
     if (it.action === 'delete') {
@@ -361,6 +389,7 @@ export function applyReceived(items) {
       counts.deleted++;
       continue;
     }
+    if (it.action === 'skip') { skip(it, it.why); continue; }
     if (it.action !== 'put') continue;
     for (const rp of it.remotes || []) {
       const cur = byId.get(rp.id);
@@ -373,17 +402,20 @@ export function applyReceived(items) {
     }
     if (it.kind === 'training') {
       const rec = trainingRecord(it.rec);
-      if (!rec || rec.endedAt === null) continue;
+      if (!rec) { skip(it, 'illisible'); continue; }
+      if (rec.endedAt === null) { skip(it, 'pas finie'); continue; }
+      if (store.tr && store.tr.id === rec.id) continue; // la mienne, encore en cours ici (finie mais pas rangée)
       const local = store.trainings.find(x => x.id === rec.id);
       if (local && !local.owner && it.mine) continue; // la mienne, déjà ici : ce téléphone fait foi
-      try { trainingState(rec, rec.darts); } catch (e) { continue; }
+      try { trainingState(rec, rec.darts); } catch (e) { skip(it, `fléchettes illisibles (${e.message})`); continue; }
+      counts.trainings++;
       store.trainings = store.trainings.filter(x => x.id !== rec.id);
       store.friendTrainings = store.friendTrainings.filter(x => x.id !== rec.id);
       if (!rec.owner || withMe(rec, 'training')) store.trainings.push(rec); else store.friendTrainings.push(rec);
       ops.push({ store: 'trainings', put: rec });
     } else {
       const rec = closedRecord(it.rec, it.rec.abandoned, it.rec.endedAt ?? it.rec.startedAt);
-      if (!readable(rec)) continue;
+      if (!readable(rec)) { skip(it, 'illisible'); continue; }
       const list = isCricket(rec) ? 'ckGames' : 'games';
       const local = [...store.games, ...store.ckGames, ...store.friendGames].find(x => x.id === rec.id);
       if (local && !local.owner && it.mine) continue;
@@ -393,6 +425,7 @@ export function applyReceived(items) {
       store.friendGames = store.friendGames.filter(x => x.id !== rec.id);
       if (!rec.owner || withMe(rec, 'game')) store[list].unshift(rec); else store.friendGames.unshift(rec);
       ops.push({ store: 'games', put: rec });
+      counts.games++;
     }
     counts.put++;
   }
@@ -1173,7 +1206,18 @@ export function trThrow(dart) {
   r.darts = darts;
   saveTr();
   logTrDart(r, darts);
+  // 0.24.1 : séance finie (dernière fléchette) mais pas encore rangée (TERMINER) : elle part déjà chez les amis.
+  try { if (trainingState(r, darts).done) closed(); } catch (e) { /* */ }
   return true;
+}
+
+/** 0.24.1 : la séance en cours si elle est finie (toutes ses fléchettes jouées) mais pas rangée, telle qu'envoyée. */
+export function finishedOpenTraining() {
+  const r = store.tr;
+  if (!r || r.owner || !r.darts.length) return null;
+  try { if (!trainingState(r, r.darts).done) return null; } catch (e) { return null; }
+  if (!Number.isFinite(r.ui.doneAt)) r.ui.doneAt = Date.now();
+  return trainingRecord({ ...r, ...cleanSetChanges(r, r.darts.length), endedAt: r.ui.doneAt });
 }
 
 /** Journal (lot 9.5) : fléchette d'entraînement ajoutée, et en X01 / Cricket solo la volée close (total, bust, reste). */

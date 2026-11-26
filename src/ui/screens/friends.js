@@ -11,6 +11,7 @@ import { isApk } from '../native.js';
 import { qrSvg } from '../qr.js';
 import { cloud, cloudSupport, syncNow } from '../cloud.js';
 import { presenceOf } from '../presence.js';
+import { resyncAll, friendTrainingCount, fullSyncAt } from '../gamesync.js';
 import { fr, pendingRequests, requestFriend, answerRequest, removeFriend, mergeAsks, candidatesFor, decideMerge, undoMerge, undoableMerge } from '../friends.js';
 import { friendUrl, agoText, cleanFriendCode } from '../../engine/cloud.js';
 
@@ -193,6 +194,14 @@ export const actions = {
     if (await removeFriend(id) && onSheet) go('#/amis', { replace: true });
   },
   async 'fr-sync'() { const p = syncNow('amis'); refresh(); await p; refresh(); },
+  async 'fr-resync'() {
+    resyncAll();
+    const p = syncNow('resynchronisation'); refresh();
+    const ok = await p;
+    fr.msg = ok ? 'Tout est repris : ce qui est en ligne est ici, sans doublon.' : `Pas resynchronisé : ${cloud.error || 'pas de réseau'}. Ça reprendra à la prochaine synchronisation.`;
+    fr.bad = !ok;
+    refresh();
+  },
   'fr-scan'() { startScan(); },
   'fr-scan-stop'() { stopScan(); refresh(); },
   async 'fr-share'() {
@@ -210,6 +219,23 @@ export const actions = {
  * Bloc « Ami » du profil d'un ami (0.24.0 ; avant : sa fiche) : ce qui vient de son téléphone, ses jeux, rattacher un
  * joueur local, annuler une fusion, RETIRER.
  */
+/** 0.24.1 (lot 9.6 A) : où en est la synchronisation avec cet ami, et RESYNCHRONISER (tout renvoyer, tout recevoir). */
+function friendSyncHtml(p) {
+  const cs = store.cloudSync || {};
+  const nTr = friendTrainingCount(p);
+  const nGames = [...store.games, ...store.ckGames, ...store.friendGames].filter(g => g.owner === p.friend).length;
+  const full = fullSyncAt();
+  return `<div class="sec">Synchronisation</div>
+      <ul class="pline frsync">
+        <li>${ico('phone')}<span>Ce téléphone</span><small data-k="last">synchronisé ${esc(agoText(cs.lastSync))}</small></li>
+        <li>${ico('sync')}<span>Son téléphone</span><small data-k="seen">${esc(p.seen ? `vu ${agoText(p.seen)}` : 'jamais vu en ligne')}</small></li>
+        <li>${ico('target')}<span>Séances reçues</span><small data-k="trainings">${nTr}</small></li>
+        <li>${ico('history')}<span>Parties reçues</span><small data-k="games">${nGames}</small></li>
+      </ul>
+      <p class="note">Une séance part de son téléphone dès qu'elle est finie, appli ouverte et réseau présent ; elle arrive ici à ta prochaine synchronisation.${full ? ` Dernière reprise complète : ${esc(agoText(full))}.` : ''}</p>
+      <button type="button" class="btn ghost" data-act="fr-resync" ${cloud.busy ? 'disabled' : ''}>${ico('sync')}RESYNCHRONISER</button>`;
+}
+
 export function friendBlock(p) {
   const ask = fr.confirm === p.friend;
   const sets = Array.isArray(p.sets) ? p.sets.filter(s => s && !s.archived && typeof s.name === 'string') : [];
@@ -218,6 +244,7 @@ export function friendBlock(p) {
       ${p.id.startsWith('u:') ? `<a class="lrow" href="#/amis/rattacher/${esc(p.friend)}">${ico('players')}<span><b>Rattacher un joueur local</b><small>S'il avait déjà un joueur sur ce téléphone</small></span>${ico('chev')}</a>` : ''}
       ${undoableMerge(p.friend) ? `<div class="vibe" role="status"><b>FUSIONNÉ</b><span>Avec ton joueur local « ${esc(undoableMerge(p.friend).prev.name)} ». Rien n'est encore parti en ligne : la fusion s'annule.</span></div>
         <button type="button" class="btn ghost" data-act="fr-unmerge" data-arg="${esc(p.friend)}">ANNULER LA FUSION</button>` : ''}
+      ${friendSyncHtml(p)}
       ${sets.length ? `<div class="sec">Ses jeux de fléchettes <span class="n">${sets.length}</span></div><ul class="frlist">${sets.map(s => `<li class="frow"><span class="main"><b class="ell">${esc(s.name)}</b>${Number.isFinite(s.weight) ? `<small>${esc(s.weight)} g</small>` : ''}</span></li>`).join('')}</ul>` : ''}
       ${fr.msg ? `<div class="vibe${fr.bad ? ' bad' : ''}" role="status"><b>AMIS</b><span>${esc(fr.msg)}</span></div>` : ''}
       ${ask ? `<div class="confirm"><p><b>Retirer ${esc(p.name)} de tes amis ?</b></p><p class="small dim">Le lien est coupé dans les deux sens ; vos parties communes restent dans l'historique de chacun. Il redevient un joueur de ce téléphone.</p>

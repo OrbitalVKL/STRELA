@@ -2,6 +2,13 @@
 // la plus ancienne. Dates : publication de l'APK (releases apk-vX.Y.Z) ; avant l'APK, la version web seulement.
 // À compléter à chaque lot (une entrée par version de package.json).
 export const CHANGELOG = Object.freeze([
+  { v: '0.24.1', date: '2026-11-26', title: 'Séances d\'entraînement des amis', items: [
+    'Les séances d\'entraînement d\'un ami lié arrivent enfin : celles déjà reçues avant d\'avoir rattaché ton joueur local à ton ami lui sont rendues, et tout ce qui est en ligne est repris une fois (sans doublon).',
+    'Une séance finie part tout de suite chez tes amis, même si l\'écran de fin reste ouvert sans TERMINER.',
+    'Profil d\'un ami › Résumé, bloc Synchronisation : ta dernière synchronisation, la dernière fois que son téléphone a été vu, le nombre de séances et de parties reçues de chez lui, et RESYNCHRONISER (tout renvoyer, tout recevoir de nouveau).',
+    'Une séance dont le jeu de fléchettes n\'est pas connu ici est gardée et affichée « Jeu inconnu » ; elle prend le nom du jeu dès qu\'il arrive.',
+    'Journal de débogage : séances et parties envoyées, reçues, rejetées (avec la raison).',
+  ] },
   { v: '0.24.0', date: '2026-11-25', title: 'Profils des joueurs', items: [
     'Toucher un joueur ouvre son profil : avatar, chiffres clés et quatre onglets — Résumé, Parties, Entraînement, Badges. MODIFIER (en haut à droite) ouvre le formulaire d\'avant.',
     'Résumé : moyenne, parties, victoires, niveau d\'entraînement, records avec leur date, 5 meilleures volées, derniers badges, rivaux.',
