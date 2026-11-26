@@ -15,6 +15,9 @@ import { board, countOf, tally, currentPeriod, pickedBoard } from '../stats.js';
 import { gameDefis } from '../../../engine/defis.js';
 import { cricketPlayerStats } from '../../../engine/cricket.js';
 import { onesOf } from '../../../engine/soiree.js';
+import { VERSUS_METRICS, versusOf, eveningForm, eveningText, summaryLine } from '../../../engine/evolution.js';
+import { trend } from '../../../engine/trends.js';
+import { summaryHtml, arrow } from '../../evolution.js';
 
 const dec1 = v => (v === null || v === undefined || Number.isNaN(v) ? '—' : (Math.round(v * 10) / 10).toFixed(1).replace('.', ','));
 const DAYS = ['DIM.', 'LUN.', 'MAR.', 'MER.', 'JEU.', 'VEN.', 'SAM.'];
@@ -26,8 +29,8 @@ const DAYS = ['DIM.', 'LUN.', 'MAR.', 'MER.', 'JEU.', 'VEN.', 'SAM.'];
 export const METRICS = Object.freeze([
   { k: 'average', label: 'Moyenne', fmt: avg, dir: 1, game: s => s.average, all: s => s.average,
     info: 'Moyenne sur 3 fléchettes : points marqués ÷ fléchettes lancées × 3. Un bust compte 0.' },
-  { k: 'first9', label: '9 premières', fmt: avg, dir: 1, game: s => s.first9, all: s => s.first9,
-    info: 'Même calcul, sur les 3 premières volées de chaque manche : le niveau quand la cible est grande ouverte.' },
+  { k: 'first9', label: 'Moyenne des 9 premières fléchettes', chip: '9 premières fléchettes', fmt: avg, dir: 1, game: s => s.first9, all: s => s.first9,
+    info: 'Ton niveau de scoring en début de partie, avant que la fin de partie compte (même calcul que la moyenne, sur les 3 premières volées de chaque manche).' },
   { k: 'winRate', label: 'Victoires', fmt: pct, dir: 1, all: s => (s.played ? s.won / s.played : null),
     info: 'Parties gagnées ÷ parties jouées (abandonnées comprises).' },
   { k: 'bestVisit', label: 'Meilleure volée', fmt: int, dir: 1, game: s => s.bestVisit, all: s => s.bestVisit,
@@ -205,7 +208,7 @@ function chartBlock(games, pid, inFold = false) {
   const others = [...new Set(games.flatMap(g => g.config.players))].filter(id => id !== pid && store.players.some(p => p.id === id && !p.archived && !p.remote));
   if (ui.compare === pid || (ui.compare && !others.includes(ui.compare))) ui.compare = null;
   const pts = series(games, pid, m, ui.compare);
-  const chip = x => `<button type="button" class="chip2" data-act="v2-metric" data-arg="${x.k}" aria-pressed="${x.k === m.k}">${esc(x.label)}</button>`;
+  const chip = x => `<button type="button" class="chip2" data-act="v2-metric" data-arg="${x.k}" aria-pressed="${x.k === m.k}">${esc(x.chip || x.label)}</button>`;
   const z = ui.zoom;
   const zoom = `<div class="zoom" role="group" aria-label="Zoom">
       <button type="button" data-act="v2-zoom" data-arg="out" ${z <= 1 ? 'disabled' : ''} aria-label="Dézoomer">${ico('zoomout')}</button>
@@ -341,6 +344,62 @@ const pfold = (key, title, sub, body) => (body ? fold(key, `<span class="ft">${t
  * toujours visibles, puis des blocs repliables (score et volées, précision, finition, défis, courbe, meilleures et pires
  * volées, face-à-face, verres, Cricket, carte). Records et badges : onglets Résumé et Badges.
  */
+// ------------------------------------------------------------------ lot 9.6 B4 : ce qui se compare entre joueurs
+/** Résumé en clair : moyenne, busts et meilleure volée, partie après partie sur la période. */
+function multiSummary(st) {
+  const tl = [...st.timeline].sort((a, b) => a.at - b.at).map(x => x.average);
+  const pg = [...st.perGame].reverse();
+  return summaryLine([
+    { short: 'ta moyenne', t: trend(tl, 1) },
+    { short: 'les busts', t: trend(pg.map(x => x.busts), -1) },
+    { short: 'ta meilleure volée', t: trend(pg.map(x => x.best), 1) },
+  ]);
+}
+
+/** Parties de la dernière soirée du joueur (même soirée, sinon même jour que sa dernière partie). */
+export function lastEvening(games, pid) {
+  const mine = games.filter(g => g.config.players.includes(pid)).sort((a, b) => b.startedAt - a.startedAt);
+  if (!mine.length) return [];
+  const last = mine[0];
+  const day = t => new Date(t).toDateString();
+  return mine.filter(g => (last.soiree ? g.soiree === last.soiree : !g.soiree && day(g.startedAt) === day(last.startedAt)));
+}
+
+/** Forme du soir : moyenne de sa dernière soirée contre sa moyenne habituelle (ses autres parties de la période). */
+export function formOf(games, pid) {
+  const ev = lastEvening(games, pid);
+  if (!ev.length) return null;
+  const ids = new Set(ev.map(g => g.id));
+  const rest = games.filter(g => !ids.has(g.id));
+  const f = eveningForm(playerStats(ev, pid).average, playerStats(rest, pid).average, ev.length);
+  return f ? { ...f, at: ev[0].startedAt } : null;
+}
+function formHtml(games, pid) {
+  const f = formOf(games, pid);
+  if (!f) return '';
+  return `${sec('Forme du soir', 'forme')}
+    ${infoBox('forme', 'La moyenne de ta dernière soirée (ou de ton dernier jour de jeu) comparée à ta moyenne habituelle : tes autres parties de la période.')}
+    <ul class="evl"><li data-k="forme"><span>${esc(when(f.at))} · ${plural(f.games, 'partie', 'parties')}</span><b>${avg(f.tonight)}</b>${arrow(f.state, f.usual, avg)}</li></ul>
+    <p class="note">${esc(eveningText(f))}</p>`;
+}
+
+/** Face aux autres : les chiffres qui se comparent, ce joueur et ses amis liés (ou moi, pour un ami). */
+function versusFold(games, pid) {
+  const p = playerById(pid);
+  const me = profilePlayer();
+  const others = p.friend ? (me && me.id !== pid ? [me] : []) : store.players.filter(q => q.friend && q.id !== pid && !q.archived);
+  const cols = [p, ...others].map(q => ({ q, v: versusOf(playerStats(games, q.id)) })).filter((c, i) => i === 0 || c.v.played);
+  if (cols.length < 2) return '';
+  const shown = cols.slice(0, 3);
+  const best = m => { const vs = shown.map(c => c.v[m.k]).filter(v => v !== null && v !== undefined); return vs.length ? (m.dir > 0 ? Math.max(...vs) : Math.min(...vs)) : null; };
+  const f = m => (m.fmt === 'pct' ? pct : m.fmt === 'int' ? v => (v === null || v === undefined ? '—' : String(v)) : avg);
+  return pfold('pp-versus', p.friend ? 'Face à moi' : 'Face à mes amis', shown.slice(1).map(c => c.q.name).join(', '), `
+    ${infoBox('versus', `Sur les parties de la période (celles jouées ensemble et celles de chacun chez lui) : ${VERSUS_METRICS.map(m => `<b>${esc(m.label)}</b> : ${esc(m.info)}`).join(' ')} En gras : le meilleur de la ligne.`)}
+    <table class="sectab vstab"><thead><tr><th>${infoBtn('versus')}</th>${shown.map(c => `<th class="ell">${esc(c.q.name)}</th>`).join('')}</tr></thead><tbody>
+    ${VERSUS_METRICS.map(m => { const b = best(m); return `<tr data-k="${m.k}"><th>${esc(m.label)}</th>${shown.map(c => `<td${c.v[m.k] !== null && c.v[m.k] === b && shown.length > 1 ? ' class="vbest"' : ''}>${f(m)(c.v[m.k])}</td>`).join('')}</tr>`; }).join('')}
+    <tr><th>Parties</th>${shown.map(c => `<td>${c.v.played}</td>`).join('')}</tr></tbody></table>`);
+}
+
 export function playerGamesHtml(pid) {
   const p = playerById(pid);
   const games = bySource(inPeriod(allGames(), currentPeriod()));
@@ -366,12 +425,15 @@ export function playerGamesHtml(pid) {
   const drinks = drinksBlock(games, pid);
   return `<div class="stats2">${head}
     <div class="pad">
-      ${infoBox('score', `<b>Moyenne</b> : ${metric('average').info} <b>9 premières</b> : ${metric('first9').info}`)}
+      ${summaryHtml(multiSummary(st), 'Pas encore de tendance nette sur la période (il faut au moins quatre parties).')}
+      ${formHtml(games, pid)}
+      ${infoBox('score', `<b>Moyenne</b> : ${metric('average').info} <b>Moyenne des 9 premières fléchettes</b> : ${metric('first9').info}`)}
       <div class="kpis" style="margin-top:12px">
         ${k('average', 'Moyenne sur 3 fléchettes', avg(st.average), 'hero wide')}
-        ${k('first9', '9 premières', avg(st.first9))}${k('won', 'Victoires', `${st.won}<small> / ${st.played}</small>`)}
+        ${k('first9', 'Moyenne des 9 premières fléchettes', avg(st.first9), 'w2')}${k('won', 'Victoires', `${st.won}<small> / ${st.played}</small>`)}
       </div>
       <div class="pfolds">
+      ${versusFold(games, pid)}
       ${pfold('pp-score', 'Score et volées', `meilleure ${st.bestVisit} · 100+ ${st.ton + st.ton40 + st.max}`, `
         ${infoBox('pire', `<b>Pire volée</b> : ${metric('worstVisit').info}`)}
         <div class="kpis">${k('bestVisit', 'Meilleure volée', st.bestVisit)}${k('worstVisit', `Pire volée ${infoBtn('pire')}`, st.worstVisit ?? '—')}
@@ -476,7 +538,7 @@ export function rankingScreen() {
   const m = metric(ui.rank);
   const list = ranked(rows, m);
   const last = list.filter(r => r.vals[m.k] !== null && r.vals[m.k] !== undefined).length - 1;
-  const chip = x => `<button type="button" class="chip2" data-act="v2-rank" data-arg="${x.k}" aria-pressed="${x.k === m.k}">${esc(x.label)}</button>`;
+  const chip = x => `<button type="button" class="chip2" data-act="v2-rank" data-arg="${x.k}" aria-pressed="${x.k === m.k}">${esc(x.chip || x.label)}</button>`;
   const table = list.map((r, i) => {
     const v = r.vals[m.k];
     const tag = i === 0 && v !== null ? `<span class="tag inv">${m.top || (m.dir ? 'EN TÊTE' : 'LE PLUS')}</span>` : i === last && i > 0 ? `<span class="tag">${m.dir ? 'LANTERNE ROUGE' : 'LE MOINS'}</span>` : '';

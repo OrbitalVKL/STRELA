@@ -84,6 +84,8 @@
   /* Bandeau des pages de stats (lot 8 du 23/11, 3.6) : une teinte par mode, mêlée au fond du thème */
   --mode-train: color-mix(in srgb, var(--board-green) 24%, var(--bg));
   --mode-soiree: color-mix(in srgb, var(--dart-or) 26%, var(--bg));
+  /* Lot 9.6 B : flèche « mieux » des stats (verte, demandée au cahier) ; « moins bien » = --red-text */
+  --good-text: color-mix(in srgb, var(--board-green) 70%, var(--fg));
   /* Fléchettes (armurerie, 0.13.0) : mêmes couleurs dans les deux thèmes ; voir DART_COLORS de theme.js */
   --dart-noir: #1B1D1F;
   --dart-argent: #B9BEC3;

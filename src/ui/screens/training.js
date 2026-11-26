@@ -35,6 +35,9 @@ import { sound, dartSound } from '../feedback.js';
 import { bindBoardInput, boardHint, frozenLoupe } from '../boardinput.js';
 import { isLandscape } from './game.js';
 import { infoBtn, infoBox } from '../info.js';
+import { x01EvolutionHtml, targetCompareHtml } from '../evolution.js';
+import { trainStatsFilter } from './trainstats.js';
+import { inPeriod } from '../../engine/trends.js';
 import { heatScale } from '../heat.js';
 import { featChips } from '../trainhonours.js';
 
@@ -139,6 +142,14 @@ export function levelCard(pid) {
 /** Séances closes et en cours (lot 10 : aussi celles d'un ami faites chez lui : son niveau et le coach sont les mêmes
  * que chez lui, comme ses stats). */
 const allSessions = () => [...allTrainings(), ...(store.tr ? [store.tr] : [])];
+/** Lot 9.6 B : séances closes du même joueur et du même exercice, avant celle-ci, dans la période des stats (plus
+ *  anciennes d'abord) ; mises de côté exclues. */
+function previousSame(r) {
+  let b = null;
+  try { b = trainStatsFilter().bounds; } catch (e) { /* */ }
+  return allTrainings().filter(x => x.id !== r.id && x.player === r.player && x.exercise === r.exercise && !x.excluded && x.darts.length
+    && Number.isFinite(x.endedAt) && x.startedAt < r.startedAt && (!b || inPeriod(x.startedAt, b))).sort((p, q) => p.startedAt - q.startedAt);
+}
 /** Dernière séance complète d'un exercice (la plus récente, toutes séances confondues). */
 const lastOf = (pid, key) => allTrainings().filter(r => r.player === pid && r.exercise === key && !r.stopped && !r.excluded).reduce((m, r) => (!m || r.startedAt > m.startedAt ? r : m), null);
 
@@ -820,7 +831,7 @@ function gameAnalysisHtml(r, a, key) {
     kpis.push(k('doubles', 'Doubles', pctOf(x.doubleRate)));
     kpis.push(k('best', 'Meilleure volée', String(x.bestVisit)));
     kpis.push(k('tons', '100 et plus', String(x.ton + x.ton40 + x.max)));
-    kpis.push(k('first9', '9 premières (moy.)', dec1(x.first9)));
+    kpis.push(k('first9', 'Moyenne des 9 premières fléchettes', dec1(x.first9), 'w2'));
     kpis.push(k('busts', 'Bust', String(x.busts)));
     if (x.defis && x.defis.length) kpis.push(k('defis', 'Défis réussis', `${x.defis.filter(d => d.ok).length}<small> / ${x.defis.length}</small>`));
   } else {
@@ -836,10 +847,10 @@ function gameAnalysisHtml(r, a, key) {
   if (kpis.length % 2 === 0) kpis.push(k('pts', 'Points marqués', String(r.darts.reduce((n, d) => n + pointsOf(d), 0))));
   const hb = heatBoard(r.darts, 260);
   const legs = x.game === 'x01'
-    ? `<table class="sectab trtab"><thead><tr><th>Manche</th><th>Fl.</th><th>Moy.</th><th>Finition</th></tr></thead><tbody>${x.legs.map(l => `<tr><th>${l.number}</th><td>${l.darts}</td><td>${dec1(l.average)}</td><td>${l.done ? l.finish : '—'}</td></tr>`).join('')}</tbody></table>`
-    : `<table class="sectab trtab"><thead><tr><th>Manche</th><th>Volées</th><th>Fl.</th><th>MPR</th></tr></thead><tbody>${x.legs.map(l => `<tr><th>${l.number}${l.done ? '' : ' …'}</th><td>${l.rounds}</td><td>${l.darts}</td><td>${dec2(l.mpr)}</td></tr>`).join('')}</tbody></table>
+    ? `<table class="sectab trtab"><thead><tr><th>Manche</th><th>Fléchettes</th><th>Moyenne</th><th>Finition</th></tr></thead><tbody>${x.legs.map(l => `<tr><th>${l.number}</th><td>${l.darts}</td><td>${dec1(l.average)}</td><td>${l.done ? l.finish : '—'}</td></tr>`).join('')}</tbody></table>`
+    : `<table class="sectab trtab"><thead><tr><th>Manche</th><th>Volées</th><th>Fléchettes</th><th>MPR</th></tr></thead><tbody>${x.legs.map(l => `<tr><th>${l.number}${l.done ? '' : ' …'}</th><td>${l.rounds}</td><td>${l.darts}</td><td>${dec2(l.mpr)}</td></tr>`).join('')}</tbody></table>
        <div class="sec">Marques par cible</div><div class="clockg">${CRICKET_TARGETS.map(t => `<span><small>${t === 25 ? 'B' : t}</small><b>${x.marksByTarget[t]}</b></span>`).join('')}</div>`;
-  const bySet = x.bySet ? `<div class="sec">Par jeu de fléchettes</div><table class="sectab trtab"><thead><tr><th>Jeu</th><th>Fl.</th><th>${x.game === 'x01' ? 'Moy.' : 'MPR'}</th><th>T %</th><th>D %</th></tr></thead><tbody>
+  const bySet = x.bySet ? `<div class="sec">Par jeu de fléchettes</div><table class="sectab trtab"><thead><tr><th>Jeu</th><th>Fléchettes</th><th>${x.game === 'x01' ? 'Moyenne' : 'MPR'}</th><th>Triples</th><th>Doubles</th></tr></thead><tbody>
     ${x.bySet.map(y => `<tr><th class="ell">${esc(y.setId ? (anySetById(y.setId) || { name: 'Jeu inconnu' }).name : 'Sans jeu noté')}</th><td>${y.darts}</td><td>${x.game === 'x01' ? dec1(y.value) : dec2(y.value)}</td><td>${pctOf(y.triples / y.n)}</td><td>${pctOf(y.doubles / y.n)}</td></tr>`).join('')}</tbody></table>` : '';
   // Lot 9.5 (C2) : en tête, le nombre de volées et de fléchettes (celles du moteur : un bust à la 1re fléchette est une
   // volée d'une fléchette) ; sous la cible, la grille des volées (fléchettes, total, reste, bust).
@@ -847,6 +858,7 @@ function gameAnalysisHtml(r, a, key) {
   const busts = vols.filter(v => v.bust).length;
   const sum = `<p class="trsum"><b>${plural(vols.length, 'volée', 'volées')}</b><span>${plural(r.darts.length, 'fléchette', 'fléchettes')}${x.game === 'x01' && busts ? ` · ${plural(busts, 'bust', 'bust')}` : ''}</span></p>`;
   return `${sum}<div class="kpis">${kpis.join('')}</div>${goalLine(r, a)}
+    ${x.game === 'x01' ? x01EvolutionHtml(r, previousSame(r), key) : ''}
     <div class="sec">Analyse du coach${infoBtn(`tr-an-${key}`)}</div>
     ${infoBox(`tr-an-${key}`, x.game === 'x01'
       ? '<b>Moyenne</b> : points marqués pour 3 fléchettes (un bust compte 0). <b>Finition</b> : fléchettes lancées quand une seule pouvait finir (un double en sortie double), et combien ont fini. <b>Triples</b>, <b>doubles</b> : part des fléchettes dans un triple, dans un double (le 50 compte comme double).'
@@ -903,13 +915,14 @@ function analysisHtml(r, a, key) {
   }
   const goal = goalLine(r, a);
   // Par jeu de fléchettes, quand il a changé pendant la séance.
-  const bySet = a.extra.bySet ? `<div class="sec">Par jeu de fléchettes</div><table class="sectab trtab"><thead><tr><th>Jeu</th><th>Fl.</th><th>Préc.</th><th>Grp.</th></tr></thead><tbody>
+  const bySet = a.extra.bySet ? `<div class="sec">Par jeu de fléchettes</div><table class="sectab trtab"><thead><tr><th>Jeu</th><th>Fléchettes</th><th>Dans la cible</th><th>Groupement (cm)</th></tr></thead><tbody>
     ${a.extra.bySet.map(x => `<tr><th class="ell">${esc(x.setId ? (anySetById(x.setId) || { name: 'Jeu inconnu' }).name : 'Sans jeu noté')}</th><td>${x.darts}</td><td>${pctOf(x.rate)}</td><td>${x.points >= 3 && x.spread !== null ? dec1(x.spread / 10) : '—'}</td></tr>`).join('')}</tbody></table>` : '';
   return `<div class="kpis">${kpis.join('')}</div>${goal}
     ${`<div class="sec">Analyse du coach${infoBtn(`tr-an-${key}`)}</div>`}
     ${infoBox(`tr-an-${key}`, 'Écarts mesurés sur une vraie cible (en centimètres) : chaque fléchette est placée au point touché (saisie sur la cible) ou au milieu de sa zone (saisie au pavé). <b>Croix</b> : point visé ; <b>carré</b> : centre des impacts ; le trait entre les deux est l\'écart moyen. <b>Groupement</b> : distance moyenne des fléchettes à leur centre (plus c\'est petit, plus elles sont groupées).')}
     ${messagesHtml(a)}
-    ${boards}${detail}${/data-act="tr-focus"/.test(detail) ? '<p class="note small">Touche un secteur du tableau : la cible ne montre que les fléchettes lancées en le visant ; touche-le à nouveau pour tout revoir.</p>' : ''}${bySet}`;
+    ${boards}${detail}${/data-act="tr-focus"/.test(detail) ? '<p class="note small">Touche un secteur du tableau : la cible ne montre que les fléchettes lancées en le visant ; touche-le à nouveau pour tout revoir.</p>' : ''}
+    ${a.darts ? targetCompareHtml(r, previousSame(r), key, v => (sv ? fmtValue({ ...sv, v }) : pctOf(v))) : ''}${bySet}`;
 }
 
 /** Détail d'un jeu de cible : une case par secteur, trou, manche ou volée. */

@@ -7,6 +7,9 @@
 // Pire volée : sans les bust ni les volées de finition (comme les Stats).
 // 0.11.1 (demande de Guillaume) : sections repliables, plus aucun tableau qui dépasse de l'écran (cartes des joueurs au
 // lieu du tableau large, badges et défis en listes), chiffres enrichis, défis de la soirée ; rapport en 4 feuilles.
+import { allGames } from '../../store.js';
+import { playerStats } from '../../../engine/stats.js';
+import { eveningForm } from '../../../engine/evolution.js';
 import { store, playerById, cumulativeDrinksFix, applyCumulativeFix, undoCumulativeFix, cumulativeFixed, tourneeDrinks, applyTourneeFix, undoTourneeFix, tourneeFixed } from '../../store.js';
 import { infoSec, infoBox, infoBtn } from '../../info.js';
 import { tallyText, litersText, drinksText } from '../../../engine/alcohol.js';
@@ -82,10 +85,14 @@ export function soireeDashScreen(sid) {
   const won = soireeBadges(games, m);
   const nBadges = id => won.filter(x => x.id === id).length;
   const kp = (label, value, cls = '') => `<div class="pk${cls ? ` ${cls}` : ''}"><small>${label}</small><b>${value}</b></div>`;
+  // Lot 9.6 B4 : forme du soir — moyenne de la soirée contre la moyenne habituelle du joueur (ses autres parties).
+  const ids = new Set(games.map(g => g.id));
+  const others = allGames().filter(g => !ids.has(g.id));
+  const form = r => { const f = eveningForm(r.average, playerStats(others, r.id).average); if (!f) return ''; const d = `${f.diff >= 0 ? '+' : '−'}${avg(Math.abs(f.diff))}`; return ` · <span class="evd ${f.state}">forme ${f.state === 'better' ? '▲' : f.state === 'worse' ? '▼' : '='} ${d}</span>`; };
   const pcards = `<ul class="pcards">${m.rows.map((r, i) => `<li><a class="pch" href="#/stats/${esc(r.id)}">${avatarHtml(playerById(r.id), 32)}<span class="col"><span class="nm ell">${esc(r.name)}</span>
-      <small>${i + 1 === 1 ? '1ER' : `${i + 1}E`} · ${plural(r.won, 'victoire', 'victoires')} en ${plural(r.played, 'partie', 'parties')}</small></span>${ico('chev')}</a>
+      <small>${i + 1 === 1 ? '1ER' : `${i + 1}E`} · ${plural(r.won, 'victoire', 'victoires')} en ${plural(r.played, 'partie', 'parties')}${form(r)}</small></span>${ico('chev')}</a>
     <div class="pks">${[
-      kp('Moyenne', dec1(r.average), 'big'), kp('9 premières', dec1(r.first9)), kp('Meilleure', r.best || '—'),
+      kp('Moyenne', dec1(r.average), 'big'), kp('9 premières fléchettes', dec1(r.first9)), kp('Meilleure', r.best || '—'),
       kp('Pire', r.worst ?? '—'), kp('100+', r.tons), kp('140+', r.ton40),
       kp('180', r.max), kp('Bust', r.busts), kp('Triples', pct(r.tripleRate)),
       kp('Doubles', pct(r.doubleRate)), kp('Finition', r.bestFinish || '—'), kp('Manche', r.shortestLeg ? `${r.shortestLeg} fl.` : '—'),
@@ -172,7 +179,7 @@ export function soireeDashScreen(sid) {
         <li><b>${m.totals.defis ? `${m.totals.defisOk}<small>/${m.totals.defis}</small>` : '—'}</b><small>défis réussis</small></li><li><b>${won.length}</b><small>badges</small></li>
       </ul>
       ${fsec('dash-hl', 'Faits marquants', ` <span class="n">${m.highlights.length}</span>`, 'Le meilleur et le pire de la soirée. Pire volée : sans les bust ni les volées de finition. Le plus de 1 : fléchettes tombées dans le 1 (le roi des uns de la soirée). Hors cible : fléchettes à 0 (RATÉ). Taux de triples : 30 fléchettes au moins. Touchez un joueur (podium, cartes, verres) pour ouvrir ses stats ; le retour revient ici.', `<ul class="hls">${cards}</ul>`)}
-      ${fsec('dash-players', 'Joueurs', ` <span class="n">${m.rows.length}</span>`, 'Une carte par joueur, dans l\'ordre du podium. Moyenne et 9 premières : sur 3 fléchettes ; pire volée sans les bust ni les finitions ; 140+ compte les 180 ; triples : fléchettes dans un triple ; doubles : fléchettes qui ont fini la manche quand une seule pouvait finir ; finition : plus grand reste fini en une volée ; manche : la plus courte gagnée, en fléchettes ; défis : réussis / tirés ; badges : gagnés ce soir.', pcards)}
+      ${fsec('dash-players', 'Joueurs', ` <span class="n">${m.rows.length}</span>`, 'Une carte par joueur, dans l\'ordre du podium. Forme : la moyenne de la soirée comparée à la moyenne habituelle du joueur (ses autres parties ; ▲ au-dessus, ▼ en dessous). Moyenne et moyenne des 9 premières fléchettes (ton niveau de scoring en début de partie) : sur 3 fléchettes ; pire volée sans les bust ni les finitions ; 140+ compte les 180 ; triples : fléchettes dans un triple ; doubles : fléchettes qui ont fini la manche quand une seule pouvait finir ; finition : plus grand reste fini en une volée ; manche : la plus courte gagnée, en fléchettes ; défis : réussis / tirés ; badges : gagnés ce soir.', pcards)}
       ${fsec('dash-defis', 'Défis de la soirée', ` <span class="n">${m.totals.defis}</span>`, 'Les défis tirés au sort pendant les parties de la soirée, dans l\'ordre (P2 : 2e partie de la soirée), avec leur résultat : étoile rouge pleine si réussi, grise et vide si raté (les gages ne sont pas notés dans les verres). En haut, les réussis et les ratés de chacun. Touchez un défi pour ouvrir sa partie.', defisBody)}
       ${fsec('dash-badges', 'Badges de la soirée', ` <span class="n">${won.length}</span>`, 'Les badges gagnés pendant les parties de la soirée, joueur par joueur : un badge n\'est gagné qu\'une fois (le premier 180…), sauf les badges à rangs (bronze, argent, or), cumulés sur toutes les parties. Touchez un badge pour sa signification, et la partie et la volée où il a été gagné.', badgesBody)}
       ${fsec('dash-drinks', 'Verres', ` <span class="n">${drinksText(m.tally)}</span>`, 'Les verres de chacun sur toute la soirée : verres de 25 cl et pintes de 50 cl comptés à part, et le volume bu ; les verres pris entre deux parties (écran Soirée) comptent aussi. Un oubli ou une erreur dans une partie : ouvrez la partie (section Parties), section Verres, et corrigez avec − et +. Si les verres ont été resaisis dans chaque nouvelle partie (avant le mode soirée), le bouton ci-dessous ne garde que les verres nouveaux de chaque partie. Les tournées notées par l\'ancienne version (TOURNÉE SERVIE, gages des défis, un verre pour tous) peuvent être retirées d\'un appui, et remises.', `<ul class="dlist2">${drinkRows}</ul>${tfix}${fix}`)}
